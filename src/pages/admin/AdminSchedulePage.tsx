@@ -73,32 +73,34 @@ export function AdminSchedulePage() {
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const fetchData = async () => {
-    const [classRes, typeRes, allProfilesRes] = await Promise.all([
+    const [classRes, typeRes, coachRes] = await Promise.all([
       supabase
         .from('scheduled_classes')
         .select('*, class_type:class_types(*)')
         .order('starts_at', { ascending: true }),
       supabase.from('class_types').select('*').eq('is_active', true).order('name'),
-      // Fetch all profiles — avoids RLS issues with user_roles
-      supabase.from('profiles').select('*').order('display_name'),
+      // Vue SQL qui bypass les RLS circulaires sur user_roles
+      supabase.from('coach_profiles').select('*').order('display_name'),
     ])
 
     const rawClasses = (classRes.data as ScheduledClass[]) ?? []
     setClassTypes((typeRes.data as ClassType[]) ?? [])
 
-    const allProfiles = (allProfilesRes.data as Profile[]) ?? []
-    const profileMap = new Map(allProfiles.map(p => [p.id, p]))
+    const coachList = (coachRes.data as Profile[]) ?? []
+    setCoaches(coachList)
+    const coachMap = new Map(coachList.map(c => [c.id, c]))
 
-    // Attach coach to each class
-    for (const sc of rawClasses) {
-      if (sc.coach_id) {
-        sc.coach = profileMap.get(sc.coach_id) as Profile
+    // Attach coach to each class (peut aussi être un ancien coach pas dans la vue)
+    if (rawClasses.length > 0) {
+      const missingCoachIds = [...new Set(rawClasses.map(sc => sc.coach_id).filter(id => id && !coachMap.has(id)))]
+      if (missingCoachIds.length > 0) {
+        const { data: extraProfiles } = await supabase.from('profiles').select('*').in('id', missingCoachIds)
+        for (const p of extraProfiles ?? []) coachMap.set(p.id, p as Profile)
+      }
+      for (const sc of rawClasses) {
+        if (sc.coach_id) sc.coach = coachMap.get(sc.coach_id) as Profile
       }
     }
-
-    // Coaches = all profiles who are already assigned to at least one class
-    // + we show all profiles in the dropdown so admin can assign anyone
-    setCoaches(allProfiles)
 
     setClasses(rawClasses)
     setSelectedIds(new Set())
