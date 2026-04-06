@@ -73,29 +73,32 @@ export function AdminSchedulePage() {
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const fetchData = async () => {
-    const [classRes, typeRes, coachRolesRes] = await Promise.all([
+    const [classRes, typeRes, allProfilesRes] = await Promise.all([
       supabase
         .from('scheduled_classes')
         .select('*, class_type:class_types(*)')
         .order('starts_at', { ascending: true }),
       supabase.from('class_types').select('*').eq('is_active', true).order('name'),
-      supabase.from('user_roles').select('user_id').eq('role', 'coach'),
+      // Fetch all profiles — avoids RLS issues with user_roles
+      supabase.from('profiles').select('*').order('display_name'),
     ])
 
     const rawClasses = (classRes.data as ScheduledClass[]) ?? []
     setClassTypes((typeRes.data as ClassType[]) ?? [])
 
-    const coachIds = (coachRolesRes.data ?? []).map((r: { user_id: string }) => r.user_id)
-    const allCoachIds = [...new Set([...coachIds, ...rawClasses.map(c => c.coach_id)])]
-    if (allCoachIds.length > 0) {
-      const { data: coachProfiles } = await supabase
-        .from('profiles').select('*').in('id', allCoachIds).order('display_name')
-      setCoaches((coachProfiles as Profile[]) ?? [])
-      const coachMap = new Map((coachProfiles ?? []).map(c => [c.id, c]))
-      for (const sc of rawClasses) {
-        sc.coach = coachMap.get(sc.coach_id) as Profile
+    const allProfiles = (allProfilesRes.data as Profile[]) ?? []
+    const profileMap = new Map(allProfiles.map(p => [p.id, p]))
+
+    // Attach coach to each class
+    for (const sc of rawClasses) {
+      if (sc.coach_id) {
+        sc.coach = profileMap.get(sc.coach_id) as Profile
       }
     }
+
+    // Coaches = all profiles who are already assigned to at least one class
+    // + we show all profiles in the dropdown so admin can assign anyone
+    setCoaches(allProfiles)
 
     setClasses(rawClasses)
     setSelectedIds(new Set())
@@ -311,7 +314,7 @@ export function AdminSchedulePage() {
                 ))}
               </select>
               <Button size="sm" className="text-xs" onClick={handleBulkApply} disabled={!bulkCoachId || bulkSaving}>
-                {bulkSaving ? '...' : t('common.confirm')}
+                {bulkSaving ? '...' : (i18n.language === 'fr' ? 'Assigner' : 'Assign')}
               </Button>
               <Button size="sm" variant="ghost" className="text-xs" onClick={() => setBulkAction(null)}>
                 {t('common.cancel')}
@@ -327,7 +330,7 @@ export function AdminSchedulePage() {
                 onChange={(e) => setBulkMaxParticipants(parseInt(e.target.value) || 1)}
               />
               <Button size="sm" className="text-xs" onClick={handleBulkApply} disabled={bulkSaving}>
-                {bulkSaving ? '...' : t('common.confirm')}
+                {bulkSaving ? '...' : (i18n.language === 'fr' ? 'Appliquer' : 'Apply')}
               </Button>
               <Button size="sm" variant="ghost" className="text-xs" onClick={() => setBulkAction(null)}>
                 {t('common.cancel')}
