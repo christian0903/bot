@@ -131,7 +131,15 @@
       "resetPassword": "Réinitialiser le mot de passe",
       "delete": "Supprimer",
       "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
-      "exportCsv": "Exporter CSV"
+      "exportCsv": "Exporter CSV",
+      "assignPack": "Attribuer un pack",
+      "assignPackDesc": "Attribuer un pack manuellement (paiement externe ou cadeau)",
+      "packAssigned": "Pack attribué avec succès.",
+      "selectPack": "Sélectionner un pack",
+      "selectUser": "Sélectionner un utilisateur",
+      "freeGift": "Cadeau / offert",
+      "manualPayment": "Paiement manuel",
+      "reason": "Motif"
     },
     "categories": {
       "title": "Catégories de membres",
