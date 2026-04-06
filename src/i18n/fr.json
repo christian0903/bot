@@ -71,7 +71,17 @@
     "bookingConfirmed": "Réservation confirmée !",
     "bookingCancelled": "Réservation annulée.",
     "noCredits": "Vous n'avez pas de crédits disponibles pour ce type de cours.",
-    "buyPackPrompt": "Acheter un pack pour réserver ce cours ?"
+    "buyPackPrompt": "Acheter un pack pour réserver ce cours ?",
+    "joinWaitlist": "Liste d'attente",
+    "onWaitlist": "En attente ({{position}})",
+    "waitlistJoined": "Vous êtes inscrit en liste d'attente (position {{position}}).",
+    "leaveWaitlist": "Quitter la liste",
+    "waitlistLeft": "Vous avez quitté la liste d'attente.",
+    "spotOffered": "Place disponible !",
+    "spotOfferedDesc": "Une place s'est libérée. Confirmez avant l'expiration.",
+    "confirmSpot": "Confirmer ma place",
+    "spotConfirmed": "Place confirmée !",
+    "defaultMaxParticipants": "Participants max par défaut"
   },
   "packs": {
     "title": "Packs disponibles",

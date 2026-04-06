@@ -226,7 +226,10 @@ export function AdminSchedulePage() {
               <Label>{t('admin.schedule.classType')}</Label>
               <Select
                 value={form.class_type_id}
-                onValueChange={(val) => setForm(f => ({ ...f, class_type_id: val ?? '' }))}
+                onValueChange={(val) => {
+                  const ct = classTypes.find(c => c.id === val)
+                  setForm(f => ({ ...f, class_type_id: val ?? '', max_participants: ct?.default_max_participants ?? f.max_participants }))
+                }}
               >
                 <SelectTrigger>
                   <span>{classTypes.find(ct => ct.id === form.class_type_id)?.name || t('admin.schedule.classType')}</span>

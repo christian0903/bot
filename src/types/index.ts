@@ -79,9 +79,23 @@ export interface ClassType {
   name: string
   description: string | null
   credit_type_id: string
+  default_max_participants: number
   is_active: boolean
   created_at: string
   credit_type?: CreditType
+}
+
+export interface WaitlistEntry {
+  id: string
+  scheduled_class_id: string
+  user_id: string
+  position: number
+  created_at: string
+  notified_at: string | null
+  expires_at: string | null
+  status: 'waiting' | 'offered' | 'confirmed' | 'expired' | 'cancelled'
+  scheduled_class?: ScheduledClass
+  user?: Profile
 }
 
 export interface ScheduledClass {

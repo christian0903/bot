@@ -71,7 +71,17 @@
     "bookingConfirmed": "Booking confirmed!",
     "bookingCancelled": "Booking cancelled.",
     "noCredits": "You don't have available credits for this class type.",
-    "buyPackPrompt": "Buy a pack to book this class?"
+    "buyPackPrompt": "Buy a pack to book this class?",
+    "joinWaitlist": "Waitlist",
+    "onWaitlist": "Waitlisted ({{position}})",
+    "waitlistJoined": "You're on the waitlist (position {{position}}).",
+    "leaveWaitlist": "Leave waitlist",
+    "waitlistLeft": "You've left the waitlist.",
+    "spotOffered": "Spot available!",
+    "spotOfferedDesc": "A spot opened up. Confirm before it expires.",
+    "confirmSpot": "Confirm my spot",
+    "spotConfirmed": "Spot confirmed!",
+    "defaultMaxParticipants": "Default max participants"
   },
   "packs": {
     "title": "Available Packs",

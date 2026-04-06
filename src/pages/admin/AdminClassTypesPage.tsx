@@ -40,6 +40,7 @@ interface ClassTypeForm {
   name: string
   description: string
   credit_type_id: string
+  default_max_participants: number
   is_active: boolean
 }
 
@@ -47,6 +48,7 @@ const emptyForm: ClassTypeForm = {
   name: '',
   description: '',
   credit_type_id: '',
+  default_max_participants: 8,
   is_active: true,
 }
 
@@ -86,6 +88,7 @@ export function AdminClassTypesPage() {
       name: ct.name,
       description: ct.description ?? '',
       credit_type_id: ct.credit_type_id,
+      default_max_participants: ct.default_max_participants ?? 8,
       is_active: ct.is_active,
     })
     setDialogOpen(true)
@@ -96,6 +99,7 @@ export function AdminClassTypesPage() {
       name: form.name,
       description: form.description || null,
       credit_type_id: form.credit_type_id,
+      default_max_participants: form.default_max_participants,
       is_active: form.is_active,
     }
     if (editing) {
@@ -210,6 +214,15 @@ export function AdminClassTypesPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>{t('schedule.defaultMaxParticipants')}</Label>
+              <Input
+                type="number"
+                min={1}
+                value={form.default_max_participants}
+                onChange={(e) => setForm(f => ({ ...f, default_max_participants: parseInt(e.target.value) || 8 }))}
+              />
             </div>
             <div className="flex items-center gap-2">
               <Switch

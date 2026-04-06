@@ -53,6 +53,7 @@ export function MyBookingsPage() {
   }, [user])
 
   const handleCancel = async (bookingId: string) => {
+    const booking = bookings.find(b => b.id === bookingId)
     const { error } = await supabase
       .from('bookings')
       .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
@@ -61,6 +62,10 @@ export function MyBookingsPage() {
     if (error) {
       toast.error(error.message)
     } else {
+      // Promote from waitlist
+      if (booking?.scheduled_class_id) {
+        await supabase.rpc('promote_from_waitlist', { p_scheduled_class_id: booking.scheduled_class_id })
+      }
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' as const, cancelled_at: new Date().toISOString() } : b))
       )
