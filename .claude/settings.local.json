@@ -22,7 +22,8 @@
       "WebFetch(domain:aojguoqxbzqcganxgqem.supabase.co)",
       "Bash(node:*)",
       "Bash(grep -rn 'value={form\\\\.\\\\|value={selected' /Users/christian/bot/src/pages/admin/*.tsx /Users/christian/bot/src/pages/ProfilePage.tsx)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git tag:*)"
     ]
   }
 }
