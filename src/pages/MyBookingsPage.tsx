@@ -20,12 +20,23 @@ export function MyBookingsPage() {
   const { t, i18n } = useTranslation()
   const { user } = useAuth()
   const locale = i18n.language === 'fr' ? fr : enUS
+  const isFr = i18n.language === 'fr'
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [cancelId, setCancelId] = useState<string | null>(null)
+  const [cancellationHours, setCancellationHours] = useState(24)
 
   useEffect(() => {
     if (!user) return
+
+    // Fetch cancellation deadline setting
+    supabase.from('app_settings').select('value').eq('key', 'studio_defaults').single()
+      .then(({ data }) => {
+        if (data?.value?.cancellation_deadline_hours !== undefined) {
+          setCancellationHours(data.value.cancellation_deadline_hours as number)
+        }
+      })
+
     const fetchBookings = async () => {
       const { data } = await supabase
         .from('bookings')
@@ -114,11 +125,23 @@ export function MyBookingsPage() {
           <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
             {t(`bookings.status.${booking.status}`)}
           </Badge>
-          {booking.status === 'confirmed' && new Date(booking.scheduled_class?.starts_at ?? '') > now && (
-            <Button variant="outline" size="sm" onClick={() => setCancelId(booking.id)}>
-              {t('bookings.cancel')}
-            </Button>
-          )}
+          {booking.status === 'confirmed' && new Date(booking.scheduled_class?.starts_at ?? '') > now && (() => {
+            const startsAt = new Date(booking.scheduled_class?.starts_at ?? '')
+            const hoursUntil = (startsAt.getTime() - now.getTime()) / (1000 * 60 * 60)
+            const canCancel = cancellationHours === 0 || hoursUntil >= cancellationHours
+
+            return canCancel ? (
+              <Button variant="outline" size="sm" onClick={() => setCancelId(booking.id)}>
+                {t('bookings.cancel')}
+              </Button>
+            ) : (
+              <span className="text-xs text-muted-foreground max-w-[140px] text-right">
+                {isFr
+                  ? `Annulation impossible (< ${cancellationHours}h)`
+                  : `Cannot cancel (< ${cancellationHours}h)`}
+              </span>
+            )
+          })()}
         </div>
       </CardContent>
     </Card>

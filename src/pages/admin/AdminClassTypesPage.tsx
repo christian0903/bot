@@ -58,6 +58,7 @@ export function AdminClassTypesPage() {
   const [creditTypes, setCreditTypes] = useState<CreditType[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [globalDefaultMax, setGlobalDefaultMax] = useState(4)
   const [editing, setEditing] = useState<ClassType | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ClassType | null>(null)
   const [form, setForm] = useState<ClassTypeForm>(emptyForm)
@@ -74,11 +75,18 @@ export function AdminClassTypesPage() {
 
   useEffect(() => {
     fetchData()
+    // Fetch global default max participants
+    supabase.from('app_settings').select('value').eq('key', 'studio_defaults').single()
+      .then(({ data }) => {
+        if (data?.value?.default_max_participants) {
+          setGlobalDefaultMax(data.value.default_max_participants as number)
+        }
+      })
   }, [])
 
   const openAdd = () => {
     setEditing(null)
-    setForm(emptyForm)
+    setForm({ ...emptyForm, default_max_participants: globalDefaultMax })
     setDialogOpen(true)
   }
 
