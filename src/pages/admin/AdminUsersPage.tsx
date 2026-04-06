@@ -108,20 +108,6 @@ export function AdminUsersPage() {
       .then(({ data }) => setPackTypes((data as PackType[]) ?? []))
   }, [])
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    const { error } = await supabase
-      .from('user_roles')
-      .upsert({ user_id: userId, role: newRole }, { onConflict: 'user_id' })
-
-    if (error) {
-      toast.error(t('common.error'))
-      return
-    }
-
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
-    toast.success(t('common.saveSuccess'))
-  }
-
   const handleDelete = async () => {
     if (!deleteTarget) return
     const { error } = await supabase.from('profiles').delete().eq('id', deleteTarget.id)
@@ -238,14 +224,13 @@ export function AdminUsersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('admin.users.name')}</TableHead>
-                <TableHead>{t('admin.users.role')}</TableHead>
                 <TableHead className="text-center">
                   <span className="flex items-center gap-1 justify-center">
                     <CreditCard className="h-3 w-3" />
                     {i18n.language === 'fr' ? 'Crédits' : 'Credits'}
                   </span>
                 </TableHead>
-                <TableHead>{t('admin.users.joined')}</TableHead>
+                <TableHead>{t('admin.users.lastLogin')}</TableHead>
                 <TableHead>{t('admin.users.actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -261,21 +246,6 @@ export function AdminUsersPage() {
                       <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   </TableCell>
-                  <TableCell>
-                    <Select
-                      value={user.role}
-                      onValueChange={(val) => handleRoleChange(user.id, (val ?? 'client') as UserRole)}
-                    >
-                      <SelectTrigger className="w-[130px] h-8 text-xs">
-                        <span>{t(`roles.${user.role}`)}</span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="client">{t('roles.client')}</SelectItem>
-                        <SelectItem value="coach">{t('roles.coach')}</SelectItem>
-                        <SelectItem value="admin">{t('roles.admin')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
                   <TableCell className="text-center">
                     <Badge
                       variant={user.credits > 0 ? 'default' : 'secondary'}
@@ -285,7 +255,9 @@ export function AdminUsersPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(user.created_at), 'dd/MM/yyyy', { locale })}
+                    {user.last_sign_in_at
+                      ? format(new Date(user.last_sign_in_at), 'dd/MM/yyyy HH:mm', { locale })
+                      : '-'}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
