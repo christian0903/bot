@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { LoadingState } from '@/components/common/LoadingState'
-import { DollarSign, CreditCard, Users, ChevronRight, CalendarDays, Download } from 'lucide-react'
+import { Euro, CreditCard, Users, ChevronRight, CalendarDays, Download } from 'lucide-react'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 
@@ -341,7 +341,7 @@ export function AdminDashboardPage() {
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="h-10 w-10 rounded-xl bg-green-100 dark:bg-green-950 flex items-center justify-center">
-                    <DollarSign className="h-5 w-5 text-green-600" />
+                    <Euro className="h-5 w-5 text-green-600" />
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
