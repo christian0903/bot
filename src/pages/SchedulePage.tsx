@@ -309,19 +309,23 @@ export function SchedulePage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <div className={cn('h-2 w-2 rounded-full shrink-0', colors.dot)} />
-              <p className="font-semibold text-sm truncate">{sc.class_type?.name}</p>
+              <p className="font-semibold text-sm truncate">{sc.title || sc.class_type?.name}</p>
+              {sc.title && <p className="text-[11px] text-muted-foreground">{sc.class_type?.name}</p>}
+              {sc.description && <p className="text-[11px] text-muted-foreground line-clamp-1">{sc.description}</p>}
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                {sc.coach?.avatar_url ? (
-                  <img src={sc.coach.avatar_url} className="h-4 w-4 rounded-full" alt="" />
-                ) : (
-                  <div className="h-4 w-4 rounded-full bg-muted flex items-center justify-center text-[9px] font-bold">
-                    {sc.coach?.display_name?.charAt(0)}
-                  </div>
-                )}
-                {sc.coach?.display_name}
-              </span>
+              {sc.coach && (
+                <span className="flex items-center gap-1">
+                  {sc.coach.avatar_url ? (
+                    <img src={sc.coach.avatar_url} className="h-4 w-4 rounded-full" alt="" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-full bg-muted flex items-center justify-center text-[9px] font-bold">
+                      {sc.coach.display_name?.charAt(0)}
+                    </div>
+                  )}
+                  {sc.coach.display_name}
+                </span>
+              )}
               <span className={cn('flex items-center gap-1', isFull && !isBooked && 'text-destructive')}>
                 <Users className="h-3 w-3" />
                 {spotsFree}/{sc.max_participants}

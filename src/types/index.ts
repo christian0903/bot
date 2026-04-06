@@ -101,11 +101,13 @@ export interface WaitlistEntry {
 export interface ScheduledClass {
   id: string
   class_type_id: string
-  coach_id: string
+  coach_id: string | null
   starts_at: string
   duration_minutes: number
   max_participants: number
   is_cancelled: boolean
+  title: string | null
+  description: string | null
   created_at: string
   updated_at: string
   class_type?: ClassType

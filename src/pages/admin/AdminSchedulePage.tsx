@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -31,6 +32,8 @@ interface ScheduleForm {
   time: string
   max_participants: number
   duration_minutes: number
+  title: string
+  description: string
 }
 
 const emptyForm: ScheduleForm = {
@@ -40,6 +43,8 @@ const emptyForm: ScheduleForm = {
   time: '',
   max_participants: 4,
   duration_minutes: 60,
+  title: '',
+  description: '',
 }
 
 export function AdminSchedulePage() {
@@ -137,11 +142,13 @@ export function AdminSchedulePage() {
     setEditing(sc)
     setForm({
       class_type_id: sc.class_type_id,
-      coach_id: sc.coach_id,
+      coach_id: sc.coach_id ?? '',
       date: format(dt, 'yyyy-MM-dd'),
       time: format(dt, 'HH:mm'),
       max_participants: sc.max_participants,
       duration_minutes: sc.duration_minutes,
+      title: sc.title ?? '',
+      description: sc.description ?? '',
     })
     setDialogOpen(true)
   }
@@ -150,10 +157,12 @@ export function AdminSchedulePage() {
     const starts_at = new Date(`${form.date}T${form.time}`).toISOString()
     const payload = {
       class_type_id: form.class_type_id,
-      coach_id: form.coach_id,
+      coach_id: form.coach_id || null,
       starts_at,
       max_participants: form.max_participants,
       duration_minutes: form.duration_minutes,
+      title: form.title || null,
+      description: form.description || null,
     }
     if (editing) {
       const { error } = await supabase.from('scheduled_classes').update(payload).eq('id', editing.id)
@@ -379,8 +388,13 @@ export function AdminSchedulePage() {
                     </TableCell>
                     <TableCell className="text-sm">{format(dt, 'EEE dd/MM', { locale })}</TableCell>
                     <TableCell className="text-sm font-medium">{format(dt, 'HH:mm')}</TableCell>
-                    <TableCell className="font-medium">{sc.class_type?.name ?? '-'}</TableCell>
-                    <TableCell>{sc.coach?.display_name ?? '-'}</TableCell>
+                    <TableCell>
+                      <div>
+                        <span className="font-medium">{sc.title || sc.class_type?.name || '-'}</span>
+                        {sc.title && <span className="text-xs text-muted-foreground ml-1.5">({sc.class_type?.name})</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell>{sc.coach?.display_name ?? (i18n.language === 'fr' ? '—' : '—')}</TableCell>
                     <TableCell className="text-center">{sc.max_participants}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -406,7 +420,7 @@ export function AdminSchedulePage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? t('admin.schedule.edit') : t('admin.schedule.add')}</DialogTitle>
           </DialogHeader>
@@ -430,13 +444,38 @@ export function AdminSchedulePage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Titre custom (événement spécial) */}
             <div>
-              <Label>{t('admin.schedule.coach')}</Label>
+              <Label>{i18n.language === 'fr' ? 'Titre (optionnel — événement spécial)' : 'Title (optional — special event)'}</Label>
+              <Input
+                placeholder={i18n.language === 'fr' ? 'Ex: Conférence Nutrition Sportive' : 'E.g. Sports Nutrition Conference'}
+                value={form.title}
+                onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+              />
+            </div>
+
+            {/* Description (événement) */}
+            {form.title && (
+              <div>
+                <Label>{i18n.language === 'fr' ? 'Description de l\'événement' : 'Event description'}</Label>
+                <Textarea
+                  placeholder={i18n.language === 'fr' ? 'Détails, intervenant, informations pratiques...' : 'Details, speaker, practical info...'}
+                  value={form.description}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm(f => ({ ...f, description: e.target.value }))}
+                  rows={3}
+                />
+              </div>
+            )}
+
+            <div>
+              <Label>{t('admin.schedule.coach')} {i18n.language === 'fr' ? '(optionnel)' : '(optional)'}</Label>
               <Select value={form.coach_id} onValueChange={(val) => setForm(f => ({ ...f, coach_id: val ?? '' }))}>
                 <SelectTrigger>
-                  <span>{coaches.find(c => c.id === form.coach_id)?.display_name || t('admin.schedule.coach')}</span>
+                  <span>{coaches.find(c => c.id === form.coach_id)?.display_name || (i18n.language === 'fr' ? 'Aucun coach' : 'No coach')}</span>
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">{i18n.language === 'fr' ? 'Aucun coach' : 'No coach'}</SelectItem>
                   {coaches.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.display_name}</SelectItem>
                   ))}
@@ -466,7 +505,7 @@ export function AdminSchedulePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
-            <Button onClick={handleSave} disabled={!form.class_type_id || !form.coach_id || !form.date || !form.time}>
+            <Button onClick={handleSave} disabled={!form.class_type_id || !form.date || !form.time}>
               {t('common.save')}
             </Button>
           </DialogFooter>
