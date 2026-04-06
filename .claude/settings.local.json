@@ -9,7 +9,16 @@
       "Bash(npx --yes create-vite@latest fitstudio --template react-ts)",
       "Bash(cp:*)",
       "Bash(npm install:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "Bash(npm run:*)",
+      "Bash(gh auth:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(git remote:*)",
+      "Bash(git push:*)",
+      "WebSearch"
     ]
   }
 }

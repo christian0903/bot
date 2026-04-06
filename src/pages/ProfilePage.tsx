@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { LoadingState } from '@/components/common/LoadingState'
 import type { MemberCategory } from '@/types'
@@ -132,7 +132,7 @@ export function ProfilePage() {
                 onValueChange={(v) => setForm({ ...form, member_category_id: v ?? '' })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <span>{categories.find(c => c.id === form.member_category_id)?.name || t('profile.category')}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((cat) => (

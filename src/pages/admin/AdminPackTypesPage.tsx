@@ -31,7 +31,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Package, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -41,7 +41,7 @@ interface PackTypeForm {
   description: string
   credit_type_id: string
   credit_count: number
-  price_cents: number
+  price_euros: string
   validity_days: number
   is_active: boolean
   category_ids: string[]
@@ -52,7 +52,7 @@ const emptyForm: PackTypeForm = {
   description: '',
   credit_type_id: '',
   credit_count: 1,
-  price_cents: 0,
+  price_euros: '',
   validity_days: 30,
   is_active: true,
   category_ids: [],
@@ -113,7 +113,7 @@ export function AdminPackTypesPage() {
       description: pt.description ?? '',
       credit_type_id: pt.credit_type_id,
       credit_count: pt.credit_count,
-      price_cents: pt.price_cents,
+      price_euros: (pt.price_cents / 100).toString(),
       validity_days: pt.validity_days,
       is_active: pt.is_active,
       category_ids: pt.categories?.map(c => c.id) ?? [],
@@ -127,7 +127,7 @@ export function AdminPackTypesPage() {
       description: form.description || null,
       credit_type_id: form.credit_type_id,
       credit_count: form.credit_count,
-      price_cents: form.price_cents,
+      price_cents: Math.round(parseFloat(form.price_euros || '0') * 100),
       validity_days: form.validity_days,
       is_active: form.is_active,
     }
@@ -207,7 +207,7 @@ export function AdminPackTypesPage() {
               {packTypes.map((pt) => (
                 <TableRow key={pt.id}>
                   <TableCell className="font-medium">{pt.name}</TableCell>
-                  <TableCell>{pt.credit_type?.name ?? '-'}</TableCell>
+                  <TableCell>{pt.credit_type?.label_fr ?? '-'}</TableCell>
                   <TableCell>{pt.credit_count}</TableCell>
                   <TableCell>{(pt.price_cents / 100).toFixed(2)} &euro;</TableCell>
                   <TableCell>{pt.validity_days}</TableCell>
@@ -269,11 +269,11 @@ export function AdminPackTypesPage() {
                 onValueChange={(val) => setForm(f => ({ ...f, credit_type_id: val ?? '' }))}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <span>{creditTypes.find(ct => ct.id === form.credit_type_id)?.label_fr || t('admin.packTypes.creditType')}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {creditTypes.map(ct => (
-                    <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>
+                    <SelectItem key={ct.id} value={ct.id}>{ct.label_fr}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -289,13 +289,13 @@ export function AdminPackTypesPage() {
                 />
               </div>
               <div>
-                <Label>{t('admin.packTypes.price')} (&euro;)</Label>
+                <Label>{t('admin.packTypes.price')} (€)</Label>
                 <Input
                   type="number"
                   min={0}
-                  step="0.01"
-                  value={(form.price_cents / 100).toFixed(2)}
-                  onChange={(e) => setForm(f => ({ ...f, price_cents: Math.round(parseFloat(e.target.value) * 100) || 0 }))}
+                  placeholder="250"
+                  value={form.price_euros}
+                  onChange={(e) => setForm(f => ({ ...f, price_euros: e.target.value }))}
                 />
               </div>
             </div>

@@ -8,6 +8,7 @@ import { NotificationProvider } from '@/contexts/NotificationContext'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { RoleGuard } from '@/components/auth/RoleGuard'
 import { Layout } from '@/components/layout/Layout'
+import { AdminLayout } from '@/components/layout/AdminLayout'
 import { LoadingState } from '@/components/common/LoadingState'
 
 // Pages publiques (chargées immédiatement)
@@ -80,18 +81,20 @@ function App() {
                   <Route path="/coach/class/:id" element={<AuthGuard><RoleGuard roles={['coach', 'admin']}><Lazy><CoachClassDetailPage /></Lazy></RoleGuard></AuthGuard>} />
 
                   {/* Admin */}
-                  <Route path="/admin/users" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminUsersPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/categories" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminCategoriesPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/credit-types" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminCreditTypesPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/pack-types" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminPackTypesPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/class-types" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminClassTypesPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/schedule" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminSchedulePage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/bookings" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminBookingsPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/coupons" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminCouponsPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/announcements" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminAnnouncementsPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/settings" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminSettingsPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/dashboard" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminDashboardPage /></Lazy></RoleGuard></AuthGuard>} />
-                  <Route path="/admin/help" element={<AuthGuard><RoleGuard roles={['admin']}><Lazy><AdminHelpPage /></Lazy></RoleGuard></AuthGuard>} />
+                  <Route path="/admin" element={<AuthGuard><RoleGuard roles={['admin']}><AdminLayout /></RoleGuard></AuthGuard>}>
+                    <Route path="users" element={<Lazy><AdminUsersPage /></Lazy>} />
+                    <Route path="categories" element={<Lazy><AdminCategoriesPage /></Lazy>} />
+                    <Route path="credit-types" element={<Lazy><AdminCreditTypesPage /></Lazy>} />
+                    <Route path="pack-types" element={<Lazy><AdminPackTypesPage /></Lazy>} />
+                    <Route path="class-types" element={<Lazy><AdminClassTypesPage /></Lazy>} />
+                    <Route path="schedule" element={<Lazy><AdminSchedulePage /></Lazy>} />
+                    <Route path="bookings" element={<Lazy><AdminBookingsPage /></Lazy>} />
+                    <Route path="coupons" element={<Lazy><AdminCouponsPage /></Lazy>} />
+                    <Route path="announcements" element={<Lazy><AdminAnnouncementsPage /></Lazy>} />
+                    <Route path="settings" element={<Lazy><AdminSettingsPage /></Lazy>} />
+                    <Route path="dashboard" element={<Lazy><AdminDashboardPage /></Lazy>} />
+                    <Route path="help" element={<Lazy><AdminHelpPage /></Lazy>} />
+                  </Route>
                 </Route>
               </Routes>
               <Toaster richColors position="top-right" />

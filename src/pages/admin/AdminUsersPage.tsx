@@ -19,7 +19,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+
 } from '@/components/ui/select'
 
 import { toast } from 'sonner'
@@ -153,7 +153,7 @@ export function AdminUsersPage() {
                       onValueChange={(val) => handleRoleChange(user.id, val as UserRole)}
                     >
                       <SelectTrigger className="w-[140px]">
-                        <SelectValue />
+                        <span>{t(`roles.${user.role}`)}</span>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="client">{t('roles.client')}</SelectItem>

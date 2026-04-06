@@ -31,7 +31,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Dumbbell, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -150,7 +150,7 @@ export function AdminClassTypesPage() {
                 <TableRow key={ct.id}>
                   <TableCell className="font-medium">{ct.name}</TableCell>
                   <TableCell>{ct.description ?? '-'}</TableCell>
-                  <TableCell>{ct.credit_type?.name ?? '-'}</TableCell>
+                  <TableCell>{ct.credit_type?.label_fr ?? '-'}</TableCell>
                   <TableCell>
                     <Badge variant={ct.is_active ? 'default' : 'secondary'}>
                       {ct.is_active ? t('common.active') : t('common.inactive')}
@@ -202,11 +202,11 @@ export function AdminClassTypesPage() {
                 onValueChange={(val) => setForm(f => ({ ...f, credit_type_id: val ?? '' }))}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <span>{creditTypes.find(ct => ct.id === form.credit_type_id)?.label_fr || t('admin.classTypes.creditType')}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {creditTypes.map(ct => (
-                    <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>
+                    <SelectItem key={ct.id} value={ct.id}>{ct.label_fr}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

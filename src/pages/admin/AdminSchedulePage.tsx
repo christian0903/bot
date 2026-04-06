@@ -29,7 +29,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { CalendarDays, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -220,7 +220,7 @@ export function AdminSchedulePage() {
                 onValueChange={(val) => setForm(f => ({ ...f, class_type_id: val ?? '' }))}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <span>{classTypes.find(ct => ct.id === form.class_type_id)?.name || t('admin.schedule.classType')}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {classTypes.map(ct => (
@@ -236,7 +236,7 @@ export function AdminSchedulePage() {
                 onValueChange={(val) => setForm(f => ({ ...f, coach_id: val ?? '' }))}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <span>{coaches.find(c => c.id === form.coach_id)?.display_name || t('admin.schedule.coach')}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {coaches.map(c => (
