@@ -6,6 +6,7 @@ import type { Profile, PackPurchase, Booking, ScheduledClass } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -25,7 +26,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -40,6 +41,13 @@ export function AdminUserDetailPage() {
   const [packs, setPacks] = useState<PackPurchase[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Edit pack dialog
+  const [editPackDialogOpen, setEditPackDialogOpen] = useState(false)
+  const [editingPack, setEditingPack] = useState<PackPurchase | null>(null)
+  const [editCredits, setEditCredits] = useState(0)
+  const [editExpiresAt, setEditExpiresAt] = useState('')
+  const [editPackSaving, setEditPackSaving] = useState(false)
 
   // Book class dialog
   const [bookDialogOpen, setBookDialogOpen] = useState(false)
@@ -88,6 +96,36 @@ export function AdminUserDetailPage() {
   useEffect(() => {
     fetchData()
   }, [id])
+
+  const openEditPack = (pack: PackPurchase) => {
+    setEditingPack(pack)
+    setEditCredits(pack.credits_remaining)
+    setEditExpiresAt(format(new Date(pack.expires_at), 'yyyy-MM-dd'))
+    setEditPackDialogOpen(true)
+  }
+
+  const handleEditPack = async () => {
+    if (!editingPack) return
+    setEditPackSaving(true)
+
+    const { error } = await supabase
+      .from('pack_purchases')
+      .update({
+        credits_remaining: editCredits,
+        expires_at: new Date(editExpiresAt + 'T23:59:59').toISOString(),
+      })
+      .eq('id', editingPack.id)
+
+    setEditPackSaving(false)
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+
+    toast.success(t('common.saveSuccess'))
+    setEditPackDialogOpen(false)
+    fetchData()
+  }
 
   const openBookDialog = async () => {
     // Fetch upcoming classes
@@ -247,7 +285,14 @@ export function AdminUserDetailPage() {
               const daysLeft = Math.ceil((new Date(pack.expires_at).getTime() - now.getTime()) / 86400000)
 
               return (
-                <Card key={pack.id} className={cn(inactive && 'opacity-50')}>
+                <Card
+                  key={pack.id}
+                  className={cn(
+                    'cursor-pointer hover:shadow-md hover:border-primary/30 transition-all group',
+                    inactive && 'opacity-50'
+                  )}
+                  onClick={() => openEditPack(pack)}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -265,6 +310,7 @@ export function AdminUserDetailPage() {
                             {isExpired ? t('packs.expired') : i18n.language === 'fr' ? 'Épuisé' : 'Used up'}
                           </Badge>
                         )}
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden mb-2">
@@ -414,6 +460,67 @@ export function AdminUserDetailPage() {
               disabled={!selectedClassId || !selectedPackId || bookingSaving}
             >
               {bookingSaving ? '...' : t('common.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Pack Dialog */}
+      <Dialog open={editPackDialogOpen} onOpenChange={setEditPackDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" />
+              {i18n.language === 'fr' ? 'Modifier le pack' : 'Edit pack'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {editingPack && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="font-medium">{editingPack.pack_type?.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {i18n.language === 'fr'
+                    ? editingPack.pack_type?.credit_type?.label_fr
+                    : editingPack.pack_type?.credit_type?.label_en}
+                  {' · '}
+                  {i18n.language === 'fr' ? 'Acheté le' : 'Purchased'} {format(new Date(editingPack.purchased_at), 'dd/MM/yyyy', { locale })}
+                  {' · '}
+                  {(editingPack.price_paid_cents / 100).toFixed(0)}€
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{i18n.language === 'fr' ? 'Crédits restants' : 'Credits remaining'}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={editingPack.pack_type?.credit_count ?? 999}
+                  value={editCredits}
+                  onChange={(e) => setEditCredits(parseInt(e.target.value) || 0)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {i18n.language === 'fr' ? 'Pack original' : 'Original pack'}: {editingPack.pack_type?.credit_count} crédits
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{i18n.language === 'fr' ? 'Date de fin de validité' : 'Expiry date'}</Label>
+                <Input
+                  type="date"
+                  value={editExpiresAt}
+                  onChange={(e) => setEditExpiresAt(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPackDialogOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleEditPack} disabled={editPackSaving}>
+              {editPackSaving ? '...' : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
