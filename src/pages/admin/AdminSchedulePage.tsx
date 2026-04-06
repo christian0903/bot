@@ -300,16 +300,16 @@ export function AdminSchedulePage() {
 
           {bulkAction === 'coach' ? (
             <div className="flex items-center gap-2">
-              <Select value={bulkCoachId || undefined} onValueChange={(v) => setBulkCoachId(v ?? '')}>
-                <SelectTrigger className="h-8 text-xs w-44">
-                  <span>{coaches.find(c => c.id === bulkCoachId)?.display_name || t('admin.schedule.coach')}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {coaches.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.display_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                value={bulkCoachId}
+                onChange={(e) => setBulkCoachId(e.target.value)}
+              >
+                <option value="">{t('admin.schedule.coach')}</option>
+                {coaches.map(c => (
+                  <option key={c.id} value={c.id}>{c.display_name}</option>
+                ))}
+              </select>
               <Button size="sm" className="text-xs" onClick={handleBulkApply} disabled={!bulkCoachId || bulkSaving}>
                 {bulkSaving ? '...' : t('common.confirm')}
               </Button>
