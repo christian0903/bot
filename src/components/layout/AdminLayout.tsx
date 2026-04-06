@@ -13,6 +13,7 @@ import {
   Settings,
   BarChart3,
   HelpCircle,
+  ScrollText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +27,7 @@ const adminNav = [
   { path: '/admin/bookings', icon: BookOpen, labelKey: 'admin.bookings.title' },
   { path: '/admin/coupons', icon: Ticket, labelKey: 'admin.coupons.title' },
   { path: '/admin/announcements', icon: Megaphone, labelKey: 'admin.announcements.title' },
+  { path: '/admin/activity-log', icon: ScrollText, labelKey: 'admin.activityLog.title' },
   { path: '/admin/dashboard', icon: BarChart3, labelKey: 'admin.dashboard.title' },
   { path: '/admin/settings', icon: Settings, labelKey: 'admin.settings.title' },
   { path: '/admin/help', icon: HelpCircle, labelKey: 'nav.help' },

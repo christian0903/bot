@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity-log'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Profile, UserRole, PackType } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -55,6 +57,7 @@ const exportCsv = (data: Record<string, unknown>[], filename: string) => {
 
 export function AdminUsersPage() {
   const { t, i18n } = useTranslation()
+  const { user: currentUser } = useAuth()
   const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
   const [users, setUsers] = useState<UserWithRole[]>([])
@@ -169,6 +172,21 @@ export function AdminUsersPage() {
         : `The pack "${packType.name}" (${packType.credit_count} credits) has been assigned to you. Valid until ${format(expiresAt, 'dd/MM/yyyy')}.`,
       type: 'success',
       link: '/my-packs',
+    })
+
+    // Log activity
+    await logActivity({
+      action: 'pack_assigned',
+      actor_id: currentUser?.id ?? null,
+      target_user_id: packTarget.id,
+      entity_type: 'pack_purchase',
+      details: {
+        pack_name: packType.name,
+        credits: packType.credit_count,
+        price_paid_cents: priceCents,
+        expires_at: expiresAt.toISOString(),
+      },
+      description: `Pack "${packType.name}" (${packType.credit_count} crédits, ${(priceCents / 100).toFixed(0)}€) attribué à ${packTarget.display_name}`,
     })
 
     // Update local credits count

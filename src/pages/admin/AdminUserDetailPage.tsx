@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity-log'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Profile, PackPurchase, Booking, ScheduledClass } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -34,6 +36,7 @@ import { cn } from '@/lib/utils'
 export function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, i18n } = useTranslation()
+  const { user: currentUser } = useAuth()
   const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
 
@@ -122,6 +125,26 @@ export function AdminUserDetailPage() {
       return
     }
 
+    await logActivity({
+      action: 'pack_modified',
+      actor_id: currentUser?.id ?? null,
+      target_user_id: id!,
+      entity_type: 'pack_purchase',
+      entity_id: editingPack.id,
+      details: {
+        pack_name: editingPack.pack_type?.name,
+        before: {
+          credits_remaining: editingPack.credits_remaining,
+          expires_at: editingPack.expires_at,
+        },
+        after: {
+          credits_remaining: editCredits,
+          expires_at: editExpiresAt,
+        },
+      },
+      description: `Pack "${editingPack.pack_type?.name}" modifié pour ${profile?.display_name}: crédits ${editingPack.credits_remaining}→${editCredits}, expiration ${format(new Date(editingPack.expires_at), 'dd/MM/yyyy')}→${editExpiresAt}`,
+    })
+
     toast.success(t('common.saveSuccess'))
     setEditPackDialogOpen(false)
     fetchData()
@@ -181,6 +204,20 @@ export function AdminUserDetailPage() {
 
     // Consume credit
     await supabase.rpc('consume_credit', { p_pack_purchase_id: selectedPackId })
+
+    const sc = availableClasses.find(c => c.id === selectedClassId)
+    await logActivity({
+      action: 'booking_assigned',
+      actor_id: currentUser?.id ?? null,
+      target_user_id: id,
+      entity_type: 'booking',
+      details: {
+        class_name: sc?.class_type?.name,
+        starts_at: sc?.starts_at,
+        pack_purchase_id: selectedPackId,
+      },
+      description: `${profile?.display_name} inscrit au cours "${sc?.class_type?.name}" du ${sc ? format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm') : ''}`,
+    })
 
     toast.success(t('schedule.bookingConfirmed'))
     setBookDialogOpen(false)

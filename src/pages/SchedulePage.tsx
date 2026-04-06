@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity-log'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -150,6 +151,16 @@ export function SchedulePage() {
     }
 
     await supabase.rpc('consume_credit', { p_pack_purchase_id: packPurchaseId })
+
+    await logActivity({
+      action: 'booking_created',
+      actor_id: user.id,
+      target_user_id: user.id,
+      entity_type: 'booking',
+      details: { class_name: scheduledClass.class_type?.name, starts_at: scheduledClass.starts_at },
+      description: `Réservation: ${scheduledClass.class_type?.name} le ${format(new Date(scheduledClass.starts_at), 'dd/MM/yyyy HH:mm')}`,
+    })
+
     setUserBookings((prev) => new Set([...prev, classId]))
     toast.success(t('schedule.bookingConfirmed'))
     setBookingInProgress(null)
@@ -173,6 +184,16 @@ export function SchedulePage() {
     if (error) {
       toast.error(error.message)
     } else {
+      const sc = classes.find(c => c.id === classId)
+      await logActivity({
+        action: 'waitlist_joined',
+        actor_id: user.id,
+        target_user_id: user.id,
+        entity_type: 'scheduled_class',
+        entity_id: classId,
+        details: { class_name: sc?.class_type?.name, position },
+        description: `Liste d'attente (position ${position}): ${sc?.class_type?.name} le ${sc ? format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm') : ''}`,
+      })
       setUserWaitlist(prev => new Map(prev).set(classId, { id: '', position, status: 'waiting' }))
       toast.success(t('schedule.waitlistJoined', { position }))
     }

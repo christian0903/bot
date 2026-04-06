@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity-log'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -66,6 +67,19 @@ export function MyBookingsPage() {
       if (booking?.scheduled_class_id) {
         await supabase.rpc('promote_from_waitlist', { p_scheduled_class_id: booking.scheduled_class_id })
       }
+
+      if (user && booking) {
+        await logActivity({
+          action: 'booking_cancelled',
+          actor_id: user.id,
+          target_user_id: user.id,
+          entity_type: 'booking',
+          entity_id: bookingId,
+          details: { class_name: booking.scheduled_class?.class_type?.name, starts_at: booking.scheduled_class?.starts_at },
+          description: `Annulation: ${booking.scheduled_class?.class_type?.name}`,
+        })
+      }
+
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' as const, cancelled_at: new Date().toISOString() } : b))
       )

@@ -222,6 +222,9 @@
       "edit": "Edit",
       "delete": "Delete"
     },
+    "activityLog": {
+      "title": "Activity Log"
+    },
     "announcements": {
       "title": "Announcements",
       "content": "Content",
