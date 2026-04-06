@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity-log'
+import { useAuth } from '@/contexts/AuthContext'
 import type { ScheduledClass, ClassType, Profile } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -49,6 +51,7 @@ const emptyForm: ScheduleForm = {
 
 export function AdminSchedulePage() {
   const { t, i18n } = useTranslation()
+  const { user: currentUser } = useAuth()
   const locale = i18n.language === 'fr' ? fr : enUS
   const [classes, setClasses] = useState<ScheduledClass[]>([])
   const [classTypes, setClassTypes] = useState<ClassType[]>([])
@@ -202,9 +205,18 @@ export function AdminSchedulePage() {
         .update({ coach_id: bulkCoachId })
         .in('id', ids)
       if (error) { toast.error(error.message); setBulkSaving(false); return }
-      toast.success(i18n.language === 'fr'
-        ? `Coach assigné à ${ids.length} cours`
-        : `Coach assigned to ${ids.length} classes`)
+
+      const coachName = coaches.find(c => c.id === bulkCoachId)?.display_name ?? ''
+      await logActivity({
+        action: 'role_changed',
+        actor_id: currentUser?.id ?? null,
+        target_user_id: bulkCoachId,
+        entity_type: 'scheduled_class',
+        details: { scheduled_class_ids: ids, coach_name: coachName, count: ids.length },
+        description: `Coach ${coachName} assigné à ${ids.length} cours`,
+      })
+
+      toast.success(`Coach ${coachName} assigné à ${ids.length} cours`)
     }
 
     if (bulkAction === 'max') {
@@ -213,9 +225,17 @@ export function AdminSchedulePage() {
         .update({ max_participants: bulkMaxParticipants })
         .in('id', ids)
       if (error) { toast.error(error.message); setBulkSaving(false); return }
-      toast.success(i18n.language === 'fr'
-        ? `Max participants modifié pour ${ids.length} cours`
-        : `Max participants updated for ${ids.length} classes`)
+
+      await logActivity({
+        action: 'pack_modified',
+        actor_id: currentUser?.id ?? null,
+        target_user_id: currentUser?.id ?? '',
+        entity_type: 'scheduled_class',
+        details: { scheduled_class_ids: ids, max_participants: bulkMaxParticipants, count: ids.length },
+        description: `Max participants changé à ${bulkMaxParticipants} pour ${ids.length} cours`,
+      })
+
+      toast.success(`Max participants changé à ${bulkMaxParticipants} pour ${ids.length} cours`)
     }
 
     setBulkSaving(false)
@@ -316,7 +336,7 @@ export function AdminSchedulePage() {
                 ))}
               </select>
               <Button size="sm" className="text-xs" onClick={handleBulkApply} disabled={!bulkCoachId || bulkSaving}>
-                {bulkSaving ? '...' : (i18n.language === 'fr' ? 'Assigner' : 'Assign')}
+                {bulkSaving ? '...' : 'Assigner'}
               </Button>
               <Button size="sm" variant="ghost" className="text-xs" onClick={() => setBulkAction(null)}>
                 {t('common.cancel')}
