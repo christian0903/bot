@@ -13,7 +13,7 @@ const THEME_KEY = 'bot-theme'
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null
-    return saved ?? 'classic'
+    return saved ?? 'dark'
   })
 
   const setTheme = (newTheme: ThemeMode) => {

@@ -41,7 +41,8 @@ export function HomePage() {
           <Dumbbell className="h-8 w-8 text-primary" />
         </div>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-          {t('home.welcome')}
+          {t('home.welcome').replace('Back on Track', '')}
+          <span className="text-primary">Back on Track</span>
         </h1>
         <p className="mt-4 text-lg text-muted-foreground max-w-md mx-auto">
           {t('home.subtitle')}
