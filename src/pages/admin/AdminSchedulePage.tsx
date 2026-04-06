@@ -199,6 +199,11 @@ export function AdminSchedulePage() {
     setBulkSaving(true)
     const ids = [...selectedIds]
 
+    // Build human-readable list of affected classes
+    const affectedClasses = filteredClasses
+      .filter(sc => ids.includes(sc.id))
+      .map(sc => `${sc.title || sc.class_type?.name} ${format(new Date(sc.starts_at), 'EEE dd/MM HH:mm', { locale })}`)
+
     if (bulkAction === 'coach' && bulkCoachId) {
       const { error } = await supabase
         .from('scheduled_classes')
@@ -212,8 +217,8 @@ export function AdminSchedulePage() {
         actor_id: currentUser?.id ?? null,
         target_user_id: bulkCoachId,
         entity_type: 'scheduled_class',
-        details: { scheduled_class_ids: ids, coach_name: coachName, count: ids.length },
-        description: `Coach ${coachName} assigné à ${ids.length} cours`,
+        details: { scheduled_class_ids: ids, coach_name: coachName, classes: affectedClasses },
+        description: `Coach ${coachName} assigné à ${ids.length} cours : ${affectedClasses.join(' | ')}`,
       })
 
       toast.success(`Coach ${coachName} assigné à ${ids.length} cours`)
@@ -231,8 +236,8 @@ export function AdminSchedulePage() {
         actor_id: currentUser?.id ?? null,
         target_user_id: currentUser?.id ?? '',
         entity_type: 'scheduled_class',
-        details: { scheduled_class_ids: ids, max_participants: bulkMaxParticipants, count: ids.length },
-        description: `Max participants changé à ${bulkMaxParticipants} pour ${ids.length} cours`,
+        details: { scheduled_class_ids: ids, max_participants: bulkMaxParticipants, classes: affectedClasses },
+        description: `Max participants → ${bulkMaxParticipants} pour ${ids.length} cours : ${affectedClasses.join(' | ')}`,
       })
 
       toast.success(`Max participants changé à ${bulkMaxParticipants} pour ${ids.length} cours`)
