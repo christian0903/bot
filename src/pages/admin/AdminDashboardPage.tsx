@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { LoadingState } from '@/components/common/LoadingState'
-import { DollarSign, CreditCard, Users, ChevronRight, CalendarDays } from 'lucide-react'
+import { DollarSign, CreditCard, Users, ChevronRight, CalendarDays, Download } from 'lucide-react'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 
@@ -32,6 +32,8 @@ interface BookingDetail {
   id: string
   user_name: string
   class_name: string
+  class_title: string
+  coach_name: string
   starts_at: string
   pack_name: string
   price_paid_cents: number
@@ -123,7 +125,7 @@ export function AdminDashboardPage() {
     // 2. Bookings (credits consumed) in period — based on class date
     const { data: classesInPeriod } = await supabase
       .from('scheduled_classes')
-      .select('id, class_type_id, coach_id, starts_at, class_type:class_types(name)')
+      .select('id, class_type_id, coach_id, starts_at, title, class_type:class_types(name)')
       .gte('starts_at', from)
       .lte('starts_at', to)
       .eq('is_cancelled', false)
@@ -166,6 +168,8 @@ export function AdminDashboardPage() {
         id: b.id,
         user_name: profileMap.get(b.user_id) ?? '-',
         class_name: (sc?.class_type as any)?.name ?? '-',
+        class_title: (sc as any)?.title ?? '',
+        coach_name: sc?.coach_id ? (profileMap.get(sc.coach_id) ?? '-') : '',
         starts_at: sc?.starts_at ?? '',
         pack_name: pp?.pack_type?.name ?? '-',
         price_paid_cents: pp?.price_paid_cents ?? 0,
@@ -227,6 +231,52 @@ export function AdminDashboardPage() {
     { value: 'custom', label: isFr ? 'Personnalisé' : 'Custom' },
   ]
 
+  const exportCsv = (rows: Record<string, string | number>[], filename: string) => {
+    if (rows.length === 0) return
+    const BOM = '\uFEFF'
+    const headers = Object.keys(rows[0])
+    const csv = BOM + [
+      headers.join(';'),
+      ...rows.map(row => headers.map(h => `"${String(row[h] ?? '').replace(/"/g, '""')}"`).join(';'))
+    ].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `${filename}.csv`
+    link.click()
+  }
+
+  const exportPackSales = () => {
+    const periodLabel = format(dateFrom, 'yyyy-MM-dd') + '_' + format(dateTo, 'yyyy-MM-dd')
+    exportCsv(
+      packSales.map(s => ({
+        'Date': format(new Date(s.purchased_at), 'dd/MM/yyyy HH:mm'),
+        'Client': s.user_name,
+        'Pack': s.pack_name,
+        'Crédits': s.credits,
+        'Montant (€)': s.price_paid_cents === 0 ? 'Offert' : (s.price_paid_cents / 100).toFixed(2),
+      })),
+      `ventes-packs_${periodLabel}`
+    )
+  }
+
+  const exportBookings = () => {
+    const periodLabel = format(dateFrom, 'yyyy-MM-dd') + '_' + format(dateTo, 'yyyy-MM-dd')
+    exportCsv(
+      bookings.map(b => ({
+        'Date': b.starts_at ? format(new Date(b.starts_at), 'dd/MM/yyyy') : '',
+        'Heure': b.starts_at ? format(new Date(b.starts_at), 'HH:mm') : '',
+        'Type de cours': b.class_name,
+        'Titre événement': b.class_title,
+        'Coach': b.coach_name,
+        'Client': b.user_name,
+        'Pack utilisé': b.pack_name,
+        'Valeur crédit (€)': (b.price_paid_cents / b.credit_count / 100).toFixed(2),
+      })),
+      `cours-reservations_${periodLabel}`
+    )
+  }
+
   const openCoachDetail = (coach: CoachStat) => {
     setSelectedCoach(coach)
     setDetailDialog('coach')
@@ -267,6 +317,20 @@ export function AdminDashboardPage() {
           {format(dateFrom, 'dd MMM', { locale })} — {format(dateTo, 'dd MMM yyyy', { locale })}
         </span>
       </div>
+
+      {/* Export buttons */}
+      {!loading && (packSales.length > 0 || bookings.length > 0) && (
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="text-xs" onClick={exportPackSales} disabled={packSales.length === 0}>
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            {isFr ? 'Export ventes packs (.csv)' : 'Export pack sales (.csv)'}
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs" onClick={exportBookings} disabled={bookings.length === 0}>
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            {isFr ? 'Export cours-réservations (.csv)' : 'Export class bookings (.csv)'}
+          </Button>
+        </div>
+      )}
 
       {loading ? <LoadingState /> : (
         <>
