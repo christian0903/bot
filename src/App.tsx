@@ -45,6 +45,7 @@ const AdminAnnouncementsPage = lazy(() => import('@/pages/admin/AdminAnnouncemen
 const AdminSettingsPage = lazy(() => import('@/pages/admin/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })))
 const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })))
 const AdminHelpPage = lazy(() => import('@/pages/admin/AdminHelpPage').then(m => ({ default: m.AdminHelpPage })))
+const AdminUserDetailPage = lazy(() => import('@/pages/admin/AdminUserDetailPage').then(m => ({ default: m.AdminUserDetailPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>
@@ -83,6 +84,7 @@ function App() {
                   {/* Admin */}
                   <Route path="/admin" element={<AuthGuard><RoleGuard roles={['admin']}><AdminLayout /></RoleGuard></AuthGuard>}>
                     <Route path="users" element={<Lazy><AdminUsersPage /></Lazy>} />
+                    <Route path="users/:id" element={<Lazy><AdminUserDetailPage /></Lazy>} />
                     <Route path="categories" element={<Lazy><AdminCategoriesPage /></Lazy>} />
                     <Route path="credit-types" element={<Lazy><AdminCreditTypesPage /></Lazy>} />
                     <Route path="pack-types" element={<Lazy><AdminPackTypesPage /></Lazy>} />

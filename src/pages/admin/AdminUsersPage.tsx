@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
 import type { Profile, UserRole, PackType } from '@/types'
@@ -32,7 +33,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Download, Trash2, Users, Gift } from 'lucide-react'
+import { Download, Trash2, Users, Gift, ChevronRight } from 'lucide-react'
 import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 
@@ -53,6 +54,7 @@ const exportCsv = (data: Record<string, unknown>[], filename: string) => {
 
 export function AdminUsersPage() {
   const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
   const [users, setUsers] = useState<UserWithRole[]>([])
   const [loading, setLoading] = useState(true)
@@ -222,7 +224,15 @@ export function AdminUsersPage() {
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.display_name}</TableCell>
+                  <TableCell>
+                    <button
+                      className="font-medium text-left hover:text-primary hover:underline transition-colors flex items-center gap-1"
+                      onClick={() => navigate(`/admin/users/${user.id}`)}
+                    >
+                      {user.display_name}
+                      <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100" />
+                    </button>
+                  </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
                     <Select
