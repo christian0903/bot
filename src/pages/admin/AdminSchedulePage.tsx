@@ -300,7 +300,7 @@ export function AdminSchedulePage() {
 
           {bulkAction === 'coach' ? (
             <div className="flex items-center gap-2">
-              <Select value={bulkCoachId} onValueChange={(v) => setBulkCoachId(v ?? '')}>
+              <Select value={bulkCoachId || undefined} onValueChange={(v) => setBulkCoachId(v ?? '')}>
                 <SelectTrigger className="h-8 text-xs w-44">
                   <span>{coaches.find(c => c.id === bulkCoachId)?.display_name || t('admin.schedule.coach')}</span>
                 </SelectTrigger>
@@ -428,7 +428,7 @@ export function AdminSchedulePage() {
             <div>
               <Label>{t('admin.schedule.classType')}</Label>
               <Select
-                value={form.class_type_id}
+                value={form.class_type_id || undefined}
                 onValueChange={(val) => {
                   const ct = classTypes.find(c => c.id === val)
                   setForm(f => ({ ...f, class_type_id: val ?? '', max_participants: ct?.default_max_participants ?? f.max_participants }))
@@ -470,7 +470,7 @@ export function AdminSchedulePage() {
 
             <div>
               <Label>{t('admin.schedule.coach')} {i18n.language === 'fr' ? '(optionnel)' : '(optional)'}</Label>
-              <Select value={form.coach_id} onValueChange={(val) => setForm(f => ({ ...f, coach_id: val ?? '' }))}>
+              <Select value={form.coach_id || undefined} onValueChange={(val) => setForm(f => ({ ...f, coach_id: val ?? '' }))}>
                 <SelectTrigger>
                   <span>{coaches.find(c => c.id === form.coach_id)?.display_name || (i18n.language === 'fr' ? 'Aucun coach' : 'No coach')}</span>
                 </SelectTrigger>
