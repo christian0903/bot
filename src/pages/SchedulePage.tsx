@@ -104,6 +104,7 @@ export function SchedulePage() {
     setBookingInProgress(classId)
     const scheduledClass = classes.find((c) => c.id === classId)
     if (!scheduledClass?.class_type) { setBookingInProgress(null); return }
+    if (new Date(scheduledClass.starts_at) < new Date()) { toast.error(isFr ? 'Ce cours est déjà passé' : 'This class has already passed'); setBookingInProgress(null); return }
 
     const { data: credits } = await supabase.rpc('get_available_credits', {
       p_user_id: user.id, p_credit_type_id: scheduledClass.class_type.credit_type_id,
@@ -128,6 +129,8 @@ export function SchedulePage() {
 
   const handleJoinWaitlist = async (classId: string) => {
     if (!user) return
+    const sc = classes.find(c => c.id === classId)
+    if (sc && new Date(sc.starts_at) < new Date()) return
     setBookingInProgress(classId)
     const { data: posData } = await supabase.rpc('next_waitlist_position', { p_scheduled_class_id: classId })
     const position = posData ?? 1
@@ -157,6 +160,7 @@ export function SchedulePage() {
     setBookingInProgress(classId)
     const scheduledClass = classes.find((c) => c.id === classId)
     if (!scheduledClass?.class_type) { setBookingInProgress(null); return }
+    if (new Date(scheduledClass.starts_at) < new Date()) { toast.error(isFr ? 'Ce cours est déjà passé' : 'This class has already passed'); setBookingInProgress(null); return }
     const { data: credits } = await supabase.rpc('get_available_credits', { p_user_id: user.id, p_credit_type_id: scheduledClass.class_type.credit_type_id })
     if (!credits || credits.length === 0) { toast.error(t('schedule.noCredits')); setBookingInProgress(null); return }
     const packPurchaseId = credits[0].pack_purchase_id
@@ -174,6 +178,8 @@ export function SchedulePage() {
   const getClassesForDay = (day: Date) => classes.filter((sc) => isSameDay(new Date(sc.starts_at), day))
 
   const ClassCard = ({ sc }: { sc: ScheduledClass }) => {
+    const startsAt = new Date(sc.starts_at)
+    const isPast = startsAt < new Date()
     const isBooked = userBookings.has(sc.id)
     const waitlistEntry = userWaitlist.get(sc.id)
     const isOnWaitlist = !!waitlistEntry
@@ -185,7 +191,6 @@ export function SchedulePage() {
     const creditName = sc.class_type?.credit_type?.name ?? 'default'
     const creditLabel = isFr ? sc.class_type?.credit_type?.label_fr : sc.class_type?.credit_type?.label_en
     const badge = CREDIT_BADGE[creditName] || DEFAULT_BADGE
-    const startsAt = new Date(sc.starts_at)
     const spotsPercent = Math.min((spotsUsed / sc.max_participants) * 100, 100)
 
     return (
@@ -194,9 +199,11 @@ export function SchedulePage() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         className={cn(
-          'rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40',
-          isBooked && 'border-primary/50 bg-primary/5',
-          isOffered && 'border-orange-400/50'
+          'rounded-xl border border-border bg-card p-4 transition-all',
+          isPast && 'opacity-50',
+          !isPast && 'hover:border-primary/40',
+          isBooked && !isPast && 'border-primary/50 bg-primary/5',
+          isOffered && !isPast && 'border-orange-400/50'
         )}
       >
         {/* Header: name + badge */}
@@ -245,7 +252,18 @@ export function SchedulePage() {
           </div>
 
           {/* Action button */}
-          {isBooked ? (
+          {isPast ? (
+            <span className="text-xs text-muted-foreground">
+              {isBooked ? (
+                <span className="flex items-center gap-1 text-primary/60">
+                  <Check className="h-3.5 w-3.5" />
+                  {t('schedule.booked')}
+                </span>
+              ) : (
+                isFr ? 'Terminé' : 'Past'
+              )}
+            </span>
+          ) : isBooked ? (
             <span className="flex items-center gap-1 text-xs font-medium text-primary">
               <Check className="h-3.5 w-3.5" />
               {t('schedule.booked')}
