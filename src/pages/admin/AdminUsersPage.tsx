@@ -35,7 +35,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Download, Trash2, Users, Gift, ChevronRight, CreditCard } from 'lucide-react'
+import { Download, Trash2, Users, Gift, ChevronRight, CreditCard, Plus } from 'lucide-react'
 import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 
@@ -64,6 +64,13 @@ export function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<UserWithRole | null>(null)
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('client')
+
+  // Create user state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createSaving, setCreateSaving] = useState(false)
+  const [newUser, setNewUser] = useState({
+    email: '', password: '', display_name: '', first_name: '', last_name: '', phone: '', role: 'client' as UserRole,
+  })
 
   // Assign pack state
   const [packDialogOpen, setPackDialogOpen] = useState(false)
@@ -99,6 +106,53 @@ export function AdminUsersPage() {
     }))
     setUsers(merged)
     setLoading(false)
+  }
+
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.password || !newUser.display_name) return
+    setCreateSaving(true)
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { toast.error(t('common.error')); setCreateSaving(false); return }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify(newUser),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || t('common.error'))
+        setCreateSaving(false)
+        return
+      }
+
+      await logActivity({
+        action: 'role_changed',
+        actor_id: currentUser?.id ?? null,
+        target_user_id: data.user_id,
+        entity_type: 'profiles',
+        details: { email: newUser.email, display_name: newUser.display_name, role: newUser.role },
+        description: `Utilisateur créé: ${newUser.display_name} (${newUser.email}) — rôle ${newUser.role}`,
+      })
+
+      toast.success(t('admin.users.userCreated'))
+      setCreateDialogOpen(false)
+      setNewUser({ email: '', password: '', display_name: '', first_name: '', last_name: '', phone: '', role: 'client' })
+      fetchUsers()
+    } catch {
+      toast.error(t('common.error'))
+    }
+    setCreateSaving(false)
   }
 
   useEffect(() => {
@@ -210,10 +264,16 @@ export function AdminUsersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">{t('admin.users.title')}</h1>
-        <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="h-4 w-4 mr-2" />
-          {t('admin.users.exportCsv')}
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            {t('admin.users.createUser')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" />
+            {t('admin.users.exportCsv')}
+          </Button>
+        </div>
       </div>
 
       {/* Role filter */}
@@ -304,6 +364,96 @@ export function AdminUsersPage() {
           </Table>
         </div>
       )}
+
+      {/* Create User Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              {t('admin.users.createUser')}
+            </DialogTitle>
+            <DialogDescription>{t('admin.users.createUserDesc')}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">{t('auth.firstName')}</Label>
+                <Input
+                  value={newUser.first_name}
+                  onChange={(e) => setNewUser(u => ({ ...u, first_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">{t('auth.lastName')}</Label>
+                <Input
+                  value={newUser.last_name}
+                  onChange={(e) => setNewUser(u => ({ ...u, last_name: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('auth.displayName')} *</Label>
+              <Input
+                value={newUser.display_name}
+                onChange={(e) => setNewUser(u => ({ ...u, display_name: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('auth.email')} *</Label>
+              <Input
+                type="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser(u => ({ ...u, email: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('auth.password')} *</Label>
+              <Input
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser(u => ({ ...u, password: e.target.value }))}
+                required
+                minLength={8}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('profile.phone')}</Label>
+              <Input
+                value={newUser.phone}
+                onChange={(e) => setNewUser(u => ({ ...u, phone: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('admin.users.role')}</Label>
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={newUser.role}
+                onChange={(e) => setNewUser(u => ({ ...u, role: e.target.value as UserRole }))}
+              >
+                <option value="client">{t('roles.client')}</option>
+                <option value="coach">{t('roles.coach')}</option>
+                <option value="admin">{t('roles.admin')}</option>
+              </select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleCreateUser}
+              disabled={!newUser.email || !newUser.password || !newUser.display_name || createSaving}
+            >
+              {createSaving ? '...' : t('admin.users.createUser')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Pack Dialog */}
       <Dialog open={packDialogOpen} onOpenChange={setPackDialogOpen}>
