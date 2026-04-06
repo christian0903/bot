@@ -1,10 +1,10 @@
 -- ============================================
 -- 1. Nombre max de participants par type de cours
 -- ============================================
-ALTER TABLE class_types ADD COLUMN IF NOT EXISTS default_max_participants INTEGER DEFAULT 8;
+ALTER TABLE class_types ADD COLUMN IF NOT EXISTS default_max_participants INTEGER DEFAULT 4;
 
 -- Mettre à jour les types existants
-UPDATE class_types SET default_max_participants = 8;
+UPDATE class_types SET default_max_participants = 4;
 
 -- ============================================
 -- 2. Table liste d'attente

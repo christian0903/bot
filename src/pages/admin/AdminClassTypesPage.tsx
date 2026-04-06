@@ -48,7 +48,7 @@ const emptyForm: ClassTypeForm = {
   name: '',
   description: '',
   credit_type_id: '',
-  default_max_participants: 8,
+  default_max_participants: 4,
   is_active: true,
 }
 

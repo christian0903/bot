@@ -178,8 +178,16 @@ export function AdminUserDetailPage() {
         </Avatar>
         <div>
           <h1 className="text-2xl font-bold">{profile.display_name}</h1>
-          <p className="text-sm text-muted-foreground">{profile.email}</p>
-          {profile.phone && <p className="text-sm text-muted-foreground">{profile.phone}</p>}
+          {profile.email && (
+            <a href={`mailto:${profile.email}`} className="text-sm text-primary hover:underline">
+              {profile.email}
+            </a>
+          )}
+          {profile.phone && (
+            <a href={`tel:${profile.phone}`} className="text-sm text-muted-foreground hover:underline block">
+              {profile.phone}
+            </a>
+          )}
         </div>
       </div>
 
