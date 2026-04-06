@@ -1,0 +1,283 @@
+{
+  "app": {
+    "name": "Back on Track",
+    "tagline": "Your fitness studio"
+  },
+  "nav": {
+    "home": "Home",
+    "schedule": "Schedule",
+    "myBookings": "My Bookings",
+    "myPacks": "My Packs",
+    "packs": "Buy a Pack",
+    "profile": "Profile",
+    "notifications": "Notifications",
+    "help": "Help",
+    "admin": "Admin",
+    "coach": "Coach Area",
+    "login": "Login",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Sign Up",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset Password",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "displayName": "Display Name",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "loginButton": "Sign In",
+    "registerButton": "Sign Up",
+    "sendResetLink": "Send Reset Link",
+    "newPassword": "New Password",
+    "updatePassword": "Update Password",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "emailConfirmation": "Check your email to confirm your registration.",
+    "resetEmailSent": "A reset link has been sent to your email.",
+    "passwordUpdated": "Password updated successfully.",
+    "loginSuccess": "Login successful!",
+    "logoutSuccess": "Logged out successfully.",
+    "verificationQuestion": "What is 3 + 4?",
+    "verificationError": "Incorrect answer to the verification question.",
+    "invalidDisplayName": "Display name can only contain letters, spaces, and hyphens.",
+    "passwordMismatch": "Passwords do not match.",
+    "emailRequired": "Email is required.",
+    "passwordRequired": "Password is required.",
+    "passwordMinLength": "Password must be at least 8 characters.",
+    "displayNameRequired": "Display name is required."
+  },
+  "home": {
+    "welcome": "Welcome to Back on Track",
+    "subtitle": "Your fitness journey starts here",
+    "viewSchedule": "View Schedule",
+    "buyPack": "Buy a Pack",
+    "announcements": "Announcements"
+  },
+  "schedule": {
+    "title": "Class Schedule",
+    "weekView": "Week View",
+    "listView": "List View",
+    "noClasses": "No classes scheduled for this period.",
+    "book": "Book",
+    "booked": "Booked",
+    "full": "Full",
+    "cancelled": "Cancelled",
+    "spots": "{{count}} spot(s) remaining",
+    "coach": "Coach",
+    "duration": "{{minutes}} min",
+    "bookingConfirmed": "Booking confirmed!",
+    "bookingCancelled": "Booking cancelled.",
+    "noCredits": "You don't have available credits for this class type.",
+    "buyPackPrompt": "Buy a pack to book this class?"
+  },
+  "packs": {
+    "title": "Available Packs",
+    "credits": "{{count}} credit(s)",
+    "validity": "{{days}} days validity",
+    "price": "€{{price}}",
+    "buy": "Buy",
+    "myPacks": "My Packs",
+    "creditsRemaining": "{{count}} credit(s) remaining",
+    "expiresAt": "Expires on {{date}}",
+    "expired": "Expired",
+    "noPacks": "No packs available for your category.",
+    "noActivePacks": "You have no active packs.",
+    "purchaseSuccess": "Purchase successful!"
+  },
+  "bookings": {
+    "title": "My Bookings",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "cancel": "Cancel",
+    "cancelConfirm": "Are you sure you want to cancel this booking?",
+    "noBookings": "No bookings.",
+    "status": {
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "profile": {
+    "title": "My Profile",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "avatar": "Profile Picture",
+    "bio": "Bio",
+    "phone": "Phone",
+    "category": "Member Category",
+    "publicProfile": "Public Profile",
+    "updated": "Profile updated."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "noNotifications": "No notifications.",
+    "new": "New notification"
+  },
+  "admin": {
+    "title": "Administration",
+    "users": {
+      "title": "Users",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "joined": "Joined",
+      "lastLogin": "Last Login",
+      "actions": "Actions",
+      "changeRole": "Change Role",
+      "resetPassword": "Reset Password",
+      "delete": "Delete",
+      "deleteConfirm": "Are you sure you want to delete this user?",
+      "exportCsv": "Export CSV"
+    },
+    "categories": {
+      "title": "Member Categories",
+      "name": "Name",
+      "description": "Description",
+      "add": "Add Category",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "creditTypes": {
+      "title": "Credit Types",
+      "name": "Identifier",
+      "labelFr": "Label FR",
+      "labelEn": "Label EN",
+      "add": "Add Credit Type",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "packTypes": {
+      "title": "Pack Types",
+      "name": "Name",
+      "creditType": "Credit Type",
+      "credits": "Credits",
+      "price": "Price",
+      "validity": "Validity (days)",
+      "categories": "Eligible Categories",
+      "active": "Active",
+      "add": "Add Pack Type",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "classTypes": {
+      "title": "Class Types",
+      "name": "Name",
+      "description": "Description",
+      "creditType": "Credit Type",
+      "active": "Active",
+      "add": "Add Class Type",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "schedule": {
+      "title": "Schedule Management",
+      "classType": "Class Type",
+      "coach": "Coach",
+      "date": "Date",
+      "time": "Time",
+      "maxParticipants": "Max Participants",
+      "add": "Add Class",
+      "edit": "Edit",
+      "cancel": "Cancel Class",
+      "delete": "Delete"
+    },
+    "bookings": {
+      "title": "Bookings",
+      "class": "Class",
+      "client": "Client",
+      "pack": "Pack Used",
+      "status": "Status",
+      "revenue": "Revenue"
+    },
+    "coupons": {
+      "title": "Coupons",
+      "code": "Code",
+      "discount": "Discount",
+      "uses": "Uses",
+      "validity": "Validity",
+      "active": "Active",
+      "add": "Add Coupon",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "announcements": {
+      "title": "Announcements",
+      "content": "Content",
+      "preview": "Preview",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "delete": "Delete",
+      "add": "New Announcement"
+    },
+    "settings": {
+      "title": "Settings",
+      "stripeMode": "Stripe Mode",
+      "testMode": "Test Mode",
+      "liveMode": "Live Mode"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "period": "Period",
+      "week": "Week",
+      "month": "Month",
+      "quarter": "Quarter",
+      "year": "Year",
+      "packSales": "Pack Sales",
+      "revenue": "Revenue",
+      "classesByCoach": "Classes by Coach"
+    }
+  },
+  "coach": {
+    "myClasses": "My Classes",
+    "participants": "Participants",
+    "noClasses": "No assigned classes."
+  },
+  "theme": {
+    "classic": "Classic",
+    "dark": "Dark",
+    "vivid": "Vivid",
+    "vividDark": "Vivid Dark"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search",
+    "noResults": "No results.",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "actions": "Actions",
+    "status": "Status",
+    "date": "Date",
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive",
+    "confirmDelete": "Are you sure you want to delete this item?",
+    "deleteSuccess": "Deleted successfully.",
+    "saveSuccess": "Saved successfully.",
+    "exportCsv": "Export CSV"
+  },
+  "footer": {
+    "version": "Version {{version}}",
+    "support": "Support",
+    "rights": "All rights reserved."
+  },
+  "roles": {
+    "admin": "Administrator",
+    "coach": "Coach",
+    "client": "Client"
+  }
+}

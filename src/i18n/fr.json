@@ -1,0 +1,283 @@
+{
+  "app": {
+    "name": "Back on Track",
+    "tagline": "Votre studio de fitness"
+  },
+  "nav": {
+    "home": "Accueil",
+    "schedule": "Planning",
+    "myBookings": "Mes réservations",
+    "myPacks": "Mes packs",
+    "packs": "Acheter un pack",
+    "profile": "Profil",
+    "notifications": "Notifications",
+    "help": "Aide",
+    "admin": "Administration",
+    "coach": "Espace coach",
+    "login": "Connexion",
+    "logout": "Déconnexion"
+  },
+  "auth": {
+    "login": "Connexion",
+    "register": "Inscription",
+    "forgotPassword": "Mot de passe oublié ?",
+    "resetPassword": "Réinitialiser le mot de passe",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "displayName": "Nom d'affichage",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "loginButton": "Se connecter",
+    "registerButton": "S'inscrire",
+    "sendResetLink": "Envoyer le lien",
+    "newPassword": "Nouveau mot de passe",
+    "updatePassword": "Mettre à jour le mot de passe",
+    "noAccount": "Pas encore de compte ?",
+    "hasAccount": "Déjà un compte ?",
+    "emailConfirmation": "Vérifiez votre email pour confirmer votre inscription.",
+    "resetEmailSent": "Un lien de réinitialisation a été envoyé à votre email.",
+    "passwordUpdated": "Mot de passe mis à jour avec succès.",
+    "loginSuccess": "Connexion réussie !",
+    "logoutSuccess": "Déconnexion réussie.",
+    "verificationQuestion": "Combien font 3 + 4 ?",
+    "verificationError": "Réponse incorrecte à la question de vérification.",
+    "invalidDisplayName": "Le nom d'affichage ne peut contenir que des lettres, espaces et tirets.",
+    "passwordMismatch": "Les mots de passe ne correspondent pas.",
+    "emailRequired": "L'email est requis.",
+    "passwordRequired": "Le mot de passe est requis.",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 8 caractères.",
+    "displayNameRequired": "Le nom d'affichage est requis."
+  },
+  "home": {
+    "welcome": "Bienvenue chez Back on Track",
+    "subtitle": "Votre parcours fitness commence ici",
+    "viewSchedule": "Voir le planning",
+    "buyPack": "Acheter un pack",
+    "announcements": "Annonces"
+  },
+  "schedule": {
+    "title": "Planning des cours",
+    "weekView": "Vue semaine",
+    "listView": "Vue liste",
+    "noClasses": "Aucun cours prévu pour cette période.",
+    "book": "Réserver",
+    "booked": "Réservé",
+    "full": "Complet",
+    "cancelled": "Annulé",
+    "spots": "{{count}} place(s) restante(s)",
+    "coach": "Coach",
+    "duration": "{{minutes}} min",
+    "bookingConfirmed": "Réservation confirmée !",
+    "bookingCancelled": "Réservation annulée.",
+    "noCredits": "Vous n'avez pas de crédits disponibles pour ce type de cours.",
+    "buyPackPrompt": "Acheter un pack pour réserver ce cours ?"
+  },
+  "packs": {
+    "title": "Packs disponibles",
+    "credits": "{{count}} crédit(s)",
+    "validity": "{{days}} jours de validité",
+    "price": "{{price}} €",
+    "buy": "Acheter",
+    "myPacks": "Mes packs",
+    "creditsRemaining": "{{count}} crédit(s) restant(s)",
+    "expiresAt": "Expire le {{date}}",
+    "expired": "Expiré",
+    "noPacks": "Aucun pack disponible pour votre catégorie.",
+    "noActivePacks": "Vous n'avez aucun pack actif.",
+    "purchaseSuccess": "Achat réussi !"
+  },
+  "bookings": {
+    "title": "Mes réservations",
+    "upcoming": "À venir",
+    "past": "Passées",
+    "cancel": "Annuler",
+    "cancelConfirm": "Êtes-vous sûr de vouloir annuler cette réservation ?",
+    "noBookings": "Aucune réservation.",
+    "status": {
+      "confirmed": "Confirmée",
+      "cancelled": "Annulée"
+    }
+  },
+  "profile": {
+    "title": "Mon profil",
+    "edit": "Modifier",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "avatar": "Photo de profil",
+    "bio": "Bio",
+    "phone": "Téléphone",
+    "category": "Catégorie de membre",
+    "publicProfile": "Profil public",
+    "updated": "Profil mis à jour."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "noNotifications": "Aucune notification.",
+    "new": "Nouvelle notification"
+  },
+  "admin": {
+    "title": "Administration",
+    "users": {
+      "title": "Utilisateurs",
+      "name": "Nom",
+      "email": "Email",
+      "role": "Rôle",
+      "joined": "Inscription",
+      "lastLogin": "Dernière connexion",
+      "actions": "Actions",
+      "changeRole": "Changer le rôle",
+      "resetPassword": "Réinitialiser le mot de passe",
+      "delete": "Supprimer",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
+      "exportCsv": "Exporter CSV"
+    },
+    "categories": {
+      "title": "Catégories de membres",
+      "name": "Nom",
+      "description": "Description",
+      "add": "Ajouter une catégorie",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "creditTypes": {
+      "title": "Types de crédits",
+      "name": "Identifiant",
+      "labelFr": "Libellé FR",
+      "labelEn": "Libellé EN",
+      "add": "Ajouter un type de crédit",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "packTypes": {
+      "title": "Types de packs",
+      "name": "Nom",
+      "creditType": "Type de crédit",
+      "credits": "Crédits",
+      "price": "Prix",
+      "validity": "Validité (jours)",
+      "categories": "Catégories éligibles",
+      "active": "Actif",
+      "add": "Ajouter un type de pack",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "classTypes": {
+      "title": "Types de cours",
+      "name": "Nom",
+      "description": "Description",
+      "creditType": "Type de crédit",
+      "active": "Actif",
+      "add": "Ajouter un type de cours",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "schedule": {
+      "title": "Gestion du planning",
+      "classType": "Type de cours",
+      "coach": "Coach",
+      "date": "Date",
+      "time": "Heure",
+      "maxParticipants": "Places max",
+      "add": "Ajouter un cours",
+      "edit": "Modifier",
+      "cancel": "Annuler le cours",
+      "delete": "Supprimer"
+    },
+    "bookings": {
+      "title": "Réservations",
+      "class": "Cours",
+      "client": "Client",
+      "pack": "Pack utilisé",
+      "status": "Statut",
+      "revenue": "Revenu"
+    },
+    "coupons": {
+      "title": "Coupons",
+      "code": "Code",
+      "discount": "Réduction",
+      "uses": "Utilisations",
+      "validity": "Validité",
+      "active": "Actif",
+      "add": "Ajouter un coupon",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "announcements": {
+      "title": "Annonces",
+      "content": "Contenu",
+      "preview": "Aperçu",
+      "publish": "Publier",
+      "unpublish": "Dépublier",
+      "delete": "Supprimer",
+      "add": "Nouvelle annonce"
+    },
+    "settings": {
+      "title": "Paramètres",
+      "stripeMode": "Mode Stripe",
+      "testMode": "Mode test",
+      "liveMode": "Mode production"
+    },
+    "dashboard": {
+      "title": "Tableau de bord",
+      "period": "Période",
+      "week": "Semaine",
+      "month": "Mois",
+      "quarter": "Trimestre",
+      "year": "Année",
+      "packSales": "Ventes de packs",
+      "revenue": "Recettes",
+      "classesByCoach": "Cours par coach"
+    }
+  },
+  "coach": {
+    "myClasses": "Mes cours",
+    "participants": "Participants",
+    "noClasses": "Aucun cours assigné."
+  },
+  "theme": {
+    "classic": "Classique",
+    "dark": "Sombre",
+    "vivid": "Vivid",
+    "vividDark": "Vivid sombre"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue.",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "confirm": "Confirmer",
+    "yes": "Oui",
+    "no": "Non",
+    "search": "Rechercher",
+    "noResults": "Aucun résultat.",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "close": "Fermer",
+    "actions": "Actions",
+    "status": "Statut",
+    "date": "Date",
+    "all": "Tout",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet élément ?",
+    "deleteSuccess": "Supprimé avec succès.",
+    "saveSuccess": "Enregistré avec succès.",
+    "exportCsv": "Exporter CSV"
+  },
+  "footer": {
+    "version": "Version {{version}}",
+    "support": "Soutenir",
+    "rights": "Tous droits réservés."
+  },
+  "roles": {
+    "admin": "Administrateur",
+    "coach": "Coach",
+    "client": "Client"
+  }
+}
