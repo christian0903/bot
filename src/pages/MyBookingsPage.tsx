@@ -25,15 +25,31 @@ export function MyBookingsPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase
-      .from('bookings')
-      .select('*, scheduled_class:scheduled_classes(*, class_type:class_types(*), coach:profiles(display_name))')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setBookings((data as Booking[]) ?? [])
-        setLoading(false)
-      })
+    const fetchBookings = async () => {
+      const { data } = await supabase
+        .from('bookings')
+        .select('*, scheduled_class:scheduled_classes(*, class_type:class_types(*))')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      const rawBookings = (data as Booking[]) ?? []
+
+      // Resolve coach profiles
+      const coachIds = [...new Set(rawBookings.map(b => (b.scheduled_class as any)?.coach_id).filter(Boolean))]
+      if (coachIds.length > 0) {
+        const { data: coaches } = await supabase.from('profiles').select('id, display_name').in('id', coachIds)
+        const coachMap = new Map((coaches ?? []).map(c => [c.id, c]))
+        for (const b of rawBookings) {
+          if (b.scheduled_class) {
+            (b.scheduled_class as any).coach = coachMap.get((b.scheduled_class as any).coach_id)
+          }
+        }
+      }
+
+      setBookings(rawBookings)
+      setLoading(false)
+    }
+    fetchBookings()
   }, [user])
 
   const handleCancel = async (bookingId: string) => {

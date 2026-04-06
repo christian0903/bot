@@ -45,7 +45,7 @@ export function SchedulePage() {
     const [classesRes, bookingsRes] = await Promise.all([
       supabase
         .from('scheduled_classes')
-        .select('*, class_type:class_types(*, credit_type:credit_types(name)), coach:profiles(display_name, avatar_url)')
+        .select('*, class_type:class_types(*, credit_type:credit_types(name))')
         .gte('starts_at', from)
         .lt('starts_at', to)
         .eq('is_cancelled', false)
@@ -59,7 +59,22 @@ export function SchedulePage() {
         : Promise.resolve({ data: [] }),
     ])
 
-    setClasses((classesRes.data as ScheduledClass[]) ?? [])
+    const rawClasses = (classesRes.data as ScheduledClass[]) ?? []
+
+    // Fetch coach profiles separately (coach_id FK is on auth.users, not profiles)
+    const coachIds = [...new Set(rawClasses.map(c => c.coach_id))]
+    if (coachIds.length > 0) {
+      const { data: coaches } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', coachIds)
+      const coachMap = new Map((coaches ?? []).map(c => [c.id, c]))
+      for (const sc of rawClasses) {
+        sc.coach = coachMap.get(sc.coach_id) as ScheduledClass['coach']
+      }
+    }
+
+    setClasses(rawClasses)
     setUserBookings(new Set((bookingsRes.data ?? []).map((b) => b.scheduled_class_id)))
     setLoading(false)
   }

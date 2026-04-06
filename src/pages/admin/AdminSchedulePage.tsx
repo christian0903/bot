@@ -70,26 +70,35 @@ export function AdminSchedulePage() {
     const [classRes, typeRes, coachRolesRes] = await Promise.all([
       supabase
         .from('scheduled_classes')
-        .select('*, class_type:class_types(*), coach:profiles(*)')
+        .select('*, class_type:class_types(*)')
         .order('starts_at', { ascending: true }),
       supabase.from('class_types').select('*').eq('is_active', true).order('name'),
       supabase.from('user_roles').select('user_id').eq('role', 'coach'),
     ])
 
-    setClasses((classRes.data as ScheduledClass[]) ?? [])
+    const rawClasses = (classRes.data as ScheduledClass[]) ?? []
     setClassTypes((typeRes.data as ClassType[]) ?? [])
 
     // Fetch coach profiles
     const coachIds = (coachRolesRes.data ?? []).map((r: { user_id: string }) => r.user_id)
-    if (coachIds.length > 0) {
+    // Also include coach_ids from scheduled classes in case role was removed
+    const allCoachIds = [...new Set([...coachIds, ...rawClasses.map(c => c.coach_id)])]
+    if (allCoachIds.length > 0) {
       const { data: coachProfiles } = await supabase
         .from('profiles')
         .select('*')
-        .in('id', coachIds)
+        .in('id', allCoachIds)
         .order('display_name')
       setCoaches((coachProfiles as Profile[]) ?? [])
+
+      // Attach coach to each class
+      const coachMap = new Map((coachProfiles ?? []).map(c => [c.id, c]))
+      for (const sc of rawClasses) {
+        sc.coach = coachMap.get(sc.coach_id) as Profile
+      }
     }
 
+    setClasses(rawClasses)
     setLoading(false)
   }
 

@@ -47,16 +47,30 @@ export function DashboardPage() {
           .order('expires_at', { ascending: true }),
         supabase
           .from('bookings')
-          .select('*, scheduled_class:scheduled_classes(*, class_type:class_types(*), coach:profiles(display_name, avatar_url))')
+          .select('*, scheduled_class:scheduled_classes(*, class_type:class_types(*))')
           .eq('user_id', user.id)
           .eq('status', 'confirmed')
-          .gt('scheduled_class.starts_at', new Date().toISOString())
           .order('created_at', { ascending: true })
-          .limit(5),
+          .limit(10),
       ])
 
       setPacks((packsRes.data as PackPurchase[]) ?? [])
-      setUpcomingBookings((bookingsRes.data as (Booking & { scheduled_class: ScheduledClass })[]) ?? [])
+
+      // Resolve coach profiles for bookings
+      const rawBookings = (bookingsRes.data as (Booking & { scheduled_class: ScheduledClass })[]) ?? []
+      const futureBookings = rawBookings.filter(b => b.scheduled_class && new Date(b.scheduled_class.starts_at) > new Date())
+      const coachIds = [...new Set(futureBookings.map(b => b.scheduled_class?.coach_id).filter(Boolean))]
+      if (coachIds.length > 0) {
+        const { data: coaches } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', coachIds)
+        const coachMap = new Map((coaches ?? []).map(c => [c.id, c]))
+        for (const b of futureBookings) {
+          if (b.scheduled_class) {
+            (b.scheduled_class as any).coach = coachMap.get(b.scheduled_class.coach_id)
+          }
+        }
+      }
+
+      setUpcomingBookings(futureBookings.slice(0, 5))
       setLoading(false)
     }
 
