@@ -145,6 +145,7 @@ export function AdminClassTypesPage() {
                 <TableHead>{t('admin.classTypes.name')}</TableHead>
                 <TableHead>{t('admin.classTypes.description')}</TableHead>
                 <TableHead>{t('admin.classTypes.creditType')}</TableHead>
+                <TableHead className="text-center">{t('schedule.defaultMaxParticipants')}</TableHead>
                 <TableHead>{t('admin.classTypes.active')}</TableHead>
                 <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
@@ -155,6 +156,7 @@ export function AdminClassTypesPage() {
                   <TableCell className="font-medium">{ct.name}</TableCell>
                   <TableCell>{ct.description ?? '-'}</TableCell>
                   <TableCell>{ct.credit_type?.label_fr ?? '-'}</TableCell>
+                  <TableCell className="text-center font-medium">{ct.default_max_participants ?? '-'}</TableCell>
                   <TableCell>
                     <Badge variant={ct.is_active ? 'default' : 'secondary'}>
                       {ct.is_active ? t('common.active') : t('common.inactive')}
