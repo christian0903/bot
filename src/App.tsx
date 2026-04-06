@@ -44,7 +44,7 @@ const AdminCouponsPage = lazy(() => import('@/pages/admin/AdminCouponsPage').the
 const AdminAnnouncementsPage = lazy(() => import('@/pages/admin/AdminAnnouncementsPage').then(m => ({ default: m.AdminAnnouncementsPage })))
 const AdminSettingsPage = lazy(() => import('@/pages/admin/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })))
 const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })))
-const AdminHelpPage = lazy(() => import('@/pages/admin/AdminHelpPage').then(m => ({ default: m.AdminHelpPage })))
+
 const AdminUserDetailPage = lazy(() => import('@/pages/admin/AdminUserDetailPage').then(m => ({ default: m.AdminUserDetailPage })))
 const AdminActivityLogPage = lazy(() => import('@/pages/admin/AdminActivityLogPage').then(m => ({ default: m.AdminActivityLogPage })))
 
@@ -97,7 +97,6 @@ function App() {
                     <Route path="settings" element={<Lazy><AdminSettingsPage /></Lazy>} />
                     <Route path="activity-log" element={<Lazy><AdminActivityLogPage /></Lazy>} />
                     <Route path="dashboard" element={<Lazy><AdminDashboardPage /></Lazy>} />
-                    <Route path="help" element={<Lazy><AdminHelpPage /></Lazy>} />
                   </Route>
                 </Route>
               </Routes>

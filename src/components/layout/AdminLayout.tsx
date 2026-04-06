@@ -12,7 +12,6 @@ import {
   Megaphone,
   Settings,
   BarChart3,
-  HelpCircle,
   ScrollText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -30,7 +29,6 @@ const adminNav = [
   { path: '/admin/activity-log', icon: ScrollText, labelKey: 'admin.activityLog.title' },
   { path: '/admin/dashboard', icon: BarChart3, labelKey: 'admin.dashboard.title' },
   { path: '/admin/settings', icon: Settings, labelKey: 'admin.settings.title' },
-  { path: '/admin/help', icon: HelpCircle, labelKey: 'nav.help' },
 ]
 
 export function AdminLayout() {
