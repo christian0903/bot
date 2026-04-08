@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { Browser } from '@capacitor/browser'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -57,7 +58,13 @@ export function PacksPage() {
         }
       )
       const data = await response.json()
-      if (data.url) { window.location.href = data.url } else { toast.error(data.error || t('common.error')) }
+      if (data.url) {
+        // Browser plugin: SFSafariViewController on iOS, Custom Tabs on Android,
+        // window.open() on web. Compliant with Apple guideline 3.1.3(f).
+        await Browser.open({ url: data.url, presentationStyle: 'popover' })
+      } else {
+        toast.error(data.error || t('common.error'))
+      }
     } catch { toast.error(t('common.error')) }
   }
 
