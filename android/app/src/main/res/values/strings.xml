@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Back on Track</string>
+    <string name="title_activity_main">Back on Track</string>
+    <string name="package_name">be.backontrackstudio.app</string>
+    <string name="custom_url_scheme">be.backontrackstudio.app</string>
+</resources>
