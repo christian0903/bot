@@ -55,7 +55,7 @@ export function CoachClassDetailPage() {
         .single(),
       supabase
         .from('bookings')
-        .select('*, user:profiles(id, display_name, email, phone)')
+        .select('*')
         .eq('scheduled_class_id', id)
         .eq('status', 'confirmed'),
     ])
@@ -63,7 +63,23 @@ export function CoachClassDetailPage() {
     const sc = classRes.data as ScheduledClass
     setScheduledClass(sc)
     setMaxValue(sc?.max_participants ?? 0)
-    setBookings((bookingsRes.data as Booking[]) ?? [])
+
+    const rawBookings = (bookingsRes.data as Booking[]) ?? []
+
+    // Fetch profiles separately (bookings.user_id -> auth.users, not profiles directly)
+    if (rawBookings.length > 0) {
+      const userIds = [...new Set(rawBookings.map(b => b.user_id))]
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, email, phone')
+        .in('id', userIds)
+      const profileMap = new Map((profiles ?? []).map(p => [p.id, p]))
+      for (const b of rawBookings) {
+        b.user = profileMap.get(b.user_id) as Booking['user']
+      }
+    }
+
+    setBookings(rawBookings)
     setLoading(false)
   }
 

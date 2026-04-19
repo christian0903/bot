@@ -314,12 +314,30 @@ export function SchedulePage() {
     if (!isStaff) return
     setDetailClass(sc)
     setDetailLoading(true)
-    const { data } = await supabase
+    setAddMemberOpen(false)
+
+    const { data: bookingData } = await supabase
       .from('bookings')
-      .select('*, user:profiles(id, display_name, email, phone)')
+      .select('*')
       .eq('scheduled_class_id', sc.id)
       .eq('status', 'confirmed')
-    setDetailBookings((data as Booking[]) ?? [])
+
+    const rawBookings = (bookingData as Booking[]) ?? []
+
+    // Fetch profiles separately
+    if (rawBookings.length > 0) {
+      const userIds = [...new Set(rawBookings.map(b => b.user_id))]
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, email, phone')
+        .in('id', userIds)
+      const profileMap = new Map((profiles ?? []).map(p => [p.id, p]))
+      for (const b of rawBookings) {
+        b.user = profileMap.get(b.user_id) as Booking['user']
+      }
+    }
+
+    setDetailBookings(rawBookings)
     setDetailLoading(false)
   }
 
@@ -513,12 +531,7 @@ export function SchedulePage() {
     setAddMemberLoading(false)
 
     // Refresh bookings in detail dialog
-    const { data } = await supabase
-      .from('bookings')
-      .select('*, user:profiles(id, display_name, email, phone)')
-      .eq('scheduled_class_id', detailClass.id)
-      .eq('status', 'confirmed')
-    setDetailBookings((data as Booking[]) ?? [])
+    await openClassDetail(detailClass)
     setBookingCounts(prev => {
       const n = new Map(prev)
       n.set(detailClass.id, (n.get(detailClass.id) ?? 0) + 1)
