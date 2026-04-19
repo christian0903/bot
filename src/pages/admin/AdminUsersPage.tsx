@@ -322,10 +322,11 @@ export function AdminUsersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('admin.users.name')}</TableHead>
+                <TableHead>{t('admin.users.role')}</TableHead>
                 <TableHead className="text-center">
                   <span className="flex items-center gap-1 justify-center">
                     <CreditCard className="h-3 w-3" />
-                    {i18n.language === 'fr' ? 'Crédits' : 'Credits'}
+                    {isFr ? 'Crédits' : 'Credits'}
                   </span>
                 </TableHead>
                 <TableHead>{t('admin.users.lastLogin')}</TableHead>
@@ -343,6 +344,11 @@ export function AdminUsersPage() {
                       {user.display_name}
                       <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[11px]">
+                      {t(`roles.${user.role}`)}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge
