@@ -681,8 +681,10 @@ export function AdminSchedulePage() {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title={t('admin.schedule.delete')}
-        description={t('common.confirmDelete')}
+        title={isFr ? 'Supprimer ce cours ?' : 'Delete this class?'}
+        description={deleteTarget
+          ? `${deleteTarget.class_type?.name || deleteTarget.title || ''} — ${format(new Date(deleteTarget.starts_at), 'EEEE dd/MM/yyyy HH:mm', { locale })}`
+          : ''}
         onConfirm={handleDelete}
       />
     </div>
