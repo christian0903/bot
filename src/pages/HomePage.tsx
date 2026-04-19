@@ -16,6 +16,13 @@ export function HomePage() {
   const navigate = useNavigate()
   const [announcement, setAnnouncement] = useState<string | null>(null)
 
+  // Redirect logged-in users to dashboard
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [user, navigate])
+
   useEffect(() => {
     supabase
       .from('app_settings')
