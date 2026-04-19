@@ -159,6 +159,9 @@
       "intermediate": "Intermédiaire",
       "advanced": "Avancé"
     },
+    "requestInvoice": "Demander une facture",
+    "qrTitle": "Mon QR code check-in",
+    "qrDesc": "Montre ce QR code au coach pour pointer ta présence.",
     "referralTitle": "Ton code de parrainage",
     "referralCopied": "Code copié !",
     "referralShareText": "Rejoins Back on Track avec mon code {{code}} et obtiens 30€ de réduction !",
@@ -276,6 +279,9 @@
     },
     "activityLog": {
       "title": "Journal d'activité"
+    },
+    "invoiceRequests": {
+      "title": "Demandes de factures"
     },
     "announcements": {
       "title": "Annonces",

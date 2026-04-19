@@ -159,6 +159,9 @@
       "intermediate": "Intermediate",
       "advanced": "Advanced"
     },
+    "requestInvoice": "Request an invoice",
+    "qrTitle": "My check-in QR code",
+    "qrDesc": "Show this QR code to the coach to check in.",
     "referralTitle": "Your referral code",
     "referralCopied": "Code copied!",
     "referralShareText": "Join Back on Track with my code {{code}} and get €30 off!",
@@ -276,6 +279,9 @@
     },
     "activityLog": {
       "title": "Activity Log"
+    },
+    "invoiceRequests": {
+      "title": "Invoice Requests"
     },
     "announcements": {
       "title": "Announcements",

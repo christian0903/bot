@@ -136,6 +136,8 @@ export interface Booking {
   user_id: string
   pack_purchase_id: string
   status: 'confirmed' | 'cancelled'
+  checked_in_at: string | null
+  is_no_show: boolean
   created_at: string
   cancelled_at: string | null
   scheduled_class?: ScheduledClass
@@ -177,4 +179,19 @@ export interface TrialSession {
   user_id: string
   scheduled_class_id: string | null
   created_at: string
+}
+
+export interface InvoiceRequest {
+  id: string
+  user_id: string
+  pack_purchase_id: string | null
+  company_name: string
+  address: string
+  vat_number: string | null
+  status: 'pending' | 'processed'
+  admin_notes: string | null
+  created_at: string
+  processed_at: string | null
+  pack_purchase?: PackPurchase
+  user?: Profile
 }

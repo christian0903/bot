@@ -47,6 +47,8 @@ const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage')
 
 const AdminUserDetailPage = lazy(() => import('@/pages/admin/AdminUserDetailPage').then(m => ({ default: m.AdminUserDetailPage })))
 const AdminActivityLogPage = lazy(() => import('@/pages/admin/AdminActivityLogPage').then(m => ({ default: m.AdminActivityLogPage })))
+const AdminInvoiceRequestsPage = lazy(() => import('@/pages/admin/AdminInvoiceRequestsPage').then(m => ({ default: m.AdminInvoiceRequestsPage })))
+const InvoiceRequestPage = lazy(() => import('@/pages/InvoiceRequestPage').then(m => ({ default: m.InvoiceRequestPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>
@@ -76,6 +78,7 @@ function App() {
                   <Route path="/profile" element={<AuthGuard><Lazy><ProfilePage /></Lazy></AuthGuard>} />
                   <Route path="/profile/:id" element={<AuthGuard><Lazy><PublicProfilePage /></Lazy></AuthGuard>} />
                   <Route path="/notifications" element={<AuthGuard><Lazy><NotificationsPage /></Lazy></AuthGuard>} />
+                  <Route path="/invoice-request" element={<AuthGuard><Lazy><InvoiceRequestPage /></Lazy></AuthGuard>} />
                   <Route path="/help" element={<Lazy><HelpPage /></Lazy>} />
 
                   {/* Coach */}
@@ -97,6 +100,7 @@ function App() {
                     <Route path="settings" element={<Lazy><AdminSettingsPage /></Lazy>} />
                     <Route path="activity-log" element={<Lazy><AdminActivityLogPage /></Lazy>} />
                     <Route path="dashboard" element={<Lazy><AdminDashboardPage /></Lazy>} />
+                    <Route path="invoice-requests" element={<Lazy><AdminInvoiceRequestsPage /></Lazy>} />
                   </Route>
                 </Route>
               </Routes>

@@ -14,6 +14,8 @@ type ActivityAction =
   | 'registration_fee_paid'
   | 'user_login'
   | 'trial_booked'
+  | 'check_in'
+  | 'no_show'
 
 interface LogEntry {
   action: ActivityAction

@@ -159,6 +159,24 @@ FROM (
 
   UNION ALL
 
+  -- Phase 5 columns
+  SELECT 'Column: bookings.checked_in_at (Phase 5)',
+    EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'bookings' AND column_name = 'checked_in_at')
+  UNION ALL
+  SELECT 'Column: bookings.is_no_show (Phase 5)',
+    EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'bookings' AND column_name = 'is_no_show')
+
+  UNION ALL
+
+  -- Phase 9
+  SELECT 'Table: invoice_requests (Phase 9)',
+    EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'invoice_requests')
+  UNION ALL
+  SELECT 'RLS: invoice_requests (Phase 9)',
+    EXISTS(SELECT 1 FROM pg_tables WHERE tablename = 'invoice_requests' AND rowsecurity = true)
+
+  UNION ALL
+
   -- ==================
   -- TRIGGERS
   -- ==================

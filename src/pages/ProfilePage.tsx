@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -12,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { LoadingState } from '@/components/common/LoadingState'
-import { Copy, Share2 } from 'lucide-react'
+import { Copy, Share2, ScanLine, FileText } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import type { MemberCategory } from '@/types'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -25,6 +27,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function ProfilePage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { user, profile, refreshProfile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<MemberCategory[]>([])
@@ -151,6 +154,22 @@ export function ProfilePage() {
             </div>
           </div>
 
+          {/* QR Code for check-in */}
+          <div className="mt-4 rounded-lg border p-4">
+            <p className="text-sm font-medium mb-3 flex items-center gap-2">
+              <ScanLine className="h-4 w-4" />
+              {t('profile.qrTitle')}
+            </p>
+            <div className="flex justify-center">
+              <div className="bg-white p-3 rounded-lg">
+                <QRCodeSVG value={profile.id} size={160} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              {t('profile.qrDesc')}
+            </p>
+          </div>
+
           {/* Referral code */}
           {profile.referral_code && (
             <div className="mt-4 rounded-lg border p-4">
@@ -168,6 +187,14 @@ export function ProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Invoice request link */}
+          <div className="mt-4">
+            <Button variant="outline" className="w-full" onClick={() => navigate('/invoice-request')}>
+              <FileText className="h-4 w-4 mr-2" />
+              {t('profile.requestInvoice')}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
