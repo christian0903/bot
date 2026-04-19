@@ -25,7 +25,7 @@ const DEFAULT_BADGE = { bg: 'bg-primary/20', text: 'text-primary' }
 
 export function SchedulePage() {
   const { t, i18n } = useTranslation()
-  const { user } = useAuth()
+  const { user, hasRegistrationFee, hasUsedTrial, refreshProfile } = useAuth()
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
   const [classes, setClasses] = useState<ScheduledClass[]>([])
@@ -174,6 +174,41 @@ export function SchedulePage() {
     setBookingInProgress(null)
   }
 
+  // ---- Trial session handler ----
+  const handleTrialBooking = async (classId: string) => {
+    if (!user) return
+    setBookingInProgress(classId)
+    const sc = classes.find((c) => c.id === classId)
+    if (!sc) { setBookingInProgress(null); return }
+    if (new Date(sc.starts_at) < new Date()) { toast.error(isFr ? 'Ce cours est déjà passé' : 'This class has already passed'); setBookingInProgress(null); return }
+
+    // Insert trial session
+    const { error: trialError } = await supabase.from('trial_sessions').insert({
+      user_id: user.id,
+      scheduled_class_id: classId,
+    })
+    if (trialError) {
+      toast.error(trialError.message)
+      setBookingInProgress(null)
+      return
+    }
+
+    await logActivity({
+      action: 'booking_created', actor_id: user.id, target_user_id: user.id, entity_type: 'trial_session',
+      details: { class_name: sc.class_type?.name, starts_at: sc.starts_at, is_trial: true },
+      description: `Séance d'essai: ${sc.class_type?.name} le ${format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm')}`,
+    })
+
+    setBookingCounts(prev => { const n = new Map(prev); n.set(classId, (n.get(classId) ?? 0) + 1); return n })
+    setUserBookings((prev) => new Set([...prev, classId]))
+    toast.success(isFr ? 'Séance d\'essai réservée !' : 'Trial session booked!')
+    refreshProfile()
+    setBookingInProgress(null)
+  }
+
+  // Can this user book via trial?
+  const canUseTrial = user && !hasUsedTrial && !hasRegistrationFee
+
   // ---- Render helpers ----
   const getClassesForDay = (day: Date) => classes.filter((sc) => isSameDay(new Date(sc.starts_at), day))
 
@@ -296,6 +331,15 @@ export function SchedulePage() {
               disabled={isBooking}
             >
               {isBooking ? '...' : t('schedule.joinWaitlist')}
+            </Button>
+          ) : canUseTrial ? (
+            <Button
+              size="sm"
+              className="rounded-full px-3 h-7 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => handleTrialBooking(sc.id)}
+              disabled={isBooking}
+            >
+              {isBooking ? '...' : (isFr ? 'Essai gratuit' : 'Free trial')}
             </Button>
           ) : (
             <Button

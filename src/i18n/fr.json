@@ -46,8 +46,27 @@
     "passwordMismatch": "Les mots de passe ne correspondent pas.",
     "emailRequired": "L'email est requis.",
     "passwordRequired": "Le mot de passe est requis.",
-    "passwordMinLength": "Le mot de passe doit contenir au moins 8 caractères.",
-    "displayNameRequired": "Le nom d'affichage est requis."
+    "passwordMinLength": "Le mot de passe doit contenir au moins 12 caractères.",
+    "passwordMinLengthHint": "Minimum 12 caractères",
+    "displayNameRequired": "Le nom d'affichage est requis.",
+    "phone": "Téléphone",
+    "dateOfBirth": "Date de naissance",
+    "address": "Adresse",
+    "addressPlaceholder": "Rue, numéro, code postal, ville",
+    "referralCode": "Code de parrainage",
+    "referralCodePlaceholder": "Ex: INGRID2026",
+    "firstNameRequired": "Le prénom est requis.",
+    "lastNameRequired": "Le nom est requis.",
+    "phoneRequired": "Le téléphone est requis.",
+    "dateOfBirthRequired": "La date de naissance est requise.",
+    "addressRequired": "L'adresse est requise.",
+    "cgvAccept": "J'accepte les Conditions Générales de Vente",
+    "rgpdAccept": "J'accepte la politique de confidentialité et le traitement de mes données personnelles",
+    "cgvRequired": "Vous devez accepter les CGV pour vous inscrire.",
+    "rgpdRequired": "Vous devez accepter la politique de confidentialité.",
+    "step": "Étape",
+    "personalInfo": "Informations personnelles",
+    "accountAndLegal": "Compte et mentions légales"
   },
   "home": {
     "welcome": "Bienvenue chez Back on Track",
@@ -95,7 +114,12 @@
     "expired": "Expiré",
     "noPacks": "Aucun pack disponible pour votre catégorie.",
     "noActivePacks": "Vous n'avez aucun pack actif.",
-    "purchaseSuccess": "Achat réussi !"
+    "purchaseSuccess": "Achat réussi !",
+    "registrationFeeTitle": "Frais d'inscription requis",
+    "registrationFeeDesc": "Avant de pouvoir acheter un pack de cours, vous devez payer les frais d'inscription de 30 €. Ces frais sont à payer une seule fois.",
+    "payRegistrationFee": "Payer les frais d'inscription (30 €)",
+    "registrationFeePaid": "Frais d'inscription payés ! Vous pouvez maintenant acheter un pack.",
+    "registrationFeeRequired": "Vous devez d'abord payer les frais d'inscription."
   },
   "bookings": {
     "title": "Mes réservations",
@@ -119,7 +143,32 @@
     "phone": "Téléphone",
     "category": "Catégorie de membre",
     "publicProfile": "Profil public",
-    "updated": "Profil mis à jour."
+    "updated": "Profil mis à jour.",
+    "personalInfo": "Informations personnelles",
+    "emergencyContact": "Contact d'urgence",
+    "emergencyName": "Nom du contact",
+    "emergencyPhone": "Téléphone d'urgence",
+    "fitnessInfo": "Informations sportives",
+    "objectives": "Objectifs",
+    "objectivesPlaceholder": "Ex: remise en forme, perte de poids, prise de masse...",
+    "fitnessLevel": "Niveau",
+    "medicalConditions": "Conditions médicales",
+    "medicalPlaceholder": "Informations médicales importantes (optionnel)",
+    "levels": {
+      "beginner": "Débutant",
+      "intermediate": "Intermédiaire",
+      "advanced": "Avancé"
+    },
+    "referralTitle": "Ton code de parrainage",
+    "referralCopied": "Code copié !",
+    "referralShareText": "Rejoins Back on Track avec mon code {{code}} et obtiens 30€ de réduction !",
+    "status": {
+      "visitor": "Visiteur",
+      "potential": "Membre potentiel",
+      "active": "Membre actif",
+      "inactive": "Membre inactif",
+      "former": "Ancien membre"
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -301,6 +350,7 @@
   },
   "roles": {
     "admin": "Administrateur",
+    "super_admin": "Super Admin",
     "coach": "Coach",
     "client": "Client"
   }

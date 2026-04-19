@@ -4,9 +4,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Browser } from '@capacitor/browser'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
-import { ShoppingBag, Check, Zap, Flame } from 'lucide-react'
+import { ShoppingBag, Check, Zap, Flame, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { PackType } from '@/types'
@@ -15,7 +16,7 @@ import { motion } from 'framer-motion'
 export function PacksPage() {
   const { t, i18n } = useTranslation()
   const isFr = i18n.language === 'fr'
-  const { profile } = useAuth()
+  const { profile, hasRegistrationFee, refreshProfile } = useAuth()
   const [packTypes, setPackTypes] = useState<PackType[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -41,7 +42,49 @@ export function PacksPage() {
     fetchPacks()
   }, [profile])
 
+  const [regFeeLoading, setRegFeeLoading] = useState(false)
+
+  const handlePayRegistrationFee = async () => {
+    try {
+      setRegFeeLoading(true)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { toast.error(t('common.error')); return }
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({
+            type: 'registration_fee',
+            success_url: `${window.location.origin}/packs?fee_paid=true`,
+            cancel_url: `${window.location.origin}/packs?cancelled=true`,
+          }),
+        }
+      )
+      const data = await response.json()
+      if (data.url) {
+        await Browser.open({ url: data.url, presentationStyle: 'popover' })
+      } else {
+        toast.error(data.error || t('common.error'))
+      }
+    } catch { toast.error(t('common.error')) } finally { setRegFeeLoading(false) }
+  }
+
+  // Refresh after fee payment
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('fee_paid') === 'true') {
+      refreshProfile()
+      toast.success(t('packs.registrationFeePaid'))
+      window.history.replaceState({}, '', '/packs')
+    }
+  }, [])
+
   const handleBuy = async (packType: PackType) => {
+    if (!hasRegistrationFee) {
+      toast.error(t('packs.registrationFeeRequired'))
+      return
+    }
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { toast.error(t('common.error')); return }
@@ -59,8 +102,6 @@ export function PacksPage() {
       )
       const data = await response.json()
       if (data.url) {
-        // Browser plugin: SFSafariViewController on iOS, Custom Tabs on Android,
-        // window.open() on web. Compliant with Apple guideline 3.1.3(f).
         await Browser.open({ url: data.url, presentationStyle: 'popover' })
       } else {
         toast.error(data.error || t('common.error'))
@@ -87,6 +128,32 @@ export function PacksPage() {
             : 'Buy credits and book your favorite classes. The bigger the pack, the lower the price per credit 🔥'}
         </p>
       </div>
+
+      {/* Registration fee alert */}
+      {!hasRegistrationFee && (
+        <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 max-w-2xl mx-auto">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-amber-900 dark:text-amber-200">
+                  {t('packs.registrationFeeTitle')}
+                </h3>
+                <p className="text-sm text-amber-800 dark:text-amber-300 mt-1">
+                  {t('packs.registrationFeeDesc')}
+                </p>
+                <Button
+                  className="mt-3"
+                  onClick={handlePayRegistrationFee}
+                  disabled={regFeeLoading}
+                >
+                  {t('packs.payRegistrationFee')}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {packTypes.length === 0 ? (
         <EmptyState icon={ShoppingBag} message={t('packs.noPacks')} />

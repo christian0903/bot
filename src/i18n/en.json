@@ -46,8 +46,27 @@
     "passwordMismatch": "Passwords do not match.",
     "emailRequired": "Email is required.",
     "passwordRequired": "Password is required.",
-    "passwordMinLength": "Password must be at least 8 characters.",
-    "displayNameRequired": "Display name is required."
+    "passwordMinLength": "Password must be at least 12 characters.",
+    "passwordMinLengthHint": "Minimum 12 characters",
+    "displayNameRequired": "Display name is required.",
+    "phone": "Phone",
+    "dateOfBirth": "Date of birth",
+    "address": "Address",
+    "addressPlaceholder": "Street, number, postal code, city",
+    "referralCode": "Referral code",
+    "referralCodePlaceholder": "E.g. INGRID2026",
+    "firstNameRequired": "First name is required.",
+    "lastNameRequired": "Last name is required.",
+    "phoneRequired": "Phone number is required.",
+    "dateOfBirthRequired": "Date of birth is required.",
+    "addressRequired": "Address is required.",
+    "cgvAccept": "I accept the Terms and Conditions",
+    "rgpdAccept": "I accept the privacy policy and the processing of my personal data",
+    "cgvRequired": "You must accept the Terms and Conditions to sign up.",
+    "rgpdRequired": "You must accept the privacy policy.",
+    "step": "Step",
+    "personalInfo": "Personal information",
+    "accountAndLegal": "Account and legal"
   },
   "home": {
     "welcome": "Welcome to Back on Track",
@@ -95,7 +114,12 @@
     "expired": "Expired",
     "noPacks": "No packs available for your category.",
     "noActivePacks": "You have no active packs.",
-    "purchaseSuccess": "Purchase successful!"
+    "purchaseSuccess": "Purchase successful!",
+    "registrationFeeTitle": "Registration fee required",
+    "registrationFeeDesc": "Before you can buy a credit pack, you need to pay the one-time registration fee of €30.",
+    "payRegistrationFee": "Pay registration fee (€30)",
+    "registrationFeePaid": "Registration fee paid! You can now buy a pack.",
+    "registrationFeeRequired": "You must pay the registration fee first."
   },
   "bookings": {
     "title": "My Bookings",
@@ -119,7 +143,32 @@
     "phone": "Phone",
     "category": "Member Category",
     "publicProfile": "Public Profile",
-    "updated": "Profile updated."
+    "updated": "Profile updated.",
+    "personalInfo": "Personal information",
+    "emergencyContact": "Emergency contact",
+    "emergencyName": "Contact name",
+    "emergencyPhone": "Emergency phone",
+    "fitnessInfo": "Fitness information",
+    "objectives": "Goals",
+    "objectivesPlaceholder": "E.g. weight loss, muscle gain, general fitness...",
+    "fitnessLevel": "Level",
+    "medicalConditions": "Medical conditions",
+    "medicalPlaceholder": "Important medical information (optional)",
+    "levels": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "referralTitle": "Your referral code",
+    "referralCopied": "Code copied!",
+    "referralShareText": "Join Back on Track with my code {{code}} and get €30 off!",
+    "status": {
+      "visitor": "Visitor",
+      "potential": "Potential member",
+      "active": "Active member",
+      "inactive": "Inactive member",
+      "former": "Former member"
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -301,6 +350,7 @@
   },
   "roles": {
     "admin": "Administrator",
+    "super_admin": "Super Admin",
     "coach": "Coach",
     "client": "Client"
   }

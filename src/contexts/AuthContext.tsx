@@ -3,13 +3,27 @@ import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Profile, UserRole } from '@/types'
 
+export interface SignUpMetadata {
+  display_name: string
+  first_name: string
+  last_name: string
+  phone: string
+  date_of_birth: string
+  address: string
+  cgv_accepted: boolean
+  rgpd_accepted: boolean
+  referral_code?: string
+}
+
 interface AuthContextType {
   user: User | null
   session: Session | null
   profile: Profile | null
   roles: UserRole[]
   loading: boolean
-  signUp: (email: string, password: string, displayName: string) => Promise<{ error: Error | null }>
+  hasRegistrationFee: boolean
+  hasUsedTrial: boolean
+  signUp: (email: string, password: string, metadata: SignUpMetadata) => Promise<{ error: Error | null }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: Error | null }>
@@ -26,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [roles, setRoles] = useState<UserRole[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasRegistrationFee, setHasRegistrationFee] = useState(false)
+  const [hasUsedTrial, setHasUsedTrial] = useState(false)
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -44,9 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles(data?.map((r) => r.role as UserRole) ?? [])
   }
 
+  const fetchMemberFlags = async (userId: string) => {
+    const [feeRes, trialRes] = await Promise.all([
+      supabase.from('registration_fees').select('id').eq('user_id', userId).limit(1),
+      supabase.from('trial_sessions').select('id').eq('user_id', userId).limit(1),
+    ])
+    setHasRegistrationFee((feeRes.data?.length ?? 0) > 0)
+    setHasUsedTrial((trialRes.data?.length ?? 0) > 0)
+  }
+
   const refreshProfile = async () => {
     if (user) {
-      await Promise.all([fetchProfile(user.id), fetchRoles(user.id)])
+      await Promise.all([fetchProfile(user.id), fetchRoles(user.id), fetchMemberFlags(user.id)])
     }
   }
 
@@ -55,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s)
       setUser(s?.user ?? null)
       if (s?.user) {
-        Promise.all([fetchProfile(s.user.id), fetchRoles(s.user.id)]).finally(() =>
+        Promise.all([fetchProfile(s.user.id), fetchRoles(s.user.id), fetchMemberFlags(s.user.id)]).finally(() =>
           setLoading(false)
         )
       } else {
@@ -71,21 +96,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (s?.user) {
         fetchProfile(s.user.id)
         fetchRoles(s.user.id)
+        fetchMemberFlags(s.user.id)
       } else {
         setProfile(null)
         setRoles([])
+        setHasRegistrationFee(false)
+        setHasUsedTrial(false)
       }
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  const signUp = async (email: string, password: string, displayName: string) => {
+  const signUp = async (email: string, password: string, metadata: SignUpMetadata) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { display_name: displayName },
+        data: {
+          display_name: metadata.display_name,
+          first_name: metadata.first_name,
+          last_name: metadata.last_name,
+          phone: metadata.phone,
+          date_of_birth: metadata.date_of_birth,
+          address: metadata.address,
+          cgv_accepted: metadata.cgv_accepted,
+          rgpd_accepted: metadata.rgpd_accepted,
+        },
       },
     })
     return { error: error as Error | null }
@@ -114,7 +151,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null }
   }
 
-  const hasRole = (role: UserRole) => roles.includes(role)
+  const hasRole = (role: UserRole) => {
+    if (roles.includes(role)) return true
+    // super_admin hérite de toutes les permissions admin
+    if (role === 'admin' && roles.includes('super_admin')) return true
+    return false
+  }
 
   return (
     <AuthContext.Provider
@@ -124,6 +166,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         roles,
         loading,
+        hasRegistrationFee,
+        hasUsedTrial,
         signUp,
         signIn,
         signOut,

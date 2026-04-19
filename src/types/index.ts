@@ -1,4 +1,6 @@
-export type UserRole = 'admin' | 'coach' | 'client'
+export type UserRole = 'admin' | 'coach' | 'client' | 'super_admin'
+
+export type MemberStatus = 'visitor' | 'potential' | 'active' | 'inactive' | 'former'
 
 export type ThemeMode = 'classic' | 'dark' | 'vivid' | 'vivid-dark'
 
@@ -12,6 +14,17 @@ export interface Profile {
   avatar_url: string | null
   bio: string | null
   member_category_id: string | null
+  date_of_birth: string | null
+  address: string | null
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  objectives: string | null
+  fitness_level: string | null
+  medical_conditions: string | null
+  cgv_accepted_at: string | null
+  rgpd_accepted_at: string | null
+  referral_code: string | null
+  member_status: MemberStatus
   created_at: string
   updated_at: string
   last_sign_in_at: string | null
@@ -80,6 +93,7 @@ export interface ClassType {
   description: string | null
   credit_type_id: string
   default_max_participants: number
+  color: string
   is_active: boolean
   created_at: string
   credit_type?: CreditType
@@ -108,6 +122,7 @@ export interface ScheduledClass {
   is_cancelled: boolean
   title: string | null
   description: string | null
+  floor: 'haut' | 'bas' | null
   created_at: string
   updated_at: string
   class_type?: ClassType
@@ -145,4 +160,21 @@ export interface AppSetting {
   value: Record<string, unknown>
   updated_at: string
   updated_by: string | null
+}
+
+export interface RegistrationFee {
+  id: string
+  user_id: string
+  amount_cents: number
+  paid_at: string
+  stripe_payment_intent_id: string | null
+  mollie_payment_id: string | null
+  created_at: string
+}
+
+export interface TrialSession {
+  id: string
+  user_id: string
+  scheduled_class_id: string | null
+  created_at: string
 }
