@@ -649,11 +649,11 @@ export function AdminSchedulePage() {
               <Label>{isFr ? 'Salle' : 'Room'}</Label>
               <Select value={form.floor} onValueChange={(val) => setForm(f => ({ ...f, floor: val ?? 'bas' }))}>
                 <SelectTrigger>
-                  <span>{floorNames[form.floor] || form.floor}</span>
+                  <span>{form.floor}</span>
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(floorNames).map(([slug, name]) => (
-                    <SelectItem key={slug} value={slug}>{name}</SelectItem>
+                  {Object.entries(floorNames).map(([slug]) => (
+                    <SelectItem key={slug} value={slug}>{slug}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
