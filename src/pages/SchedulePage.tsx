@@ -83,6 +83,7 @@ export function SchedulePage() {
     return today === 0 ? 6 : today - 1
   })
   const [bookingRules, setBookingRules] = useState<BookingRules>(DEFAULT_RULES)
+  const [roomNames, setRoomNames] = useState<Record<string, string>>({ haut: 'Back On Track Upstairs', bas: 'Back On Track Studio' })
 
   // Filters
   const [filterClassType, setFilterClassType] = useState<string>('all')
@@ -122,7 +123,7 @@ export function SchedulePage() {
     const from = weekStart.toISOString()
     const to = addDays(weekStart, 7).toISOString()
 
-    const [classesRes, bookingsRes, waitlistRes, rulesRes] = await Promise.all([
+    const [classesRes, bookingsRes, waitlistRes, rulesRes, roomNamesRes] = await Promise.all([
       supabase
         .from('scheduled_classes')
         .select('*, class_type:class_types(*, credit_type:credit_types(name, label_fr, label_en))')
@@ -137,10 +138,14 @@ export function SchedulePage() {
         ? supabase.from('waitlist').select('id, scheduled_class_id, position, status').eq('user_id', user.id).in('status', ['waiting', 'offered'])
         : Promise.resolve({ data: [] }),
       supabase.from('app_settings').select('value').eq('key', 'booking_rules').single(),
+      supabase.from('app_settings').select('value').eq('key', 'room_names').single(),
     ])
 
     if (rulesRes.data?.value) {
       setBookingRules({ ...DEFAULT_RULES, ...(rulesRes.data.value as Partial<BookingRules>) })
+    }
+    if (roomNamesRes.data?.value) {
+      setRoomNames(prev => ({ ...prev, ...(roomNamesRes.data.value as Record<string, string>) }))
     }
 
     const rawClasses = (classesRes.data as ScheduledClass[]) ?? []
@@ -600,7 +605,7 @@ export function SchedulePage() {
           {sc.floor && (
             <span className="flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" />
-              {isFr ? (sc.floor === 'haut' ? 'Haut' : 'Bas') : (sc.floor === 'haut' ? 'Upper' : 'Lower')}
+              {isStaff ? sc.floor : (roomNames[sc.floor] || sc.floor)}
             </span>
           )}
         </div>
@@ -964,7 +969,7 @@ export function SchedulePage() {
                     <p className="text-sm text-muted-foreground">
                       {format(new Date(detailClass.starts_at), 'EEEE dd/MM/yyyy HH:mm', { locale })}
                       {detailClass.coach && ` — ${detailClass.coach.display_name}`}
-                      {detailClass.floor && ` — ${detailClass.floor === 'haut' ? (isFr ? 'Haut' : 'Upper') : (isFr ? 'Bas' : 'Lower')}`}
+                      {detailClass.floor && ` — ${roomNames[detailClass.floor] || detailClass.floor}`}
                     </p>
                   </DialogHeader>
 

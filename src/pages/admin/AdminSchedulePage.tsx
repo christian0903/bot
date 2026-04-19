@@ -41,10 +41,10 @@ interface ScheduleForm {
   floor: string
 }
 
-const FLOORS = [
-  { value: 'bas', labelFr: 'Back On Track Studio', labelEn: 'Back On Track Studio' },
-  { value: 'haut', labelFr: 'Back On Track Upstairs', labelEn: 'Back On Track Upstairs' },
-]
+const DEFAULT_FLOOR_NAMES: Record<string, string> = {
+  bas: 'Back On Track Studio',
+  haut: 'Back On Track Upstairs',
+}
 
 const emptyForm: ScheduleForm = {
   class_type_id: '',
@@ -68,6 +68,7 @@ export function AdminSchedulePage() {
   const [classes, setClasses] = useState<ScheduledClass[]>([])
   const [classTypes, setClassTypes] = useState<ClassType[]>([])
   const [coaches, setCoaches] = useState<Profile[]>([])
+  const [floorNames, setFloorNames] = useState<Record<string, string>>(DEFAULT_FLOOR_NAMES)
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<ScheduledClass | null>(null)
@@ -88,7 +89,7 @@ export function AdminSchedulePage() {
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const fetchData = async () => {
-    const [classRes, typeRes, coachRes] = await Promise.all([
+    const [classRes, typeRes, coachRes, roomRes] = await Promise.all([
       supabase
         .from('scheduled_classes')
         .select('*, class_type:class_types(*)')
@@ -96,10 +97,14 @@ export function AdminSchedulePage() {
       supabase.from('class_types').select('*').eq('is_active', true).order('name'),
       // Vue SQL qui bypass les RLS circulaires sur user_roles
       supabase.from('coach_profiles').select('*').order('display_name'),
+      supabase.from('app_settings').select('value').eq('key', 'room_names').single(),
     ])
 
     const rawClasses = (classRes.data as ScheduledClass[]) ?? []
     setClassTypes((typeRes.data as ClassType[]) ?? [])
+    if (roomRes.data?.value) {
+      setFloorNames(prev => ({ ...prev, ...(roomRes.data.value as Record<string, string>) }))
+    }
 
     const coachList = (coachRes.data as Profile[]) ?? []
     setCoaches(coachList)
@@ -547,8 +552,8 @@ export function AdminSchedulePage() {
                       </div>
                     </TableCell>
                     <TableCell>{sc.coach?.display_name ?? '—'}</TableCell>
-                    <TableCell className="text-xs">
-                      {FLOORS.find(f => f.value === sc.floor)?.[isFr ? 'labelFr' : 'labelEn'] || '—'}
+                    <TableCell className="text-xs font-mono">
+                      {sc.floor || '—'}
                     </TableCell>
                     <TableCell className="text-center">{sc.max_participants}</TableCell>
                     <TableCell>
@@ -644,11 +649,11 @@ export function AdminSchedulePage() {
               <Label>{isFr ? 'Salle' : 'Room'}</Label>
               <Select value={form.floor} onValueChange={(val) => setForm(f => ({ ...f, floor: val ?? 'bas' }))}>
                 <SelectTrigger>
-                  <span>{FLOORS.find(f => f.value === form.floor)?.[isFr ? 'labelFr' : 'labelEn'] || ''}</span>
+                  <span>{form.floor} — {floorNames[form.floor] || ''}</span>
                 </SelectTrigger>
                 <SelectContent>
-                  {FLOORS.map(f => (
-                    <SelectItem key={f.value} value={f.value}>{isFr ? f.labelFr : f.labelEn}</SelectItem>
+                  {Object.entries(floorNames).map(([slug, name]) => (
+                    <SelectItem key={slug} value={slug}>{slug} — {name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -710,7 +715,7 @@ export function AdminSchedulePage() {
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title={isFr ? 'Supprimer ce cours ?' : 'Delete this class?'}
         description={deleteTarget
-          ? `${deleteTarget.class_type?.name || deleteTarget.title || ''} — ${format(new Date(deleteTarget.starts_at), 'EEEE dd/MM/yyyy HH:mm', { locale })} — ${FLOORS.find(f => f.value === deleteTarget.floor)?.[isFr ? 'labelFr' : 'labelEn'] || ''}`
+          ? `${deleteTarget.class_type?.name || deleteTarget.title || ''} — ${format(new Date(deleteTarget.starts_at), 'EEEE dd/MM/yyyy HH:mm', { locale })} — ${deleteTarget.floor || ''}`
           : ''}
         onConfirm={handleDelete}
       />

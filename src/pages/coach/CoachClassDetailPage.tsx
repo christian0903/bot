@@ -384,7 +384,7 @@ export function CoachClassDetailPage() {
             {scheduledClass.floor && (
               <span className="ml-2 inline-flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
-                {scheduledClass.floor === 'haut' ? (isFr ? 'Haut' : 'Upper') : (isFr ? 'Bas' : 'Lower')}
+                {scheduledClass.floor}
               </span>
             )}
           </p>

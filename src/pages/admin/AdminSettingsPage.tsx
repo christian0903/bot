@@ -11,6 +11,11 @@ import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { Settings, CreditCard, Users, Clock, Building, Shield } from 'lucide-react'
 
+interface RoomNames {
+  haut: string
+  bas: string
+}
+
 interface BookingRules {
   morning_cutoff_hour: number
   morning_class_before_hour: number
@@ -60,6 +65,12 @@ export function AdminSettingsPage() {
     vat_number: '',
   })
 
+  // Room names
+  const [roomNames, setRoomNames] = useState<RoomNames>({
+    haut: 'Back On Track Upstairs',
+    bas: 'Back On Track Studio',
+  })
+
   // Registration fee
   const [regFeeAmount, setRegFeeAmount] = useState(30)
   const [regFeeEnabled, setRegFeeEnabled] = useState(true)
@@ -69,7 +80,7 @@ export function AdminSettingsPage() {
       const { data } = await supabase
         .from('app_settings')
         .select('*')
-        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee'])
+        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names'])
 
       for (const setting of data ?? []) {
         if (setting.key === 'stripe_mode') {
@@ -85,6 +96,9 @@ export function AdminSettingsPage() {
           const val = setting.value as { amount_cents?: number; enabled?: boolean }
           setRegFeeAmount((val.amount_cents ?? 3000) / 100)
           setRegFeeEnabled(val.enabled ?? true)
+        }
+        if (setting.key === 'room_names') {
+          setRoomNames(prev => ({ ...prev, ...(setting.value as Partial<RoomNames>) }))
         }
       }
       setLoading(false)
@@ -151,6 +165,42 @@ export function AdminSettingsPage() {
           </div>
           <Button size="sm" disabled={saving === 'studio_info'} onClick={() => saveSetting('studio_info', studio as unknown as Record<string, unknown>)}>
             {saving === 'studio_info' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Room names */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Building className="h-4 w-4 text-primary" />
+            {isFr ? 'Noms des salles' : 'Room names'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">bas</span>
+                {isFr ? 'Salle du bas' : 'Lower room'}
+              </Label>
+              <Input value={roomNames.bas} onChange={e => setRoomNames(r => ({ ...r, bas: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">haut</span>
+                {isFr ? 'Salle du haut' : 'Upper room'}
+              </Label>
+              <Input value={roomNames.haut} onChange={e => setRoomNames(r => ({ ...r, haut: e.target.value }))} />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? 'Les noms sont affichés aux clients. Les slugs (bas/haut) sont utilisés dans l\'administration.'
+              : 'Names are shown to clients. Slugs (bas/haut) are used in admin views.'}
+          </p>
+          <Button size="sm" disabled={saving === 'room_names'} onClick={() => saveSetting('room_names', roomNames as unknown as Record<string, unknown>)}>
+            {saving === 'room_names' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
           </Button>
         </CardContent>
       </Card>
