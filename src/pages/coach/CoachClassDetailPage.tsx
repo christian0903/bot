@@ -61,6 +61,17 @@ export function CoachClassDetailPage() {
     ])
 
     const sc = classRes.data as ScheduledClass
+
+    // Fetch coach profile
+    if (sc?.coach_id) {
+      const { data: coachProfile } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .eq('id', sc.coach_id)
+        .single()
+      if (coachProfile) sc.coach = coachProfile as ScheduledClass['coach']
+    }
+
     setScheduledClass(sc)
     setMaxValue(sc?.max_participants ?? 0)
 
@@ -369,6 +380,7 @@ export function CoachClassDetailPage() {
           <CardTitle>{scheduledClass.class_type?.name}</CardTitle>
           <p className="text-sm text-muted-foreground">
             {format(startsAt, 'EEEE dd MMMM yyyy, HH:mm', { locale })}
+            {scheduledClass.coach && ` — ${scheduledClass.coach.display_name}`}
             {scheduledClass.floor && (
               <span className="ml-2 inline-flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
