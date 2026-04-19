@@ -535,7 +535,7 @@ export function CoachClassDetailPage() {
                               : (isFr ? 'Choisir un membre...' : 'Choose a member...')}
                           </span>
                         </SelectTrigger>
-                        <SelectContent className="w-[var(--radix-select-trigger-width)] min-w-[300px] max-h-60">
+                        <SelectContent className="min-w-[350px] max-h-60" position="popper" sideOffset={4}>
                           {eligibleMembers.map(m => (
                             <SelectItem key={m.user_id} value={m.user_id}>
                               {m.display_name} — {m.credits} {isFr ? 'crédit(s)' : 'credit(s)'}
