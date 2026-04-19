@@ -162,11 +162,11 @@ export function AdminActivityLogPage() {
         </div>
         <div>
           <Label className="text-xs">{i18n.language === 'fr' ? 'Du' : 'From'}</Label>
-          <Input type="date" className="h-8 text-xs w-36" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+          <input type="date" style={{ colorScheme: 'light dark' }} className="h-8 text-xs w-36 rounded-lg border border-input bg-transparent px-2.5 py-1 outline-none focus-visible:border-ring dark:bg-input/30" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
         </div>
         <div>
           <Label className="text-xs">{i18n.language === 'fr' ? 'Au' : 'To'}</Label>
-          <Input type="date" className="h-8 text-xs w-36" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
+          <input type="date" style={{ colorScheme: 'light dark' }} className="h-8 text-xs w-36 rounded-lg border border-input bg-transparent px-2.5 py-1 outline-none focus-visible:border-ring dark:bg-input/30" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
         </div>
         <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setFilterAction('all'); setFilterDateFrom(''); setFilterDateTo('') }}>
           {i18n.language === 'fr' ? 'Réinitialiser' : 'Reset'}
