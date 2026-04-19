@@ -22,7 +22,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -52,6 +53,7 @@ const emptyForm: ScheduleForm = {
 export function AdminSchedulePage() {
   const { t, i18n } = useTranslation()
   const { user: currentUser } = useAuth()
+  const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
   const [classes, setClasses] = useState<ScheduledClass[]>([])
   const [classTypes, setClassTypes] = useState<ClassType[]>([])
@@ -430,6 +432,9 @@ export function AdminSchedulePage() {
                     <TableCell className="text-center">{sc.max_participants}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title={i18n.language === 'fr' ? 'Détail / inscrits' : 'Detail / participants'} onClick={() => navigate(`/coach/class/${sc.id}`)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(sc)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
