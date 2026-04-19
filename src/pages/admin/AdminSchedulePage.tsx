@@ -204,19 +204,23 @@ export function AdminSchedulePage() {
       for (let w = 0; w <= form.repeat_weeks; w++) {
         const d = new Date(baseDate)
         d.setDate(d.getDate() + w * 7)
+        d.setSeconds(0, 0)
         candidates.push({ ...basePayload, starts_at: d.toISOString() })
       }
 
-      // Check for existing classes at those times + same floor
-      const targetTimes = candidates.map(c => c.starts_at)
+      // Check for existing classes at those times + same floor (minute precision)
+      const minDate = candidates[0].starts_at
+      const maxDate = candidates[candidates.length - 1].starts_at
       const { data: existing } = await supabase
         .from('scheduled_classes')
         .select('starts_at, floor')
-        .in('starts_at', targetTimes)
+        .gte('starts_at', minDate)
+        .lte('starts_at', maxDate)
         .eq('is_cancelled', false)
 
-      const existingKeys = new Set((existing ?? []).map(e => `${e.starts_at}|${e.floor ?? ''}`))
-      const rows = candidates.filter(c => !existingKeys.has(`${c.starts_at}|${c.floor ?? ''}`))
+      const toMinuteKey = (iso: string, floor: string | null) => iso.slice(0, 16) + '|' + (floor ?? '')
+      const existingKeys = new Set((existing ?? []).map(e => toMinuteKey(e.starts_at, e.floor)))
+      const rows = candidates.filter(c => !existingKeys.has(toMinuteKey(c.starts_at, c.floor)))
       const skipped = candidates.length - rows.length
 
       if (rows.length === 0) {
@@ -311,6 +315,8 @@ export function AdminSchedulePage() {
       const candidates = selectedClasses.map(sc => {
         const nextWeek = new Date(sc.starts_at)
         nextWeek.setDate(nextWeek.getDate() + 7)
+        // Truncate to minute precision to avoid millisecond mismatch
+        nextWeek.setSeconds(0, 0)
         return {
           class_type_id: sc.class_type_id,
           coach_id: sc.coach_id || null,
@@ -324,19 +330,27 @@ export function AdminSchedulePage() {
         }
       })
 
-      // Check for existing classes at those times + same floor
-      const targetTimes = candidates.map(c => c.starts_at)
+      // Check for existing classes in the target week range
+      const targetDates = candidates.map(c => c.starts_at)
+      const minDate = targetDates.reduce((a, b) => a < b ? a : b)
+      const maxDate = targetDates.reduce((a, b) => a > b ? a : b)
+
       const { data: existing } = await supabase
         .from('scheduled_classes')
         .select('starts_at, floor')
-        .in('starts_at', targetTimes)
+        .gte('starts_at', minDate)
+        .lte('starts_at', maxDate)
         .eq('is_cancelled', false)
 
-      const existingKeys = new Set((existing ?? []).map(e => `${e.starts_at}|${e.floor ?? ''}`))
+      // Compare by minute precision + floor
+      const toMinuteKey = (iso: string, floor: string | null) => {
+        return iso.slice(0, 16) + '|' + (floor ?? '')
+      }
+      const existingKeys = new Set((existing ?? []).map(e => toMinuteKey(e.starts_at, e.floor)))
 
       // Split into insertable and skipped
-      const toInsert = candidates.filter(c => !existingKeys.has(`${c.starts_at}|${c.floor ?? ''}`))
-      const skipped = candidates.filter(c => existingKeys.has(`${c.starts_at}|${c.floor ?? ''}`))
+      const toInsert = candidates.filter(c => !existingKeys.has(toMinuteKey(c.starts_at, c.floor)))
+      const skipped = candidates.filter(c => existingKeys.has(toMinuteKey(c.starts_at, c.floor)))
 
       // Remove internal field before insert
       const rows = toInsert.map(({ _original_name, ...row }) => row)
@@ -364,7 +378,7 @@ export function AdminSchedulePage() {
     setBulkSaving(false)
     setBulkAction(null)
     setSelectedIds(new Set())
-    fetchData()
+    await fetchData()
   }
 
   if (loading) return <LoadingState />
