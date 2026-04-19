@@ -266,7 +266,9 @@ export function AdminSchedulePage() {
 
     if (bulkAction === 'duplicate') {
       const selectedClasses = classes.filter(sc => ids.includes(sc.id))
-      const rows = selectedClasses.map(sc => {
+
+      // Build candidate rows for next week
+      const candidates = selectedClasses.map(sc => {
         const nextWeek = new Date(sc.starts_at)
         nextWeek.setDate(nextWeek.getDate() + 7)
         return {
@@ -278,15 +280,45 @@ export function AdminSchedulePage() {
           title: sc.title || null,
           description: sc.description || null,
           floor: sc.floor || null,
+          _original_name: sc.class_type?.name || sc.title || '',
         }
       })
 
-      const { error } = await supabase.from('scheduled_classes').insert(rows)
-      if (error) { toast.error(error.message); setBulkSaving(false); return }
+      // Check for existing classes at those times
+      const targetTimes = candidates.map(c => c.starts_at)
+      const { data: existing } = await supabase
+        .from('scheduled_classes')
+        .select('starts_at, class_type:class_types(name)')
+        .in('starts_at', targetTimes)
+        .eq('is_cancelled', false)
 
-      toast.success(isFr
-        ? `${rows.length} cours dupliqués pour la semaine suivante`
-        : `${rows.length} classes duplicated to next week`)
+      const existingTimes = new Set((existing ?? []).map(e => e.starts_at))
+
+      // Split into insertable and skipped
+      const toInsert = candidates.filter(c => !existingTimes.has(c.starts_at))
+      const skipped = candidates.filter(c => existingTimes.has(c.starts_at))
+
+      // Remove internal field before insert
+      const rows = toInsert.map(({ _original_name, ...row }) => row)
+
+      if (rows.length > 0) {
+        const { error } = await supabase.from('scheduled_classes').insert(rows)
+        if (error) { toast.error(error.message); setBulkSaving(false); return }
+      }
+
+      if (skipped.length > 0 && rows.length > 0) {
+        toast.warning(isFr
+          ? `${rows.length} cours dupliqués, ${skipped.length} ignoré(s) (créneau déjà occupé)`
+          : `${rows.length} duplicated, ${skipped.length} skipped (slot already taken)`)
+      } else if (skipped.length > 0 && rows.length === 0) {
+        toast.error(isFr
+          ? `Aucun cours dupliqué — tous les créneaux sont déjà occupés`
+          : `No classes duplicated — all slots already taken`)
+      } else {
+        toast.success(isFr
+          ? `${rows.length} cours dupliqués pour la semaine suivante`
+          : `${rows.length} classes duplicated to next week`)
+      }
     }
 
     setBulkSaving(false)
