@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
-import { Home, CalendarDays, CreditCard, User } from 'lucide-react'
+import { Home, CalendarDays, CreditCard, User, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function MobileBottomNav() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isFr = i18n.language === 'fr'
   const { user } = useAuth()
 
   if (!user) return null
@@ -14,7 +15,7 @@ export function MobileBottomNav() {
     { path: '/', icon: Home, label: t('nav.home') },
     { path: '/schedule', icon: CalendarDays, label: t('nav.schedule') },
     { path: '/my-packs', icon: CreditCard, label: t('packs.myPacks') },
-    { path: '/profile', icon: User, label: t('nav.profile') },
+    { path: '/stats', icon: BarChart3, label: isFr ? 'Stats' : 'Stats' },
   ]
 
   return (

@@ -50,6 +50,7 @@ const AdminActivityLogPage = lazy(() => import('@/pages/admin/AdminActivityLogPa
 const AdminInvoiceRequestsPage = lazy(() => import('@/pages/admin/AdminInvoiceRequestsPage').then(m => ({ default: m.AdminInvoiceRequestsPage })))
 const InvoiceRequestPage = lazy(() => import('@/pages/InvoiceRequestPage').then(m => ({ default: m.InvoiceRequestPage })))
 const ReferralPage = lazy(() => import('@/pages/ReferralPage').then(m => ({ default: m.ReferralPage })))
+const StatsPage = lazy(() => import('@/pages/StatsPage').then(m => ({ default: m.StatsPage })))
 const AdminReferralsPage = lazy(() => import('@/pages/admin/AdminReferralsPage').then(m => ({ default: m.AdminReferralsPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
@@ -82,6 +83,7 @@ function App() {
                   <Route path="/notifications" element={<AuthGuard><Lazy><NotificationsPage /></Lazy></AuthGuard>} />
                   <Route path="/invoice-request" element={<AuthGuard><Lazy><InvoiceRequestPage /></Lazy></AuthGuard>} />
                   <Route path="/referral" element={<AuthGuard><Lazy><ReferralPage /></Lazy></AuthGuard>} />
+                  <Route path="/stats" element={<AuthGuard><Lazy><StatsPage /></Lazy></AuthGuard>} />
                   <Route path="/help" element={<Lazy><HelpPage /></Lazy>} />
 
                   {/* Coach */}
