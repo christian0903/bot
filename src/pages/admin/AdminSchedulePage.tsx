@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
-import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye } from 'lucide-react'
+import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -264,6 +264,31 @@ export function AdminSchedulePage() {
       toast.success(`Max participants changé à ${bulkMaxParticipants} pour ${ids.length} cours`)
     }
 
+    if (bulkAction === 'duplicate') {
+      const selectedClasses = classes.filter(sc => ids.includes(sc.id))
+      const rows = selectedClasses.map(sc => {
+        const nextWeek = new Date(sc.starts_at)
+        nextWeek.setDate(nextWeek.getDate() + 7)
+        return {
+          class_type_id: sc.class_type_id,
+          coach_id: sc.coach_id || null,
+          starts_at: nextWeek.toISOString(),
+          max_participants: sc.max_participants,
+          duration_minutes: sc.duration_minutes,
+          title: sc.title || null,
+          description: sc.description || null,
+          floor: sc.floor || null,
+        }
+      })
+
+      const { error } = await supabase.from('scheduled_classes').insert(rows)
+      if (error) { toast.error(error.message); setBulkSaving(false); return }
+
+      toast.success(isFr
+        ? `${rows.length} cours dupliqués pour la semaine suivante`
+        : `${rows.length} classes duplicated to next week`)
+    }
+
     setBulkSaving(false)
     setBulkAction(null)
     setSelectedIds(new Set())
@@ -368,7 +393,21 @@ export function AdminSchedulePage() {
                 onChange={(e) => setBulkMaxParticipants(parseInt(e.target.value) || 1)}
               />
               <Button size="sm" className="text-xs" onClick={handleBulkApply} disabled={bulkSaving}>
-                {bulkSaving ? '...' : (i18n.language === 'fr' ? 'Appliquer' : 'Apply')}
+                {bulkSaving ? '...' : (isFr ? 'Appliquer' : 'Apply')}
+              </Button>
+              <Button size="sm" variant="ghost" className="text-xs" onClick={() => setBulkAction(null)}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+          ) : bulkAction === 'duplicate' ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {isFr
+                  ? `Dupliquer ${selectedIds.size} cours → semaine suivante ?`
+                  : `Duplicate ${selectedIds.size} classes → next week?`}
+              </span>
+              <Button size="sm" className="text-xs" onClick={handleBulkApply} disabled={bulkSaving}>
+                {bulkSaving ? '...' : t('common.confirm')}
               </Button>
               <Button size="sm" variant="ghost" className="text-xs" onClick={() => setBulkAction(null)}>
                 {t('common.cancel')}
@@ -378,11 +417,15 @@ export function AdminSchedulePage() {
             <>
               <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => { setBulkAction('coach'); setBulkCoachId('') }}>
                 <UserCog className="h-3 w-3" />
-                {i18n.language === 'fr' ? 'Assigner coach' : 'Assign coach'}
+                {isFr ? 'Assigner coach' : 'Assign coach'}
               </Button>
               <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setBulkAction('max')}>
                 <Users className="h-3 w-3" />
-                {i18n.language === 'fr' ? 'Changer max participants' : 'Change max participants'}
+                {isFr ? 'Max participants' : 'Max participants'}
+              </Button>
+              <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setBulkAction('duplicate')}>
+                <Copy className="h-3 w-3" />
+                {isFr ? 'Dupliquer sem. suivante' : 'Duplicate next week'}
               </Button>
             </>
           )}
