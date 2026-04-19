@@ -80,6 +80,7 @@ export function AdminUsersPage() {
   const [selectedPackTypeId, setSelectedPackTypeId] = useState('')
   const [packPriceOverride, setPackPriceOverride] = useState('')
   const [packSaving, setPackSaving] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const fetchUsers = async () => {
     const [profilesRes, rolesRes, packsRes] = await Promise.all([
@@ -254,8 +255,6 @@ export function AdminUsersPage() {
   }
 
   if (loading) return <LoadingState />
-
-  const [searchQuery, setSearchQuery] = useState('')
 
   const filteredUsers = users.filter(u => {
     if (roleFilter !== 'all' && u.role !== roleFilter) return false
