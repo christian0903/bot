@@ -38,7 +38,13 @@ interface ScheduleForm {
   title: string
   description: string
   repeat_weeks: number
+  floor: string
 }
+
+const FLOORS = [
+  { value: 'bas', labelFr: 'Back On Track Studio', labelEn: 'Back On Track Studio' },
+  { value: 'haut', labelFr: 'Back On Track Upstairs', labelEn: 'Back On Track Upstairs' },
+]
 
 const emptyForm: ScheduleForm = {
   class_type_id: '',
@@ -50,6 +56,7 @@ const emptyForm: ScheduleForm = {
   title: '',
   description: '',
   repeat_weeks: 0,
+  floor: 'bas',
 }
 
 export function AdminSchedulePage() {
@@ -162,6 +169,8 @@ export function AdminSchedulePage() {
       duration_minutes: sc.duration_minutes,
       title: sc.title ?? '',
       description: sc.description ?? '',
+      repeat_weeks: 0,
+      floor: sc.floor ?? 'bas',
     })
     setDialogOpen(true)
   }
@@ -175,6 +184,7 @@ export function AdminSchedulePage() {
       duration_minutes: form.duration_minutes,
       title: form.title || null,
       description: form.description || null,
+      floor: form.floor || null,
     }
 
     if (editing) {
@@ -509,6 +519,7 @@ export function AdminSchedulePage() {
                 <TableHead>{t('admin.schedule.time')}</TableHead>
                 <TableHead>{t('admin.schedule.classType')}</TableHead>
                 <TableHead>{t('admin.schedule.coach')}</TableHead>
+                <TableHead>{isFr ? 'Salle' : 'Room'}</TableHead>
                 <TableHead className="text-center">{t('admin.schedule.maxParticipants')}</TableHead>
                 <TableHead className="w-[80px]">{t('common.actions')}</TableHead>
               </TableRow>
@@ -535,7 +546,10 @@ export function AdminSchedulePage() {
                         {sc.title && <span className="text-xs text-muted-foreground ml-1.5">({sc.class_type?.name})</span>}
                       </div>
                     </TableCell>
-                    <TableCell>{sc.coach?.display_name ?? (i18n.language === 'fr' ? '—' : '—')}</TableCell>
+                    <TableCell>{sc.coach?.display_name ?? '—'}</TableCell>
+                    <TableCell className="text-xs">
+                      {FLOORS.find(f => f.value === sc.floor)?.[isFr ? 'labelFr' : 'labelEn'] || '—'}
+                    </TableCell>
                     <TableCell className="text-center">{sc.max_participants}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -626,6 +640,19 @@ export function AdminSchedulePage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>{isFr ? 'Salle' : 'Room'}</Label>
+              <Select value={form.floor} onValueChange={(val) => setForm(f => ({ ...f, floor: val ?? 'bas' }))}>
+                <SelectTrigger>
+                  <span>{FLOORS.find(f => f.value === form.floor)?.[isFr ? 'labelFr' : 'labelEn'] || ''}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {FLOORS.map(f => (
+                    <SelectItem key={f.value} value={f.value}>{isFr ? f.labelFr : f.labelEn}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>{t('admin.schedule.date')}</Label>
@@ -683,7 +710,7 @@ export function AdminSchedulePage() {
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title={isFr ? 'Supprimer ce cours ?' : 'Delete this class?'}
         description={deleteTarget
-          ? `${deleteTarget.class_type?.name || deleteTarget.title || ''} — ${format(new Date(deleteTarget.starts_at), 'EEEE dd/MM/yyyy HH:mm', { locale })}`
+          ? `${deleteTarget.class_type?.name || deleteTarget.title || ''} — ${format(new Date(deleteTarget.starts_at), 'EEEE dd/MM/yyyy HH:mm', { locale })} — ${FLOORS.find(f => f.value === deleteTarget.floor)?.[isFr ? 'labelFr' : 'labelEn'] || ''}`
           : ''}
         onConfirm={handleDelete}
       />
