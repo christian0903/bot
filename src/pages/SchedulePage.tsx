@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
-import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Zap, MapPin, Lock, Ban, UserMinus } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Zap, MapPin, Lock, Ban, UserMinus, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { addDays, startOfWeek, format, isSameDay, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -305,6 +305,10 @@ export function SchedulePage() {
   const [detailBookings, setDetailBookings] = useState<Booking[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
   const [cancelClassConfirm, setCancelClassConfirm] = useState(false)
+  const [addMemberOpen, setAddMemberOpen] = useState(false)
+  const [eligibleMembers, setEligibleMembers] = useState<{ user_id: string; display_name: string; credits: number; pack_purchase_id: string }[]>([])
+  const [selectedMemberId, setSelectedMemberId] = useState('')
+  const [addMemberLoading, setAddMemberLoading] = useState(false)
 
   const openClassDetail = async (sc: ScheduledClass) => {
     if (!isStaff) return
@@ -410,6 +414,116 @@ export function SchedulePage() {
     setCancelClassConfirm(false)
     setDetailClass(null)
     fetchData()
+  }
+
+  const openAddMember = async () => {
+    if (!detailClass) return
+    setAddMemberLoading(true)
+    setAddMemberOpen(true)
+    setSelectedMemberId('')
+
+    const creditTypeId = detailClass.class_type?.credit_type_id
+    if (!creditTypeId) { setAddMemberLoading(false); return }
+
+    // Get all members with available credits for this credit type
+    const { data: packs } = await supabase
+      .from('pack_purchases')
+      .select('user_id, credits_remaining, id, pack_type:pack_types(credit_type_id)')
+      .gt('credits_remaining', 0)
+      .gt('expires_at', new Date().toISOString())
+
+    if (!packs) { setAddMemberLoading(false); return }
+
+    // Filter by correct credit type and exclude already booked members
+    const bookedUserIds = new Set(detailBookings.map(b => b.user_id))
+    const memberMap = new Map<string, { user_id: string; credits: number; pack_purchase_id: string }>()
+
+    for (const p of packs) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((p.pack_type as any)?.credit_type_id !== creditTypeId) continue
+      if (bookedUserIds.has(p.user_id)) continue
+      const existing = memberMap.get(p.user_id)
+      if (!existing || p.credits_remaining > existing.credits) {
+        memberMap.set(p.user_id, { user_id: p.user_id, credits: p.credits_remaining, pack_purchase_id: p.id })
+      }
+    }
+
+    // Fetch profiles for eligible members
+    const userIds = [...memberMap.keys()]
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase.from('profiles').select('id, display_name').in('id', userIds)
+      const result = (profiles ?? []).map(p => ({
+        user_id: p.id,
+        display_name: p.display_name,
+        credits: memberMap.get(p.id)!.credits,
+        pack_purchase_id: memberMap.get(p.id)!.pack_purchase_id,
+      }))
+      result.sort((a, b) => a.display_name.localeCompare(b.display_name))
+      setEligibleMembers(result)
+    } else {
+      setEligibleMembers([])
+    }
+
+    setAddMemberLoading(false)
+  }
+
+  const handleAddMember = async () => {
+    if (!detailClass || !selectedMemberId || !user) return
+    const member = eligibleMembers.find(m => m.user_id === selectedMemberId)
+    if (!member) return
+
+    setAddMemberLoading(true)
+
+    const { error } = await supabase.from('bookings').insert({
+      scheduled_class_id: detailClass.id,
+      user_id: member.user_id,
+      pack_purchase_id: member.pack_purchase_id,
+    })
+
+    if (error) {
+      toast.error(error.message)
+      setAddMemberLoading(false)
+      return
+    }
+
+    await supabase.rpc('consume_credit', { p_pack_purchase_id: member.pack_purchase_id })
+
+    await logActivity({
+      action: 'booking_assigned',
+      actor_id: user.id,
+      target_user_id: member.user_id,
+      entity_type: 'booking',
+      details: { class_name: detailClass.class_type?.name, starts_at: detailClass.starts_at },
+      description: `${member.display_name} inscrit au cours ${detailClass.class_type?.name} du ${format(new Date(detailClass.starts_at), 'dd/MM/yyyy HH:mm')}`,
+    })
+
+    // Notify the member
+    await supabase.from('notifications').insert({
+      user_id: member.user_id,
+      title: isFr ? 'Inscription à un cours' : 'Class booking',
+      message: isFr
+        ? `Vous avez été inscrit(e) au cours ${detailClass.class_type?.name} du ${format(new Date(detailClass.starts_at), 'EEEE dd/MM à HH:mm', { locale })}.`
+        : `You have been booked for ${detailClass.class_type?.name} on ${format(new Date(detailClass.starts_at), 'EEEE dd/MM HH:mm', { locale })}.`,
+      type: 'success',
+      link: '/my-bookings',
+    })
+
+    toast.success(isFr ? `${member.display_name} inscrit(e) !` : `${member.display_name} booked!`)
+    setAddMemberOpen(false)
+    setAddMemberLoading(false)
+
+    // Refresh bookings in detail dialog
+    const { data } = await supabase
+      .from('bookings')
+      .select('*, user:profiles(id, display_name, email, phone)')
+      .eq('scheduled_class_id', detailClass.id)
+      .eq('status', 'confirmed')
+    setDetailBookings((data as Booking[]) ?? [])
+    setBookingCounts(prev => {
+      const n = new Map(prev)
+      n.set(detailClass.id, (n.get(detailClass.id) ?? 0) + 1)
+      return n
+    })
   }
 
   // ---- Render helpers ----
@@ -889,6 +1003,76 @@ export function SchedulePage() {
                           )}
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Add member */}
+                  {new Date(detailClass.starts_at) > new Date() && detailBookings.length < detailClass.max_participants && (
+                    <div className="pt-3 border-t mt-3">
+                      {!addMemberOpen ? (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={openAddMember}
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          {isFr ? 'Ajouter un membre' : 'Add a member'}
+                        </Button>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            {isFr ? 'Ajouter un membre' : 'Add a member'}
+                          </p>
+                          {addMemberLoading ? (
+                            <p className="text-sm text-muted-foreground text-center py-2">...</p>
+                          ) : eligibleMembers.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-2">
+                              {isFr ? 'Aucun membre avec des crédits disponibles' : 'No members with available credits'}
+                            </p>
+                          ) : (
+                            <>
+                              <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+                                <SelectTrigger className="h-auto min-h-[2.5rem] whitespace-normal text-left">
+                                  <span className="text-sm">
+                                    {selectedMemberId
+                                      ? (() => {
+                                          const m = eligibleMembers.find(m => m.user_id === selectedMemberId)
+                                          return m ? `${m.display_name} (${m.credits} crédits)` : ''
+                                        })()
+                                      : (isFr ? 'Choisir un membre' : 'Choose a member')}
+                                  </span>
+                                </SelectTrigger>
+                                <SelectContent className="max-h-60">
+                                  {eligibleMembers.map(m => (
+                                    <SelectItem key={m.user_id} value={m.user_id}>
+                                      {m.display_name} — {m.credits} {isFr ? 'crédit(s)' : 'credit(s)'}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => setAddMemberOpen(false)}
+                                >
+                                  {t('common.cancel')}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={handleAddMember}
+                                  disabled={!selectedMemberId || addMemberLoading}
+                                >
+                                  <UserPlus className="h-3.5 w-3.5 mr-1" />
+                                  {isFr ? 'Inscrire' : 'Book'}
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
