@@ -150,6 +150,12 @@ FROM (
   UNION ALL
   SELECT 'Function: has_used_trial (Phase 3)',
     EXISTS(SELECT 1 FROM pg_proc WHERE proname = 'has_used_trial')
+  UNION ALL
+  SELECT 'Function: can_book_class (Phase 4)',
+    EXISTS(SELECT 1 FROM pg_proc WHERE proname = 'can_book_class')
+  UNION ALL
+  SELECT 'Function: cancel_booking_v2 (Phase 4)',
+    EXISTS(SELECT 1 FROM pg_proc WHERE proname = 'cancel_booking_v2')
 
   UNION ALL
 

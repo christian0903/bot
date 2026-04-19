@@ -24,16 +24,16 @@ export function MyBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [cancelId, setCancelId] = useState<string | null>(null)
-  const [cancellationHours, setCancellationHours] = useState(24)
+  const [cancellationHours, setCancellationHours] = useState(12)
 
   useEffect(() => {
     if (!user) return
 
-    // Fetch cancellation deadline setting
-    supabase.from('app_settings').select('value').eq('key', 'studio_defaults').single()
+    // Fetch cancellation deadline from booking_rules
+    supabase.from('app_settings').select('value').eq('key', 'booking_rules').single()
       .then(({ data }) => {
-        if (data?.value?.cancellation_deadline_hours !== undefined) {
-          setCancellationHours(data.value.cancellation_deadline_hours as number)
+        if (data?.value?.cancellation_free_hours !== undefined) {
+          setCancellationHours(data.value.cancellation_free_hours as number)
         }
       })
 
@@ -65,19 +65,20 @@ export function MyBookingsPage() {
   }, [user])
 
   const handleCancel = async (bookingId: string) => {
+    if (!user) return
     const booking = bookings.find(b => b.id === bookingId)
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
-      .eq('id', bookingId)
+
+    // Use server-side cancel with conditional refund
+    const { data: result, error } = await supabase.rpc('cancel_booking_v2', {
+      p_booking_id: bookingId,
+      p_user_id: user.id,
+    })
 
     if (error) {
       toast.error(error.message)
     } else {
-      // Promote from waitlist
-      if (booking?.scheduled_class_id) {
-        await supabase.rpc('promote_from_waitlist', { p_scheduled_class_id: booking.scheduled_class_id })
-      }
+      const refunded = result?.refunded as boolean
+      const hoursBefore = result?.hours_before as number
 
       if (user && booking) {
         await logActivity({
@@ -86,15 +87,29 @@ export function MyBookingsPage() {
           target_user_id: user.id,
           entity_type: 'booking',
           entity_id: bookingId,
-          details: { class_name: booking.scheduled_class?.class_type?.name, starts_at: booking.scheduled_class?.starts_at },
-          description: `Annulation: ${booking.scheduled_class?.class_type?.name}`,
+          details: {
+            class_name: booking.scheduled_class?.class_type?.name,
+            starts_at: booking.scheduled_class?.starts_at,
+            refunded,
+            hours_before: hoursBefore,
+          },
+          description: `Annulation${refunded ? '' : ' tardive'}: ${booking.scheduled_class?.class_type?.name}`,
         })
       }
 
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' as const, cancelled_at: new Date().toISOString() } : b))
       )
-      toast.success(t('schedule.bookingCancelled'))
+
+      if (refunded) {
+        toast.success(isFr
+          ? 'Réservation annulée — crédit restitué'
+          : 'Booking cancelled — credit refunded')
+      } else {
+        toast.warning(isFr
+          ? `Annulation tardive (${hoursBefore}h avant) — crédit non restitué`
+          : `Late cancellation (${hoursBefore}h before) — credit not refunded`)
+      }
     }
     setCancelId(null)
   }
@@ -128,18 +143,21 @@ export function MyBookingsPage() {
           {booking.status === 'confirmed' && new Date(booking.scheduled_class?.starts_at ?? '') > now && (() => {
             const startsAt = new Date(booking.scheduled_class?.starts_at ?? '')
             const hoursUntil = (startsAt.getTime() - now.getTime()) / (1000 * 60 * 60)
-            const canCancel = cancellationHours === 0 || hoursUntil >= cancellationHours
+            const isFreeCancel = hoursUntil >= cancellationHours
 
-            return canCancel ? (
-              <Button variant="outline" size="sm" onClick={() => setCancelId(booking.id)}>
-                {t('bookings.cancel')}
-              </Button>
-            ) : (
-              <span className="text-xs text-muted-foreground max-w-[140px] text-right">
-                {isFr
-                  ? `Annulation impossible (< ${cancellationHours}h)`
-                  : `Cannot cancel (< ${cancellationHours}h)`}
-              </span>
+            return (
+              <div className="flex flex-col items-end gap-1">
+                <Button variant="outline" size="sm" onClick={() => setCancelId(booking.id)}>
+                  {t('bookings.cancel')}
+                </Button>
+                {!isFreeCancel && (
+                  <span className="text-[11px] text-amber-600 dark:text-amber-400 max-w-[160px] text-right">
+                    {isFr
+                      ? `Crédit non restitué (< ${cancellationHours}h)`
+                      : `Credit not refunded (< ${cancellationHours}h)`}
+                  </span>
+                )}
+              </div>
             )
           })()}
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -6,7 +6,8 @@ import { logActivity } from '@/lib/activity-log'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
-import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Users, Check, Clock3, X, Clock, Zap } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Zap, MapPin, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { addDays, startOfWeek, format, isSameDay, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -14,14 +15,50 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { ScheduledClass } from '@/types'
 
-type ViewMode = 'week' | 'list'
+type ViewMode = 'day' | 'week' | 'list'
 
-// Badge colors by credit type name
-const CREDIT_BADGE: Record<string, { bg: string; text: string; label?: string }> = {
-  semi_prive: { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
-  personal_training: { bg: 'bg-orange-500/20', text: 'text-orange-400' },
+interface BookingRules {
+  morning_cutoff_hour: number
+  morning_class_before_hour: number
+  afternoon_hours_before_no_bookings: number
+  afternoon_minutes_before_with_bookings: number
+  cancellation_free_hours: number
 }
-const DEFAULT_BADGE = { bg: 'bg-primary/20', text: 'text-primary' }
+
+const DEFAULT_RULES: BookingRules = {
+  morning_cutoff_hour: 20,
+  morning_class_before_hour: 12,
+  afternoon_hours_before_no_bookings: 3,
+  afternoon_minutes_before_with_bookings: 30,
+  cancellation_free_hours: 12,
+}
+
+// Check if booking is closed for a class (client-side check, server validates too)
+function isBookingClosed(sc: ScheduledClass, bookingsCount: number, rules: BookingRules): boolean {
+  const now = new Date()
+  const startsAt = new Date(sc.starts_at)
+  if (startsAt <= now) return true
+
+  // Get hour in Brussels timezone
+  const brusselsHour = parseInt(startsAt.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Europe/Brussels' }))
+
+  if (brusselsHour < rules.morning_class_before_hour) {
+    // Morning class: closed the day before at cutoff hour
+    const cutoff = new Date(startsAt)
+    cutoff.setDate(cutoff.getDate() - 1)
+    cutoff.setHours(rules.morning_cutoff_hour, 0, 0, 0)
+    return now > cutoff
+  } else {
+    // Afternoon/evening class
+    if (bookingsCount === 0) {
+      const cutoff = new Date(startsAt.getTime() - rules.afternoon_hours_before_no_bookings * 3600000)
+      return now > cutoff
+    } else {
+      const cutoff = new Date(startsAt.getTime() - rules.afternoon_minutes_before_with_bookings * 60000)
+      return now > cutoff
+    }
+  }
+}
 
 export function SchedulePage() {
   const { t, i18n } = useTranslation()
@@ -34,22 +71,53 @@ export function SchedulePage() {
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [bookingInProgress, setBookingInProgress] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('week')
+  const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDayIndex, setSelectedDayIndex] = useState(() => {
     const today = new Date().getDay()
-    return today === 0 ? 6 : today - 1 // 0=lun
+    return today === 0 ? 6 : today - 1
   })
+  const [bookingRules, setBookingRules] = useState<BookingRules>(DEFAULT_RULES)
+
+  // Filters
+  const [filterClassType, setFilterClassType] = useState<string>('all')
+  const [filterCoach, setFilterCoach] = useState<string>('all')
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+
+  // Extract unique class types and coaches for filters
+  const classTypes = useMemo(() => {
+    const types = new Map<string, { id: string; name: string; color: string }>()
+    for (const sc of classes) {
+      if (sc.class_type) types.set(sc.class_type.id, { id: sc.class_type.id, name: sc.class_type.name, color: sc.class_type.color })
+    }
+    return [...types.values()]
+  }, [classes])
+
+  const coaches = useMemo(() => {
+    const coachMap = new Map<string, string>()
+    for (const sc of classes) {
+      if (sc.coach) coachMap.set(sc.coach.id, sc.coach.display_name)
+    }
+    return [...coachMap.entries()].map(([id, name]) => ({ id, name }))
+  }, [classes])
+
+  // Filtered classes
+  const filteredClasses = useMemo(() => {
+    return classes.filter(sc => {
+      if (filterClassType !== 'all' && sc.class_type_id !== filterClassType) return false
+      if (filterCoach !== 'all' && sc.coach_id !== filterCoach) return false
+      return true
+    })
+  }, [classes, filterClassType, filterCoach])
 
   const fetchData = async () => {
     setLoading(true)
     const from = weekStart.toISOString()
     const to = addDays(weekStart, 7).toISOString()
 
-    const [classesRes, bookingsRes, waitlistRes] = await Promise.all([
+    const [classesRes, bookingsRes, waitlistRes, rulesRes] = await Promise.all([
       supabase
         .from('scheduled_classes')
         .select('*, class_type:class_types(*, credit_type:credit_types(name, label_fr, label_en))')
@@ -63,15 +131,20 @@ export function SchedulePage() {
       user
         ? supabase.from('waitlist').select('id, scheduled_class_id, position, status').eq('user_id', user.id).in('status', ['waiting', 'offered'])
         : Promise.resolve({ data: [] }),
+      supabase.from('app_settings').select('value').eq('key', 'booking_rules').single(),
     ])
+
+    if (rulesRes.data?.value) {
+      setBookingRules({ ...DEFAULT_RULES, ...(rulesRes.data.value as Partial<BookingRules>) })
+    }
 
     const rawClasses = (classesRes.data as ScheduledClass[]) ?? []
 
     // Fetch coach profiles
     const coachIds = [...new Set(rawClasses.map(c => c.coach_id).filter(Boolean))]
     if (coachIds.length > 0) {
-      const { data: coaches } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', coachIds)
-      const coachMap = new Map((coaches ?? []).map(c => [c.id, c]))
+      const { data: coachData } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', coachIds)
+      const coachMap = new Map((coachData ?? []).map(c => [c.id, c]))
       for (const sc of rawClasses) {
         if (sc.coach_id) sc.coach = coachMap.get(sc.coach_id) as ScheduledClass['coach']
       }
@@ -104,7 +177,22 @@ export function SchedulePage() {
     setBookingInProgress(classId)
     const scheduledClass = classes.find((c) => c.id === classId)
     if (!scheduledClass?.class_type) { setBookingInProgress(null); return }
-    if (new Date(scheduledClass.starts_at) < new Date()) { toast.error(isFr ? 'Ce cours est déjà passé' : 'This class has already passed'); setBookingInProgress(null); return }
+
+    // Server-side check
+    const { data: checkResult } = await supabase.rpc('can_book_class', { p_class_id: classId, p_user_id: user.id })
+    if (checkResult && !checkResult.can_book) {
+      const reason = checkResult.reason as string
+      const messages: Record<string, string> = {
+        class_past: isFr ? 'Ce cours est déjà passé' : 'This class has already passed',
+        class_cancelled: isFr ? 'Ce cours est annulé' : 'This class is cancelled',
+        already_booked: isFr ? 'Vous êtes déjà inscrit' : 'You are already booked',
+        class_full: isFr ? 'Ce cours est complet' : 'This class is full',
+        booking_closed: isFr ? 'Les réservations sont fermées pour ce cours' : 'Bookings are closed for this class',
+      }
+      toast.error(messages[reason] || t('common.error'))
+      setBookingInProgress(null)
+      return
+    }
 
     const { data: credits } = await supabase.rpc('get_available_credits', {
       p_user_id: user.id, p_credit_type_id: scheduledClass.class_type.credit_type_id,
@@ -136,7 +224,6 @@ export function SchedulePage() {
     const position = posData ?? 1
     const { error } = await supabase.from('waitlist').insert({ scheduled_class_id: classId, user_id: user.id, position })
     if (error) { toast.error(error.message) } else {
-      const sc = classes.find(c => c.id === classId)
       await logActivity({
         action: 'waitlist_joined', actor_id: user.id, target_user_id: user.id, entity_type: 'scheduled_class', entity_id: classId,
         details: { class_name: sc?.class_type?.name, position },
@@ -182,7 +269,6 @@ export function SchedulePage() {
     if (!sc) { setBookingInProgress(null); return }
     if (new Date(sc.starts_at) < new Date()) { toast.error(isFr ? 'Ce cours est déjà passé' : 'This class has already passed'); setBookingInProgress(null); return }
 
-    // Insert trial session
     const { error: trialError } = await supabase.from('trial_sessions').insert({
       user_id: user.id,
       scheduled_class_id: classId,
@@ -206,11 +292,10 @@ export function SchedulePage() {
     setBookingInProgress(null)
   }
 
-  // Can this user book via trial?
   const canUseTrial = user && !hasUsedTrial && !hasRegistrationFee
 
   // ---- Render helpers ----
-  const getClassesForDay = (day: Date) => classes.filter((sc) => isSameDay(new Date(sc.starts_at), day))
+  const getClassesForDay = (day: Date) => filteredClasses.filter((sc) => isSameDay(new Date(sc.starts_at), day))
 
   const ClassCard = ({ sc }: { sc: ScheduledClass }) => {
     const startsAt = new Date(sc.starts_at)
@@ -225,8 +310,9 @@ export function SchedulePage() {
     const isBooking = bookingInProgress === sc.id
     const creditName = sc.class_type?.credit_type?.name ?? 'default'
     const creditLabel = isFr ? sc.class_type?.credit_type?.label_fr : sc.class_type?.credit_type?.label_en
-    const badge = CREDIT_BADGE[creditName] || DEFAULT_BADGE
     const spotsPercent = Math.min((spotsUsed / sc.max_participants) * 100, 100)
+    const classColor = sc.class_type?.color || '#3B82F6'
+    const closed = !isPast && !isBooked && !isOnWaitlist && isBookingClosed(sc, spotsUsed, bookingRules)
 
     return (
       <motion.div
@@ -234,28 +320,43 @@ export function SchedulePage() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         className={cn(
-          'rounded-xl border border-border bg-card p-4 transition-all',
+          'rounded-xl border bg-card p-4 transition-all',
           isPast && 'opacity-50',
-          !isPast && 'hover:border-primary/40',
-          isBooked && !isPast && 'border-primary/50 bg-primary/5',
+          !isPast && !isBooked && 'hover:border-primary/40',
+          isBooked && !isPast && 'bg-primary/5',
           isOffered && !isPast && 'border-orange-400/50'
         )}
+        style={{
+          borderLeftWidth: '4px',
+          borderLeftColor: isPast ? undefined : classColor,
+        }}
       >
         {/* Header: name + badge */}
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-2">
           <h3 className="font-bold text-base">{sc.title || sc.class_type?.name}</h3>
-          <span className={cn('text-[11px] font-semibold px-2.5 py-0.5 rounded-full', badge.bg, badge.text)}>
+          <span
+            className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+            style={{ backgroundColor: `${classColor}20`, color: classColor }}
+          >
             {creditLabel}
           </span>
         </div>
 
-        {/* Coach */}
-        {sc.coach && (
-          <p className="text-sm text-muted-foreground flex items-center gap-1.5 mb-2">
-            <Users className="h-3.5 w-3.5" />
-            {sc.coach.display_name}
-          </p>
-        )}
+        {/* Coach + Floor */}
+        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
+          {sc.coach && (
+            <span className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5" />
+              {sc.coach.display_name}
+            </span>
+          )}
+          {sc.floor && (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3.5 w-3.5" />
+              {isFr ? (sc.floor === 'haut' ? 'Haut' : 'Bas') : (sc.floor === 'haut' ? 'Upper' : 'Lower')}
+            </span>
+          )}
+        </div>
 
         {/* Time + Duration + Credits */}
         <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
@@ -274,11 +375,8 @@ export function SchedulePage() {
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
-                className={cn(
-                  'h-full rounded-full transition-all',
-                  isFull ? 'bg-destructive' : 'bg-primary'
-                )}
-                style={{ width: `${spotsPercent}%` }}
+                className={cn('h-full rounded-full transition-all', isFull ? 'bg-destructive' : '')}
+                style={{ width: `${spotsPercent}%`, backgroundColor: isFull ? undefined : classColor }}
               />
             </div>
             <span className={cn('text-xs whitespace-nowrap', isFull ? 'text-destructive font-medium' : 'text-muted-foreground')}>
@@ -322,6 +420,11 @@ export function SchedulePage() {
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
+          ) : closed ? (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Lock className="h-3 w-3" />
+              {isFr ? 'Fermé' : 'Closed'}
+            </span>
           ) : isFull ? (
             <Button
               size="sm"
@@ -359,7 +462,6 @@ export function SchedulePage() {
 
   if (loading) return <LoadingState />
 
-  // Classes grouped by day for list view
   const classesByDay = weekDays.map((day) => ({
     day,
     classes: getClassesForDay(day),
@@ -374,12 +476,12 @@ export function SchedulePage() {
           <span className="text-primary">{isFr ? 'des cours' : 'Schedule'}</span>
         </h1>
         <p className="text-muted-foreground mt-1">
-          {isFr ? 'Réserve ta place et viens transpirer 💪' : 'Book your spot and come sweat 💪'}
+          {isFr ? 'Réserve ta place et viens transpirer' : 'Book your spot and come sweat'}
         </p>
       </div>
 
       {/* Week nav + view toggle */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate((d) => addDays(d, -7))}>
             <ChevronLeft className="h-4 w-4" />
@@ -397,6 +499,13 @@ export function SchedulePage() {
 
         <div className="flex rounded-lg border overflow-hidden">
           <button
+            className={cn('flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors', viewMode === 'day' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}
+            onClick={() => setViewMode('day')}
+          >
+            <Calendar className="h-3.5 w-3.5" />
+            {isFr ? 'Jour' : 'Day'}
+          </button>
+          <button
             className={cn('flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors', viewMode === 'week' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}
             onClick={() => setViewMode('week')}
           >
@@ -413,7 +522,48 @@ export function SchedulePage() {
         </div>
       </div>
 
-      {viewMode === 'week' ? (
+      {/* Filters */}
+      <div className="flex gap-3 flex-wrap">
+        <Select value={filterClassType} onValueChange={setFilterClassType}>
+          <SelectTrigger className="w-[180px] h-9">
+            <span className="text-sm">
+              {filterClassType === 'all'
+                ? (isFr ? 'Tous les cours' : 'All classes')
+                : classTypes.find(ct => ct.id === filterClassType)?.name}
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{isFr ? 'Tous les cours' : 'All classes'}</SelectItem>
+            {classTypes.map(ct => (
+              <SelectItem key={ct.id} value={ct.id}>
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ct.color }} />
+                  {ct.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterCoach} onValueChange={setFilterCoach}>
+          <SelectTrigger className="w-[180px] h-9">
+            <span className="text-sm">
+              {filterCoach === 'all'
+                ? (isFr ? 'Tous les coachs' : 'All coaches')
+                : coaches.find(c => c.id === filterCoach)?.name}
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{isFr ? 'Tous les coachs' : 'All coaches'}</SelectItem>
+            {coaches.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* DAY VIEW */}
+      {viewMode === 'day' && (
         <>
           {/* Day tabs */}
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -434,6 +584,7 @@ export function SchedulePage() {
                   )}
                 >
                   <span className="font-semibold capitalize">{format(day, 'EEE', { locale })}</span>
+                  <span className="text-lg font-bold">{format(day, 'd')}</span>
                   <span className="text-xs text-muted-foreground mt-0.5">
                     {dayClasses.length} {isFr ? 'cours' : dayClasses.length === 1 ? 'class' : 'classes'}
                   </span>
@@ -442,7 +593,6 @@ export function SchedulePage() {
             })}
           </div>
 
-          {/* Classes grid for selected day */}
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedDayIndex}
@@ -463,8 +613,65 @@ export function SchedulePage() {
             </motion.div>
           </AnimatePresence>
         </>
-      ) : (
-        /* LIST VIEW */
+      )}
+
+      {/* WEEK VIEW - compact grid */}
+      {viewMode === 'week' && (
+        <div className="grid grid-cols-7 gap-2">
+          {weekDays.map((day) => {
+            const dayClasses = getClassesForDay(day)
+            const today = isToday(day)
+            return (
+              <div key={day.toISOString()} className="min-w-0">
+                <div className={cn(
+                  'text-center py-2 rounded-t-lg border-b mb-2',
+                  today && 'bg-primary/10 text-primary font-bold'
+                )}>
+                  <div className="text-xs font-medium capitalize">{format(day, 'EEE', { locale })}</div>
+                  <div className="text-lg font-bold">{format(day, 'd')}</div>
+                </div>
+                <div className="space-y-2">
+                  {dayClasses.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">—</p>
+                  ) : (
+                    dayClasses.map(sc => {
+                      const startsAt = new Date(sc.starts_at)
+                      const isBooked = userBookings.has(sc.id)
+                      const spotsUsed = bookingCounts.get(sc.id) ?? 0
+                      const isFull = spotsUsed >= sc.max_participants
+                      const classColor = sc.class_type?.color || '#3B82F6'
+                      const isPast = startsAt < new Date()
+                      return (
+                        <button
+                          key={sc.id}
+                          onClick={() => { setSelectedDayIndex(weekDays.findIndex(d => isSameDay(d, day))); setViewMode('day') }}
+                          className={cn(
+                            'w-full text-left rounded-lg p-2 border text-xs transition-all hover:shadow-sm',
+                            isPast && 'opacity-40',
+                            isBooked && !isPast && 'ring-1 ring-primary',
+                            isFull && !isBooked && !isPast && 'opacity-60'
+                          )}
+                          style={{ borderLeftWidth: '3px', borderLeftColor: classColor }}
+                        >
+                          <div className="font-semibold truncate">{format(startsAt, 'HH:mm')}</div>
+                          <div className="truncate text-muted-foreground">{sc.class_type?.name}</div>
+                          {sc.floor && <div className="text-muted-foreground/60 truncate">{sc.floor === 'haut' ? '↑' : '↓'}</div>}
+                          <div className={cn('mt-0.5', isFull ? 'text-destructive' : '')} style={{ color: isFull ? undefined : classColor }}>
+                            {spotsUsed}/{sc.max_participants}
+                          </div>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* LIST VIEW */}
+      {viewMode === 'list' && (
         <div className="space-y-6">
           <AnimatePresence>
             {classesByDay.length === 0 ? (
@@ -473,7 +680,7 @@ export function SchedulePage() {
               classesByDay.map(({ day, classes: dayClasses }) => (
                 <motion.div key={day.toISOString()} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <h2 className="text-lg font-bold capitalize mb-3">
-                    {format(day, 'EEEE', { locale })}
+                    {format(day, 'EEEE d MMMM', { locale })}
                     {isToday(day) && <span className="text-primary ml-2 text-sm font-normal">({isFr ? "aujourd'hui" : 'today'})</span>}
                   </h2>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
