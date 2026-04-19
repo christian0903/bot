@@ -202,16 +202,16 @@ export function AdminSchedulePage() {
         candidates.push({ ...basePayload, starts_at: d.toISOString() })
       }
 
-      // Check for existing classes at those times
+      // Check for existing classes at those times + same floor
       const targetTimes = candidates.map(c => c.starts_at)
       const { data: existing } = await supabase
         .from('scheduled_classes')
-        .select('starts_at')
+        .select('starts_at, floor')
         .in('starts_at', targetTimes)
         .eq('is_cancelled', false)
 
-      const existingTimes = new Set((existing ?? []).map(e => e.starts_at))
-      const rows = candidates.filter(c => !existingTimes.has(c.starts_at))
+      const existingKeys = new Set((existing ?? []).map(e => `${e.starts_at}|${e.floor ?? ''}`))
+      const rows = candidates.filter(c => !existingKeys.has(`${c.starts_at}|${c.floor ?? ''}`))
       const skipped = candidates.length - rows.length
 
       if (rows.length === 0) {
@@ -319,19 +319,19 @@ export function AdminSchedulePage() {
         }
       })
 
-      // Check for existing classes at those times
+      // Check for existing classes at those times + same floor
       const targetTimes = candidates.map(c => c.starts_at)
       const { data: existing } = await supabase
         .from('scheduled_classes')
-        .select('starts_at, class_type:class_types(name)')
+        .select('starts_at, floor')
         .in('starts_at', targetTimes)
         .eq('is_cancelled', false)
 
-      const existingTimes = new Set((existing ?? []).map(e => e.starts_at))
+      const existingKeys = new Set((existing ?? []).map(e => `${e.starts_at}|${e.floor ?? ''}`))
 
       // Split into insertable and skipped
-      const toInsert = candidates.filter(c => !existingTimes.has(c.starts_at))
-      const skipped = candidates.filter(c => existingTimes.has(c.starts_at))
+      const toInsert = candidates.filter(c => !existingKeys.has(`${c.starts_at}|${c.floor ?? ''}`))
+      const skipped = candidates.filter(c => existingKeys.has(`${c.starts_at}|${c.floor ?? ''}`))
 
       // Remove internal field before insert
       const rows = toInsert.map(({ _original_name, ...row }) => row)
