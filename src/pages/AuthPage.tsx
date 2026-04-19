@@ -40,7 +40,10 @@ export function AuthPage() {
   const [regPassword, setRegPassword] = useState('')
   const [regConfirmPassword, setRegConfirmPassword] = useState('')
   const [regVerification, setRegVerification] = useState('')
-  const [regReferralCode, setRegReferralCode] = useState('')
+  const [regReferralCode, setRegReferralCode] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('ref')?.toUpperCase() || ''
+  })
   const [regCgvAccepted, setRegCgvAccepted] = useState(false)
   const [regRgpdAccepted, setRegRgpdAccepted] = useState(false)
   const [honeypot, setHoneypot] = useState('')

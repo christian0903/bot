@@ -195,3 +195,29 @@ export interface InvoiceRequest {
   pack_purchase?: PackPurchase
   user?: Profile
 }
+
+export interface Referral {
+  id: string
+  referrer_id: string
+  referee_id: string
+  referral_code: string
+  status: 'pending' | 'qualified' | 'rewarded'
+  referrer_reward_cents: number
+  referee_reward_cents: number
+  created_at: string
+  qualified_at: string | null
+  rewarded_at: string | null
+  referee?: Profile
+  referrer?: Profile
+}
+
+export interface ReferralReward {
+  id: string
+  user_id: string
+  referral_id: string
+  amount_cents: number
+  is_used: boolean
+  used_at: string | null
+  expires_at: string | null
+  created_at: string
+}

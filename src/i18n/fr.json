@@ -283,6 +283,9 @@
     "invoiceRequests": {
       "title": "Demandes de factures"
     },
+    "referrals": {
+      "title": "Parrainages"
+    },
     "announcements": {
       "title": "Annonces",
       "content": "Contenu",

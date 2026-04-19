@@ -16,7 +16,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
-import { Menu, User, LogOut, Settings, Shield, Dumbbell } from 'lucide-react'
+import { Menu, User, LogOut, Settings, Shield, Dumbbell, Gift } from 'lucide-react'
 
 const ROLE_COLORS: Record<string, string> = {
   super_admin: 'bg-red-500/15 text-red-600 border-red-500/30',
@@ -102,6 +102,10 @@ export function Header() {
                   <DropdownMenuItem onClick={() => navigate('/profile')}>
                     <User className="mr-2 h-4 w-4" />
                     {t('nav.profile')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/referral')}>
+                    <Gift className="mr-2 h-4 w-4" />
+                    {i18n.language === 'fr' ? 'Parrainage' : 'Referral'}
                   </DropdownMenuItem>
                   {hasRole('admin') && (
                     <DropdownMenuItem onClick={() => navigate('/admin/settings')}>

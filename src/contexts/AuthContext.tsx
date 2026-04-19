@@ -70,6 +70,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setHasUsedTrial((trialRes.data?.length ?? 0) > 0)
   }
 
+  const processReferralCode = async (userId: string, metadata: Record<string, unknown>) => {
+    const refCode = metadata?.referral_code as string | undefined
+    if (!refCode) return
+
+    // Check if referral already exists for this user
+    const { data: existing } = await supabase
+      .from('referrals')
+      .select('id')
+      .eq('referee_id', userId)
+      .limit(1)
+    if (existing && existing.length > 0) return
+
+    // Find the referrer by code
+    const { data: referrer } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('referral_code', refCode.toUpperCase())
+      .single()
+    if (!referrer || referrer.id === userId) return
+
+    // Create the referral
+    await supabase.from('referrals').insert({
+      referrer_id: referrer.id,
+      referee_id: userId,
+      referral_code: refCode.toUpperCase(),
+    })
+  }
+
   const refreshProfile = async () => {
     if (user) {
       await Promise.all([fetchProfile(user.id), fetchRoles(user.id), fetchMemberFlags(user.id)])
@@ -81,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s)
       setUser(s?.user ?? null)
       if (s?.user) {
+        processReferralCode(s.user.id, s.user.user_metadata)
         Promise.all([fetchProfile(s.user.id), fetchRoles(s.user.id), fetchMemberFlags(s.user.id)]).finally(() =>
           setLoading(false)
         )

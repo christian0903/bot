@@ -283,6 +283,9 @@
     "invoiceRequests": {
       "title": "Invoice Requests"
     },
+    "referrals": {
+      "title": "Referrals"
+    },
     "announcements": {
       "title": "Announcements",
       "content": "Content",
