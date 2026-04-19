@@ -522,9 +522,9 @@ export function AdminSchedulePage() {
                 </TableHead>
                 <TableHead>{t('admin.schedule.date')}</TableHead>
                 <TableHead>{t('admin.schedule.time')}</TableHead>
+                <TableHead>{isFr ? 'Salle' : 'Room'}</TableHead>
                 <TableHead>{t('admin.schedule.classType')}</TableHead>
                 <TableHead>{t('admin.schedule.coach')}</TableHead>
-                <TableHead>{isFr ? 'Salle' : 'Room'}</TableHead>
                 <TableHead className="text-center">{t('admin.schedule.maxParticipants')}</TableHead>
                 <TableHead className="w-[80px]">{t('common.actions')}</TableHead>
               </TableRow>
@@ -545,6 +545,9 @@ export function AdminSchedulePage() {
                     </TableCell>
                     <TableCell className="text-sm">{format(dt, 'EEE dd/MM', { locale })}</TableCell>
                     <TableCell className="text-sm font-medium">{format(dt, 'HH:mm')}</TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {sc.floor || '—'}
+                    </TableCell>
                     <TableCell>
                       <div>
                         <span className="font-medium">{sc.title || sc.class_type?.name || '-'}</span>
@@ -552,9 +555,6 @@ export function AdminSchedulePage() {
                       </div>
                     </TableCell>
                     <TableCell>{sc.coach?.display_name ?? '—'}</TableCell>
-                    <TableCell className="text-xs font-mono">
-                      {sc.floor || '—'}
-                    </TableCell>
                     <TableCell className="text-center">{sc.max_participants}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -649,11 +649,11 @@ export function AdminSchedulePage() {
               <Label>{isFr ? 'Salle' : 'Room'}</Label>
               <Select value={form.floor} onValueChange={(val) => setForm(f => ({ ...f, floor: val ?? 'bas' }))}>
                 <SelectTrigger>
-                  <span>{form.floor} — {floorNames[form.floor] || ''}</span>
+                  <span>{floorNames[form.floor] || form.floor}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(floorNames).map(([slug, name]) => (
-                    <SelectItem key={slug} value={slug}>{slug} — {name}</SelectItem>
+                    <SelectItem key={slug} value={slug}>{name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
