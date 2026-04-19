@@ -267,23 +267,11 @@ export function AdminSchedulePage() {
       <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg border bg-muted/30">
         <div>
           <Label className="text-xs">{i18n.language === 'fr' ? 'Du' : 'From'}</Label>
-          <input
-            type="date"
-            style={{ colorScheme: 'light dark' }}
-            className="h-8 text-xs w-36 rounded-lg border border-input bg-transparent px-2.5 py-1 outline-none focus-visible:border-ring dark:bg-input/30"
-            value={filterDateFrom}
-            onChange={(e) => setFilterDateFrom(e.target.value)}
-          />
+          <Input type="date" className="h-8 text-xs w-36" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
         </div>
         <div>
           <Label className="text-xs">{i18n.language === 'fr' ? 'Au' : 'To'}</Label>
-          <input
-            type="date"
-            style={{ colorScheme: 'light dark' }}
-            className="h-8 text-xs w-36 rounded-lg border border-input bg-transparent px-2.5 py-1 outline-none focus-visible:border-ring dark:bg-input/30"
-            value={filterDateTo}
-            onChange={(e) => setFilterDateTo(e.target.value)}
-          />
+          <Input type="date" className="h-8 text-xs w-36" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
         </div>
         <div>
           <Label className="text-xs">{t('admin.schedule.coach')}</Label>
@@ -522,23 +510,11 @@ export function AdminSchedulePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>{t('admin.schedule.date')}</Label>
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
-                  style={{ colorScheme: 'light dark' }}
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                />
+                <Input type="date" value={form.date} onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))} />
               </div>
               <div>
                 <Label>{t('admin.schedule.time')}</Label>
-                <input
-                  type="time"
-                  value={form.time}
-                  onChange={(e) => setForm(f => ({ ...f, time: e.target.value }))}
-                  style={{ colorScheme: 'light dark' }}
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                />
+                <Input type="time" value={form.time} step="3600" onChange={(e) => setForm(f => ({ ...f, time: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
