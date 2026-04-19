@@ -15,11 +15,20 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Badge } from '@/components/ui/badge'
 import { Menu, User, LogOut, Settings, Shield, Dumbbell } from 'lucide-react'
+
+const ROLE_COLORS: Record<string, string> = {
+  super_admin: 'bg-red-500/15 text-red-600 border-red-500/30',
+  admin: 'bg-purple-500/15 text-purple-600 border-purple-500/30',
+  coach: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
+  client: 'bg-gray-500/15 text-gray-600 border-gray-500/30',
+}
 
 export function Header() {
   const { t } = useTranslation()
-  const { user, profile, hasRole, signOut } = useAuth()
+  const { user, profile, roles, hasRole, signOut } = useAuth()
+  const primaryRole = roles.includes('super_admin') ? 'super_admin' : roles.includes('admin') ? 'admin' : roles.includes('coach') ? 'coach' : 'client'
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -82,7 +91,14 @@ export function Header() {
                     </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-52">
+                  <div className="px-2 py-1.5 mb-1">
+                    <p className="text-sm font-medium truncate">{profile?.display_name}</p>
+                    <Badge variant="outline" className={`text-[10px] mt-1 ${ROLE_COLORS[primaryRole] || ''}`}>
+                      {t(`roles.${primaryRole}`)}
+                    </Badge>
+                  </div>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate('/profile')}>
                     <User className="mr-2 h-4 w-4" />
                     {t('nav.profile')}

@@ -137,12 +137,12 @@ export function AdminUsersPage() {
       }
 
       await logActivity({
-        action: 'role_changed',
+        action: 'user_created',
         actor_id: currentUser?.id ?? null,
         target_user_id: data.user_id,
         entity_type: 'profiles',
         details: { email: newUser.email, display_name: newUser.display_name, role: newUser.role },
-        description: `Utilisateur créé: ${newUser.display_name} (${newUser.email}) — rôle ${newUser.role}`,
+        description: `Nouveau membre: ${newUser.display_name} (${newUser.email}) — rôle ${newUser.role}`,
       })
 
       toast.success(t('admin.users.userCreated'))

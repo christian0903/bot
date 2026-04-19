@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from '@/components/ui/select'
-import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag } from 'lucide-react'
+import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag, UserPlus, Receipt, LogIn, Star } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -38,6 +38,10 @@ const ACTION_CONFIG: Record<string, { icon: typeof Gift; color: string; label_fr
   role_changed: { icon: UserCog, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950', label_fr: 'Rôle modifié', label_en: 'Role changed' },
   waitlist_joined: { icon: Clock3, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950', label_fr: 'Liste d\'attente', label_en: 'Waitlist' },
   waitlist_promoted: { icon: CalendarDays, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950', label_fr: 'Promu (attente)', label_en: 'Promoted (waitlist)' },
+  user_created: { icon: UserPlus, color: 'text-teal-600 bg-teal-50 dark:bg-teal-950', label_fr: 'Nouveau membre', label_en: 'New member' },
+  registration_fee_paid: { icon: Receipt, color: 'text-green-600 bg-green-50 dark:bg-green-950', label_fr: 'Frais inscription', label_en: 'Registration fee' },
+  user_login: { icon: LogIn, color: 'text-sky-600 bg-sky-50 dark:bg-sky-950', label_fr: 'Connexion', label_en: 'Login' },
+  trial_booked: { icon: Star, color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950', label_fr: 'Séance d\'essai', label_en: 'Trial session' },
 }
 
 const ACTION_TYPES = Object.keys(ACTION_CONFIG)

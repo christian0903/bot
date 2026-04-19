@@ -280,8 +280,8 @@ export function SchedulePage() {
     }
 
     await logActivity({
-      action: 'booking_created', actor_id: user.id, target_user_id: user.id, entity_type: 'trial_session',
-      details: { class_name: sc.class_type?.name, starts_at: sc.starts_at, is_trial: true },
+      action: 'trial_booked', actor_id: user.id, target_user_id: user.id, entity_type: 'trial_session',
+      details: { class_name: sc.class_type?.name, starts_at: sc.starts_at },
       description: `Séance d'essai: ${sc.class_type?.name} le ${format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm')}`,
     })
 
