@@ -257,7 +257,13 @@ export function AdminUsersPage() {
   if (loading) return <LoadingState />
 
   const filteredUsers = users.filter(u => {
-    if (roleFilter !== 'all' && u.role !== roleFilter) return false
+    if (roleFilter !== 'all') {
+      if (roleFilter === 'admin') {
+        if (u.role !== 'admin' && u.role !== 'super_admin') return false
+      } else {
+        if (u.role !== roleFilter) return false
+      }
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       const name = (u.display_name || '').toLowerCase()
@@ -308,7 +314,7 @@ export function AdminUsersPage() {
           >
             {role === 'all' ? t('common.all') : t(`roles.${role}`)}
             <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-[10px]">
-              {role === 'all' ? users.length : users.filter(u => u.role === role).length}
+              {role === 'all' ? users.length : role === 'admin' ? users.filter(u => u.role === 'admin' || u.role === 'super_admin').length : users.filter(u => u.role === role).length}
             </Badge>
           </Button>
         ))}
