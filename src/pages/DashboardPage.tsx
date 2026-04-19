@@ -115,9 +115,92 @@ export function DashboardPage() {
         </p>
       </motion.div>
 
+      {/* Upcoming bookings — first and prominent */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+        {upcomingBookings.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="p-6 text-center">
+              <Dumbbell className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground mb-3">
+                {isFr ? 'Aucun cours prévu' : 'No upcoming classes'}
+              </p>
+              <Button size="sm" onClick={() => navigate('/schedule')}>
+                {t('home.viewSchedule')}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <CalendarDays className="h-4 w-4" />
+                {isFr ? 'Mes prochains cours' : 'My upcoming classes'}
+              </h2>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/my-bookings')} className="text-xs">
+                {t('common.all')}
+                <ChevronRight className="h-3 w-3 ml-1" />
+              </Button>
+            </div>
+            {upcomingBookings.map((booking) => {
+              const sc = booking.scheduled_class
+              const startsAt = new Date(sc?.starts_at ?? '')
+              const now = new Date()
+              const diffMs = startsAt.getTime() - now.getTime()
+              const diffHours = diffMs / 3600000
+              const isToday = startsAt.toDateString() === now.toDateString()
+              const isTomorrow = new Date(now.getTime() + 86400000).toDateString() === startsAt.toDateString()
+              const isSoon = diffHours > 0 && diffHours <= 2
+
+              return (
+                <div
+                  key={booking.id}
+                  onClick={() => navigate('/my-bookings')}
+                  className={`flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-muted/50 transition-colors cursor-pointer ${isSoon ? 'border-primary/50 bg-primary/5' : ''}`}
+                >
+                  <div className={`flex flex-col items-center justify-center h-12 w-12 rounded-lg shrink-0 ${isToday ? 'bg-primary text-primary-foreground' : 'bg-primary/10'}`}>
+                    <span className={`text-[11px] font-medium uppercase ${isToday ? '' : 'text-primary'}`}>
+                      {format(startsAt, 'EEE', { locale })}
+                    </span>
+                    <span className={`text-lg font-bold leading-none ${isToday ? '' : 'text-primary'}`}>
+                      {format(startsAt, 'd')}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{sc?.class_type?.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(startsAt, 'HH:mm')} · {sc?.duration_minutes}min
+                      {(sc as any)?.coach?.display_name && ` · ${(sc as any).coach.display_name}`}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {isSoon ? (
+                      <span className="text-xs font-semibold text-primary">
+                        {isFr ? `Dans ${Math.round(diffHours * 60)}min` : `In ${Math.round(diffHours * 60)}min`}
+                      </span>
+                    ) : isToday ? (
+                      <span className="text-xs font-semibold text-primary">
+                        {isFr ? "Aujourd'hui" : 'Today'}
+                      </span>
+                    ) : isTomorrow ? (
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {isFr ? 'Demain' : 'Tomorrow'}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {format(startsAt, 'dd/MM')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </motion.div>
+
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card
             className="cursor-pointer hover:shadow-lg hover:border-primary/30 transition-all group"
             onClick={() => navigate('/schedule')}
@@ -133,7 +216,7 @@ export function DashboardPage() {
             </CardContent>
           </Card>
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <Card
             className="cursor-pointer hover:shadow-lg hover:border-primary/30 transition-all group"
             onClick={() => navigate('/packs')}
@@ -152,27 +235,22 @@ export function DashboardPage() {
       </div>
 
       {/* Credits overview */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-primary" />
-                {t('packs.myPacks')}
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/my-packs')} className="text-xs">
-                {t('common.all')}
-                <ChevronRight className="h-3 w-3 ml-1" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {packs.length === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground mb-3">{t('packs.noActivePacks')}</p>
-                <Button size="sm" onClick={() => navigate('/packs')}>{t('home.buyPack')}</Button>
+      {packs.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  {t('packs.myPacks')}
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => navigate('/my-packs')} className="text-xs">
+                  {t('common.all')}
+                  <ChevronRight className="h-3 w-3 ml-1" />
+                </Button>
               </div>
-            ) : (
+            </CardHeader>
+            <CardContent>
               <div className="space-y-3">
                 {packs.map((pack) => {
                   const creditName = pack.pack_type?.credit_type?.name ?? 'default'
@@ -216,72 +294,10 @@ export function DashboardPage() {
                   )
                 })}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Upcoming bookings */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
-                {t('bookings.upcoming')}
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/my-bookings')} className="text-xs">
-                {t('common.all')}
-                <ChevronRight className="h-3 w-3 ml-1" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {upcomingBookings.length === 0 ? (
-              <EmptyState
-                icon={Dumbbell}
-                message={isFr ? 'Aucun cours prévu' : 'No upcoming classes'}
-                actionLabel={t('home.viewSchedule')}
-                onAction={() => navigate('/schedule')}
-              />
-            ) : (
-              <div className="space-y-2">
-                {upcomingBookings.map((booking) => {
-                  const sc = booking.scheduled_class
-                  const startsAt = new Date(sc?.starts_at ?? '')
-
-                  return (
-                    <div
-                      key={booking.id}
-                      className="flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-muted/50 transition-colors"
-                    >
-                      {/* Date block */}
-                      <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-primary/10 shrink-0">
-                        <span className="text-[11px] font-medium text-primary uppercase">
-                          {format(startsAt, 'EEE', { locale })}
-                        </span>
-                        <span className="text-lg font-bold text-primary leading-none">
-                          {format(startsAt, 'd')}
-                        </span>
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{sc?.class_type?.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(startsAt, 'HH:mm', { locale })} · {sc?.duration_minutes} min · {sc?.coach?.display_name}
-                        </p>
-                      </div>
-
-                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </div>
   )
 }
