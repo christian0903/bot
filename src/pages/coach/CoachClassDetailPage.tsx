@@ -360,6 +360,9 @@ export function CoachClassDetailPage() {
               </span>
             )}
           </p>
+          {hasRole('super_admin') && (
+            <p className="text-[10px] text-muted-foreground/50 font-mono mt-1 select-all">{scheduledClass.id}</p>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Stats bar */}
