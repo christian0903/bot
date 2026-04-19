@@ -37,6 +37,7 @@ interface ScheduleForm {
   duration_minutes: number
   title: string
   description: string
+  repeat_weeks: number
 }
 
 const emptyForm: ScheduleForm = {
@@ -48,6 +49,7 @@ const emptyForm: ScheduleForm = {
   duration_minutes: 60,
   title: '',
   description: '',
+  repeat_weeks: 0,
 }
 
 export function AdminSchedulePage() {
@@ -55,6 +57,7 @@ export function AdminSchedulePage() {
   const { user: currentUser } = useAuth()
   const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
+  const isFr = i18n.language === 'fr'
   const [classes, setClasses] = useState<ScheduledClass[]>([])
   const [classTypes, setClassTypes] = useState<ClassType[]>([])
   const [coaches, setCoaches] = useState<Profile[]>([])
@@ -164,22 +167,38 @@ export function AdminSchedulePage() {
   }
 
   const handleSave = async () => {
-    const starts_at = new Date(`${form.date}T${form.time}`).toISOString()
-    const payload = {
+    const baseDate = new Date(`${form.date}T${form.time}`)
+    const basePayload = {
       class_type_id: form.class_type_id,
       coach_id: form.coach_id || null,
-      starts_at,
       max_participants: form.max_participants,
       duration_minutes: form.duration_minutes,
       title: form.title || null,
       description: form.description || null,
     }
+
     if (editing) {
-      const { error } = await supabase.from('scheduled_classes').update(payload).eq('id', editing.id)
+      const { error } = await supabase.from('scheduled_classes').update({
+        ...basePayload,
+        starts_at: baseDate.toISOString(),
+      }).eq('id', editing.id)
       if (error) { toast.error(t('common.error')); return }
     } else {
-      const { error } = await supabase.from('scheduled_classes').insert(payload)
+      // Create for week 0 + repeat_weeks additional weeks
+      const rows = []
+      for (let w = 0; w <= form.repeat_weeks; w++) {
+        const d = new Date(baseDate)
+        d.setDate(d.getDate() + w * 7)
+        rows.push({ ...basePayload, starts_at: d.toISOString() })
+      }
+      const { error } = await supabase.from('scheduled_classes').insert(rows)
       if (error) { toast.error(t('common.error')); return }
+
+      if (form.repeat_weeks > 0) {
+        toast.success(isFr
+          ? `${rows.length} cours créés (${form.repeat_weeks} semaines de répétition)`
+          : `${rows.length} classes created (${form.repeat_weeks} weeks repeated)`)
+      }
     }
     toast.success(t('common.saveSuccess'))
     setDialogOpen(false)
@@ -523,10 +542,32 @@ export function AdminSchedulePage() {
                 <Input type="number" min={1} value={form.max_participants} onChange={(e) => setForm(f => ({ ...f, max_participants: parseInt(e.target.value) || 1 }))} />
               </div>
               <div>
-                <Label>{i18n.language === 'fr' ? 'Durée (min)' : 'Duration (min)'}</Label>
+                <Label>{isFr ? 'Durée (min)' : 'Duration (min)'}</Label>
                 <Input type="number" min={15} step={15} value={form.duration_minutes} onChange={(e) => setForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) || 60 }))} />
               </div>
             </div>
+            {!editing && (
+              <div>
+                <Label>{isFr ? 'Répéter pour X semaines' : 'Repeat for X weeks'}</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={form.repeat_weeks}
+                    onChange={(e) => setForm(f => ({ ...f, repeat_weeks: Math.min(10, Math.max(0, parseInt(e.target.value) || 0)) }))}
+                    className="w-20"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {form.repeat_weeks === 0
+                      ? (isFr ? 'Ce cours uniquement' : 'This class only')
+                      : (isFr
+                        ? `→ ${form.repeat_weeks + 1} cours seront créés (aujourd'hui + ${form.repeat_weeks} semaine${form.repeat_weeks > 1 ? 's' : ''})`
+                        : `→ ${form.repeat_weeks + 1} classes will be created (today + ${form.repeat_weeks} week${form.repeat_weeks > 1 ? 's' : ''})`)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
