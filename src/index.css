@@ -212,4 +212,10 @@
   html {
     @apply font-sans;
   }
+  /* Fix date/time input icons in dark mode */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    color-scheme: light dark;
+  }
 }

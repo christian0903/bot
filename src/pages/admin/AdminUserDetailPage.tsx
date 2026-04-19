@@ -435,18 +435,23 @@ export function AdminUserDetailPage() {
                   setSelectedPackId('')
                 }}
               >
-                <SelectTrigger>
-                  <span>
+                <SelectTrigger className="h-auto min-h-[2.5rem] whitespace-normal text-left">
+                  <span className="text-sm">
                     {selectedClass
                       ? `${selectedClass.class_type?.name} — ${format(new Date(selectedClass.starts_at), 'EEE dd/MM HH:mm', { locale })} — ${(selectedClass.coach as any)?.display_name ?? ''}`
                       : i18n.language === 'fr' ? 'Choisir un cours' : 'Choose a class'
                     }
                   </span>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-[calc(100vw-2rem)] w-[500px]">
                   {availableClasses.map(sc => (
-                    <SelectItem key={sc.id} value={sc.id}>
-                      {sc.class_type?.name} — {format(new Date(sc.starts_at), 'EEE dd/MM HH:mm', { locale })} — {(sc.coach as any)?.display_name}
+                    <SelectItem key={sc.id} value={sc.id} className="text-sm">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{sc.class_type?.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(sc.starts_at), 'EEEE dd/MM HH:mm', { locale })} — {(sc.coach as any)?.display_name}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -504,7 +509,7 @@ export function AdminUserDetailPage() {
 
       {/* Edit Pack Dialog */}
       <Dialog open={editPackDialogOpen} onOpenChange={setEditPackDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-5 w-5 text-primary" />
@@ -548,6 +553,52 @@ export function AdminUserDetailPage() {
                   value={editExpiresAt}
                   onChange={(e) => setEditExpiresAt(e.target.value)}
                 />
+              </div>
+
+              {/* Bookings made with this pack */}
+              <div className="space-y-2">
+                <Label>{i18n.language === 'fr' ? 'Réservations avec ce pack' : 'Bookings with this pack'}</Label>
+                {(() => {
+                  const packBookings = bookings.filter(b => b.pack_purchase_id === editingPack.id)
+                  if (packBookings.length === 0) {
+                    return (
+                      <p className="text-xs text-muted-foreground py-2">
+                        {i18n.language === 'fr' ? 'Aucune réservation' : 'No bookings'}
+                      </p>
+                    )
+                  }
+                  return (
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {packBookings.map(b => {
+                        const sc = b.scheduled_class
+                        const startsAt = new Date(sc?.starts_at ?? '')
+                        const isPastBooking = startsAt < now
+                        return (
+                          <div
+                            key={b.id}
+                            className={cn(
+                              'flex items-center justify-between p-2 rounded border text-xs',
+                              isPastBooking && 'opacity-60'
+                            )}
+                          >
+                            <div>
+                              <span className="font-medium">{sc?.class_type?.name}</span>
+                              <span className="text-muted-foreground ml-2">
+                                {format(startsAt, 'dd/MM/yyyy HH:mm', { locale })}
+                              </span>
+                            </div>
+                            <Badge
+                              variant={b.status === 'confirmed' ? 'default' : 'secondary'}
+                              className="text-[10px] h-5"
+                            >
+                              {t(`bookings.status.${b.status}`)}
+                            </Badge>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           )}
