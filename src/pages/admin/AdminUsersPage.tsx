@@ -60,6 +60,7 @@ export function AdminUsersPage() {
   const { user: currentUser } = useAuth()
   const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
+  const isFr = i18n.language === 'fr'
   const [users, setUsers] = useState<UserWithRole[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<UserWithRole | null>(null)
@@ -254,9 +255,20 @@ export function AdminUsersPage() {
 
   if (loading) return <LoadingState />
 
-  const filteredUsers = roleFilter === 'all'
-    ? users
-    : users.filter(u => u.role === roleFilter)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredUsers = users.filter(u => {
+    if (roleFilter !== 'all' && u.role !== roleFilter) return false
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      const name = (u.display_name || '').toLowerCase()
+      const first = (u.first_name || '').toLowerCase()
+      const last = (u.last_name || '').toLowerCase()
+      const email = (u.email || '').toLowerCase()
+      if (!name.includes(q) && !first.includes(q) && !last.includes(q) && !email.includes(q)) return false
+    }
+    return true
+  })
 
   const selectedPack = packTypes.find(p => p.id === selectedPackTypeId)
 
@@ -276,7 +288,16 @@ export function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Role filter */}
+      {/* Search + Role filter */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Input
+          type="text"
+          placeholder={isFr ? 'Rechercher nom, prénom, email...' : 'Search name, email...'}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-64 h-8 text-sm"
+        />
+      </div>
       <div className="flex items-center gap-2 flex-wrap">
         {(['client', 'coach', 'admin', 'all'] as const).map((role) => (
           <Button
