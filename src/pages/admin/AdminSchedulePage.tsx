@@ -184,17 +184,42 @@ export function AdminSchedulePage() {
       }).eq('id', editing.id)
       if (error) { toast.error(t('common.error')); return }
     } else {
-      // Create for week 0 + repeat_weeks additional weeks
-      const rows = []
+      // Build candidate rows
+      const candidates = []
       for (let w = 0; w <= form.repeat_weeks; w++) {
         const d = new Date(baseDate)
         d.setDate(d.getDate() + w * 7)
-        rows.push({ ...basePayload, starts_at: d.toISOString() })
+        candidates.push({ ...basePayload, starts_at: d.toISOString() })
       }
+
+      // Check for existing classes at those times
+      const targetTimes = candidates.map(c => c.starts_at)
+      const { data: existing } = await supabase
+        .from('scheduled_classes')
+        .select('starts_at')
+        .in('starts_at', targetTimes)
+        .eq('is_cancelled', false)
+
+      const existingTimes = new Set((existing ?? []).map(e => e.starts_at))
+      const rows = candidates.filter(c => !existingTimes.has(c.starts_at))
+      const skipped = candidates.length - rows.length
+
+      if (rows.length === 0) {
+        toast.error(isFr
+          ? 'Aucun cours créé — tous les créneaux sont déjà occupés'
+          : 'No classes created — all slots already taken')
+        setBulkSaving(false)
+        return
+      }
+
       const { error } = await supabase.from('scheduled_classes').insert(rows)
       if (error) { toast.error(t('common.error')); return }
 
-      if (form.repeat_weeks > 0) {
+      if (skipped > 0) {
+        toast.warning(isFr
+          ? `${rows.length} cours créés, ${skipped} ignoré(s) (créneau déjà occupé)`
+          : `${rows.length} created, ${skipped} skipped (slot already taken)`)
+      } else if (form.repeat_weeks > 0) {
         toast.success(isFr
           ? `${rows.length} cours créés (${form.repeat_weeks} semaines de répétition)`
           : `${rows.length} classes created (${form.repeat_weeks} weeks repeated)`)
