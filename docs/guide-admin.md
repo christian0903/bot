@@ -128,6 +128,15 @@
 
 - Vue de tous les parrainages : parrain → filleul, code utilisé, date, statut
 - Stats : total, en attente, qualifiés, montant des récompenses
+- Le parrainage est qualifié automatiquement quand le filleul paie les frais d'inscription ET achète un pack de 10+ séances
+- Les récompenses (30€ chacun) sont créées automatiquement et valables 180 jours
+
+### Paramètres de parrainage (dans `/admin/settings` via `referral_rules`)
+- Montant récompense parrain (défaut 30€)
+- Montant récompense filleul (défaut 30€)
+- Minimum séances dans le pack du filleul (défaut 10)
+- Plafond de parrainages par membre (défaut illimité)
+- Durée de validité des récompenses (défaut 180 jours)
 
 ## 13. Paramètres (`/admin/settings`)
 
@@ -151,3 +160,14 @@
 
 ### Mode paiement (Super Admin uniquement)
 - Toggle test/production (Stripe)
+
+## 14. Stats des membres
+
+Les membres ont accès à leur page `/stats` avec :
+- Compteurs : séances total, ce mois, cette semaine, streak
+- Objectif hebdomadaire personnalisable (1-7 séances)
+- Graphiques : répartition par type de cours, évolution mensuelle
+- Calendrier d'entraînement (3 mois)
+- 7 badges automatiques (10/25/50/100 séances, 4/8/12 semaines streak)
+
+Les admins peuvent voir les stats d'un membre via sa fiche utilisateur (historique réservations, packs, no-shows).

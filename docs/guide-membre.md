@@ -152,14 +152,51 @@ Si vous n'avez pas encore de pack et n'avez jamais fait d'essai, un bouton vert 
 - Liste des filleuls avec statut (en attente / qualifié / récompensé)
 - Récompenses actives avec date d'expiration
 
-## 12. Notifications (`/notifications`)
+## 12. Mes statistiques (`/stats`)
+
+### Compteurs
+- **Séances total** : nombre de séances depuis le début
+- **Ce mois** : nombre de séances ce mois-ci
+- **Cette semaine** : nombre de séances cette semaine
+- **Streak** : nombre de semaines consécutives avec au moins 1 séance (icône flamme si >= 4 semaines)
+
+### Objectif hebdomadaire
+- Objectif modifiable de 1 à 7 séances par semaine (défaut : 3)
+- Barre de progression : ex. 2/3 = 66%
+- "Objectif atteint !" s'affiche en vert quand l'objectif est complété
+
+### Graphiques
+- **Répartition par type de cours** : graphique camembert avec les couleurs de chaque type
+- **Évolution mensuelle** : graphique barres sur les 12 derniers mois
+
+### Calendrier d'entraînement
+- Vue des 3 derniers mois
+- Les jours où vous avez eu un cours sont colorés
+- Aujourd'hui est bordé
+
+### Badges
+Badges automatiquement débloqués quand vous atteignez un palier :
+
+| Badge | Condition |
+|-------|-----------|
+| 🥉 10 séances | 10 séances effectuées |
+| 🥈 25 séances | 25 séances effectuées |
+| 🥇 50 séances | 50 séances effectuées |
+| 💎 100 séances | 100 séances effectuées |
+| 🔥 4 semaines | 4 semaines consécutives |
+| ⚡ 8 semaines | 8 semaines consécutives |
+| 🌟 12 semaines | 12 semaines consécutives |
+
+Les badges non encore débloqués apparaissent en grisé.
+
+## 13. Notifications (`/notifications`)
 
 - Liste de toutes les notifications reçues
 - Types : confirmation réservation, annulation, place disponible (liste d'attente), parrainage, messages de l'équipe
 - Bouton "Tout marquer comme lu"
 - Cloche avec compteur dans le header
 
-## 13. Statuts membre
+## 14. Statuts membre
 
 Votre statut évolue automatiquement :
 
