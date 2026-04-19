@@ -4,16 +4,21 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Zap, MapPin, Lock } from 'lucide-react'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Zap, MapPin, Lock, Ban, UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
 import { addDays, startOfWeek, format, isSameDay, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import type { ScheduledClass } from '@/types'
+import type { ScheduledClass, Booking, Profile } from '@/types'
 
 type ViewMode = 'day' | 'week' | 'list'
 
@@ -62,7 +67,7 @@ function isBookingClosed(sc: ScheduledClass, bookingsCount: number, rules: Booki
 
 export function SchedulePage() {
   const { t, i18n } = useTranslation()
-  const { user, hasRegistrationFee, hasUsedTrial, refreshProfile } = useAuth()
+  const { user, roles, hasRegistrationFee, hasUsedTrial, refreshProfile } = useAuth()
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
   const [classes, setClasses] = useState<ScheduledClass[]>([])
@@ -293,6 +298,119 @@ export function SchedulePage() {
   }
 
   const canUseTrial = user && !hasUsedTrial && !hasRegistrationFee
+  const isStaff = user && (roles.includes('admin') || roles.includes('super_admin') || roles.includes('coach'))
+
+  // ---- Class detail dialog (coach/admin) ----
+  const [detailClass, setDetailClass] = useState<ScheduledClass | null>(null)
+  const [detailBookings, setDetailBookings] = useState<Booking[]>([])
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [cancelClassConfirm, setCancelClassConfirm] = useState(false)
+
+  const openClassDetail = async (sc: ScheduledClass) => {
+    if (!isStaff) return
+    setDetailClass(sc)
+    setDetailLoading(true)
+    const { data } = await supabase
+      .from('bookings')
+      .select('*, user:profiles(id, display_name, email, phone)')
+      .eq('scheduled_class_id', sc.id)
+      .eq('status', 'confirmed')
+    setDetailBookings((data as Booking[]) ?? [])
+    setDetailLoading(false)
+  }
+
+  const handleRemoveBooking = async (booking: Booking) => {
+    if (!detailClass || !user) return
+
+    // Cancel booking + refund credit
+    const { data: result } = await supabase.rpc('cancel_booking_v2', {
+      p_booking_id: booking.id,
+      p_user_id: booking.user_id,
+    })
+
+    if (result?.error) {
+      toast.error(result.error as string)
+      return
+    }
+
+    await logActivity({
+      action: 'booking_cancelled',
+      actor_id: user.id,
+      target_user_id: booking.user_id,
+      entity_type: 'booking',
+      entity_id: booking.id,
+      details: { class_name: detailClass.class_type?.name, removed_by_admin: true, refunded: result?.refunded },
+      description: `Désinscription par ${roles.includes('admin') ? 'admin' : 'coach'}: ${booking.user?.display_name} du cours ${detailClass.class_type?.name}`,
+    })
+
+    // Create notification for the member
+    await supabase.from('notifications').insert({
+      user_id: booking.user_id,
+      title: isFr ? 'Réservation annulée' : 'Booking cancelled',
+      message: isFr
+        ? `Votre réservation pour ${detailClass.class_type?.name} du ${format(new Date(detailClass.starts_at), 'dd/MM/yyyy HH:mm')} a été annulée par l'équipe.${result?.refunded ? ' Votre crédit a été restitué.' : ''}`
+        : `Your booking for ${detailClass.class_type?.name} on ${format(new Date(detailClass.starts_at), 'dd/MM/yyyy HH:mm')} was cancelled by staff.${result?.refunded ? ' Your credit has been refunded.' : ''}`,
+      type: 'warning',
+      link: '/my-bookings',
+    })
+
+    setDetailBookings(prev => prev.filter(b => b.id !== booking.id))
+    setBookingCounts(prev => {
+      const n = new Map(prev)
+      n.set(detailClass.id, Math.max(0, (n.get(detailClass.id) ?? 1) - 1))
+      return n
+    })
+    toast.success(isFr
+      ? `${booking.user?.display_name} désinscrit(e) — crédit ${result?.refunded ? 'restitué' : 'non restitué'}`
+      : `${booking.user?.display_name} removed — credit ${result?.refunded ? 'refunded' : 'not refunded'}`)
+  }
+
+  const handleCancelClass = async () => {
+    if (!detailClass || !user) return
+
+    // Mark class as cancelled
+    await supabase
+      .from('scheduled_classes')
+      .update({ is_cancelled: true })
+      .eq('id', detailClass.id)
+
+    // Cancel all bookings and refund credits
+    for (const booking of detailBookings) {
+      await supabase.rpc('cancel_booking_v2', {
+        p_booking_id: booking.id,
+        p_user_id: booking.user_id,
+      })
+
+      // Notify each member
+      await supabase.from('notifications').insert({
+        user_id: booking.user_id,
+        title: isFr ? 'Cours annulé' : 'Class cancelled',
+        message: isFr
+          ? `Le cours ${detailClass.class_type?.name} du ${format(new Date(detailClass.starts_at), 'EEEE dd/MM à HH:mm', { locale })} a été annulé. Votre crédit a été restitué.`
+          : `The class ${detailClass.class_type?.name} on ${format(new Date(detailClass.starts_at), 'EEEE dd/MM HH:mm', { locale })} has been cancelled. Your credit has been refunded.`,
+        type: 'error',
+        link: '/schedule',
+      })
+    }
+
+    await logActivity({
+      action: 'booking_cancelled',
+      actor_id: user.id,
+      target_user_id: user.id,
+      entity_type: 'scheduled_class',
+      entity_id: detailClass.id,
+      details: { class_name: detailClass.class_type?.name, cancelled_class: true, members_notified: detailBookings.length },
+      description: `Cours annulé: ${detailClass.class_type?.name} du ${format(new Date(detailClass.starts_at), 'dd/MM/yyyy HH:mm')} — ${detailBookings.length} membre(s) notifié(s)`,
+    })
+
+    toast.success(isFr
+      ? `Cours annulé — ${detailBookings.length} membre(s) notifié(s) et crédits restitués`
+      : `Class cancelled — ${detailBookings.length} member(s) notified and credits refunded`)
+
+    setCancelClassConfirm(false)
+    setDetailClass(null)
+    fetchData()
+  }
 
   // ---- Render helpers ----
   const getClassesForDay = (day: Date) => filteredClasses.filter((sc) => isSameDay(new Date(sc.starts_at), day))
@@ -324,12 +442,14 @@ export function SchedulePage() {
           isPast && 'opacity-50',
           !isPast && !isBooked && 'hover:border-primary/40',
           isBooked && !isPast && 'bg-primary/5',
-          isOffered && !isPast && 'border-orange-400/50'
+          isOffered && !isPast && 'border-orange-400/50',
+          isStaff && 'cursor-pointer'
         )}
         style={{
           borderLeftWidth: '4px',
           borderLeftColor: isPast ? undefined : classColor,
         }}
+        onClick={isStaff ? () => openClassDetail(sc) : undefined}
       >
         {/* Header: name + badge */}
         <div className="flex items-start justify-between mb-2">
@@ -405,7 +525,7 @@ export function SchedulePage() {
             <Button
               size="sm"
               className="rounded-full px-3 h-7 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white"
-              onClick={() => handleConfirmWaitlistSpot(sc.id)}
+              onClick={(e) => { e.stopPropagation(); handleConfirmWaitlistSpot(sc.id) }}
               disabled={isBooking}
             >
               {isBooking ? '...' : t('schedule.confirmSpot')}
@@ -416,7 +536,7 @@ export function SchedulePage() {
                 <Clock3 className="h-3 w-3" />
                 {t('schedule.onWaitlist', { position: waitlistEntry.position })}
               </span>
-              <button onClick={() => handleLeaveWaitlist(sc.id)} className="text-muted-foreground hover:text-foreground">
+              <button onClick={(e) => { e.stopPropagation(); handleLeaveWaitlist(sc.id) }} className="text-muted-foreground hover:text-foreground">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -430,7 +550,7 @@ export function SchedulePage() {
               size="sm"
               variant="outline"
               className="rounded-full px-3 h-7 text-xs font-semibold border-primary/50 text-primary hover:bg-primary/10"
-              onClick={() => handleJoinWaitlist(sc.id)}
+              onClick={(e) => { e.stopPropagation(); handleJoinWaitlist(sc.id) }}
               disabled={isBooking}
             >
               {isBooking ? '...' : t('schedule.joinWaitlist')}
@@ -439,7 +559,7 @@ export function SchedulePage() {
             <Button
               size="sm"
               className="rounded-full px-3 h-7 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => handleTrialBooking(sc.id)}
+              onClick={(e) => { e.stopPropagation(); handleTrialBooking(sc.id) }}
               disabled={isBooking}
             >
               {isBooking ? '...' : (isFr ? 'Essai gratuit' : 'Free trial')}
@@ -449,7 +569,7 @@ export function SchedulePage() {
               size="sm"
               variant="outline"
               className="rounded-full px-3 h-7 text-xs font-semibold border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-              onClick={() => handleBook(sc.id)}
+              onClick={(e) => { e.stopPropagation(); handleBook(sc.id) }}
               disabled={isBooking}
             >
               {isBooking ? '...' : t('schedule.book')}
@@ -693,6 +813,108 @@ export function SchedulePage() {
             )}
           </AnimatePresence>
         </div>
+      )}
+
+      {/* Class Detail Dialog (coach/admin) */}
+      {isStaff && (
+        <>
+          <Dialog open={!!detailClass} onOpenChange={(open) => { if (!open) setDetailClass(null) }}>
+            <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+              {detailClass && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>{detailClass.class_type?.name}</DialogTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(detailClass.starts_at), 'EEEE dd/MM/yyyy HH:mm', { locale })}
+                      {detailClass.coach && ` — ${detailClass.coach.display_name}`}
+                      {detailClass.floor && ` — ${detailClass.floor === 'haut' ? (isFr ? 'Haut' : 'Upper') : (isFr ? 'Bas' : 'Lower')}`}
+                    </p>
+                  </DialogHeader>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-3 py-2">
+                    <Badge variant="outline">
+                      <Users className="h-3 w-3 mr-1" />
+                      {detailBookings.length}/{detailClass.max_participants}
+                    </Badge>
+                    <Badge variant="outline">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {detailClass.duration_minutes} min
+                    </Badge>
+                  </div>
+
+                  {/* Participants list */}
+                  {detailLoading ? (
+                    <LoadingState />
+                  ) : detailBookings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">
+                      {isFr ? 'Aucun inscrit' : 'No participants'}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {isFr ? 'Inscrits' : 'Participants'}
+                      </p>
+                      {detailBookings.map((booking, idx) => (
+                        <div key={booking.id} className="flex items-center justify-between p-2.5 rounded-lg border">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-xs font-medium text-muted-foreground w-5">{idx + 1}</span>
+                            <div>
+                              <p className="text-sm font-medium">{booking.user?.display_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {booking.user?.phone || booking.user?.email}
+                              </p>
+                            </div>
+                          </div>
+                          {new Date(detailClass.starts_at) > new Date() && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveBooking(booking) }}
+                            >
+                              <UserMinus className="h-3.5 w-3.5 mr-1" />
+                              {isFr ? 'Retirer' : 'Remove'}
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Cancel class button */}
+                  {new Date(detailClass.starts_at) > new Date() && !detailClass.is_cancelled && (
+                    <div className="pt-3 border-t mt-3">
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => setCancelClassConfirm(true)}
+                      >
+                        <Ban className="h-4 w-4 mr-2" />
+                        {isFr ? 'Annuler ce cours' : 'Cancel this class'}
+                      </Button>
+                      <p className="text-[11px] text-muted-foreground text-center mt-2">
+                        {isFr
+                          ? `${detailBookings.length} membre(s) seront notifié(s) et leurs crédits restitués`
+                          : `${detailBookings.length} member(s) will be notified and their credits refunded`}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <ConfirmDialog
+            open={cancelClassConfirm}
+            onOpenChange={setCancelClassConfirm}
+            title={isFr ? 'Annuler ce cours ?' : 'Cancel this class?'}
+            description={isFr
+              ? `Tous les inscrits (${detailBookings.length}) seront notifiés et leurs crédits restitués. Cette action est irréversible.`
+              : `All participants (${detailBookings.length}) will be notified and their credits refunded. This cannot be undone.`}
+            onConfirm={handleCancelClass}
+          />
+        </>
       )}
     </div>
   )
