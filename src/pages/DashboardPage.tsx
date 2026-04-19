@@ -28,7 +28,7 @@ export function DashboardPage() {
   const { t, i18n } = useTranslation()
   const { user, profile } = useAuth()
   const navigate = useNavigate()
-  const isFr = isFr
+  const isFr = i18n.language === 'fr'
   const locale = isFr ? fr : enUS
   const [packs, setPacks] = useState<PackPurchase[]>([])
   const [upcomingBookings, setUpcomingBookings] = useState<(Booking & { scheduled_class: ScheduledClass })[]>([])
