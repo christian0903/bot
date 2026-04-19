@@ -500,12 +500,22 @@ export function SchedulePage() {
               />
             </div>
             <span className={cn('text-xs whitespace-nowrap', isFull ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-              {isFull ? (isFr ? 'Complet' : 'Full') : `${spotsFree} ${isFr ? 'places' : 'spots'}`}
+              {spotsUsed}/{sc.max_participants}
             </span>
           </div>
 
-          {/* Action button */}
-          {isPast ? (
+          {/* Action button — staff vs member */}
+          {isStaff ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full px-3 h-7 text-xs font-semibold"
+              onClick={(e) => { e.stopPropagation(); openClassDetail(sc) }}
+            >
+              <Users className="h-3 w-3 mr-1" />
+              {isFr ? 'Détail' : 'Detail'}
+            </Button>
+          ) : isPast ? (
             <span className="text-xs text-muted-foreground">
               {isBooked ? (
                 <span className="flex items-center gap-1 text-primary/60">
