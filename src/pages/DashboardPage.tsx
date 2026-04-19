@@ -28,7 +28,8 @@ export function DashboardPage() {
   const { t, i18n } = useTranslation()
   const { user, profile } = useAuth()
   const navigate = useNavigate()
-  const locale = i18n.language === 'fr' ? fr : enUS
+  const isFr = isFr
+  const locale = isFr ? fr : enUS
   const [packs, setPacks] = useState<PackPurchase[]>([])
   const [upcomingBookings, setUpcomingBookings] = useState<(Booking & { scheduled_class: ScheduledClass })[]>([])
   const [loading, setLoading] = useState(true)
@@ -107,10 +108,10 @@ export function DashboardPage() {
       {/* Welcome */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl md:text-3xl font-bold">
-          {i18n.language === 'fr' ? `Bonjour ${firstName} 💪` : `Hey ${firstName} 💪`}
+          {isFr ? `Bonjour ${firstName} 💪` : `Hey ${firstName} 💪`}
         </h1>
         <p className="text-muted-foreground mt-1">
-          {i18n.language === 'fr' ? 'Prêt pour votre séance ?' : 'Ready for your session?'}
+          {isFr ? 'Prêt pour votre séance ?' : 'Ready for your session?'}
         </p>
       </motion.div>
 
@@ -175,7 +176,7 @@ export function DashboardPage() {
               <div className="space-y-3">
                 {packs.map((pack) => {
                   const creditName = pack.pack_type?.credit_type?.name ?? 'default'
-                  const creditLabel = i18n.language === 'fr'
+                  const creditLabel = isFr
                     ? pack.pack_type?.credit_type?.label_fr
                     : pack.pack_type?.credit_type?.label_en
                   const totalCreditsInPack = pack.pack_type?.credit_count ?? 1
@@ -239,7 +240,7 @@ export function DashboardPage() {
             {upcomingBookings.length === 0 ? (
               <EmptyState
                 icon={Dumbbell}
-                message={i18n.language === 'fr' ? 'Aucun cours prévu' : 'No upcoming classes'}
+                message={isFr ? 'Aucun cours prévu' : 'No upcoming classes'}
                 actionLabel={t('home.viewSchedule')}
                 onAction={() => navigate('/schedule')}
               />

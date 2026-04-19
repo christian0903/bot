@@ -50,7 +50,8 @@ const ACTION_TYPES = Object.keys(ACTION_CONFIG)
 
 export function AdminActivityLogPage() {
   const { t, i18n } = useTranslation()
-  const locale = i18n.language === 'fr' ? fr : enUS
+  const isFr = isFr
+  const locale = isFr ? fr : enUS
   const [entries, setEntries] = useState<ActivityEntry[]>([])
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -123,7 +124,7 @@ export function AdminActivityLogPage() {
   }
 
   const getProfileName = (id: string | null) => {
-    if (!id) return i18n.language === 'fr' ? 'Système' : 'System'
+    if (!id) return isFr ? 'Système' : 'System'
     return profiles.get(id)?.display_name ?? '...'
   }
 
@@ -133,19 +134,19 @@ export function AdminActivityLogPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold flex items-center gap-2">
         <ScrollText className="h-6 w-6 text-primary" />
-        {i18n.language === 'fr' ? 'Journal d\'activité' : 'Activity Log'}
+        {isFr ? 'Journal d\'activité' : 'Activity Log'}
       </h1>
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg border bg-muted/30">
         <div>
-          <Label className="text-xs">{i18n.language === 'fr' ? 'Type' : 'Type'}</Label>
+          <Label className="text-xs">{isFr ? 'Type' : 'Type'}</Label>
           <Select value={filterAction} onValueChange={(v) => setFilterAction(v ?? 'all')}>
             <SelectTrigger className="h-8 text-xs w-44">
               <span>
                 {filterAction === 'all'
                   ? t('common.all')
-                  : (i18n.language === 'fr'
+                  : (isFr
                     ? ACTION_CONFIG[filterAction]?.label_fr
                     : ACTION_CONFIG[filterAction]?.label_en)}
               </span>
@@ -154,22 +155,22 @@ export function AdminActivityLogPage() {
               <SelectItem value="all">{t('common.all')}</SelectItem>
               {ACTION_TYPES.map(a => (
                 <SelectItem key={a} value={a}>
-                  {i18n.language === 'fr' ? ACTION_CONFIG[a].label_fr : ACTION_CONFIG[a].label_en}
+                  {isFr ? ACTION_CONFIG[a].label_fr : ACTION_CONFIG[a].label_en}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div>
-          <Label className="text-xs">{i18n.language === 'fr' ? 'Du' : 'From'}</Label>
+          <Label className="text-xs">{isFr ? 'Du' : 'From'}</Label>
           <Input type="date" className="h-8 text-xs w-36" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
         </div>
         <div>
-          <Label className="text-xs">{i18n.language === 'fr' ? 'Au' : 'To'}</Label>
+          <Label className="text-xs">{isFr ? 'Au' : 'To'}</Label>
           <Input type="date" className="h-8 text-xs w-36" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
         </div>
         <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setFilterAction('all'); setFilterDateFrom(''); setFilterDateTo('') }}>
-          {i18n.language === 'fr' ? 'Réinitialiser' : 'Reset'}
+          {isFr ? 'Réinitialiser' : 'Reset'}
         </Button>
       </div>
 
@@ -190,7 +191,7 @@ export function AdminActivityLogPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <Badge variant="outline" className="text-[10px] h-5">
-                      {i18n.language === 'fr' ? config.label_fr : config.label_en}
+                      {isFr ? config.label_fr : config.label_en}
                     </Badge>
                     <span className="text-[11px] text-muted-foreground">
                       {format(new Date(entry.created_at), 'dd/MM/yyyy HH:mm', { locale })}
@@ -198,7 +199,7 @@ export function AdminActivityLogPage() {
                   </div>
                   <p className="text-sm">{entry.description}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {i18n.language === 'fr' ? 'Par' : 'By'}: <span className="font-medium">{getProfileName(entry.actor_id)}</span>
+                    {isFr ? 'Par' : 'By'}: <span className="font-medium">{getProfileName(entry.actor_id)}</span>
                     {entry.actor_id !== entry.target_user_id && (
                       <> → <span className="font-medium">{getProfileName(entry.target_user_id)}</span></>
                     )}
@@ -212,7 +213,7 @@ export function AdminActivityLogPage() {
             <div className="flex justify-center pt-2">
               <Button variant="outline" size="sm" onClick={loadMore} disabled={loading}>
                 <ChevronDown className="h-4 w-4 mr-1" />
-                {i18n.language === 'fr' ? 'Charger plus' : 'Load more'}
+                {isFr ? 'Charger plus' : 'Load more'}
               </Button>
             </div>
           )}

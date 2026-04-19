@@ -23,7 +23,14 @@
       "Bash(node:*)",
       "Bash(grep -rn 'value={form\\\\.\\\\|value={selected' /Users/christian/bot/src/pages/admin/*.tsx /Users/christian/bot/src/pages/ProfilePage.tsx)",
       "Bash(ls:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(supabase:*)",
+      "Bash(brew install:*)",
+      "Bash(grep *)",
+      "Bash(find /Users/christian/bot/src/pages/admin -name \"*.tsx\" -exec basename {} \\\\;)",
+      "Bash(git *)",
+      "Bash(awk '{print $9, $5}')",
+      "Bash(npm uninstall *)"
     ]
   }
 }
