@@ -20,7 +20,12 @@ export function RoleGuard({ children, roles }: RoleGuardProps) {
     )
   }
 
-  const hasRequiredRole = roles.some((role) => userRoles.includes(role))
+  const hasRequiredRole = roles.some((role) => {
+    if (userRoles.includes(role)) return true
+    // super_admin inherits admin permissions
+    if (role === 'admin' && userRoles.includes('super_admin')) return true
+    return false
+  })
 
   if (!hasRequiredRole) {
     return <Navigate to="/" replace />
