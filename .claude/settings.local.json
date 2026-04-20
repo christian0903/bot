@@ -37,7 +37,12 @@
       "Bash(sed -i '' \"s|\\(totalRewardCents / 100\\).toFixed\\(0\\)}€\\)|formatEuros\\(totalRewardCents, 0\\)}\\)|g\" /Users/christian/bot/src/pages/admin/AdminReferralsPage.tsx)",
       "Bash(sed -i '' \"s|import { supabase } from '@/lib/supabase'|import { supabase } from '@/lib/supabase'\\\\nimport { formatEuros } from '@/lib/utils'|\" /Users/christian/bot/src/pages/admin/AdminReferralsPage.tsx)",
       "Bash(sed -i '' '2a\\\\ *)",
-      "Bash(sed -i '' \"s|import { cn } from '@/lib/utils'|import { cn, formatEuros } from '@/lib/utils'|\" /Users/christian/bot/src/pages/admin/AdminUserDetailPage.tsx)"
+      "Bash(sed -i '' \"s|import { cn } from '@/lib/utils'|import { cn, formatEuros } from '@/lib/utils'|\" /Users/christian/bot/src/pages/admin/AdminUserDetailPage.tsx)",
+      "Bash(mkdir -p /Users/christian/bot/supabase/_archive)",
+      "Bash(mv /Users/christian/bot/supabase/schema.sql /Users/christian/bot/supabase/_archive/)",
+      "Bash(mv /Users/christian/bot/supabase/phase1.sql /Users/christian/bot/supabase/_archive/)",
+      "Bash(mv /Users/christian/bot/supabase/phase3.sql /Users/christian/bot/supabase/_archive/)",
+      "Bash(mv /Users/christian/bot/supabase/phase4.sql /Users/christian/bot/supabase/_archive/)"
     ]
   }
 }

@@ -88,7 +88,7 @@ Mot de passe de tous les comptes : `Demo12345678!`
 
 ### 2.4 Créer les cours
 
-Après l'import des utilisateurs, exécuter le bloc SQL de génération des cours dans le SQL Editor (voir `supabase/seed-all.sql`, section 5).
+Après l'import des utilisateurs, exécuter `supabase/seed-demo-part2.sql` dans le SQL Editor (cours + réservations).
 
 ### 2.5 Reset complet
 
@@ -169,8 +169,9 @@ const USERS = rows.map(row => ({
 | `supabase/install.sql` | Installation complète (tables, fonctions, RLS, settings) |
 | `supabase/check-schema.sql` | Vérification de la structure de la base |
 | `supabase/reset-test-data.sql` | Efface toutes les données sauf admin et config |
-| `supabase/seed-all.sql` | Données demo via SQL (ne pas utiliser pour les users) |
-| `scripts/import-demo.ts` | Import demo via API Admin (méthode recommandée) |
+| `supabase/seed-demo-part1.sql` | Types de crédits, cours et packs |
+| `scripts/import-demo.ts` | Import users via API Admin (coaches + clients + packs) |
+| `supabase/seed-demo-part2.sql` | Cours planifiés + réservations passées/futures |
 
 ---
 
