@@ -1,7 +1,7 @@
 -- ============================================
--- RESET : Efface toutes les données de test
+-- RESET COMPLET : Efface TOUTES les données
 -- Garde uniquement les utilisateurs admin/super_admin
--- et les données de configuration (types de cours, packs, settings)
+-- et les app_settings
 --
 -- À exécuter dans le SQL Editor Supabase
 -- ============================================
@@ -17,14 +17,30 @@ DELETE FROM notifications;
 DELETE FROM activity_log;
 DELETE FROM scheduled_classes;
 
--- 2. Parrainages (si tables existent)
+-- 2. Parrainages
 DELETE FROM referral_rewards;
 DELETE FROM referrals;
 
 -- 3. Badges
 DELETE FROM member_badges;
 
--- 4. Supprimer les utilisateurs non-admin
+-- 4. Types de packs (dépend de pack_type_categories)
+DELETE FROM pack_type_categories;
+DELETE FROM pack_types;
+
+-- 5. Types de cours
+DELETE FROM class_types;
+
+-- 6. Types de crédits
+DELETE FROM credit_types;
+
+-- 7. Catégories de membres
+DELETE FROM member_categories;
+
+-- 8. Coupons
+DELETE FROM coupons;
+
+-- 9. Supprimer les utilisateurs non-admin
 DELETE FROM profiles
 WHERE id NOT IN (
   SELECT user_id FROM user_roles WHERE role IN ('admin', 'super_admin')
@@ -40,7 +56,7 @@ WHERE id NOT IN (
   SELECT user_id FROM user_roles WHERE role IN ('admin', 'super_admin')
 );
 
--- 5. Remettre les admins en bon statut
+-- 10. Remettre les admins en bon statut
 UPDATE profiles SET member_status = 'active';
 
 -- Vérification
