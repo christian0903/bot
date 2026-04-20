@@ -194,10 +194,10 @@ export function AdminCoachDetailPage() {
             </Button>
           </div>
           {profile.email && (
-            <a href={`mailto:${profile.email}`} className="text-sm text-primary hover:underline">{profile.email}</a>
+            <span className="text-sm text-muted-foreground">{profile.email}</span>
           )}
           {profile.phone && (
-            <a href={`tel:${profile.phone}`} className="text-sm text-muted-foreground hover:underline block">{profile.phone}</a>
+            <span className="text-sm text-muted-foreground block">{profile.phone}</span>
           )}
           <div className="flex gap-1 mt-1">
             {roles.filter(r => r !== 'client').map(r => (
