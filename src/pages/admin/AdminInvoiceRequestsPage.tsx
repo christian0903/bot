@@ -23,7 +23,7 @@ export function AdminInvoiceRequestsPage() {
     setLoading(true)
     let query = supabase
       .from('invoice_requests')
-      .select('*, user:profiles(display_name, email), pack_purchase:pack_purchases(price_paid_cents, pack_type:pack_types(name))')
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (filter !== 'all') {
@@ -31,7 +31,34 @@ export function AdminInvoiceRequestsPage() {
     }
 
     const { data } = await query
-    setRequests((data as InvoiceRequest[]) ?? [])
+    const reqs = (data as InvoiceRequest[]) ?? []
+
+    if (reqs.length > 0) {
+      // Fetch profiles
+      const userIds = [...new Set(reqs.map(r => r.user_id))]
+      const { data: profiles } = await supabase.from('profiles').select('id, display_name, email').in('id', userIds)
+      const profileMap = new Map((profiles ?? []).map(p => [p.id, p]))
+
+      // Fetch pack purchases
+      const packIds = [...new Set(reqs.map(r => r.pack_purchase_id).filter(Boolean))] as string[]
+      let packMap = new Map()
+      if (packIds.length > 0) {
+        const { data: packs } = await supabase
+          .from('pack_purchases')
+          .select('id, price_paid_cents, pack_type:pack_types(name)')
+          .in('id', packIds)
+        packMap = new Map((packs ?? []).map(p => [p.id, p]))
+      }
+
+      for (const r of reqs) {
+        r.user = profileMap.get(r.user_id) as InvoiceRequest['user']
+        if (r.pack_purchase_id) {
+          r.pack_purchase = packMap.get(r.pack_purchase_id) as InvoiceRequest['pack_purchase']
+        }
+      }
+    }
+
+    setRequests(reqs)
     setLoading(false)
   }
 
