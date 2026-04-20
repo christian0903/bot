@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
-import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Zap, MapPin, Lock, Ban, UserMinus, UserPlus } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Zap, MapPin, Lock, Ban, UserMinus, UserPlus, Info } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { toast } from 'sonner'
 import { addDays, startOfWeek, format, isSameDay, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -303,6 +304,9 @@ export function SchedulePage() {
   }
 
   const canUseTrial = user && !hasUsedTrial && !hasRegistrationFee
+
+  // Class info popup
+  const [infoClassType, setInfoClassType] = useState<ScheduledClass['class_type'] | null>(null)
   const isStaff = user && (roles.includes('admin') || roles.includes('super_admin') || roles.includes('coach'))
 
   // ---- Class detail dialog (coach/admin) ----
@@ -590,7 +594,18 @@ export function SchedulePage() {
       >
         {/* Header: name + badge */}
         <div className="flex items-start justify-between mb-2">
-          <h3 className="font-bold text-base">{sc.title || sc.class_type?.name}</h3>
+          <h3 className="font-bold text-base flex items-center gap-1.5">
+            {sc.title || sc.class_type?.name}
+            {sc.class_type?.description_md && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setInfoClassType(sc.class_type!) }}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Info className="h-4 w-4" />
+              </button>
+            )}
+          </h3>
           <span
             className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
             style={{ backgroundColor: `${classColor}20`, color: classColor }}
@@ -1133,6 +1148,29 @@ export function SchedulePage() {
           />
         </>
       )}
+
+      {/* Class type info popup */}
+      <Dialog open={!!infoClassType} onOpenChange={(open) => { if (!open) setInfoClassType(null) }}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          {infoClassType && (
+            <>
+              {infoClassType.image_url && (
+                <div className="rounded-lg overflow-hidden -mx-6 -mt-6 mb-4">
+                  <img src={infoClassType.image_url} alt={infoClassType.name} className="w-full h-48 object-cover" />
+                </div>
+              )}
+              <DialogHeader>
+                <DialogTitle>{infoClassType.name}</DialogTitle>
+              </DialogHeader>
+              {infoClassType.description_md && (
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown>{infoClassType.description_md}</ReactMarkdown>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -35,10 +35,13 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Dumbbell, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ImageUpload } from '@/components/common/ImageUpload'
 
 interface ClassTypeForm {
   name: string
   description: string
+  description_md: string
+  image_url: string
   credit_type_id: string
   default_max_participants: number
   is_active: boolean
@@ -47,6 +50,8 @@ interface ClassTypeForm {
 const emptyForm: ClassTypeForm = {
   name: '',
   description: '',
+  description_md: '',
+  image_url: '',
   credit_type_id: '',
   default_max_participants: 4,
   is_active: true,
@@ -95,6 +100,8 @@ export function AdminClassTypesPage() {
     setForm({
       name: ct.name,
       description: ct.description ?? '',
+      description_md: ct.description_md ?? '',
+      image_url: ct.image_url ?? '',
       credit_type_id: ct.credit_type_id,
       default_max_participants: ct.default_max_participants ?? 8,
       is_active: ct.is_active,
@@ -106,6 +113,8 @@ export function AdminClassTypesPage() {
     const payload = {
       name: form.name,
       description: form.description || null,
+      description_md: form.description_md || null,
+      image_url: form.image_url || null,
       credit_type_id: form.credit_type_id,
       default_max_participants: form.default_max_participants,
       is_active: form.is_active,
@@ -207,6 +216,24 @@ export function AdminClassTypesPage() {
               <Textarea
                 value={form.description}
                 onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Description détaillée (markdown)</Label>
+              <Textarea
+                value={form.description_md}
+                onChange={(e) => setForm(f => ({ ...f, description_md: e.target.value }))}
+                rows={5}
+                placeholder="Décrivez ce type de cours en détail..."
+              />
+            </div>
+            <div>
+              <Label>Photo</Label>
+              <ImageUpload
+                value={form.image_url || null}
+                onChange={(url) => setForm(f => ({ ...f, image_url: url ?? '' }))}
+                folder="class-types"
+                size="lg"
               />
             </div>
             <div>

@@ -96,6 +96,8 @@ export interface ClassType {
   id: string
   name: string
   description: string | null
+  description_md: string | null
+  image_url: string | null
   credit_type_id: string
   default_max_participants: number
   color: string
