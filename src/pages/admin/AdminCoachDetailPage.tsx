@@ -38,6 +38,9 @@ export function AdminCoachDetailPage() {
   // Edit coach profile
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({
+    display_name: '',
+    email: '',
+    phone: '',
     avatar_url: '',
     coach_description: '',
     instagram_url: '',
@@ -48,6 +51,9 @@ export function AdminCoachDetailPage() {
 
   const openEdit = () => {
     setEditForm({
+      display_name: profile?.display_name ?? '',
+      email: profile?.email ?? '',
+      phone: profile?.phone ?? '',
       avatar_url: profile?.avatar_url ?? '',
       coach_description: profile?.coach_description ?? '',
       instagram_url: profile?.instagram_url ?? '',
@@ -61,6 +67,9 @@ export function AdminCoachDetailPage() {
     if (!id) return
     setEditSaving(true)
     const { error } = await supabase.from('profiles').update({
+      display_name: editForm.display_name,
+      email: editForm.email || null,
+      phone: editForm.phone || null,
       avatar_url: editForm.avatar_url || null,
       coach_description: editForm.coach_description || null,
       instagram_url: editForm.instagram_url || null,
@@ -349,6 +358,20 @@ export function AdminCoachDetailPage() {
             <DialogTitle>{isFr ? 'Modifier le profil coach' : 'Edit coach profile'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{isFr ? 'Nom' : 'Name'}</Label>
+              <Input value={editForm.display_name} onChange={e => setEditForm(f => ({ ...f, display_name: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>{isFr ? 'Téléphone' : 'Phone'}</Label>
+                <Input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} />
+              </div>
+            </div>
             <div>
               <Label>Photo</Label>
               <ImageUpload
