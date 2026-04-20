@@ -59,7 +59,12 @@ export function AuthPage() {
     const { error } = await signIn(loginEmail, loginPassword)
     setLoading(false)
     if (error) {
-      toast.error(error.message)
+      const msg = error.message?.includes('Invalid login')
+        ? (isFr ? 'Email ou mot de passe incorrect.' : 'Invalid email or password.')
+        : error.message?.includes('Email not confirmed')
+          ? (isFr ? 'Veuillez confirmer votre email avant de vous connecter.' : 'Please confirm your email before signing in.')
+          : (isFr ? `Erreur : ${error.message}` : `Error: ${error.message}`)
+      toast.error(msg)
     } else {
       toast.success(t('auth.loginSuccess'))
       navigate(from, { replace: true })
@@ -144,7 +149,19 @@ export function AuthPage() {
     })
     setLoading(false)
     if (error) {
-      toast.error(error.message)
+      const friendlyMessages: Record<string, { fr: string; en: string }> = {
+        'User already registered': { fr: 'Cet email est déjà utilisé.', en: 'This email is already registered.' },
+        'Password should be at least': { fr: 'Le mot de passe est trop court.', en: 'Password is too short.' },
+        'Unable to validate email address': { fr: 'Adresse email invalide.', en: 'Invalid email address.' },
+        'Signups not allowed': { fr: 'Les inscriptions sont désactivées.', en: 'Signups are disabled.' },
+        'Database error': { fr: 'Erreur serveur. Veuillez réessayer.', en: 'Server error. Please try again.' },
+      }
+      const key = Object.keys(friendlyMessages).find(k => error.message?.includes(k))
+      const msg = key
+        ? (isFr ? friendlyMessages[key].fr : friendlyMessages[key].en)
+        : (isFr ? `Erreur : ${error.message}` : `Error: ${error.message}`)
+      setRegErrors([msg])
+      toast.error(msg)
     } else {
       toast.success(t('auth.emailConfirmation'))
       setTab('login')
