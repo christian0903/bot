@@ -131,7 +131,9 @@ export function AdminUsersPage() {
         credits: creditMap.get(p.id) ?? 0,
       }
     })
-    setUsers(merged)
+    // Exclude coaches and admins — they have their own page
+    const clientsOnly = merged.filter(u => !u.roles.includes('coach') && !u.roles.includes('admin') && !u.roles.includes('super_admin'))
+    setUsers(clientsOnly)
     setLoading(false)
   }
 
@@ -282,13 +284,7 @@ export function AdminUsersPage() {
   if (loading) return <LoadingState />
 
   const filteredUsers = users.filter(u => {
-    if (roleFilter !== 'all') {
-      if (roleFilter === 'admin') {
-        if (!u.roles.includes('admin') && !u.roles.includes('super_admin')) return false
-      } else {
-        if (!u.roles.includes(roleFilter)) return false
-      }
-    }
+    if (roleFilter !== 'all' && roleFilter !== u.role) return false
     if (filterCategory !== 'all') {
       if (filterCategory === 'none') {
         if (u.member_category_id) return false
@@ -312,7 +308,7 @@ export function AdminUsersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">{t('admin.users.title')}</h1>
+        <h1 className="text-2xl font-bold">{isFr ? 'Membres' : 'Members'}</h1>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
@@ -354,7 +350,7 @@ export function AdminUsersPage() {
         )}
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-        {(['client', 'coach', 'admin', 'all'] as const).map((role) => (
+        {(['all', 'client'] as const).map((role) => (
           <Button
             key={role}
             variant={roleFilter === role ? 'default' : 'outline'}
@@ -364,7 +360,7 @@ export function AdminUsersPage() {
           >
             {role === 'all' ? t('common.all') : t(`roles.${role}`)}
             <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-[10px]">
-              {role === 'all' ? users.length : role === 'admin' ? users.filter(u => u.roles.includes('admin') || u.roles.includes('super_admin')).length : users.filter(u => u.roles.includes(role)).length}
+              {users.length}
             </Badge>
           </Button>
         ))}

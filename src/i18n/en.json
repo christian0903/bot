@@ -206,6 +206,9 @@
       "manualPayment": "Manual payment",
       "reason": "Reason"
     },
+    "coaches": {
+      "title": "Coaches & Admins"
+    },
     "categories": {
       "title": "Member Categories",
       "name": "Name",

@@ -47,6 +47,8 @@ const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage')
 
 const AdminUserDetailPage = lazy(() => import('@/pages/admin/AdminUserDetailPage').then(m => ({ default: m.AdminUserDetailPage })))
 const AdminActivityLogPage = lazy(() => import('@/pages/admin/AdminActivityLogPage').then(m => ({ default: m.AdminActivityLogPage })))
+const AdminCoachesPage = lazy(() => import('@/pages/admin/AdminCoachesPage').then(m => ({ default: m.AdminCoachesPage })))
+const AdminCoachDetailPage = lazy(() => import('@/pages/admin/AdminCoachDetailPage').then(m => ({ default: m.AdminCoachDetailPage })))
 const AdminInvoiceRequestsPage = lazy(() => import('@/pages/admin/AdminInvoiceRequestsPage').then(m => ({ default: m.AdminInvoiceRequestsPage })))
 const InvoiceRequestPage = lazy(() => import('@/pages/InvoiceRequestPage').then(m => ({ default: m.InvoiceRequestPage })))
 const ReferralPage = lazy(() => import('@/pages/ReferralPage').then(m => ({ default: m.ReferralPage })))
@@ -94,6 +96,8 @@ function App() {
                   <Route path="/admin" element={<AuthGuard><RoleGuard roles={['admin']}><AdminLayout /></RoleGuard></AuthGuard>}>
                     <Route path="users" element={<Lazy><AdminUsersPage /></Lazy>} />
                     <Route path="users/:id" element={<Lazy><AdminUserDetailPage /></Lazy>} />
+                    <Route path="coaches" element={<Lazy><AdminCoachesPage /></Lazy>} />
+                    <Route path="coaches/:id" element={<Lazy><AdminCoachDetailPage /></Lazy>} />
                     <Route path="categories" element={<Lazy><AdminCategoriesPage /></Lazy>} />
                     <Route path="credit-types" element={<Lazy><AdminCreditTypesPage /></Lazy>} />
                     <Route path="pack-types" element={<Lazy><AdminPackTypesPage /></Lazy>} />

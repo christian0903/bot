@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Users,
+  UserCog,
   Tags,
   CreditCard,
   Package,
@@ -20,6 +21,7 @@ import { cn } from '@/lib/utils'
 
 const adminNav = [
   { path: '/admin/users', icon: Users, labelKey: 'admin.users.title' },
+  { path: '/admin/coaches', icon: UserCog, labelKey: 'admin.coaches.title' },
   { path: '/admin/categories', icon: Tags, labelKey: 'admin.categories.title' },
   { path: '/admin/credit-types', icon: CreditCard, labelKey: 'admin.creditTypes.title' },
   { path: '/admin/pack-types', icon: Package, labelKey: 'admin.packTypes.title' },
