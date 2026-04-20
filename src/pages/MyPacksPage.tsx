@@ -81,7 +81,7 @@ export function MyPacksPage() {
                       {t('packs.expiresAt', { date: format(new Date(pack.expires_at), 'dd MMM yyyy', { locale }) })}
                     </p>
                     <p className="text-muted-foreground">
-                      {t('packs.price', { price: (pack.price_paid_cents / 100).toFixed(2) })}
+                      {(pack.price_paid_cents / 100).toFixed(2).replace('.', ',')} €
                     </p>
                   </div>
                 </CardContent>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { formatEuros } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -72,7 +73,7 @@ export function AdminReferralsPage() {
         </div>
         <div className="p-4 rounded-lg border text-center">
           <p className="text-2xl font-bold text-green-600">{qualifiedCount}</p>
-          <p className="text-xs text-muted-foreground">{isFr ? 'Qualifiés' : 'Qualified'} ({(totalRewardCents / 100).toFixed(0)}€)</p>
+          <p className="text-xs text-muted-foreground">{isFr ? 'Qualifiés' : 'Qualified'} ({formatEuros(totalRewardCents, 0)})</p>
         </div>
       </div>
 

@@ -30,7 +30,14 @@
       "Bash(find /Users/christian/bot/src/pages/admin -name \"*.tsx\" -exec basename {} \\\\;)",
       "Bash(git *)",
       "Bash(awk '{print $9, $5}')",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(sed -i '' \"s|\\(pack.price_paid_cents / 100\\).toFixed\\(0\\)}€|formatEuros\\(pack.price_paid_cents, 0\\)}|g\" /Users/christian/bot/src/pages/admin/AdminUserDetailPage.tsx)",
+      "Bash(sed -i '' \"s|\\(editingPack.price_paid_cents / 100\\).toFixed\\(0\\)}€|formatEuros\\(editingPack.price_paid_cents, 0\\)}|g\" /Users/christian/bot/src/pages/admin/AdminUserDetailPage.tsx)",
+      "Bash(sed -i '' \"s|import { supabase } from '@/lib/supabase'|import { supabase } from '@/lib/supabase'\\\\nimport { formatEuros } from '@/lib/utils'|\" /Users/christian/bot/src/pages/admin/AdminUserDetailPage.tsx)",
+      "Bash(sed -i '' \"s|\\(totalRewardCents / 100\\).toFixed\\(0\\)}€\\)|formatEuros\\(totalRewardCents, 0\\)}\\)|g\" /Users/christian/bot/src/pages/admin/AdminReferralsPage.tsx)",
+      "Bash(sed -i '' \"s|import { supabase } from '@/lib/supabase'|import { supabase } from '@/lib/supabase'\\\\nimport { formatEuros } from '@/lib/utils'|\" /Users/christian/bot/src/pages/admin/AdminReferralsPage.tsx)",
+      "Bash(sed -i '' '2a\\\\ *)",
+      "Bash(sed -i '' \"s|import { cn } from '@/lib/utils'|import { cn, formatEuros } from '@/lib/utils'|\" /Users/christian/bot/src/pages/admin/AdminUserDetailPage.tsx)"
     ]
   }
 }

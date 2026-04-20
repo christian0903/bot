@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
+import { formatEuros } from '@/lib/utils'
 import type { Coupon } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -84,7 +85,7 @@ export function AdminCouponsPage() {
     setForm({
       code: c.code,
       discount_percent: c.discount_percent?.toString() ?? '',
-      discount_amount_cents: c.discount_amount_cents ? (c.discount_amount_cents / 100).toFixed(2) : '',
+      discount_amount_cents: c.discount_amount_cents ? formatEuros(c.discount_amount_cents) : '',
       max_uses: c.max_uses?.toString() ?? '',
       valid_from: c.valid_from ? format(new Date(c.valid_from), 'yyyy-MM-dd') : '',
       valid_until: c.valid_until ? format(new Date(c.valid_until), 'yyyy-MM-dd') : '',
@@ -127,7 +128,7 @@ export function AdminCouponsPage() {
 
   const formatDiscount = (c: Coupon) => {
     if (c.discount_percent) return `${c.discount_percent}%`
-    if (c.discount_amount_cents) return `${(c.discount_amount_cents / 100).toFixed(2)} \u20AC`
+    if (c.discount_amount_cents) return `${formatEuros(c.discount_amount_cents)} \u20AC`
     return '-'
   }
 

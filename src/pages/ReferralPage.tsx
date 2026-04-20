@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { formatEuros } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -140,7 +141,7 @@ export function ReferralPage() {
               <p className="text-xs text-muted-foreground">{isFr ? 'Qualifiés' : 'Qualified'}</p>
             </div>
             <div className="text-center p-3 rounded-lg bg-muted/30">
-              <p className="text-2xl font-bold">{(totalEarned / 100).toFixed(0)}€</p>
+              <p className="text-2xl font-bold">{formatEuros(totalEarned, 0)}</p>
               <p className="text-xs text-muted-foreground">{isFr ? 'Gagné' : 'Earned'}</p>
             </div>
           </div>
@@ -169,7 +170,7 @@ export function ReferralPage() {
             {activeRewards.map(reward => (
               <div key={reward.id} className="flex items-center justify-between p-3 rounded-lg border border-green-200 dark:border-green-800 bg-background mb-2">
                 <div>
-                  <p className="font-bold text-green-700 dark:text-green-300">{(reward.amount_cents / 100).toFixed(0)}€ {isFr ? 'de réduction' : 'off'}</p>
+                  <p className="font-bold text-green-700 dark:text-green-300">{formatEuros(reward.amount_cents, 0)} {isFr ? 'de réduction' : 'off'}</p>
                   {reward.expires_at && (
                     <p className="text-xs text-muted-foreground">
                       {isFr ? 'Expire le' : 'Expires'} {format(new Date(reward.expires_at), 'dd/MM/yyyy', { locale })}

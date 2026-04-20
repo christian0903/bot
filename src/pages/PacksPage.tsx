@@ -169,8 +169,8 @@ export function PacksPage() {
             {packTypes.map((pack, index) => {
               const isPopular = index === popularIndex
               const creditLabel = isFr ? pack.credit_type?.label_fr : pack.credit_type?.label_en
-              const priceEuros = (pack.price_cents / 100).toFixed(0)
-              const pricePerCredit = (pack.price_cents / 100 / pack.credit_count).toFixed(1)
+              const priceEuros = (pack.price_cents / 100).toFixed(0).replace('.', ',')
+              const pricePerCredit = (pack.price_cents / 100 / pack.credit_count).toFixed(1).replace('.', ',')
               const validityMonths = Math.round(pack.validity_days / 30)
               const validityLabel = validityMonths >= 1
                 ? `${validityMonths} ${isFr ? 'mois' : validityMonths === 1 ? 'month' : 'months'}`

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { formatEuros } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -110,7 +111,7 @@ export function AdminInvoiceRequestsPage() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const purchase = req.pack_purchase as any
             const purchaseLabel = purchase
-              ? `${purchase.pack_type?.name} — ${(purchase.price_paid_cents / 100).toFixed(0)} €`
+              ? `${purchase.pack_type?.name} — ${formatEuros(purchase.price_paid_cents, 0)}`
               : null
 
             return (

@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { CalendarDays } from 'lucide-react'
+import { formatEuros } from '@/lib/utils'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 
@@ -83,7 +84,7 @@ export function AdminBookingsPage() {
     if (!pp || !pp.pack_type) return '-'
     const creditCount = pp.pack_type.credit_count
     if (creditCount === 0) return '-'
-    return `${(pp.price_paid_cents / creditCount / 100).toFixed(2)} \u20AC`
+    return formatEuros(pp.price_paid_cents / creditCount)
   }
 
   const filtered = bookings.filter(b => {

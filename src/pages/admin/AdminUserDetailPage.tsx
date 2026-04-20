@@ -31,7 +31,7 @@ import { toast } from 'sonner'
 import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { cn } from '@/lib/utils'
+import { cn, formatEuros } from '@/lib/utils'
 
 export function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -458,7 +458,7 @@ export function AdminUserDetailPage() {
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>{pack.credits_remaining}/{totalInPack} crédits</span>
-                      <span>{(pack.price_paid_cents / 100).toFixed(0)}€</span>
+                      <span>{formatEuros(pack.price_paid_cents, 0)}</span>
                       <span>
                         {format(new Date(pack.purchased_at), 'dd/MM/yyyy', { locale })}
                         {' → '}
@@ -628,7 +628,7 @@ export function AdminUserDetailPage() {
                   {' · '}
                   {i18n.language === 'fr' ? 'Acheté le' : 'Purchased'} {format(new Date(editingPack.purchased_at), 'dd/MM/yyyy', { locale })}
                   {' · '}
-                  {(editingPack.price_paid_cents / 100).toFixed(0)}€
+                  {formatEuros(editingPack.price_paid_cents, 0)}
                 </p>
               </div>
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
+import { formatEuros } from '@/lib/utils'
 import { logActivity } from '@/lib/activity-log'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Profile, UserRole, PackType, MemberCategory } from '@/types'
@@ -247,7 +248,7 @@ export function AdminUsersPage() {
         price_paid_cents: priceCents,
         expires_at: expiresAt.toISOString(),
       },
-      description: `Pack "${packType.name}" (${packType.credit_count} crédits, ${(priceCents / 100).toFixed(0)}€) attribué à ${packTarget.display_name}`,
+      description: `Pack "${packType.name}" (${packType.credit_count} crédits, ${formatEuros(priceCents, 0)}) attribué à ${packTarget.display_name}`,
     })
 
     // Update local credits count
@@ -554,7 +555,7 @@ export function AdminUsersPage() {
                   <SelectContent>
                     {packTypes.map(pt => (
                       <SelectItem key={pt.id} value={pt.id}>
-                        {pt.name} — {pt.credit_count} crédits — {(pt.price_cents / 100).toFixed(0)}€
+                        {pt.name} — {pt.credit_count} crédits — {formatEuros(pt.price_cents, 0)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -576,7 +577,7 @@ export function AdminUsersPage() {
                     <Input
                       type="number"
                       min={0}
-                      placeholder={(selectedPack.price_cents / 100).toFixed(0)}
+                      placeholder={formatEuros(selectedPack.price_cents, 0)}
                       value={packPriceOverride}
                       onChange={(e) => setPackPriceOverride(e.target.value)}
                     />
@@ -596,9 +597,9 @@ export function AdminUsersPage() {
                         variant="outline"
                         size="sm"
                         className="text-xs"
-                        onClick={() => setPackPriceOverride((selectedPack.price_cents / 100).toFixed(0))}
+                        onClick={() => setPackPriceOverride(formatEuros(selectedPack.price_cents, 0))}
                       >
-                        {t('admin.users.manualPayment')} ({(selectedPack.price_cents / 100).toFixed(0)}€)
+                        {t('admin.users.manualPayment')} ({formatEuros(selectedPack.price_cents, 0)}€)
                       </Button>
                     </div>
                   </div>

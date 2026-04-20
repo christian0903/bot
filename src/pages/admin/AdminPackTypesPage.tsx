@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
+import { formatEuros } from '@/lib/utils'
 import type { PackType, CreditType, MemberCategory } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -209,7 +210,7 @@ export function AdminPackTypesPage() {
                   <TableCell className="font-medium">{pt.name}</TableCell>
                   <TableCell>{pt.credit_type?.label_fr ?? '-'}</TableCell>
                   <TableCell>{pt.credit_count}</TableCell>
-                  <TableCell>{(pt.price_cents / 100).toFixed(2)} &euro;</TableCell>
+                  <TableCell>{formatEuros(pt.price_cents)}</TableCell>
                   <TableCell>{pt.validity_days}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
