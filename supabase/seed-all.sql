@@ -61,7 +61,7 @@ UPDATE profiles SET member_status = 'active'
 WHERE id IN ('cccc0001-0001-0001-0001-000000000001','cccc0001-0001-0001-0001-000000000002','cccc0001-0001-0001-0001-000000000003');
 
 -- ============================================
--- 5. COURS PLANIFIÉS (2 semaines, coaches aléatoires)
+-- 5. COURS PLANIFIÉS (13 avril → 13 mai 2026, lun-sam)
 -- ============================================
 DO $$
 DECLARE
@@ -76,56 +76,70 @@ DECLARE
     '391581f1-3df4-4546-8e2f-c4fd5c8fede0',  -- Posture
     '89a34a9b-c98f-46ca-ad5f-e7f7869ca218'   -- Ladies
   ];
-  v_today DATE := CURRENT_DATE;
-  v_next_mon DATE;
-  v_day INTEGER;
-  v_week INTEGER;
+  v_date DATE := '2026-04-13';
+  v_end DATE := '2026-05-13';
+  v_dow INTEGER;
+  v_counter INTEGER := 0;
   v_floor TEXT;
 BEGIN
-  v_next_mon := v_today + ((8 - EXTRACT(DOW FROM v_today)::INTEGER) % 7);
-  IF v_next_mon <= v_today THEN v_next_mon := v_next_mon + 7; END IF;
+  WHILE v_date <= v_end LOOP
+    v_dow := EXTRACT(DOW FROM v_date)::INTEGER; -- 0=dim, 1=lun, ..., 6=sam
 
-  FOR v_week IN 0..1 LOOP
-    FOR v_day IN 0..4 LOOP  -- lun à ven
-      -- Cours du matin 8h (salle bas)
+    -- Pas de cours le dimanche
+    IF v_dow != 0 THEN
+      v_counter := v_counter + 1;
+
+      -- Cours du matin 8h30 (salle bas)
       INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
       VALUES (
-        v_class_ids[1 + ((v_week * 5 + v_day) % 4)],
-        v_coaches[1 + ((v_day + v_week) % 3)],
-        (v_next_mon + (v_week * 7 + v_day) * INTERVAL '1 day' + TIME '08:00'),
-        50, 4, 'bas'
+        v_class_ids[1 + (v_counter % 4)],
+        v_coaches[1 + (v_counter % 3)],
+        v_date + TIME '08:30', 50, 4, 'bas'
       );
 
-      -- Cours du midi 12h (alternance salle)
-      v_floor := CASE WHEN (v_day + v_week) % 2 = 0 THEN 'bas' ELSE 'haut' END;
-      INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
-      VALUES (
-        v_class_ids[1 + ((v_week * 5 + v_day + 1) % 4)],
-        v_coaches[1 + ((v_day + v_week + 1) % 3)],
-        (v_next_mon + (v_week * 7 + v_day) * INTERVAL '1 day' + TIME '12:00'),
-        50, 4, v_floor
-      );
-
-      -- Cours du soir 18h (salle bas + parfois un 2e en haut)
-      INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
-      VALUES (
-        v_class_ids[1 + ((v_week * 5 + v_day + 2) % 4)],
-        v_coaches[1 + ((v_day + v_week + 2) % 3)],
-        (v_next_mon + (v_week * 7 + v_day) * INTERVAL '1 day' + TIME '18:00'),
-        50, 4, 'bas'
-      );
-
-      -- 2e cours du soir certains jours (lundi, mercredi, vendredi)
-      IF v_day IN (0, 2, 4) THEN
+      -- Cours du midi 12h (lun-ven seulement, alternance salle)
+      IF v_dow BETWEEN 1 AND 5 THEN
+        v_floor := CASE WHEN v_counter % 2 = 0 THEN 'bas' ELSE 'haut' END;
         INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
         VALUES (
-          v_class_ids[1 + ((v_week * 5 + v_day + 3) % 4)],
-          v_coaches[1 + ((v_day + v_week) % 3)],
-          (v_next_mon + (v_week * 7 + v_day) * INTERVAL '1 day' + TIME '18:00'),
-          50, 4, 'haut'
+          v_class_ids[1 + ((v_counter + 1) % 4)],
+          v_coaches[1 + ((v_counter + 1) % 3)],
+          v_date + TIME '12:00', 50, 4, v_floor
         );
       END IF;
-    END LOOP;
+
+      -- Cours du soir 17h30 (lun-ven, salle bas)
+      IF v_dow BETWEEN 1 AND 5 THEN
+        INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
+        VALUES (
+          v_class_ids[1 + ((v_counter + 2) % 4)],
+          v_coaches[1 + ((v_counter + 2) % 3)],
+          v_date + TIME '17:30', 50, 4, 'bas'
+        );
+      END IF;
+
+      -- 2e cours du soir 18h30 (lun, mer, ven → salle haut)
+      IF v_dow IN (1, 3, 5) THEN
+        INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
+        VALUES (
+          v_class_ids[1 + ((v_counter + 3) % 4)],
+          v_coaches[1 + (v_counter % 3)],
+          v_date + TIME '18:30', 50, 4, 'haut'
+        );
+      END IF;
+
+      -- Samedi matin : 1 seul cours à 10h
+      IF v_dow = 6 THEN
+        INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
+        VALUES (
+          v_class_ids[1 + ((v_counter + 1) % 4)],
+          v_coaches[1 + ((v_counter + 2) % 3)],
+          v_date + TIME '10:00', 50, 4, 'bas'
+        );
+      END IF;
+    END IF;
+
+    v_date := v_date + 1;
   END LOOP;
 END;
 $$;
@@ -247,10 +261,14 @@ VALUES (
 -- ============================================
 -- RÉSUMÉ
 -- ============================================
--- 3 coaches (admin) : Gauthier, Anselme, Joan — assurent les cours aléatoirement
+-- 3 coaches (admin) : Gauthier, Anselme, Joan — rotation aléatoire sur les cours
 -- 5 types de cours : CrossTraining, BackOnTrack, Posture, Ladies, Événement
 -- 8 types de packs : 4 semi-privé + 4 PT
--- ~36 cours sur 2 semaines (3/jour lun-ven + 2e cours soir lun/mer/ven)
+-- ~120 cours du 13 avril au 13 mai 2026 :
+--   Lun-ven : 8h30 (bas) + 12h (alternance) + 17h30 (bas)
+--   Lun/mer/ven : + 18h30 (haut)
+--   Samedi : 8h30 (bas) + 10h (bas)
+--   Dimanche : pas de cours
 -- 6 clients : Ingrid(5cr), Sophie(15cr), Lucas(2cr expire bientôt), Anouck(13+8cr), Thomas(pas de frais), Simona(10cr PT)
 -- 8 réservations réparties
 -- 2 parrainages : Ingrid→Sophie (qualifié), Anouck→Lucas (en attente)
