@@ -47,7 +47,6 @@ export function AuthPage() {
   })
   const [regCgvAccepted, setRegCgvAccepted] = useState(false)
   const [regRgpdAccepted, setRegRgpdAccepted] = useState(false)
-  const [honeypot, setHoneypot] = useState('')
 
   // Forgot password
   const [forgotEmail, setForgotEmail] = useState('')
@@ -116,8 +115,6 @@ export function AuthPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (honeypot) return
-
     const errors: string[] = []
     if (!regEmail) errors.push(t('auth.emailRequired'))
     if (!regPassword || regPassword.length < 12) errors.push(t('auth.passwordMinLength'))
@@ -223,17 +220,6 @@ export function AuthPage() {
 
             {/* REGISTER */}
             <TabsContent value="register">
-              {/* Honeypot - hidden from users, catches bots */}
-              <div className="absolute opacity-0 pointer-events-none h-0 overflow-hidden" aria-hidden="true">
-                <input
-                  type="text"
-                  name="website_url_confirm"
-                  tabIndex={-1}
-                  autoComplete="new-password"
-                  value={honeypot}
-                  onChange={(e) => setHoneypot(e.target.value)}
-                />
-              </div>
 
               {/* Step indicator */}
               <div className="flex items-center justify-center gap-2 mt-4 mb-2">
