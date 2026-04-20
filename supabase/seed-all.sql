@@ -43,11 +43,21 @@ INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_u
 VALUES
   ('cccc0001-0001-0001-0001-000000000001', 'gauthier@backontrackstudio.be', crypt('Demo12345678!', gen_salt('bf')), NOW(), '{"display_name":"Gauthier Wilhelmi","first_name":"Gauthier","last_name":"Wilhelmi","phone":"+32 472 10 01 01","cgv_accepted":"true","rgpd_accepted":"true"}'::jsonb, NOW(), NOW(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
   ('cccc0001-0001-0001-0001-000000000002', 'anselme@backontrackstudio.be', crypt('Demo12345678!', gen_salt('bf')), NOW(), '{"display_name":"Anselme Meunier","first_name":"Anselme","last_name":"Meunier","phone":"+32 472 10 02 02","cgv_accepted":"true","rgpd_accepted":"true"}'::jsonb, NOW(), NOW(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
-  ('cccc0001-0001-0001-0001-000000000003', 'joan@backontrackstudio.be', crypt('Demo12345678!', gen_salt('bf')), NOW(), '{"display_name":"Joan Rodon","first_name":"Joan","last_name":"Rodon","phone":"+32 472 10 03 03","cgv_accepted":"true","rgpd_accepted":"true"}'::jsonb, NOW(), NOW(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated')
+  ('cccc0001-0001-0001-0001-000000000003', 'joan@backontrackstudio.be', crypt('Demo12345678!', gen_salt('bf')), NOW(), '{"display_name":"Joan Rodon","first_name":"Joan","last_name":"Rodon","phone":"+32 472 10 03 03","cgv_accepted":"true","rgpd_accepted":"true"}'::jsonb, NOW(), NOW(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
+  ('cccc0001-0001-0001-0001-000000000004', 'jonasz@backontrackstudio.be', crypt('Demo12345678!', gen_salt('bf')), NOW(), '{"display_name":"Jonasz Toto","first_name":"Jonasz","last_name":"Toto","phone":"+32 472 10 04 04","cgv_accepted":"true","rgpd_accepted":"true"}'::jsonb, NOW(), NOW(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT pg_sleep(1);
 
+-- Supprimer le rôle client automatiquement créé par le trigger (coaches ne sont jamais clients)
+DELETE FROM user_roles WHERE user_id IN (
+  'cccc0001-0001-0001-0001-000000000001',
+  'cccc0001-0001-0001-0001-000000000002',
+  'cccc0001-0001-0001-0001-000000000003',
+  'cccc0001-0001-0001-0001-000000000004'
+) AND role = 'client';
+
+-- Gauthier, Anselme, Joan : coach + admin
 INSERT INTO user_roles (user_id, role) VALUES
   ('cccc0001-0001-0001-0001-000000000001', 'coach'),
   ('cccc0001-0001-0001-0001-000000000002', 'coach'),
@@ -57,8 +67,13 @@ INSERT INTO user_roles (user_id, role) VALUES
   ('cccc0001-0001-0001-0001-000000000003', 'admin')
 ON CONFLICT (user_id, role) DO NOTHING;
 
+-- Jonasz : coach seulement (pas admin)
+INSERT INTO user_roles (user_id, role) VALUES
+  ('cccc0001-0001-0001-0001-000000000004', 'coach')
+ON CONFLICT (user_id, role) DO NOTHING;
+
 UPDATE profiles SET member_status = 'active'
-WHERE id IN ('cccc0001-0001-0001-0001-000000000001','cccc0001-0001-0001-0001-000000000002','cccc0001-0001-0001-0001-000000000003');
+WHERE id IN ('cccc0001-0001-0001-0001-000000000001','cccc0001-0001-0001-0001-000000000002','cccc0001-0001-0001-0001-000000000003','cccc0001-0001-0001-0001-000000000004');
 
 -- ============================================
 -- 5. COURS PLANIFIÉS (13 avril → 13 mai 2026, lun-sam)
@@ -68,7 +83,8 @@ DECLARE
   v_coaches UUID[] := ARRAY[
     'cccc0001-0001-0001-0001-000000000001',
     'cccc0001-0001-0001-0001-000000000002',
-    'cccc0001-0001-0001-0001-000000000003'
+    'cccc0001-0001-0001-0001-000000000003',
+    'cccc0001-0001-0001-0001-000000000004'
   ];
   v_class_ids UUID[] := ARRAY[
     'f5b1718d-174e-4557-82ae-a6cc9a115ba1',  -- CrossTraining
@@ -93,7 +109,7 @@ BEGIN
       INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
       VALUES (
         v_class_ids[1 + (v_counter % 4)],
-        v_coaches[1 + (v_counter % 3)],
+        v_coaches[1 + (v_counter % 4)],
         v_date + TIME '08:30', 50, 4, 'bas'
       );
 
@@ -103,7 +119,7 @@ BEGIN
         INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
         VALUES (
           v_class_ids[1 + ((v_counter + 1) % 4)],
-          v_coaches[1 + ((v_counter + 1) % 3)],
+          v_coaches[1 + ((v_counter + 1) % 4)],
           v_date + TIME '12:00', 50, 4, v_floor
         );
       END IF;
@@ -113,7 +129,7 @@ BEGIN
         INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
         VALUES (
           v_class_ids[1 + ((v_counter + 2) % 4)],
-          v_coaches[1 + ((v_counter + 2) % 3)],
+          v_coaches[1 + ((v_counter + 2) % 4)],
           v_date + TIME '17:30', 50, 4, 'bas'
         );
       END IF;
@@ -123,7 +139,7 @@ BEGIN
         INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
         VALUES (
           v_class_ids[1 + ((v_counter + 3) % 4)],
-          v_coaches[1 + (v_counter % 3)],
+          v_coaches[1 + (v_counter % 4)],
           v_date + TIME '18:30', 50, 4, 'haut'
         );
       END IF;
@@ -133,7 +149,7 @@ BEGIN
         INSERT INTO scheduled_classes (class_type_id, coach_id, starts_at, duration_minutes, max_participants, floor)
         VALUES (
           v_class_ids[1 + ((v_counter + 1) % 4)],
-          v_coaches[1 + ((v_counter + 2) % 3)],
+          v_coaches[1 + ((v_counter + 2) % 4)],
           v_date + TIME '10:00', 50, 4, 'bas'
         );
       END IF;
@@ -336,7 +352,8 @@ VALUES (
 -- ============================================
 -- RÉSUMÉ
 -- ============================================
--- 3 coaches (admin) : Gauthier, Anselme, Joan — rotation sur les cours
+-- 4 coaches : Gauthier (admin), Anselme (admin), Joan (admin), Jonasz (coach only)
+-- Coaches ne sont JAMAIS clients — rôle client supprimé
 -- 5 types de cours : CrossTraining, BackOnTrack, Posture, Ladies, Événement
 -- 8 types de packs : 4 semi-privé + 4 PT
 -- ~120 cours du 13 avril au 13 mai 2026 (lun-sam)
