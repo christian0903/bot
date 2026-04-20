@@ -4,11 +4,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { LoadingState } from '@/components/common/LoadingState'
 import { BarChart3, Flame, Target, Trophy, Calendar } from 'lucide-react'
-import { format, startOfWeek, addDays, subMonths } from 'date-fns'
+import { format, startOfWeek, subMonths } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
@@ -233,7 +232,7 @@ export function StatsPage() {
                     return format(new Date(parseInt(y), parseInt(mo) - 1), 'MMM', { locale })
                   }} />
                   <YAxis tick={{ fontSize: 10 }} width={25} />
-                  <Tooltip formatter={(v: number) => [v, isFr ? 'Séances' : 'Sessions']} labelFormatter={m => {
+                  <Tooltip formatter={(v) => [v, isFr ? 'Séances' : 'Sessions']} labelFormatter={m => {
                     const [y, mo] = (m as string).split('-')
                     return format(new Date(parseInt(y), parseInt(mo) - 1), 'MMMM yyyy', { locale })
                   }} />

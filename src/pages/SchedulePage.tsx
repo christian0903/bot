@@ -18,7 +18,7 @@ import { addDays, startOfWeek, format, isSameDay, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import type { ScheduledClass, Booking, Profile } from '@/types'
+import type { ScheduledClass, Booking } from '@/types'
 
 type ViewMode = 'day' | 'week' | 'list'
 
@@ -558,7 +558,6 @@ export function SchedulePage() {
     const spotsFree = sc.max_participants - spotsUsed
     const isFull = spotsFree <= 0
     const isBooking = bookingInProgress === sc.id
-    const creditName = sc.class_type?.credit_type?.name ?? 'default'
     const creditLabel = isFr ? sc.class_type?.credit_type?.label_fr : sc.class_type?.credit_type?.label_en
     const spotsPercent = Math.min((spotsUsed / sc.max_participants) * 100, 100)
     const classColor = sc.class_type?.color || '#3B82F6'
@@ -786,7 +785,7 @@ export function SchedulePage() {
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
-        <Select value={filterClassType} onValueChange={setFilterClassType}>
+        <Select value={filterClassType} onValueChange={(v) => setFilterClassType(v ?? 'all')}>
           <SelectTrigger className="w-[180px] h-9">
             <span className="text-sm">
               {filterClassType === 'all'
@@ -807,7 +806,7 @@ export function SchedulePage() {
           </SelectContent>
         </Select>
 
-        <Select value={filterCoach} onValueChange={setFilterCoach}>
+        <Select value={filterCoach} onValueChange={(v) => setFilterCoach(v ?? 'all')}>
           <SelectTrigger className="w-[180px] h-9">
             <span className="text-sm">
               {filterCoach === 'all'
@@ -1049,7 +1048,7 @@ export function SchedulePage() {
                             </p>
                           ) : (
                             <>
-                              <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+                              <Select value={selectedMemberId} onValueChange={(v) => setSelectedMemberId(v ?? '')}>
                                 <SelectTrigger className="h-auto min-h-[2.5rem] whitespace-normal text-left">
                                   <span className="text-sm">
                                     {selectedMemberId
@@ -1060,7 +1059,7 @@ export function SchedulePage() {
                                       : (isFr ? 'Choisir un membre' : 'Choose a member')}
                                   </span>
                                 </SelectTrigger>
-                                <SelectContent className="min-w-[350px] max-h-60" position="popper" sideOffset={4}>
+                                <SelectContent className="min-w-[350px] max-h-60" sideOffset={4}>
                                   {eligibleMembers.map(m => (
                                     <SelectItem key={m.user_id} value={m.user_id}>
                                       {m.display_name} — {m.credits} {isFr ? 'crédit(s)' : 'credit(s)'}

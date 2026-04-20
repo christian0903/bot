@@ -50,7 +50,7 @@ const ACTION_TYPES = Object.keys(ACTION_CONFIG)
 
 export function AdminActivityLogPage() {
   const { t, i18n } = useTranslation()
-  const isFr = isFr
+  const isFr = i18n.language === 'fr'
   const locale = isFr ? fr : enUS
   const [entries, setEntries] = useState<ActivityEntry[]>([])
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map())

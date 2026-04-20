@@ -83,7 +83,7 @@ export function AdminSchedulePage() {
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [bulkAction, setBulkAction] = useState<'coach' | 'max' | null>(null)
+  const [bulkAction, setBulkAction] = useState<'coach' | 'max' | 'duplicate' | null>(null)
   const [bulkCoachId, setBulkCoachId] = useState('')
   const [bulkMaxParticipants, setBulkMaxParticipants] = useState(4)
   const [bulkSaving, setBulkSaving] = useState(false)

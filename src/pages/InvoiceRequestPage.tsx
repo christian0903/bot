@@ -17,7 +17,7 @@ import { fr, enUS } from 'date-fns/locale'
 import type { PackPurchase, InvoiceRequest } from '@/types'
 
 export function InvoiceRequestPage() {
-  const { t, i18n } = useTranslation()
+  const { i18n } = useTranslation()
   const { user } = useAuth()
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
@@ -127,7 +127,7 @@ export function InvoiceRequestPage() {
             </div>
             <div className="space-y-2">
               <Label>{isFr ? 'Paiement concerné' : 'Related payment'}</Label>
-              <Select value={selectedPurchase} onValueChange={setSelectedPurchase}>
+              <Select value={selectedPurchase} onValueChange={(v) => setSelectedPurchase(v ?? '')}>
                 <SelectTrigger>
                   <span className="text-sm">
                     {selectedPurchase

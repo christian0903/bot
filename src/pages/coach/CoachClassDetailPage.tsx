@@ -25,7 +25,6 @@ export function CoachClassDetailPage() {
   const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
-  const isAdmin = hasRole('admin')
   const [scheduledClass, setScheduledClass] = useState<ScheduledClass | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
@@ -555,7 +554,7 @@ export function CoachClassDetailPage() {
                     </p>
                   ) : (
                     <>
-                      <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+                      <Select value={selectedMemberId} onValueChange={(v) => setSelectedMemberId(v ?? '')}>
                         <SelectTrigger className="h-auto min-h-[2.5rem] whitespace-normal text-left w-full">
                           <span className="text-sm">
                             {selectedMemberId
@@ -566,7 +565,7 @@ export function CoachClassDetailPage() {
                               : (isFr ? 'Choisir un membre...' : 'Choose a member...')}
                           </span>
                         </SelectTrigger>
-                        <SelectContent className="min-w-[350px] max-h-60" position="popper" sideOffset={4}>
+                        <SelectContent className="min-w-[350px] max-h-60" sideOffset={4}>
                           {eligibleMembers.map(m => (
                             <SelectItem key={m.user_id} value={m.user_id}>
                               {m.display_name} — {m.credits} {isFr ? 'crédit(s)' : 'credit(s)'}

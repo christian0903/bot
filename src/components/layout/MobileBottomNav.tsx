@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
-import { Home, CalendarDays, CreditCard, User, BarChart3 } from 'lucide-react'
+import { Home, CalendarDays, CreditCard, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function MobileBottomNav() {

@@ -105,7 +105,7 @@ export function Header() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/referral')}>
                     <Gift className="mr-2 h-4 w-4" />
-                    {i18n.language === 'fr' ? 'Parrainage' : 'Referral'}
+                    {t('admin.referrals.title')}
                   </DropdownMenuItem>
                   {hasRole('admin') && (
                     <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
