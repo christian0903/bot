@@ -223,11 +223,13 @@ export function AuthPage() {
 
             {/* REGISTER */}
             <TabsContent value="register">
-              {/* Honeypot - hidden from users */}
-              <div className="absolute opacity-0 pointer-events-none" aria-hidden="true">
-                <Input
+              {/* Honeypot - hidden from users, catches bots */}
+              <div className="absolute opacity-0 pointer-events-none h-0 overflow-hidden" aria-hidden="true">
+                <input
+                  type="text"
+                  name="website_url_confirm"
                   tabIndex={-1}
-                  autoComplete="off"
+                  autoComplete="new-password"
                   value={honeypot}
                   onChange={(e) => setHoneypot(e.target.value)}
                 />
@@ -394,8 +396,8 @@ export function AuthPage() {
                     <Button type="button" variant="outline" className="flex-1" onClick={() => setRegStep(1)}>
                       <ChevronLeft className="mr-2 h-4 w-4" /> {t('common.previous')}
                     </Button>
-                    <Button type="button" className="flex-1" disabled={loading} onClick={(e) => handleRegister(e as unknown as React.FormEvent)}>
-                      {t('auth.registerButton')}
+                    <Button type="button" className="flex-1" disabled={loading} onClick={() => handleRegister({ preventDefault: () => {} } as React.FormEvent)}>
+                      {loading ? '...' : t('auth.registerButton')}
                     </Button>
                   </div>
                   <p className="text-center text-sm text-muted-foreground">
