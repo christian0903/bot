@@ -394,7 +394,7 @@ export function AuthPage() {
                     <Button type="button" variant="outline" className="flex-1" onClick={() => setRegStep(1)}>
                       <ChevronLeft className="mr-2 h-4 w-4" /> {t('common.previous')}
                     </Button>
-                    <Button type="submit" className="flex-1" disabled={loading}>
+                    <Button type="button" className="flex-1" disabled={loading} onClick={(e) => handleRegister(e as unknown as React.FormEvent)}>
                       {t('auth.registerButton')}
                     </Button>
                   </div>
