@@ -37,6 +37,11 @@ FROM (
   UNION ALL SELECT 'Col: bookings.checked_in_at', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='checked_in_at')
   UNION ALL SELECT 'Col: bookings.is_no_show', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='is_no_show')
   UNION ALL SELECT 'Col: pack_purchases.mollie_payment_id', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='pack_purchases' AND column_name='mollie_payment_id')
+  UNION ALL SELECT 'Col: profiles.weekly_goal', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='weekly_goal')
+  UNION ALL SELECT 'Col: profiles.instagram_url', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='instagram_url')
+  UNION ALL SELECT 'Col: profiles.coach_description', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='coach_description')
+  UNION ALL SELECT 'Col: class_types.image_url', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='class_types' AND column_name='image_url')
+  UNION ALL SELECT 'Col: class_types.description_md', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='class_types' AND column_name='description_md')
 
   -- ENUMS
   UNION ALL SELECT 'Enum: user_role.super_admin', EXISTS(SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid=t.oid WHERE t.typname='user_role' AND e.enumlabel='super_admin')

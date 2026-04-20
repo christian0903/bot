@@ -16,7 +16,33 @@
 - Cours par coach (nombre de cours, réservations)
 - Filtres par période personnalisée
 
-## 2. Gestion des utilisateurs (`/admin/users`)
+## 2. Coaches & Admins (`/admin/coaches`)
+
+### Liste des coaches
+- Grille de cartes : photo, nom, email, badges rôles, nombre de cours à venir
+- Clic → fiche coach détaillée
+
+### Fiche coach (`/admin/coaches/:id`)
+- **Header** : photo, nom, email, téléphone, badges rôles, bouton modifier (crayon)
+- **Liens sociaux** : Instagram, Facebook, LinkedIn
+- **Filtre période** : date de début et fin — toutes les stats se mettent à jour
+- **4 compteurs** : cours à venir, cours donnés, inscriptions, revenu de la période
+- **Description** : rendu markdown (spécialités, parcours)
+- **Liste des cours** : nom, date, heure, salle, inscrits/max, revenu par cours
+- Clic sur un cours → page détail (check-in, ajouter/retirer membre)
+
+### Modifier le profil coach
+- Bouton crayon à côté du nom → dialog avec :
+  - Upload photo (Supabase Storage)
+  - Description (markdown)
+  - Instagram, Facebook, LinkedIn URLs
+
+### Différences avec les membres
+- Les coaches ne sont **jamais** affichés dans la page "Membres"
+- Les coaches n'ont pas de packs, crédits, réservations client
+- Les coaches n'ont pas de frais d'inscription
+
+## 3. Gestion des membres (`/admin/users`)
 
 ### Liste des membres
 - Recherche par nom, prénom, email
@@ -78,6 +104,8 @@
 - Chaque type est lié à un type de crédit (semi-privé ou PT)
 - Nombre max de participants par défaut
 - Couleur du cours (affichée dans le planning)
+- **Photo** : upload d'image via Supabase Storage
+- **Description détaillée** (markdown) : visible via l'icône (i) dans le planning client
 
 ## 5. Types de packs (`/admin/pack-types`)
 

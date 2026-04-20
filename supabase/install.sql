@@ -67,6 +67,12 @@ CREATE TABLE profiles (
   referral_code TEXT UNIQUE,
   member_status TEXT DEFAULT 'visitor'
     CHECK (member_status IN ('visitor', 'potential', 'active', 'inactive', 'former')),
+  weekly_goal INTEGER DEFAULT 3,
+  -- Coach fields
+  instagram_url TEXT,
+  facebook_url TEXT,
+  linkedin_url TEXT,
+  coach_description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   last_sign_in_at TIMESTAMPTZ
@@ -152,6 +158,8 @@ CREATE TABLE class_types (
   credit_type_id UUID NOT NULL REFERENCES credit_types(id),
   default_max_participants INTEGER DEFAULT 4,
   color TEXT DEFAULT '#3B82F6',
+  image_url TEXT,
+  description_md TEXT,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -792,9 +800,28 @@ INSERT INTO app_settings (key, value) VALUES
     "no_show_auto_minutes": 15,
     "pt_cancellation_free_hours": 24
   }'::jsonb),
-  ('studio_info', '{"name": "Back On Track", "address": "", "phone": "", "email": "", "logo_url": "", "vat_number": ""}'::jsonb),
+  ('studio_info', '{"name": "Back On Track", "address": "", "phone": "", "email": "", "logo_url": "", "vat_number": "", "instagram_url": "", "facebook_url": "", "website_url": ""}'::jsonb),
   ('registration_fee', '{"amount_cents": 3000, "enabled": true}'::jsonb),
   ('room_names', '{"bas": "Back On Track Studio", "haut": "Back On Track Upstairs"}'::jsonb);
+
+-- ============================================
+-- 8b. STORAGE : bucket pour photos (avatars, cours, coaches)
+-- ============================================
+-- Note : le bucket doit aussi être créé via le Dashboard Supabase
+-- (Storage → New bucket → "avatars" → Public → 5MB max)
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Allow authenticated uploads" ON storage.objects
+  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'avatars');
+CREATE POLICY "Allow authenticated updates" ON storage.objects
+  FOR UPDATE TO authenticated USING (bucket_id = 'avatars');
+CREATE POLICY "Allow authenticated deletes" ON storage.objects
+  FOR DELETE TO authenticated USING (bucket_id = 'avatars');
+CREATE POLICY "Allow public read" ON storage.objects
+  FOR SELECT TO public USING (bucket_id = 'avatars');
 
 -- ============================================
 -- INSTALLATION TERMINÉE
@@ -806,3 +833,4 @@ INSERT INTO app_settings (key, value) VALUES
 --    SELECT id, 'super_admin' FROM auth.users WHERE email = 'votre@email.com';
 -- 3. Configurer les types de crédits, packs, cours via l'interface admin
 -- 4. Configurer les paramètres dans /admin/settings
+-- 5. Importer les données : npx tsx scripts/import-demo.ts
