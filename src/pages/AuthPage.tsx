@@ -356,9 +356,8 @@ export function AuthPage() {
                         type="checkbox"
                         id="reg-cgv"
                         checked={regCgvAccepted}
-                        onChange={(e) => setRegCgvAccepted(e.target.checked)}
+                        onChange={(e) => { setRegCgvAccepted(e.target.checked); setRegErrors([]) }}
                         className="mt-1 h-4 w-4 rounded border-gray-300"
-                        required
                       />
                       <Label htmlFor="reg-cgv" className="text-sm font-normal leading-snug">
                         {t('auth.cgvAccept')} *
@@ -369,9 +368,8 @@ export function AuthPage() {
                         type="checkbox"
                         id="reg-rgpd"
                         checked={regRgpdAccepted}
-                        onChange={(e) => setRegRgpdAccepted(e.target.checked)}
+                        onChange={(e) => { setRegRgpdAccepted(e.target.checked); setRegErrors([]) }}
                         className="mt-1 h-4 w-4 rounded border-gray-300"
-                        required
                       />
                       <Label htmlFor="reg-rgpd" className="text-sm font-normal leading-snug">
                         {t('auth.rgpdAccept')} *
