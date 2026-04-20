@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, CalendarDays, Users, Clock, MapPin } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Users, Clock, MapPin, Euro } from 'lucide-react'
+import { formatEuros } from '@/lib/utils'
 import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import ReactMarkdown from 'react-markdown'
@@ -27,6 +28,7 @@ export function AdminCoachDetailPage() {
   const [roles, setRoles] = useState<UserRole[]>([])
   const [classes, setClasses] = useState<ScheduledClass[]>([])
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
+  const [classRevenue, setClassRevenue] = useState<Map<string, number>>(new Map())
   const [pastClassCount, setPastClassCount] = useState(0)
   const [totalBookings, setTotalBookings] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -50,12 +52,12 @@ export function AdminCoachDetailPage() {
     const classList = (classData as ScheduledClass[]) ?? []
     setClasses(classList)
 
-    // Fetch booking counts per class
+    // Fetch booking counts + revenue per class
     if (classList.length > 0) {
       const classIds = classList.map(c => c.id)
       const { data: bookingData } = await supabase
         .from('bookings')
-        .select('scheduled_class_id')
+        .select('scheduled_class_id, pack_purchase_id')
         .in('scheduled_class_id', classIds)
         .eq('status', 'confirmed')
 
@@ -64,8 +66,32 @@ export function AdminCoachDetailPage() {
         counts.set(b.scheduled_class_id, (counts.get(b.scheduled_class_id) ?? 0) + 1)
       }
       setBookingCounts(counts)
+
+      // Fetch pack purchases for revenue calculation
+      const packIds = [...new Set((bookingData ?? []).map(b => b.pack_purchase_id))]
+      if (packIds.length > 0) {
+        const { data: packData } = await supabase
+          .from('pack_purchases')
+          .select('id, price_paid_cents, pack_type:pack_types(credit_count)')
+          .in('id', packIds)
+        const packMap = new Map((packData ?? []).map(p => [p.id, p]))
+
+        const revenue = new Map<string, number>()
+        for (const b of bookingData ?? []) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const pack = packMap.get(b.pack_purchase_id) as any
+          if (pack) {
+            const creditValue = pack.price_paid_cents / (pack.pack_type?.credit_count || 1)
+            revenue.set(b.scheduled_class_id, (revenue.get(b.scheduled_class_id) ?? 0) + creditValue)
+          }
+        }
+        setClassRevenue(revenue)
+      } else {
+        setClassRevenue(new Map())
+      }
     } else {
       setBookingCounts(new Map())
+      setClassRevenue(new Map())
     }
   }
 
@@ -115,6 +141,7 @@ export function AdminCoachDetailPage() {
 
   const now = new Date()
   const upcomingCount = classes.filter(c => new Date(c.starts_at) > now).length
+  const periodRevenueCents = [...classRevenue.values()].reduce((sum, v) => sum + v, 0)
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -161,7 +188,7 @@ export function AdminCoachDetailPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="p-4 text-center">
             <CalendarDays className="h-5 w-5 mx-auto text-primary mb-1" />
@@ -181,6 +208,13 @@ export function AdminCoachDetailPage() {
             <Users className="h-5 w-5 mx-auto text-primary mb-1" />
             <p className="text-2xl font-bold">{totalBookings}</p>
             <p className="text-xs text-muted-foreground">{isFr ? 'Inscriptions' : 'Bookings'}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Euro className="h-5 w-5 mx-auto text-primary mb-1" />
+            <p className="text-2xl font-bold">{formatEuros(periodRevenueCents, 0)}</p>
+            <p className="text-xs text-muted-foreground">{isFr ? 'Revenu période' : 'Period revenue'}</p>
           </CardContent>
         </Card>
       </div>
@@ -262,11 +296,13 @@ export function AdminCoachDetailPage() {
                         )}
                       </p>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 space-y-0.5">
                       <span className={`text-sm font-bold ${booked >= sc.max_participants ? 'text-destructive' : 'text-primary'}`}>
                         {booked}/{sc.max_participants}
                       </span>
-                      <p className="text-[10px] text-muted-foreground">{isFr ? 'inscrits' : 'booked'}</p>
+                      {(classRevenue.get(sc.id) ?? 0) > 0 && (
+                        <p className="text-[10px] text-muted-foreground">{formatEuros(classRevenue.get(sc.id) ?? 0, 0)}</p>
+                      )}
                     </div>
                   </div>
                 )
