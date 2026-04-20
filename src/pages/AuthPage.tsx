@@ -8,13 +8,14 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Dumbbell, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Dumbbell, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 
 const NAME_REGEX = /^[a-zA-ZÀ-ÿ\s-]+$/
 const VERIFICATION_ANSWER = '7'
 
 export function AuthPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isFr = i18n.language === 'fr'
   const { signIn, signUp, resetPassword } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -296,95 +297,113 @@ export function AuthPage() {
 
               {regStep === 2 && (
                 <form onSubmit={handleRegister} className="space-y-4">
-                  {/* Validation errors */}
-                  {regErrors.length > 0 && (
-                    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3">
-                      <ul className="text-sm text-destructive space-y-1">
-                        {regErrors.map((err, i) => (
-                          <li key={i}>{err}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  {/* Field validation states */}
+                  {(() => {
+                    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)
+                    const passOk = regPassword.length >= 12
+                    const confirmOk = passOk && regPassword === regConfirmPassword
+                    const verifyOk = regVerification === VERIFICATION_ANSWER
+                    const cgvOk = regCgvAccepted
+                    const rgpdOk = regRgpdAccepted
+                    const checks = [emailOk, passOk, confirmOk, verifyOk, cgvOk, rgpdOk]
+                    const doneCount = checks.filter(Boolean).length
+                    const progress = (doneCount / checks.length) * 100
 
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-email">{t('auth.email')} *</Label>
-                    <Input
-                      id="reg-email"
-                      type="email"
-                      value={regEmail}
-                      onChange={(e) => { setRegEmail(e.target.value); setRegErrors([]) }}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-password">{t('auth.password')} *</Label>
-                    <Input
-                      id="reg-password"
-                      type="password"
-                      value={regPassword}
-                      onChange={(e) => { setRegPassword(e.target.value); setRegErrors([]) }}
-                    />
-                    <p className={`text-xs ${regPassword && regPassword.length < 12 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                      {t('auth.passwordMinLengthHint')} ({regPassword.length}/12)
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-confirm">{t('auth.confirmPassword')} *</Label>
-                    <Input
-                      id="reg-confirm"
-                      type="password"
-                      value={regConfirmPassword}
-                      onChange={(e) => { setRegConfirmPassword(e.target.value); setRegErrors([]) }}
-                    />
-                    {regConfirmPassword && regPassword !== regConfirmPassword && (
-                      <p className="text-xs text-destructive">{t('auth.passwordMismatch')}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-verification">{t('auth.verificationQuestion')}</Label>
-                    <Input
-                      id="reg-verification"
-                      value={regVerification}
-                      onChange={(e) => { setRegVerification(e.target.value); setRegErrors([]) }}
-                    />
-                  </div>
+                    const FieldCheck = ({ ok }: { ok: boolean }) => ok
+                      ? <Check className="h-4 w-4 text-green-500 shrink-0" />
+                      : <span className="h-4 w-4 shrink-0" />
 
-                  {/* CGV + RGPD checkboxes */}
-                  <div className="space-y-3 rounded-md border p-4">
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        id="reg-cgv"
-                        checked={regCgvAccepted}
-                        onChange={(e) => { setRegCgvAccepted(e.target.checked); setRegErrors([]) }}
-                        className="mt-1 h-4 w-4 rounded border-gray-300"
-                      />
-                      <Label htmlFor="reg-cgv" className="text-sm font-normal leading-snug">
-                        {t('auth.cgvAccept')} *
-                      </Label>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        id="reg-rgpd"
-                        checked={regRgpdAccepted}
-                        onChange={(e) => { setRegRgpdAccepted(e.target.checked); setRegErrors([]) }}
-                        className="mt-1 h-4 w-4 rounded border-gray-300"
-                      />
-                      <Label htmlFor="reg-rgpd" className="text-sm font-normal leading-snug">
-                        {t('auth.rgpdAccept')} *
-                      </Label>
-                    </div>
-                  </div>
+                    return (
+                      <>
+                        {/* Progress bar */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-muted-foreground">{doneCount}/{checks.length}</span>
+                            {progress >= 100 && <span className="text-xs text-green-500 font-medium">{isFr ? 'Prêt !' : 'Ready!'}</span>}
+                          </div>
+                          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${progress >= 100 ? 'bg-green-500' : 'bg-primary'}`} style={{ width: `${progress}%` }} />
+                          </div>
+                        </div>
 
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" className="flex-1" onClick={() => setRegStep(1)}>
-                      <ChevronLeft className="mr-2 h-4 w-4" /> {t('common.previous')}
-                    </Button>
-                    <Button type="submit" className="flex-1" disabled={loading}>
-                      {t('auth.registerButton')}
-                    </Button>
-                  </div>
+                        {/* Validation errors */}
+                        {regErrors.length > 0 && (
+                          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3">
+                            <ul className="text-sm text-destructive space-y-1">
+                              {regErrors.map((err, i) => <li key={i}>{err}</li>)}
+                            </ul>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <Label htmlFor="reg-email" className="flex items-center gap-2">
+                            {t('auth.email')} * <FieldCheck ok={emailOk} />
+                          </Label>
+                          <Input id="reg-email" type="email" value={regEmail}
+                            onChange={(e) => { setRegEmail(e.target.value); setRegErrors([]) }} />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="reg-password" className="flex items-center gap-2">
+                            {t('auth.password')} * <FieldCheck ok={passOk} />
+                          </Label>
+                          <Input id="reg-password" type="password" value={regPassword}
+                            onChange={(e) => { setRegPassword(e.target.value); setRegErrors([]) }} />
+                          <p className={`text-xs ${regPassword && !passOk ? 'text-destructive font-medium' : passOk ? 'text-green-500' : 'text-muted-foreground'}`}>
+                            {t('auth.passwordMinLengthHint')} ({regPassword.length}/12)
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="reg-confirm" className="flex items-center gap-2">
+                            {t('auth.confirmPassword')} * <FieldCheck ok={confirmOk} />
+                          </Label>
+                          <Input id="reg-confirm" type="password" value={regConfirmPassword}
+                            onChange={(e) => { setRegConfirmPassword(e.target.value); setRegErrors([]) }} />
+                          {regConfirmPassword && !confirmOk && (
+                            <p className="text-xs text-destructive">{t('auth.passwordMismatch')}</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="reg-verification" className="flex items-center gap-2">
+                            {t('auth.verificationQuestion')} <FieldCheck ok={verifyOk} />
+                          </Label>
+                          <Input id="reg-verification" value={regVerification}
+                            onChange={(e) => { setRegVerification(e.target.value); setRegErrors([]) }} />
+                        </div>
+
+                        {/* CGV + RGPD checkboxes */}
+                        <div className="space-y-3 rounded-md border p-4">
+                          <div className="flex items-start gap-3">
+                            <input type="checkbox" id="reg-cgv" checked={regCgvAccepted}
+                              onChange={(e) => { setRegCgvAccepted(e.target.checked); setRegErrors([]) }}
+                              className="mt-1 h-4 w-4 rounded border-gray-300" />
+                            <Label htmlFor="reg-cgv" className="text-sm font-normal leading-snug flex items-center gap-2">
+                              {t('auth.cgvAccept')} * <FieldCheck ok={cgvOk} />
+                            </Label>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <input type="checkbox" id="reg-rgpd" checked={regRgpdAccepted}
+                              onChange={(e) => { setRegRgpdAccepted(e.target.checked); setRegErrors([]) }}
+                              className="mt-1 h-4 w-4 rounded border-gray-300" />
+                            <Label htmlFor="reg-rgpd" className="text-sm font-normal leading-snug flex items-center gap-2">
+                              {t('auth.rgpdAccept')} * <FieldCheck ok={rgpdOk} />
+                            </Label>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button type="button" variant="outline" className="flex-1" onClick={() => setRegStep(1)}>
+                            <ChevronLeft className="mr-2 h-4 w-4" /> {t('common.previous')}
+                          </Button>
+                          <Button type="submit" className="flex-1" disabled={loading}>
+                            {t('auth.registerButton')}
+                          </Button>
+                        </div>
+                      </>
+                    )
+                  })()}
                   <p className="text-center text-sm text-muted-foreground">
                     {t('auth.hasAccount')}{' '}
                     <button type="button" className="text-primary underline" onClick={() => setTab('login')}>
