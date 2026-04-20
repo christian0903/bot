@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Profile, PackPurchase, Booking, ScheduledClass } from '@/types'
+import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -52,6 +52,9 @@ export function AdminUserDetailPage() {
   const [editExpiresAt, setEditExpiresAt] = useState('')
   const [editPackSaving, setEditPackSaving] = useState(false)
 
+  // Categories
+  const [categories, setCategories] = useState<MemberCategory[]>([])
+
   // Registration fee
   const [hasRegFee, setHasRegFee] = useState(false)
   const [regFeeSaving, setRegFeeSaving] = useState(false)
@@ -66,7 +69,7 @@ export function AdminUserDetailPage() {
   const fetchData = async () => {
     if (!id) return
 
-    const [profileRes, packsRes, bookingsRes, regFeeRes] = await Promise.all([
+    const [profileRes, packsRes, bookingsRes, regFeeRes, catRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', id).single(),
       supabase
         .from('pack_purchases')
@@ -79,10 +82,12 @@ export function AdminUserDetailPage() {
         .eq('user_id', id)
         .order('created_at', { ascending: false }),
       supabase.from('registration_fees').select('id').eq('user_id', id).limit(1),
+      supabase.from('member_categories').select('*').order('name'),
     ])
 
     setProfile(profileRes.data as Profile)
     setHasRegFee((regFeeRes.data?.length ?? 0) > 0)
+    setCategories((catRes.data as MemberCategory[]) ?? [])
     setPacks((packsRes.data as PackPurchase[]) ?? [])
 
     // Resolve coaches for bookings
@@ -310,11 +315,32 @@ export function AdminUserDetailPage() {
         </div>
       </div>
 
-      {/* Registration fee + member status */}
+      {/* Status + Category + Registration fee */}
       <div className="flex items-center gap-3 flex-wrap">
         <Badge variant="outline" className={profile.member_status === 'active' ? 'border-green-500 text-green-600' : profile.member_status === 'inactive' ? 'border-orange-500 text-orange-600' : profile.member_status === 'former' ? 'border-red-500 text-red-600' : ''}>
           {t(`profile.status.${profile.member_status}`)}
         </Badge>
+
+        {/* Category selector */}
+        <Select
+          value={profile.member_category_id ?? ''}
+          onValueChange={async (v) => {
+            const val = v || null
+            await supabase.from('profiles').update({ member_category_id: val }).eq('id', id!)
+            setProfile(prev => prev ? { ...prev, member_category_id: val } : prev)
+            toast.success(isFr ? 'Catégorie mise à jour' : 'Category updated')
+          }}
+        >
+          <SelectTrigger className="h-7 text-xs w-auto min-w-[120px]">
+            <span>{categories.find(c => c.id === profile.member_category_id)?.name || (isFr ? 'Catégorie' : 'Category')}</span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">{isFr ? 'Aucune' : 'None'}</SelectItem>
+            {categories.map(cat => (
+              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <div className="flex items-center gap-2">
           <Badge
@@ -323,8 +349,8 @@ export function AdminUserDetailPage() {
           >
             <Receipt className="h-3 w-3 mr-1" />
             {isFr
-              ? (hasRegFee ? 'Frais inscription OK' : 'Frais inscription non payés')
-              : (hasRegFee ? 'Registration fee OK' : 'Registration fee unpaid')}
+              ? (hasRegFee ? 'Frais OK' : 'Frais non payés')
+              : (hasRegFee ? 'Fee OK' : 'Fee unpaid')}
           </Badge>
           <Button
             variant="outline"
@@ -335,7 +361,7 @@ export function AdminUserDetailPage() {
           >
             {regFeeSaving ? '...' : hasRegFee
               ? (isFr ? 'Retirer' : 'Remove')
-              : (isFr ? 'Valider frais' : 'Confirm fee')}
+              : (isFr ? 'Valider' : 'Confirm')}
           </Button>
         </div>
       </div>

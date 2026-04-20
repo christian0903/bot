@@ -15,7 +15,6 @@ import { toast } from 'sonner'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Copy, Share2, ScanLine, FileText } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import type { MemberCategory } from '@/types'
 
 const STATUS_COLORS: Record<string, string> = {
   visitor: 'bg-gray-100 text-gray-800',
@@ -30,7 +29,6 @@ export function ProfilePage() {
   const navigate = useNavigate()
   const { user, profile, refreshProfile } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [categories, setCategories] = useState<MemberCategory[]>([])
   const [form, setForm] = useState({
     display_name: '',
     first_name: '',
@@ -44,7 +42,6 @@ export function ProfilePage() {
     objectives: '',
     fitness_level: '',
     medical_conditions: '',
-    member_category_id: '',
   })
 
   useEffect(() => {
@@ -62,18 +59,10 @@ export function ProfilePage() {
         objectives: profile.objectives ?? '',
         fitness_level: profile.fitness_level ?? '',
         medical_conditions: profile.medical_conditions ?? '',
-        member_category_id: profile.member_category_id ?? '',
       })
     }
   }, [profile])
 
-  useEffect(() => {
-    supabase
-      .from('member_categories')
-      .select('*')
-      .order('name')
-      .then(({ data }) => setCategories(data ?? []))
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -95,7 +84,6 @@ export function ProfilePage() {
         objectives: form.objectives || null,
         fitness_level: form.fitness_level || null,
         medical_conditions: form.medical_conditions || null,
-        member_category_id: form.member_category_id || null,
       })
       .eq('id', user.id)
 
@@ -323,26 +311,8 @@ export function ProfilePage() {
               </div>
             </div>
 
-            {/* Category + Bio */}
+            {/* Bio */}
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>{t('profile.category')}</Label>
-                <Select
-                  value={form.member_category_id}
-                  onValueChange={(v) => setForm({ ...form, member_category_id: v ?? '' })}
-                >
-                  <SelectTrigger>
-                    <span>{categories.find(c => c.id === form.member_category_id)?.name || t('profile.category')}</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="space-y-2">
                 <Label>{t('profile.bio')}</Label>
                 <Textarea

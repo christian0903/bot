@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Profile, UserRole, PackType } from '@/types'
+import type { Profile, UserRole, PackType, MemberCategory } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -81,9 +81,11 @@ export function AdminUsersPage() {
   const [packPriceOverride, setPackPriceOverride] = useState('')
   const [packSaving, setPackSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [categories, setCategories] = useState<MemberCategory[]>([])
+  const [filterCategory, setFilterCategory] = useState<string>('all')
 
   const fetchUsers = async () => {
-    const [profilesRes, rolesRes, packsRes] = await Promise.all([
+    const [profilesRes, rolesRes, packsRes, catRes] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('user_roles').select('user_id, role'),
       supabase
@@ -91,7 +93,10 @@ export function AdminUsersPage() {
         .select('user_id, credits_remaining, expires_at')
         .gt('credits_remaining', 0)
         .gt('expires_at', new Date().toISOString()),
+      supabase.from('member_categories').select('*').order('name'),
     ])
+
+    setCategories((catRes.data as MemberCategory[]) ?? [])
 
     const roleMap = new Map((rolesRes.data ?? []).map((r: { user_id: string; role: UserRole }) => [r.user_id, r.role]))
 
@@ -264,6 +269,13 @@ export function AdminUsersPage() {
         if (u.role !== roleFilter) return false
       }
     }
+    if (filterCategory !== 'all') {
+      if (filterCategory === 'none') {
+        if (u.member_category_id) return false
+      } else {
+        if (u.member_category_id !== filterCategory) return false
+      }
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       const name = (u.display_name || '').toLowerCase()
@@ -293,7 +305,7 @@ export function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Search + Role filter */}
+      {/* Search + Category filter */}
       <div className="flex items-center gap-3 flex-wrap">
         <Input
           type="text"
@@ -302,6 +314,24 @@ export function AdminUsersPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-64 h-8 text-sm"
         />
+        {categories.length > 0 && (
+          <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v ?? 'all')}>
+            <SelectTrigger className="h-8 text-xs w-auto min-w-[140px]">
+              <span>{filterCategory === 'all'
+                ? (isFr ? 'Toutes catégories' : 'All categories')
+                : filterCategory === 'none'
+                  ? (isFr ? 'Sans catégorie' : 'No category')
+                  : categories.find(c => c.id === filterCategory)?.name}</span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{isFr ? 'Toutes catégories' : 'All categories'}</SelectItem>
+              <SelectItem value="none">{isFr ? 'Sans catégorie' : 'No category'}</SelectItem>
+              {categories.map(cat => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {(['client', 'coach', 'admin', 'all'] as const).map((role) => (
