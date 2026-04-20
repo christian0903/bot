@@ -96,17 +96,26 @@ export function AuthPage() {
     }
   }
 
+  const [regErrors, setRegErrors] = useState<string[]>([])
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     if (honeypot) return
 
-    if (!regEmail) { toast.error(t('auth.emailRequired')); return }
-    if (!regPassword || regPassword.length < 12) { toast.error(t('auth.passwordMinLength')); return }
-    if (regPassword !== regConfirmPassword) { toast.error(t('auth.passwordMismatch')); return }
-    if (regVerification !== VERIFICATION_ANSWER) { toast.error(t('auth.verificationError')); return }
-    if (!regCgvAccepted) { toast.error(t('auth.cgvRequired')); return }
-    if (!regRgpdAccepted) { toast.error(t('auth.rgpdRequired')); return }
+    const errors: string[] = []
+    if (!regEmail) errors.push(t('auth.emailRequired'))
+    if (!regPassword || regPassword.length < 12) errors.push(t('auth.passwordMinLength'))
+    if (regPassword && regPassword.length >= 12 && regPassword !== regConfirmPassword) errors.push(t('auth.passwordMismatch'))
+    if (regVerification !== VERIFICATION_ANSWER) errors.push(t('auth.verificationError'))
+    if (!regCgvAccepted) errors.push(t('auth.cgvRequired'))
+    if (!regRgpdAccepted) errors.push(t('auth.rgpdRequired'))
 
+    if (errors.length > 0) {
+      setRegErrors(errors)
+      toast.error(errors[0])
+      return
+    }
+    setRegErrors([])
     setLoading(true)
     const displayName = `${regFirstName} ${regLastName}`
     const { error } = await signUp(regEmail, regPassword, {
@@ -287,14 +296,24 @@ export function AuthPage() {
 
               {regStep === 2 && (
                 <form onSubmit={handleRegister} className="space-y-4">
+                  {/* Validation errors */}
+                  {regErrors.length > 0 && (
+                    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3">
+                      <ul className="text-sm text-destructive space-y-1">
+                        {regErrors.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="reg-email">{t('auth.email')} *</Label>
                     <Input
                       id="reg-email"
                       type="email"
                       value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      required
+                      onChange={(e) => { setRegEmail(e.target.value); setRegErrors([]) }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -303,11 +322,11 @@ export function AuthPage() {
                       id="reg-password"
                       type="password"
                       value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      required
-                      minLength={12}
+                      onChange={(e) => { setRegPassword(e.target.value); setRegErrors([]) }}
                     />
-                    <p className="text-xs text-muted-foreground">{t('auth.passwordMinLengthHint')}</p>
+                    <p className={`text-xs ${regPassword && regPassword.length < 12 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                      {t('auth.passwordMinLengthHint')} ({regPassword.length}/12)
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="reg-confirm">{t('auth.confirmPassword')} *</Label>
@@ -315,17 +334,18 @@ export function AuthPage() {
                       id="reg-confirm"
                       type="password"
                       value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)}
-                      required
+                      onChange={(e) => { setRegConfirmPassword(e.target.value); setRegErrors([]) }}
                     />
+                    {regConfirmPassword && regPassword !== regConfirmPassword && (
+                      <p className="text-xs text-destructive">{t('auth.passwordMismatch')}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="reg-verification">{t('auth.verificationQuestion')}</Label>
                     <Input
                       id="reg-verification"
                       value={regVerification}
-                      onChange={(e) => setRegVerification(e.target.value)}
-                      required
+                      onChange={(e) => { setRegVerification(e.target.value); setRegErrors([]) }}
                     />
                   </div>
 
