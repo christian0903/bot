@@ -11,7 +11,11 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, CalendarDays, Users, Clock, MapPin, Euro } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Users, Clock, MapPin, Euro, Pencil } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ImageUpload } from '@/components/common/ImageUpload'
+import { toast } from 'sonner'
 import { formatEuros } from '@/lib/utils'
 import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -30,6 +34,47 @@ export function AdminCoachDetailPage() {
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
   const [classRevenue, setClassRevenue] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
+
+  // Edit coach profile
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState({
+    avatar_url: '',
+    coach_description: '',
+    instagram_url: '',
+    facebook_url: '',
+    linkedin_url: '',
+  })
+  const [editSaving, setEditSaving] = useState(false)
+
+  const openEdit = () => {
+    setEditForm({
+      avatar_url: profile?.avatar_url ?? '',
+      coach_description: profile?.coach_description ?? '',
+      instagram_url: profile?.instagram_url ?? '',
+      facebook_url: profile?.facebook_url ?? '',
+      linkedin_url: profile?.linkedin_url ?? '',
+    })
+    setEditOpen(true)
+  }
+
+  const handleSaveProfile = async () => {
+    if (!id) return
+    setEditSaving(true)
+    const { error } = await supabase.from('profiles').update({
+      avatar_url: editForm.avatar_url || null,
+      coach_description: editForm.coach_description || null,
+      instagram_url: editForm.instagram_url || null,
+      facebook_url: editForm.facebook_url || null,
+      linkedin_url: editForm.linkedin_url || null,
+    }).eq('id', id)
+    setEditSaving(false)
+    if (error) { toast.error(error.message); return }
+    toast.success(isFr ? 'Profil mis à jour' : 'Profile updated')
+    setEditOpen(false)
+    // Refresh profile
+    const { data } = await supabase.from('profiles').select('*').eq('id', id).single()
+    setProfile(data as Profile)
+  }
 
   // Date filter
   const [dateFrom, setDateFrom] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -132,8 +177,13 @@ export function AdminCoachDetailPage() {
           <AvatarImage src={profile.avatar_url ?? undefined} />
           <AvatarFallback className="text-2xl">{profile.display_name?.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
-        <div>
-          <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={openEdit}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           {profile.email && (
             <a href={`mailto:${profile.email}`} className="text-sm text-primary hover:underline">{profile.email}</a>
           )}
@@ -291,6 +341,53 @@ export function AdminCoachDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit coach profile dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Modifier le profil coach' : 'Edit coach profile'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Photo</Label>
+              <ImageUpload
+                value={editForm.avatar_url || null}
+                onChange={(url) => setEditForm(f => ({ ...f, avatar_url: url ?? '' }))}
+                folder="coaches"
+                size="md"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{isFr ? 'Description (markdown)' : 'Description (markdown)'}</Label>
+              <Textarea
+                value={editForm.coach_description}
+                onChange={e => setEditForm(f => ({ ...f, coach_description: e.target.value }))}
+                rows={6}
+                placeholder={isFr ? 'Spécialités, parcours, philosophie...' : 'Specialties, background, philosophy...'}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Instagram</Label>
+              <Input value={editForm.instagram_url} onChange={e => setEditForm(f => ({ ...f, instagram_url: e.target.value }))} placeholder="https://instagram.com/..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Facebook</Label>
+              <Input value={editForm.facebook_url} onChange={e => setEditForm(f => ({ ...f, facebook_url: e.target.value }))} placeholder="https://facebook.com/..." />
+            </div>
+            <div className="space-y-2">
+              <Label>LinkedIn</Label>
+              <Input value={editForm.linkedin_url} onChange={e => setEditForm(f => ({ ...f, linkedin_url: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>{isFr ? 'Annuler' : 'Cancel'}</Button>
+            <Button onClick={handleSaveProfile} disabled={editSaving}>
+              {editSaving ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
