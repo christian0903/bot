@@ -25,9 +25,11 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function ProfilePage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isFr = i18n.language === 'fr'
   const navigate = useNavigate()
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile, roles, refreshProfile } = useAuth()
+  const isCoachOrAdmin = roles.includes('coach') || roles.includes('admin') || roles.includes('super_admin')
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     display_name: '',
@@ -42,6 +44,10 @@ export function ProfilePage() {
     objectives: '',
     fitness_level: '',
     medical_conditions: '',
+    instagram_url: '',
+    facebook_url: '',
+    linkedin_url: '',
+    coach_description: '',
   })
 
   useEffect(() => {
@@ -59,6 +65,10 @@ export function ProfilePage() {
         objectives: profile.objectives ?? '',
         fitness_level: profile.fitness_level ?? '',
         medical_conditions: profile.medical_conditions ?? '',
+        instagram_url: profile.instagram_url ?? '',
+        facebook_url: profile.facebook_url ?? '',
+        linkedin_url: profile.linkedin_url ?? '',
+        coach_description: profile.coach_description ?? '',
       })
     }
   }, [profile])
@@ -84,6 +94,10 @@ export function ProfilePage() {
         objectives: form.objectives || null,
         fitness_level: form.fitness_level || null,
         medical_conditions: form.medical_conditions || null,
+        instagram_url: form.instagram_url || null,
+        facebook_url: form.facebook_url || null,
+        linkedin_url: form.linkedin_url || null,
+        coach_description: form.coach_description || null,
       })
       .eq('id', user.id)
 
@@ -322,6 +336,50 @@ export function ProfilePage() {
                 />
               </div>
             </div>
+
+            {/* Coach section */}
+            {isCoachOrAdmin && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  {isFr ? 'Profil coach' : 'Coach profile'}
+                </h3>
+                <div className="space-y-2">
+                  <Label>{isFr ? 'Description (markdown)' : 'Description (markdown)'}</Label>
+                  <Textarea
+                    value={form.coach_description}
+                    onChange={(e) => setForm({ ...form, coach_description: e.target.value })}
+                    rows={5}
+                    placeholder={isFr ? 'Spécialités, parcours, philosophie...' : 'Specialties, background, philosophy...'}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Instagram</Label>
+                    <Input
+                      value={form.instagram_url}
+                      onChange={(e) => setForm({ ...form, instagram_url: e.target.value })}
+                      placeholder="https://instagram.com/..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Facebook</Label>
+                    <Input
+                      value={form.facebook_url}
+                      onChange={(e) => setForm({ ...form, facebook_url: e.target.value })}
+                      placeholder="https://facebook.com/..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>LinkedIn</Label>
+                    <Input
+                      value={form.linkedin_url}
+                      onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
+                      placeholder="https://linkedin.com/in/..."
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2 justify-end">
               <Button type="submit" disabled={loading}>

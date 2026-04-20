@@ -26,6 +26,10 @@ export interface Profile {
   referral_code: string | null
   member_status: MemberStatus
   weekly_goal: number
+  instagram_url: string | null
+  facebook_url: string | null
+  linkedin_url: string | null
+  coach_description: string | null
   created_at: string
   updated_at: string
   last_sign_in_at: string | null
