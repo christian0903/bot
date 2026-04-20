@@ -6,11 +6,13 @@ import type { Profile, ScheduledClass, UserRole } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ArrowLeft, CalendarDays, Users, Clock, MapPin } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import ReactMarkdown from 'react-markdown'
 
@@ -23,53 +25,96 @@ export function AdminCoachDetailPage() {
 
   const [profile, setProfile] = useState<Profile | null>(null)
   const [roles, setRoles] = useState<UserRole[]>([])
-  const [upcomingClasses, setUpcomingClasses] = useState<ScheduledClass[]>([])
+  const [classes, setClasses] = useState<ScheduledClass[]>([])
+  const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
   const [pastClassCount, setPastClassCount] = useState(0)
   const [totalBookings, setTotalBookings] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  // Date filter
+  const [dateFrom, setDateFrom] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [dateTo, setDateTo] = useState(format(addDays(new Date(), 30), 'yyyy-MM-dd'))
+
+  const fetchClasses = async () => {
+    if (!id) return
+
+    const { data: classData } = await supabase
+      .from('scheduled_classes')
+      .select('*, class_type:class_types(*)')
+      .eq('coach_id', id)
+      .gte('starts_at', dateFrom + 'T00:00:00')
+      .lte('starts_at', dateTo + 'T23:59:59')
+      .eq('is_cancelled', false)
+      .order('starts_at')
+
+    const classList = (classData as ScheduledClass[]) ?? []
+    setClasses(classList)
+
+    // Fetch booking counts per class
+    if (classList.length > 0) {
+      const classIds = classList.map(c => c.id)
+      const { data: bookingData } = await supabase
+        .from('bookings')
+        .select('scheduled_class_id')
+        .in('scheduled_class_id', classIds)
+        .eq('status', 'confirmed')
+
+      const counts = new Map<string, number>()
+      for (const b of bookingData ?? []) {
+        counts.set(b.scheduled_class_id, (counts.get(b.scheduled_class_id) ?? 0) + 1)
+      }
+      setBookingCounts(counts)
+    } else {
+      setBookingCounts(new Map())
+    }
+  }
+
   useEffect(() => {
     if (!id) return
 
-    const fetch = async () => {
-      const [profileRes, rolesRes, upcomingRes, pastRes, bookingsRes] = await Promise.all([
+    const fetchProfile = async () => {
+      const [profileRes, rolesRes, pastRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', id).single(),
         supabase.from('user_roles').select('role').eq('user_id', id),
-        supabase
-          .from('scheduled_classes')
-          .select('*, class_type:class_types(*)')
-          .eq('coach_id', id)
-          .gt('starts_at', new Date().toISOString())
-          .eq('is_cancelled', false)
-          .order('starts_at')
-          .limit(20),
         supabase
           .from('scheduled_classes')
           .select('id', { count: 'exact', head: true })
           .eq('coach_id', id)
           .lt('starts_at', new Date().toISOString())
           .eq('is_cancelled', false),
-        supabase
-          .from('bookings')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'confirmed')
-          .in('scheduled_class_id',
-            (await supabase.from('scheduled_classes').select('id').eq('coach_id', id)).data?.map(c => c.id) ?? []
-          ),
       ])
 
       setProfile(profileRes.data as Profile)
       setRoles((rolesRes.data ?? []).map(r => r.role as UserRole))
-      setUpcomingClasses((upcomingRes.data as ScheduledClass[]) ?? [])
       setPastClassCount(pastRes.count ?? 0)
-      setTotalBookings(bookingsRes.count ?? 0)
+
+      // Total bookings for this coach's classes
+      const { data: allClassIds } = await supabase
+        .from('scheduled_classes')
+        .select('id')
+        .eq('coach_id', id)
+      if (allClassIds && allClassIds.length > 0) {
+        const { count } = await supabase
+          .from('bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'confirmed')
+          .in('scheduled_class_id', allClassIds.map(c => c.id))
+        setTotalBookings(count ?? 0)
+      }
+
       setLoading(false)
     }
-    fetch()
+
+    fetchProfile()
   }, [id])
+
+  useEffect(() => { fetchClasses() }, [id, dateFrom, dateTo])
 
   if (loading) return <LoadingState />
   if (!profile) return <EmptyState icon={Users} message="Not found" />
+
+  const now = new Date()
+  const upcomingCount = classes.filter(c => new Date(c.starts_at) > now).length
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -120,7 +165,7 @@ export function AdminCoachDetailPage() {
         <Card>
           <CardContent className="p-4 text-center">
             <CalendarDays className="h-5 w-5 mx-auto text-primary mb-1" />
-            <p className="text-2xl font-bold">{upcomingClasses.length}</p>
+            <p className="text-2xl font-bold">{upcomingCount}</p>
             <p className="text-xs text-muted-foreground">{isFr ? 'Cours à venir' : 'Upcoming'}</p>
           </CardContent>
         </Card>
@@ -128,14 +173,14 @@ export function AdminCoachDetailPage() {
           <CardContent className="p-4 text-center">
             <Clock className="h-5 w-5 mx-auto text-primary mb-1" />
             <p className="text-2xl font-bold">{pastClassCount}</p>
-            <p className="text-xs text-muted-foreground">{isFr ? 'Cours donnés' : 'Classes given'}</p>
+            <p className="text-xs text-muted-foreground">{isFr ? 'Cours donnés' : 'Given'}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <Users className="h-5 w-5 mx-auto text-primary mb-1" />
             <p className="text-2xl font-bold">{totalBookings}</p>
-            <p className="text-xs text-muted-foreground">{isFr ? 'Inscriptions total' : 'Total bookings'}</p>
+            <p className="text-xs text-muted-foreground">{isFr ? 'Inscriptions' : 'Bookings'}</p>
           </CardContent>
         </Card>
       </div>
@@ -154,28 +199,43 @@ export function AdminCoachDetailPage() {
         </Card>
       )}
 
-      {/* Upcoming classes */}
+      {/* Classes with date filter */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            {isFr ? 'Prochains cours' : 'Upcoming classes'}
-          </CardTitle>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
+              {isFr ? 'Cours' : 'Classes'} ({classes.length})
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <Label className="text-xs">{isFr ? 'Du' : 'From'}</Label>
+                <Input type="date" className="h-7 text-xs w-32" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-1">
+                <Label className="text-xs">{isFr ? 'Au' : 'To'}</Label>
+                <Input type="date" className="h-7 text-xs w-32" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {upcomingClasses.length === 0 ? (
+          {classes.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              {isFr ? 'Aucun cours planifié' : 'No upcoming classes'}
+              {isFr ? 'Aucun cours sur cette période' : 'No classes in this period'}
             </p>
           ) : (
             <div className="space-y-2">
-              {upcomingClasses.map(sc => {
+              {classes.map(sc => {
                 const startsAt = new Date(sc.starts_at)
+                const isPast = startsAt < now
                 const classColor = sc.class_type?.color || '#3B82F6'
+                const booked = bookingCounts.get(sc.id) ?? 0
+
                 return (
                   <div
                     key={sc.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors cursor-pointer"
+                    className={`flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors cursor-pointer ${isPast ? 'opacity-50' : ''}`}
                     style={{ borderLeftWidth: '3px', borderLeftColor: classColor }}
                     onClick={() => navigate(`/coach/class/${sc.id}`)}
                   >
@@ -202,7 +262,12 @@ export function AdminCoachDetailPage() {
                         )}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">{sc.max_participants} pl.</span>
+                    <div className="text-right shrink-0">
+                      <span className={`text-sm font-bold ${booked >= sc.max_participants ? 'text-destructive' : 'text-primary'}`}>
+                        {booked}/{sc.max_participants}
+                      </span>
+                      <p className="text-[10px] text-muted-foreground">{isFr ? 'inscrits' : 'booked'}</p>
+                    </div>
                   </div>
                 )
               })}
