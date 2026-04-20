@@ -279,12 +279,14 @@ export function CoachClassDetailPage() {
 
     const { data: packs } = await supabase
       .from('pack_purchases')
-      .select('user_id, credits_remaining, id, pack_type:pack_types(credit_type_id)')
+      .select('user_id, credits_remaining, expires_at, id, pack_type:pack_types(credit_type_id)')
       .gt('credits_remaining', 0)
       .gt('expires_at', new Date().toISOString())
+      .order('expires_at', { ascending: true })
 
     if (!packs) { setAddMemberLoading(false); return }
 
+    // Sum total credits per user, keep pack expiring soonest for booking
     const bookedUserIds = new Set(bookings.map(b => b.user_id))
     const memberMap = new Map<string, { user_id: string; credits: number; pack_purchase_id: string }>()
 
@@ -293,8 +295,10 @@ export function CoachClassDetailPage() {
       if ((p.pack_type as any)?.credit_type_id !== creditTypeId) continue
       if (bookedUserIds.has(p.user_id)) continue
       const existing = memberMap.get(p.user_id)
-      if (!existing || p.credits_remaining > existing.credits) {
+      if (!existing) {
         memberMap.set(p.user_id, { user_id: p.user_id, credits: p.credits_remaining, pack_purchase_id: p.id })
+      } else {
+        existing.credits += p.credits_remaining
       }
     }
 

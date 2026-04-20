@@ -451,13 +451,15 @@ export function SchedulePage() {
     // Get all members with available credits for this credit type
     const { data: packs } = await supabase
       .from('pack_purchases')
-      .select('user_id, credits_remaining, id, pack_type:pack_types(credit_type_id)')
+      .select('user_id, credits_remaining, expires_at, id, pack_type:pack_types(credit_type_id)')
       .gt('credits_remaining', 0)
       .gt('expires_at', new Date().toISOString())
+      .order('expires_at', { ascending: true })
 
     if (!packs) { setAddMemberLoading(false); return }
 
     // Filter by correct credit type and exclude already booked members
+    // For each member: sum total credits, use pack expiring soonest for booking
     const bookedUserIds = new Set(detailBookings.map(b => b.user_id))
     const memberMap = new Map<string, { user_id: string; credits: number; pack_purchase_id: string }>()
 
@@ -466,8 +468,12 @@ export function SchedulePage() {
       if ((p.pack_type as any)?.credit_type_id !== creditTypeId) continue
       if (bookedUserIds.has(p.user_id)) continue
       const existing = memberMap.get(p.user_id)
-      if (!existing || p.credits_remaining > existing.credits) {
+      if (!existing) {
+        // First pack for this user (earliest expiry due to ORDER BY)
         memberMap.set(p.user_id, { user_id: p.user_id, credits: p.credits_remaining, pack_purchase_id: p.id })
+      } else {
+        // Add credits from additional packs
+        existing.credits += p.credits_remaining
       }
     }
 
