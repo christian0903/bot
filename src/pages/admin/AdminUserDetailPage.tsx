@@ -55,6 +55,9 @@ export function AdminUserDetailPage() {
   // Categories
   const [categories, setCategories] = useState<MemberCategory[]>([])
 
+  // Show expired packs
+  const [showExpiredPacks, setShowExpiredPacks] = useState(false)
+
   // Registration fee
   const [hasRegFee, setHasRegFee] = useState(false)
   const [regFeeSaving, setRegFeeSaving] = useState(false)
@@ -396,7 +399,7 @@ export function AdminUserDetailPage() {
         <TabsList>
           <TabsTrigger value="packs">
             <Package className="h-4 w-4 mr-1.5" />
-            {t('packs.myPacks')} ({packs.length})
+            {t('packs.myPacks')} ({activePacks.length})
           </TabsTrigger>
           <TabsTrigger value="bookings">
             <CalendarDays className="h-4 w-4 mr-1.5" />
@@ -406,10 +409,26 @@ export function AdminUserDetailPage() {
 
         {/* PACKS TAB */}
         <TabsContent value="packs" className="mt-4 space-y-3">
-          {packs.length === 0 ? (
-            <EmptyState icon={Package} message={t('packs.noActivePacks')} />
-          ) : (
-            packs.map((pack) => {
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="show-expired"
+              checked={showExpiredPacks}
+              onChange={(e) => setShowExpiredPacks(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <label htmlFor="show-expired" className="text-xs text-muted-foreground cursor-pointer">
+              {isFr ? 'Montrer les packs expirés' : 'Show expired packs'}
+            </label>
+          </div>
+          {(() => {
+            const visiblePacks = showExpiredPacks
+              ? packs
+              : packs.filter(p => p.credits_remaining > 0 && new Date(p.expires_at) > now)
+            return visiblePacks.length === 0 ? (
+              <EmptyState icon={Package} message={isFr ? 'Aucun pack actif' : 'No active packs'} />
+            ) : (
+            visiblePacks.map((pack) => {
               const isExpired = new Date(pack.expires_at) < now
               const isEmpty = pack.credits_remaining <= 0
               const inactive = isExpired || isEmpty
@@ -472,7 +491,8 @@ export function AdminUserDetailPage() {
                 </Card>
               )
             })
-          )}
+          )
+          })()}
         </TabsContent>
 
         {/* BOOKINGS TAB */}
