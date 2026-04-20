@@ -318,6 +318,31 @@ export function AdminUserDetailPage() {
         </div>
       </div>
 
+      {/* Coach info */}
+      {(profile.coach_description || profile.instagram_url || profile.facebook_url || profile.linkedin_url) && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {isFr ? 'Profil coach' : 'Coach profile'}
+            </p>
+            {profile.coach_description && (
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{profile.coach_description}</p>
+            )}
+            <div className="flex gap-3 flex-wrap">
+              {profile.instagram_url && (
+                <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">Instagram</a>
+              )}
+              {profile.facebook_url && (
+                <a href={profile.facebook_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">Facebook</a>
+              )}
+              {profile.linkedin_url && (
+                <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">LinkedIn</a>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Status + Category + Registration fee */}
       <div className="flex items-center gap-3 flex-wrap">
         <Badge variant="outline" className={profile.member_status === 'active' ? 'border-green-500 text-green-600' : profile.member_status === 'inactive' ? 'border-orange-500 text-orange-600' : profile.member_status === 'former' ? 'border-red-500 text-red-600' : ''}>

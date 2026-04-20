@@ -42,6 +42,7 @@ import { fr, enUS } from 'date-fns/locale'
 
 interface UserWithRole extends Profile {
   role: UserRole
+  roles: UserRole[]
   credits: number
 }
 
@@ -99,7 +100,13 @@ export function AdminUsersPage() {
 
     setCategories((catRes.data as MemberCategory[]) ?? [])
 
-    const roleMap = new Map((rolesRes.data ?? []).map((r: { user_id: string; role: UserRole }) => [r.user_id, r.role]))
+    // Build roles map (user can have multiple roles)
+    const rolesMap = new Map<string, UserRole[]>()
+    for (const r of rolesRes.data ?? []) {
+      const existing = rolesMap.get(r.user_id) ?? []
+      existing.push(r.role as UserRole)
+      rolesMap.set(r.user_id, existing)
+    }
 
     // Sum credits per user
     const creditMap = new Map<string, number>()
@@ -107,11 +114,23 @@ export function AdminUsersPage() {
       creditMap.set(p.user_id, (creditMap.get(p.user_id) ?? 0) + p.credits_remaining)
     }
 
-    const merged: UserWithRole[] = (profilesRes.data ?? []).map((p: Profile) => ({
-      ...p,
-      role: roleMap.get(p.id) ?? 'client',
-      credits: creditMap.get(p.id) ?? 0,
-    }))
+    // Primary role for display: super_admin > admin > coach > client
+    const primaryRole = (roles: UserRole[]): UserRole => {
+      if (roles.includes('super_admin')) return 'super_admin'
+      if (roles.includes('admin')) return 'admin'
+      if (roles.includes('coach')) return 'coach'
+      return 'client'
+    }
+
+    const merged: UserWithRole[] = (profilesRes.data ?? []).map((p: Profile) => {
+      const userRoles = rolesMap.get(p.id) ?? ['client']
+      return {
+        ...p,
+        role: primaryRole(userRoles),
+        roles: userRoles,
+        credits: creditMap.get(p.id) ?? 0,
+      }
+    })
     setUsers(merged)
     setLoading(false)
   }
@@ -265,9 +284,9 @@ export function AdminUsersPage() {
   const filteredUsers = users.filter(u => {
     if (roleFilter !== 'all') {
       if (roleFilter === 'admin') {
-        if (u.role !== 'admin' && u.role !== 'super_admin') return false
+        if (!u.roles.includes('admin') && !u.roles.includes('super_admin')) return false
       } else {
-        if (u.role !== roleFilter) return false
+        if (!u.roles.includes(roleFilter)) return false
       }
     }
     if (filterCategory !== 'all') {
@@ -345,7 +364,7 @@ export function AdminUsersPage() {
           >
             {role === 'all' ? t('common.all') : t(`roles.${role}`)}
             <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-[10px]">
-              {role === 'all' ? users.length : role === 'admin' ? users.filter(u => u.role === 'admin' || u.role === 'super_admin').length : users.filter(u => u.role === role).length}
+              {role === 'all' ? users.length : role === 'admin' ? users.filter(u => u.roles.includes('admin') || u.roles.includes('super_admin')).length : users.filter(u => u.roles.includes(role)).length}
             </Badge>
           </Button>
         ))}
@@ -383,9 +402,13 @@ export function AdminUsersPage() {
                     </button>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="text-[11px]">
-                      {t(`roles.${user.role}`)}
-                    </Badge>
+                    <div className="flex gap-1 flex-wrap">
+                      {user.roles.map(r => (
+                        <Badge key={r} variant="outline" className="text-[10px]">
+                          {t(`roles.${r}`)}
+                        </Badge>
+                      ))}
+                    </div>
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge
