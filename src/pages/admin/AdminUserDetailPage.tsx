@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -52,6 +52,10 @@ export function AdminUserDetailPage() {
   const [editExpiresAt, setEditExpiresAt] = useState('')
   const [editPackSaving, setEditPackSaving] = useState(false)
 
+  // Registration fee
+  const [hasRegFee, setHasRegFee] = useState(false)
+  const [regFeeSaving, setRegFeeSaving] = useState(false)
+
   // Book class dialog
   const [bookDialogOpen, setBookDialogOpen] = useState(false)
   const [availableClasses, setAvailableClasses] = useState<ScheduledClass[]>([])
@@ -62,7 +66,7 @@ export function AdminUserDetailPage() {
   const fetchData = async () => {
     if (!id) return
 
-    const [profileRes, packsRes, bookingsRes] = await Promise.all([
+    const [profileRes, packsRes, bookingsRes, regFeeRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', id).single(),
       supabase
         .from('pack_purchases')
@@ -74,9 +78,11 @@ export function AdminUserDetailPage() {
         .select('*, scheduled_class:scheduled_classes(*, class_type:class_types(*))')
         .eq('user_id', id)
         .order('created_at', { ascending: false }),
+      supabase.from('registration_fees').select('id').eq('user_id', id).limit(1),
     ])
 
     setProfile(profileRes.data as Profile)
+    setHasRegFee((regFeeRes.data?.length ?? 0) > 0)
     setPacks((packsRes.data as PackPurchase[]) ?? [])
 
     // Resolve coaches for bookings
@@ -94,6 +100,44 @@ export function AdminUserDetailPage() {
 
     setBookings(rawBookings)
     setLoading(false)
+  }
+
+  const isFr = i18n.language === 'fr'
+
+  const handleToggleRegFee = async () => {
+    if (!id) return
+    setRegFeeSaving(true)
+
+    if (hasRegFee) {
+      // Remove registration fee
+      await supabase.from('registration_fees').delete().eq('user_id', id)
+      setHasRegFee(false)
+      toast.success(isFr ? 'Frais d\'inscription retirés' : 'Registration fee removed')
+    } else {
+      // Mark as paid (by admin)
+      await supabase.from('registration_fees').insert({
+        user_id: id,
+        amount_cents: 3000,
+      })
+      setHasRegFee(true)
+
+      // Update member status
+      await supabase.rpc('update_member_status', { p_user_id: id })
+
+      await logActivity({
+        action: 'registration_fee_paid',
+        actor_id: currentUser?.id ?? null,
+        target_user_id: id,
+        entity_type: 'registration_fee',
+        details: { marked_by_admin: true },
+        description: `Frais d'inscription validés par admin pour ${profile?.display_name}`,
+      })
+
+      toast.success(isFr ? 'Frais d\'inscription validés' : 'Registration fee confirmed')
+    }
+
+    setRegFeeSaving(false)
+    fetchData()
   }
 
   useEffect(() => {
@@ -263,6 +307,36 @@ export function AdminUserDetailPage() {
               {profile.phone}
             </a>
           )}
+        </div>
+      </div>
+
+      {/* Registration fee + member status */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Badge variant="outline" className={profile.member_status === 'active' ? 'border-green-500 text-green-600' : profile.member_status === 'inactive' ? 'border-orange-500 text-orange-600' : profile.member_status === 'former' ? 'border-red-500 text-red-600' : ''}>
+          {t(`profile.status.${profile.member_status}`)}
+        </Badge>
+
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={hasRegFee ? 'default' : 'secondary'}
+            className={hasRegFee ? 'bg-green-600' : ''}
+          >
+            <Receipt className="h-3 w-3 mr-1" />
+            {isFr
+              ? (hasRegFee ? 'Frais inscription OK' : 'Frais inscription non payés')
+              : (hasRegFee ? 'Registration fee OK' : 'Registration fee unpaid')}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            disabled={regFeeSaving}
+            onClick={handleToggleRegFee}
+          >
+            {regFeeSaving ? '...' : hasRegFee
+              ? (isFr ? 'Retirer' : 'Remove')
+              : (isFr ? 'Valider frais' : 'Confirm fee')}
+          </Button>
         </div>
       </div>
 
