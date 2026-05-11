@@ -7,6 +7,7 @@ export type EmailTemplate =
   | 'booking_cancelled_by_staff'
   | 'class_modified'
   | 'class_cancelled'
+  | 'password_reset_by_admin'
 
 export interface EmailVars {
   user_name?: string

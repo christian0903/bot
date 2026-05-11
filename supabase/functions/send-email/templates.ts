@@ -5,6 +5,7 @@ export type TemplateKey =
   | 'booking_cancelled_by_staff'
   | 'class_modified'
   | 'class_cancelled'
+  | 'password_reset_by_admin'
 
 export interface TemplateVars {
   user_name?: string
@@ -151,6 +152,18 @@ export function buildTemplate(template: TemplateKey, v: TemplateVars): { subject
         ${cta(`${appUrl}/schedule`, 'Voir le planning')}
       `
       return { subject, html: shell('Cours annulé', body) }
+    }
+
+    case 'password_reset_by_admin': {
+      const subject = 'Votre mot de passe a été réinitialisé'
+      const body = `
+        <p>${hello}</p>
+        <p>Un administrateur de Back On Track a <strong>réinitialisé votre mot de passe</strong>.</p>
+        <p>Connectez-vous avec le nouveau mot de passe qui vous a été communiqué directement par l'administrateur.</p>
+        <p style="color:#a16207;font-size:13px;">Si vous n'êtes pas à l'origine de cette demande, contactez-nous immédiatement.</p>
+        ${cta(`${appUrl}/auth`, 'Se connecter')}
+      `
+      return { subject, html: shell('Mot de passe réinitialisé', body) }
     }
   }
 }

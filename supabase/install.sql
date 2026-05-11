@@ -816,10 +816,10 @@ CREATE POLICY "Perf: own read" ON performances FOR SELECT
   USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
 CREATE POLICY "Perf: insert" ON performances FOR INSERT
   WITH CHECK (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
-CREATE POLICY "Perf: own update" ON performances FOR UPDATE
-  USING (auth.uid() = user_id OR has_role(auth.uid(), 'admin'));
-CREATE POLICY "Perf: own delete" ON performances FOR DELETE
-  USING (auth.uid() = user_id OR has_role(auth.uid(), 'admin'));
+CREATE POLICY "Perf: update" ON performances FOR UPDATE
+  USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+CREATE POLICY "Perf: delete" ON performances FOR DELETE
+  USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
 
 -- ============================================
 -- 6. VUE : profils des coachs

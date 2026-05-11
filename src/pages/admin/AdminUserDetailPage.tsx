@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
 import { adminUpdatePassword } from '@/lib/admin-update-password'
+import { sendEmail } from '@/lib/send-email'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -357,6 +358,10 @@ export function AdminUserDetailPage() {
       target_user_id: id,
       description: `Mot de passe réinitialisé pour ${profile.display_name}`,
     })
+
+    if (profile.email) {
+      sendEmail('password_reset_by_admin', profile.email, { user_name: profile.display_name })
+    }
 
     toast.success(isFr ? 'Mot de passe mis à jour' : 'Password updated')
     setPasswordDialogOpen(false)
