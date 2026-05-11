@@ -36,6 +36,7 @@ export function ProfilePage() {
     display_name: '',
     first_name: '',
     last_name: '',
+    email: '',
     phone: '',
     bio: '',
     date_of_birth: '',
@@ -58,6 +59,7 @@ export function ProfilePage() {
         display_name: profile.display_name ?? '',
         first_name: profile.first_name ?? '',
         last_name: profile.last_name ?? '',
+        email: user?.email ?? profile.email ?? '',
         phone: profile.phone ?? '',
         bio: profile.bio ?? '',
         date_of_birth: profile.date_of_birth ?? '',
@@ -81,6 +83,21 @@ export function ProfilePage() {
     e.preventDefault()
     if (!user) return
     setLoading(true)
+
+    // Email change: only via auth, profiles.email is synced by a DB trigger
+    // once the user confirms the new address by clicking the email link.
+    const currentEmail = user.email ?? ''
+    const newEmail = form.email.trim()
+    let emailChangeRequested = false
+    if (newEmail && newEmail !== currentEmail) {
+      const { error: authError } = await supabase.auth.updateUser({ email: newEmail })
+      if (authError) {
+        setLoading(false)
+        toast.error(authError.message)
+        return
+      }
+      emailChangeRequested = true
+    }
 
     const { error } = await supabase
       .from('profiles')
@@ -111,6 +128,14 @@ export function ProfilePage() {
       toast.error(error.message)
     } else {
       toast.success(t('profile.updated'))
+      if (emailChangeRequested) {
+        toast.info(
+          isFr
+            ? `Un email de confirmation a été envoyé à ${newEmail}. Cliquez sur le lien pour valider le changement.`
+            : `A confirmation email was sent to ${newEmail}. Click the link to validate the change.`,
+          { duration: 8000 },
+        )
+      }
       refreshProfile()
     }
   }
@@ -205,6 +230,21 @@ export function ProfilePage() {
                     onChange={(e) => setForm({ ...form, last_name: e.target.value })}
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('auth.email')}</Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+                {form.email && form.email !== (user?.email ?? '') && (
+                  <p className="text-xs text-muted-foreground">
+                    {isFr
+                      ? 'Un email de confirmation sera envoyé à la nouvelle adresse.'
+                      : 'A confirmation email will be sent to the new address.'}
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

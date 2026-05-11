@@ -76,6 +76,11 @@ export function AdminUserDetailPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
 
+  // Edit profile (name) dialog
+  const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [editProfileForm, setEditProfileForm] = useState({ display_name: '', first_name: '', last_name: '' })
+  const [editProfileSaving, setEditProfileSaving] = useState(false)
+
   const fetchData = async () => {
     if (!id) return
 
@@ -290,6 +295,43 @@ export function AdminUserDetailPage() {
     setPasswordDialogOpen(true)
   }
 
+  const openEditProfile = () => {
+    if (!profile) return
+    setEditProfileForm({
+      display_name: profile.display_name ?? '',
+      first_name: profile.first_name ?? '',
+      last_name: profile.last_name ?? '',
+    })
+    setEditProfileOpen(true)
+  }
+
+  const handleSaveProfile = async () => {
+    if (!id) return
+    if (!editProfileForm.display_name.trim()) {
+      toast.error(isFr ? 'Le nom affiché est requis' : 'Display name is required')
+      return
+    }
+    setEditProfileSaving(true)
+    const { error } = await supabase.from('profiles').update({
+      display_name: editProfileForm.display_name.trim(),
+      first_name: editProfileForm.first_name.trim() || null,
+      last_name: editProfileForm.last_name.trim() || null,
+    }).eq('id', id)
+    setEditProfileSaving(false)
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+    setProfile(prev => prev ? {
+      ...prev,
+      display_name: editProfileForm.display_name.trim(),
+      first_name: editProfileForm.first_name.trim() || null,
+      last_name: editProfileForm.last_name.trim() || null,
+    } : prev)
+    setEditProfileOpen(false)
+    toast.success(isFr ? 'Profil mis à jour' : 'Profile updated')
+  }
+
   const handleResetPassword = async () => {
     if (!profile || !id) return
     if (newPassword.length < 12) {
@@ -350,7 +392,12 @@ export function AdminUserDetailPage() {
           <AvatarFallback className="text-xl">{profile.display_name?.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={openEditProfile} title={isFr ? 'Éditer le nom' : 'Edit name'}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           {profile.email && (
             <a href={`mailto:${profile.email}`} className="text-sm text-primary hover:underline">
               {profile.email}
@@ -812,6 +859,53 @@ export function AdminUserDetailPage() {
             </Button>
             <Button onClick={handleEditPack} disabled={editPackSaving}>
               {editPackSaving ? '...' : t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Profile Dialog (name fields) */}
+      <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Éditer le profil' : 'Edit profile'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>{isFr ? 'Nom affiché' : 'Display name'}</Label>
+              <Input
+                value={editProfileForm.display_name}
+                onChange={(e) => setEditProfileForm(f => ({ ...f, display_name: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>{isFr ? 'Prénom' : 'First name'}</Label>
+                <Input
+                  value={editProfileForm.first_name}
+                  onChange={(e) => setEditProfileForm(f => ({ ...f, first_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>{isFr ? 'Nom' : 'Last name'}</Label>
+                <Input
+                  value={editProfileForm.last_name}
+                  onChange={(e) => setEditProfileForm(f => ({ ...f, last_name: e.target.value }))}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? `Pour changer l'email, le membre doit le faire depuis sa page profil (confirmation par email requise).`
+                : `To change the email, the member must do it from their own profile page (email confirmation required).`}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProfileOpen(false)} disabled={editProfileSaving}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSaveProfile} disabled={editProfileSaving || !editProfileForm.display_name.trim()}>
+              {editProfileSaving ? '...' : (isFr ? 'Enregistrer' : 'Save')}
             </Button>
           </DialogFooter>
         </DialogContent>
