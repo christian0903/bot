@@ -90,7 +90,10 @@ export function ProfilePage() {
     const newEmail = form.email.trim()
     let emailChangeRequested = false
     if (newEmail && newEmail !== currentEmail) {
-      const { error: authError } = await supabase.auth.updateUser({ email: newEmail })
+      const { error: authError } = await supabase.auth.updateUser(
+        { email: newEmail },
+        { emailRedirectTo: `${window.location.origin}/profile` },
+      )
       if (authError) {
         setLoading(false)
         toast.error(authError.message)
@@ -131,9 +134,9 @@ export function ProfilePage() {
       if (emailChangeRequested) {
         toast.info(
           isFr
-            ? `Un email de confirmation a été envoyé à ${newEmail}. Cliquez sur le lien pour valider le changement.`
-            : `A confirmation email was sent to ${newEmail}. Click the link to validate the change.`,
-          { duration: 8000 },
+            ? `Important : Supabase envoie un email à VOTRE ANCIENNE adresse (${currentEmail}) ET à la nouvelle (${newEmail}). Vous devez cliquer sur le lien dans LES DEUX emails pour valider le changement.`
+            : `Important: Supabase sends a confirmation email to BOTH your old address (${currentEmail}) AND the new one (${newEmail}). You must click the link in BOTH emails to validate the change.`,
+          { duration: 15000 },
         )
       }
       refreshProfile()
@@ -163,8 +166,23 @@ export function ProfilePage() {
 
   if (!profile) return <LoadingState />
 
+  // Pending email change (Supabase exposes user.new_email until both confirmations done)
+  const pendingNewEmail = (user as { new_email?: string } | null)?.new_email
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {pendingNewEmail && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <p className="font-semibold text-amber-700 dark:text-amber-300">
+            {isFr ? '⏳ Changement d\'email en attente' : '⏳ Email change pending'}
+          </p>
+          <p className="text-amber-700 dark:text-amber-300 mt-1">
+            {isFr
+              ? `Vous avez demandé à changer votre email vers ${pendingNewEmail}. Le changement ne sera effectif qu'après avoir cliqué sur le lien envoyé à votre ANCIENNE adresse ET à la NOUVELLE.`
+              : `You requested to change your email to ${pendingNewEmail}. The change will only take effect after clicking the link sent to your OLD address AND the NEW one.`}
+          </p>
+        </div>
+      )}
       {/* Identity header */}
       <Card>
         <CardContent className="pt-6">
