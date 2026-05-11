@@ -272,26 +272,31 @@ export function PerformancesPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Activity className="h-6 w-6" />
+            <Activity className="h-6 w-6 shrink-0" />
             {isFr ? 'Mes performances' : 'My performances'}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground hidden sm:block">
             {isFr ? 'Enregistre tes scores et suis ta progression.' : 'Log your scores and follow your progress.'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {canManageTypes && (
-            <Button variant="outline" size="sm" onClick={() => navigate('/performance-types')}>
-              <Settings className="h-4 w-4 mr-1" />
-              {isFr ? 'Gérer les types' : 'Manage types'}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/performance-types')}
+              title={isFr ? 'Gérer les types' : 'Manage types'}
+            >
+              <Settings className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">{isFr ? 'Gérer les types' : 'Manage types'}</span>
             </Button>
           )}
-          <Button onClick={openCreate} disabled={activeTypes.length === 0}>
-            <Plus className="h-4 w-4 mr-1" />
-            {isFr ? 'Nouvelle performance' : 'New performance'}
+          <Button size="sm" onClick={openCreate} disabled={activeTypes.length === 0}>
+            <Plus className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">{isFr ? 'Nouvelle' : 'New'}</span>
           </Button>
         </div>
       </div>
@@ -336,18 +341,18 @@ export function PerformancesPage() {
 
       {filterTypeId && selectedType && (
         <Card>
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+          <CardContent className="p-3 sm:p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2 min-w-0">
                 {selectedType.color && (
-                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: selectedType.color }} />
+                  <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: selectedType.color }} />
                 )}
-                <span className="font-semibold">{selectedType.name}</span>
+                <span className="font-semibold truncate">{selectedType.name}</span>
                 {selectedType.unit_hint && (
-                  <Badge variant="outline" className="text-[11px]">{selectedType.unit_hint}</Badge>
+                  <Badge variant="outline" className="text-[11px] shrink-0">{selectedType.unit_hint}</Badge>
                 )}
               </div>
-              <div className="inline-flex rounded-md border bg-muted/30 p-0.5 text-xs">
+              <div className="inline-flex rounded-md border bg-muted/30 p-0.5 text-xs shrink-0">
                 {(['day', 'week', 'month'] as Period[]).map(p => (
                   <button
                     key={p}
@@ -359,7 +364,7 @@ export function PerformancesPage() {
                     }
                   >
                     {isFr
-                      ? (p === 'day' ? 'Jour' : p === 'week' ? 'Semaine' : 'Mois')
+                      ? (p === 'day' ? 'Jour' : p === 'week' ? 'Sem.' : 'Mois')
                       : (p === 'day' ? 'Day' : p === 'week' ? 'Week' : 'Month')}
                   </button>
                 ))}
@@ -429,7 +434,7 @@ export function PerformancesPage() {
       ) : (
         <div className="space-y-2">
           {filteredPerformances.map(p => (
-            <Card key={p.id} className="group">
+            <Card key={p.id}>
               <CardContent className="p-3 flex items-center gap-3">
                 {p.performance_type?.color && (
                   <span
@@ -445,16 +450,17 @@ export function PerformancesPage() {
                     )}
                     <Badge variant="outline" className="text-[11px]">{p.performance_type?.name ?? '—'}</Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {format(new Date(p.date), 'EEEE dd MMMM yyyy', { locale })}
-                    {p.notes && <span className="ml-2">— {p.notes}</span>}
+                  <div className="text-xs text-muted-foreground mt-0.5 break-words">
+                    <span className="sm:hidden">{format(new Date(p.date), 'dd MMM yyyy', { locale })}</span>
+                    <span className="hidden sm:inline">{format(new Date(p.date), 'EEEE dd MMMM yyyy', { locale })}</span>
+                    {p.notes && <span className="ml-1">— {p.notes}</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(p)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteTarget(p)}>
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </div>
