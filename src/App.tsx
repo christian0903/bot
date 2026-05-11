@@ -16,6 +16,7 @@ import { HomePage } from '@/pages/HomePage'
 import { AuthPage } from '@/pages/AuthPage'
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { ConfirmEmailPage } from '@/pages/ConfirmEmailPage'
+import { EmailChangedPage } from '@/pages/EmailChangedPage'
 
 // Pages authentifiées (lazy)
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
@@ -75,6 +76,7 @@ function App() {
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
                   <Route path="/auth/confirm" element={<ConfirmEmailPage />} />
+                  <Route path="/auth/email-changed" element={<EmailChangedPage />} />
 
                   {/* Authenticated */}
                   <Route path="/dashboard" element={<AuthGuard><Lazy><DashboardPage /></Lazy></AuthGuard>} />

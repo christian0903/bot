@@ -94,12 +94,15 @@ export function ProfilePage() {
     const newEmail = form.email.trim()
     let emailChangeRequested = false
     if (newEmail && newEmail !== currentEmail) {
-      // No emailRedirectTo passed: Supabase will use the configured Site URL
-      // from the dashboard, which works whether the user is on localhost
-      // (dev) or the deployed app. Forcing window.location.origin caused
-      // dev-environment users to receive a link with localhost redirect,
-      // which Supabase rejects if not whitelisted.
-      const { error: authError } = await supabase.auth.updateUser({ email: newEmail })
+      // Always redirect to a production URL so the link works regardless
+      // of where the user submitted from. VITE_APP_URL must point to the
+      // deployed app's origin; the path lands on a dedicated confirmation
+      // screen so users get clear feedback after clicking the email link.
+      const appUrl = import.meta.env.VITE_APP_URL ?? window.location.origin
+      const { error: authError } = await supabase.auth.updateUser(
+        { email: newEmail },
+        { emailRedirectTo: `${appUrl}/auth/email-changed` },
+      )
       if (authError) {
         setLoading(false)
         toast.error(authError.message)
