@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
+import { adminUpdatePassword } from '@/lib/admin-update-password'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -28,7 +29,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
@@ -36,7 +37,7 @@ import { cn, formatEuros } from '@/lib/utils'
 export function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, i18n } = useTranslation()
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, hasRole } = useAuth()
   const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
 
@@ -68,6 +69,12 @@ export function AdminUserDetailPage() {
   const [selectedClassId, setSelectedClassId] = useState('')
   const [selectedPackId, setSelectedPackId] = useState('')
   const [bookingSaving, setBookingSaving] = useState(false)
+
+  // Password reset dialog
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
 
   const fetchData = async () => {
     if (!id) return
@@ -277,6 +284,45 @@ export function AdminUserDetailPage() {
     fetchData()
   }
 
+  const openPasswordDialog = () => {
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordDialogOpen(true)
+  }
+
+  const handleResetPassword = async () => {
+    if (!profile || !id) return
+    if (newPassword.length < 12) {
+      toast.error(isFr ? 'Mot de passe : 12 caractères minimum' : 'Password: minimum 12 characters')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error(isFr ? 'Les mots de passe ne correspondent pas' : 'Passwords do not match')
+      return
+    }
+
+    setPasswordSaving(true)
+    const result = await adminUpdatePassword(id, newPassword)
+    if (!result.ok) {
+      toast.error(result.error ?? (isFr ? 'Échec de la mise à jour' : 'Update failed'))
+      setPasswordSaving(false)
+      return
+    }
+
+    await logActivity({
+      action: 'password_reset_by_admin',
+      actor_id: currentUser?.id ?? null,
+      target_user_id: id,
+      description: `Mot de passe réinitialisé pour ${profile.display_name}`,
+    })
+
+    toast.success(isFr ? 'Mot de passe mis à jour' : 'Password updated')
+    setPasswordDialogOpen(false)
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordSaving(false)
+  }
+
   if (loading) return <LoadingState />
   if (!profile) return <EmptyState icon={User} message={t('common.noResults')} />
 
@@ -392,6 +438,18 @@ export function AdminUserDetailPage() {
               : (isFr ? 'Valider' : 'Confirm')}
           </Button>
         </div>
+
+        {hasRole('super_admin') && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={openPasswordDialog}
+          >
+            <KeyRound className="h-3 w-3 mr-1" />
+            {isFr ? 'Changer mot de passe' : 'Change password'}
+          </Button>
+        )}
       </div>
 
       {/* Stats cards */}
@@ -754,6 +812,57 @@ export function AdminUserDetailPage() {
             </Button>
             <Button onClick={handleEditPack} disabled={editPackSaving}>
               {editPackSaving ? '...' : t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Reset Dialog (super_admin only) */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4" />
+              {isFr ? 'Changer le mot de passe' : 'Change password'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? `Définir un nouveau mot de passe pour ${profile.display_name}. Le membre devra l'utiliser à sa prochaine connexion.`
+                : `Set a new password for ${profile.display_name}. The member will use it on next sign-in.`}
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor="new-password">{isFr ? 'Nouveau mot de passe' : 'New password'}</Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder={isFr ? 'Min. 12 caractères' : 'Min. 12 characters'}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="confirm-password">{isFr ? 'Confirmer' : 'Confirm'}</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)} disabled={passwordSaving}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={passwordSaving || newPassword.length < 12 || newPassword !== confirmPassword}
+            >
+              {passwordSaving ? '...' : (isFr ? 'Mettre à jour' : 'Update')}
             </Button>
           </DialogFooter>
         </DialogContent>

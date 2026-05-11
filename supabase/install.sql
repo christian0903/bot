@@ -23,7 +23,8 @@ CREATE TYPE activity_action AS ENUM (
   'booking_created', 'booking_cancelled', 'booking_assigned',
   'role_changed', 'waitlist_joined', 'waitlist_promoted',
   'user_created', 'registration_fee_paid', 'user_login',
-  'trial_booked', 'check_in', 'no_show'
+  'trial_booked', 'check_in', 'no_show',
+  'password_reset_by_admin'
 );
 
 

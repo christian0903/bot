@@ -16,6 +16,7 @@ type ActivityAction =
   | 'trial_booked'
   | 'check_in'
   | 'no_show'
+  | 'password_reset_by_admin'
 
 interface LogEntry {
   action: ActivityAction
