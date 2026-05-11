@@ -229,3 +229,25 @@ export interface ReferralReward {
   expires_at: string | null
   created_at: string
 }
+
+export interface PerformanceType {
+  id: string
+  name: string
+  unit_hint: string | null
+  color: string | null
+  display_order: number
+  archived: boolean
+  created_at: string
+}
+
+export interface Performance {
+  id: string
+  user_id: string
+  performance_type_id: string
+  date: string
+  value: string
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  performance_type?: PerformanceType
+}

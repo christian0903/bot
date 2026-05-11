@@ -42,6 +42,7 @@ export function Header() {
     { label: t('nav.schedule'), path: '/schedule', show: !!user },
     { label: t('nav.myBookings'), path: '/my-bookings', show: !!user },
     { label: t('nav.myPacks'), path: '/my-packs', show: !!user },
+    { label: t('nav.performances'), path: '/performances', show: !!user },
     { label: t('nav.packs'), path: '/packs', show: !!user },
     { label: t('nav.coach'), path: '/coach/my-classes', show: hasRole('coach') },
     { label: t('nav.admin'), path: '/admin/users', show: hasRole('admin') },

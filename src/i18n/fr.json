@@ -9,6 +9,7 @@
     "myBookings": "Mes réservations",
     "myPacks": "Mes packs",
     "packs": "Acheter un pack",
+    "performances": "Performances",
     "profile": "Profil",
     "notifications": "Notifications",
     "help": "Aide",
@@ -248,6 +249,9 @@
       "add": "Ajouter un type de cours",
       "edit": "Modifier",
       "delete": "Supprimer"
+    },
+    "performanceTypes": {
+      "title": "Types de perfs"
     },
     "schedule": {
       "title": "Gestion du planning",

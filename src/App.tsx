@@ -27,6 +27,8 @@ const ProfilePage = lazy(() => import('@/pages/ProfilePage').then(m => ({ defaul
 const PublicProfilePage = lazy(() => import('@/pages/PublicProfilePage').then(m => ({ default: m.PublicProfilePage })))
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })))
 const HelpPage = lazy(() => import('@/pages/HelpPage').then(m => ({ default: m.HelpPage })))
+const PerformancesPage = lazy(() => import('@/pages/PerformancesPage').then(m => ({ default: m.PerformancesPage })))
+const ManagePerformanceTypesPage = lazy(() => import('@/pages/ManagePerformanceTypesPage').then(m => ({ default: m.ManagePerformanceTypesPage })))
 
 // Pages coach (lazy)
 const CoachClassesPage = lazy(() => import('@/pages/coach/CoachClassesPage').then(m => ({ default: m.CoachClassesPage })))
@@ -87,6 +89,8 @@ function App() {
                   <Route path="/referral" element={<AuthGuard><Lazy><ReferralPage /></Lazy></AuthGuard>} />
                   <Route path="/stats" element={<AuthGuard><Lazy><StatsPage /></Lazy></AuthGuard>} />
                   <Route path="/help" element={<Lazy><HelpPage /></Lazy>} />
+                  <Route path="/performances" element={<AuthGuard><Lazy><PerformancesPage /></Lazy></AuthGuard>} />
+                  <Route path="/performance-types" element={<AuthGuard><RoleGuard roles={['coach', 'admin']}><Lazy><ManagePerformanceTypesPage /></Lazy></RoleGuard></AuthGuard>} />
 
                   {/* Coach */}
                   <Route path="/coach/my-classes" element={<AuthGuard><RoleGuard roles={['coach', 'admin']}><Lazy><CoachClassesPage /></Lazy></RoleGuard></AuthGuard>} />

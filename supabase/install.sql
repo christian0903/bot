@@ -281,6 +281,31 @@ CREATE TABLE invoice_requests (
   processed_at TIMESTAMPTZ
 );
 
+-- Catalogue de types de performances (rameur, ski, poids…)
+CREATE TABLE performance_types (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  unit_hint TEXT,
+  color TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  archived BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Entrées de performances par utilisateur
+CREATE TABLE performances (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  performance_type_id UUID NOT NULL REFERENCES performance_types(id) ON DELETE RESTRICT,
+  date DATE NOT NULL,
+  value TEXT NOT NULL,
+  notes TEXT,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_performances_user_date ON performances(user_id, date DESC);
+CREATE INDEX idx_performances_type ON performances(performance_type_id);
+
 -- ============================================
 -- 2. FONCTIONS
 -- ============================================
@@ -774,6 +799,27 @@ CREATE POLICY "Trial: admin read" ON trial_sessions FOR SELECT USING (has_role(a
 CREATE POLICY "Invoice: own read" ON invoice_requests FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Invoice: own insert" ON invoice_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Invoice: admin all" ON invoice_requests FOR ALL USING (has_role(auth.uid(), 'admin'));
+
+-- PERFORMANCE_TYPES
+ALTER TABLE performance_types ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "PerfTypes: read all" ON performance_types FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "PerfTypes: coach/admin insert" ON performance_types FOR INSERT
+  WITH CHECK (has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+CREATE POLICY "PerfTypes: coach/admin update" ON performance_types FOR UPDATE
+  USING (has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+CREATE POLICY "PerfTypes: coach/admin delete" ON performance_types FOR DELETE
+  USING (has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+
+-- PERFORMANCES
+ALTER TABLE performances ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Perf: own read" ON performances FOR SELECT
+  USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+CREATE POLICY "Perf: insert" ON performances FOR INSERT
+  WITH CHECK (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+CREATE POLICY "Perf: own update" ON performances FOR UPDATE
+  USING (auth.uid() = user_id OR has_role(auth.uid(), 'admin'));
+CREATE POLICY "Perf: own delete" ON performances FOR DELETE
+  USING (auth.uid() = user_id OR has_role(auth.uid(), 'admin'));
 
 -- ============================================
 -- 6. VUE : profils des coachs
