@@ -38,6 +38,17 @@ SQL Editor → copier-coller le contenu de :
 supabase/seed-demo-part2.sql
 ```
 
+### Étape 5 (optionnelle) : Performances de démo
+
+Une cinquantaine d'entrées sur 6 semaines pour Ingrid, Thomas et Marie, avec 5 types (Rameur, Ski Erg, Bike Erg, Squat, Développé) et 3 profils de progression distincts. Idempotent.
+
+SQL Editor → copier-coller le contenu de :
+```
+supabase/seed-demo-performances.sql
+```
+
+À la fin, un SELECT affiche un récap par user × type.
+
 ---
 
 ## Vérification
@@ -48,6 +59,7 @@ supabase/seed-demo-part2.sql
 4. **Admin → Coaches** : 4 coaches
 5. **Admin → Parrainages** : 2 (Ingrid→Sophie qualifié, Anouck→Lucas en attente)
 6. **Admin → Réservations** : réservations passées et futures visibles
+7. (Étape 5) **Perfs** : `/performances` connecté en ingrid → 18 entrées, chart visible sur le type "Rameur 500m"
 
 ---
 

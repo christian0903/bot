@@ -31,8 +31,14 @@ Les policies de storage sont créées par le `install.sql`.
 #### 1.3 Authentication
 
 Dans **Supabase Dashboard → Authentication** :
-- **Settings → Password Requirements** : minimum 12 caractères
-- **Email Templates** : personnaliser en français (voir `docs/guide-admin.md`)
+- **Sign In / Providers → Email** :
+  - Activer le provider Email
+  - **Secure email change : OFF** (sinon le membre doit cliquer 2 liens — l'app envoie elle-même un avertissement à l'ancienne adresse via Resend)
+  - Minimum password length : 12
+- **URL Configuration** :
+  - **Site URL** : `https://votre-domaine.example` (URL de production de l'app)
+  - **Redirect URLs** : ajouter `https://votre-domaine.example/**` (wildcard). Ajouter aussi `http://localhost:5173/**` si vous voulez tester en dev local
+- **Emails (templates)** : personnaliser en français si besoin (voir `docs/guide-admin.md`)
 
 #### 1.4 Premier compte super_admin
 
@@ -49,8 +55,12 @@ SELECT id, 'super_admin' FROM auth.users WHERE email = 'votre@email.com';
 Créer `.env` à la racine :
 ```
 VITE_SUPABASE_URL=https://xxxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbG...
+VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbG...
+VITE_APP_URL=https://votre-domaine.example
 ```
+
+- `VITE_SUPABASE_PUBLISHABLE_KEY` : ancienne `anon key` (Dashboard → API Settings → "Publishable")
+- `VITE_APP_URL` : URL absolue de production de l'app. Utilisée pour construire le `emailRedirectTo` des liens de confirmation (`/auth/email-changed` notamment) — doit être figée à la prod même en dev pour que les emails contiennent un lien stable
 
 #### 1.6 Lancer l'application
 
@@ -58,6 +68,18 @@ VITE_SUPABASE_ANON_KEY=eyJhbG...
 npm install
 npm run dev
 ```
+
+#### 1.7 Déployer les Edge Functions
+
+Les fonctions Supabase sont stockées dans `supabase/functions/`. Pour les déployer :
+
+```bash
+npx supabase link --project-ref <project-ref>
+npx supabase functions deploy send-email
+npx supabase functions deploy admin-update-password
+```
+
+Les fonctions reçoivent automatiquement `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` dans leur env. Pour `send-email`, configurer aussi `RESEND_API_KEY` (et optionnellement `EMAIL_FROM`, `EMAIL_REPLY_TO`) dans Dashboard → Edge Functions → Settings.
 
 ---
 
@@ -166,12 +188,21 @@ const USERS = rows.map(row => ({
 
 | Fichier | Usage |
 |---------|-------|
-| `supabase/install.sql` | Installation complète (tables, fonctions, RLS, settings) |
+| `supabase/install.sql` | Installation complète (tables, fonctions, RLS, settings, triggers) |
 | `supabase/check-schema.sql` | Vérification de la structure de la base |
 | `supabase/reset-test-data.sql` | Efface toutes les données sauf admin et config |
 | `supabase/seed-demo-part1.sql` | Types de crédits, cours et packs |
 | `scripts/import-demo.ts` | Import users via API Admin (coaches + clients + packs) |
 | `supabase/seed-demo-part2.sql` | Cours planifiés + réservations passées/futures |
+| `supabase/seed-demo-performances.sql` | Performances démo pour ingrid, thomas, marie |
+| `supabase/migrations/20260421_email_notifications.sql` | Colonne `email_on_self_booking` sur profiles |
+| `supabase/migrations/20260511_password_reset_action.sql` | Ajoute `password_reset_by_admin` à l'enum `activity_action` |
+| `supabase/migrations/20260511_sync_profile_email.sql` | Trigger : sync `profiles.email` ↔ `auth.users.email` |
+| `supabase/migrations/20260511_backfill_profile_email.sql` | Backfill ponctuel pour rattraper d'éventuels desyncs |
+| `supabase/migrations/20260511_performances.sql` | Tables `performance_types` + `performances` avec RLS |
+| `supabase/migrations/20260511_perf_rls_coach_update.sql` | Étend UPDATE/DELETE perfs au coach (aligné sur INSERT) |
+
+Toutes les migrations sont déjà intégrées dans `install.sql`. Pour une base existante, ne lancer que les migrations correspondant aux fonctionnalités ajoutées depuis votre dernier déploiement.
 
 ---
 

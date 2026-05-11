@@ -60,3 +60,18 @@ Le coach voit un bouton **"Détail"** à la place du bouton "Réserver" sur chaq
 - Salle (slug)
 - Coach
 - ID du cours (visible uniquement pour le Super Admin)
+
+## 4. Types de performances (`/performance-types`)
+
+Page partagée avec les admins, accessible via le bouton "Gérer les types" depuis `/performances`.
+
+### Définir le catalogue
+- Créer les types que vos membres pourront encoder (ex. `Rameur 500m`, `Bike Erg 1km`, `Squat`, `Développé couché`)
+- Pour chaque type : nom, unité indicative (`kg`, `min`, etc.), couleur, ordre, archivé
+- Les types sont visibles par tous les membres dès leur création
+
+### Encoder pour un membre
+Vous pouvez encoder une performance pour un membre (RLS coach + admin). L'UI dédiée dans la fiche membre admin n'est pas encore en place — passer par la page `/performances` connecté comme le membre, ou via l'API.
+
+### Corriger une perf
+Depuis v2.7.0, le coach peut éditer ou supprimer **n'importe quelle** performance (alignement RLS avec l'INSERT). Utile pour corriger une faute de frappe.
