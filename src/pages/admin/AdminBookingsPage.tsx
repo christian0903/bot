@@ -130,15 +130,15 @@ export function AdminBookingsPage() {
       {filtered.length === 0 ? (
         <EmptyState icon={CalendarDays} message={t('common.noResults')} />
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t('admin.bookings.client')}</TableHead>
                 <TableHead>{t('admin.bookings.class')}</TableHead>
-                <TableHead>{t('common.date')}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t('common.date')}</TableHead>
                 <TableHead>{t('admin.bookings.status')}</TableHead>
-                <TableHead>{t('admin.bookings.revenue')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('admin.bookings.revenue')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -150,7 +150,7 @@ export function AdminBookingsPage() {
                   <TableCell>
                     {b.scheduled_class?.class_type?.name ?? '-'}
                   </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="hidden sm:table-cell text-sm whitespace-nowrap">
                     {b.scheduled_class
                       ? format(new Date(b.scheduled_class.starts_at), 'EEE dd/MM HH:mm', { locale })
                       : '-'}
@@ -160,7 +160,7 @@ export function AdminBookingsPage() {
                       {t(`bookings.status.${b.status}`)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{getRevenue(b)}</TableCell>
+                  <TableCell className="hidden md:table-cell">{getRevenue(b)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

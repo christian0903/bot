@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -48,6 +49,7 @@ export function ProfilePage() {
     facebook_url: '',
     linkedin_url: '',
     coach_description: '',
+    email_on_self_booking: true,
   })
 
   useEffect(() => {
@@ -69,6 +71,7 @@ export function ProfilePage() {
         facebook_url: profile.facebook_url ?? '',
         linkedin_url: profile.linkedin_url ?? '',
         coach_description: profile.coach_description ?? '',
+        email_on_self_booking: profile.email_on_self_booking ?? true,
       })
     }
   }, [profile])
@@ -98,6 +101,7 @@ export function ProfilePage() {
         facebook_url: form.facebook_url || null,
         linkedin_url: form.linkedin_url || null,
         coach_description: form.coach_description || null,
+        email_on_self_booking: form.email_on_self_booking,
       })
       .eq('id', user.id)
 
@@ -136,59 +140,28 @@ export function ProfilePage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Status + Referral Card */}
+      {/* Identity header */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={profile.avatar_url ?? undefined} />
-                <AvatarFallback className="text-xl">
-                  {profile.display_name?.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="text-lg font-semibold">{profile.display_name}</h2>
-                <Badge className={STATUS_COLORS[profile.member_status] ?? STATUS_COLORS.visitor}>
-                  {t(`profile.status.${profile.member_status}`)}
-                </Badge>
-              </div>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={profile.avatar_url ?? undefined} />
+              <AvatarFallback className="text-xl">
+                {profile.display_name?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold truncate">{profile.display_name}</h2>
+              {(profile.email || user?.email) && (
+                <p className="text-sm text-muted-foreground truncate">
+                  {profile.email || user?.email}
+                </p>
+              )}
+              <Badge className={`mt-1 ${STATUS_COLORS[profile.member_status] ?? STATUS_COLORS.visitor}`}>
+                {t(`profile.status.${profile.member_status}`)}
+              </Badge>
             </div>
           </div>
-
-          {/* QR Code for check-in */}
-          <div className="mt-4 rounded-lg border p-4">
-            <p className="text-sm font-medium mb-3 flex items-center gap-2">
-              <ScanLine className="h-4 w-4" />
-              {t('profile.qrTitle')}
-            </p>
-            <div className="flex justify-center">
-              <div className="bg-white p-3 rounded-lg">
-                <QRCodeSVG value={profile.id} size={160} />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              {t('profile.qrDesc')}
-            </p>
-          </div>
-
-          {/* Referral code */}
-          {profile.referral_code && (
-            <div className="mt-4 rounded-lg border p-4">
-              <p className="text-sm font-medium mb-2">{t('profile.referralTitle')}</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 rounded bg-muted px-3 py-2 text-sm font-mono">
-                  {profile.referral_code}
-                </code>
-                <Button type="button" variant="outline" size="icon" onClick={copyReferralCode}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button type="button" variant="outline" size="icon" onClick={shareReferralCode}>
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
 
           {/* Invoice request link */}
           <div className="mt-4">
@@ -325,6 +298,29 @@ export function ProfilePage() {
               </div>
             </div>
 
+            {/* Email notifications */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                {isFr ? 'Notifications email' : 'Email notifications'}
+              </h3>
+              <div className="flex items-start gap-3 p-3 rounded-lg border">
+                <Switch
+                  checked={form.email_on_self_booking}
+                  onCheckedChange={(checked) => setForm({ ...form, email_on_self_booking: checked })}
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {isFr ? 'Confirmation par email' : 'Email confirmations'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isFr
+                      ? 'Recevoir un email à chaque réservation ou annulation que vous effectuez vous-même. Les inscriptions/annulations par un coach ou admin, et les modifications de cours, sont toujours envoyées.'
+                      : 'Receive an email for each booking or cancellation you make yourself. Staff-initiated actions and class changes are always sent.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Bio */}
             <div className="space-y-4">
               <div className="space-y-2">
@@ -387,6 +383,45 @@ export function ProfilePage() {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* QR Code + Referral code at bottom */}
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          {/* QR Code for check-in */}
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-medium mb-3 flex items-center gap-2">
+              <ScanLine className="h-4 w-4" />
+              {t('profile.qrTitle')}
+            </p>
+            <div className="flex justify-center">
+              <div className="bg-white p-3 rounded-lg">
+                <QRCodeSVG value={profile.id} size={160} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              {t('profile.qrDesc')}
+            </p>
+          </div>
+
+          {/* Referral code */}
+          {profile.referral_code && (
+            <div className="rounded-lg border p-4">
+              <p className="text-sm font-medium mb-2">{t('profile.referralTitle')}</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded bg-muted px-3 py-2 text-sm font-mono">
+                  {profile.referral_code}
+                </code>
+                <Button type="button" variant="outline" size="icon" onClick={copyReferralCode}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="outline" size="icon" onClick={shareReferralCode}>
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

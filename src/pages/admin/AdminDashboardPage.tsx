@@ -406,13 +406,14 @@ export function AdminDashboardPage() {
               {coachStats.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">{t('common.noResults')}</p>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>{isFr ? 'Coach' : 'Coach'}</TableHead>
-                      <TableHead className="text-center">{isFr ? 'Cours' : 'Classes'}</TableHead>
-                      <TableHead className="text-center">{isFr ? 'Réservations' : 'Bookings'}</TableHead>
-                      <TableHead className="text-right">{isFr ? 'Valeur crédits' : 'Credit value'}</TableHead>
+                      <TableHead className="hidden sm:table-cell text-center">{isFr ? 'Cours' : 'Classes'}</TableHead>
+                      <TableHead className="text-center">{isFr ? 'Résa.' : 'Book.'}</TableHead>
+                      <TableHead className="text-right">{isFr ? 'Valeur' : 'Value'}</TableHead>
                       <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -420,7 +421,7 @@ export function AdminDashboardPage() {
                     {coachStats.map(coach => (
                       <TableRow key={coach.coach_id} className="cursor-pointer hover:bg-muted/50" onClick={() => openCoachDetail(coach)}>
                         <TableCell className="font-medium">{coach.coach_name}</TableCell>
-                        <TableCell className="text-center">{coach.class_count}</TableCell>
+                        <TableCell className="hidden sm:table-cell text-center">{coach.class_count}</TableCell>
                         <TableCell className="text-center">{coach.total_bookings}</TableCell>
                         <TableCell className="text-right font-medium">{formatEuros(coach.total_revenue_cents, 0)}</TableCell>
                         <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
@@ -428,6 +429,7 @@ export function AdminDashboardPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -443,23 +445,24 @@ export function AdminDashboardPage() {
           {packSales.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">{t('common.noResults')}</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{isFr ? 'Date' : 'Date'}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{isFr ? 'Date' : 'Date'}</TableHead>
                   <TableHead>{isFr ? 'Client' : 'Client'}</TableHead>
                   <TableHead>{isFr ? 'Pack' : 'Pack'}</TableHead>
-                  <TableHead className="text-center">{isFr ? 'Crédits' : 'Credits'}</TableHead>
+                  <TableHead className="hidden md:table-cell text-center">{isFr ? 'Crédits' : 'Credits'}</TableHead>
                   <TableHead className="text-right">{isFr ? 'Montant' : 'Amount'}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {packSales.map(sale => (
                   <TableRow key={sale.id}>
-                    <TableCell className="text-sm">{format(new Date(sale.purchased_at), 'dd/MM/yyyy', { locale })}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm">{format(new Date(sale.purchased_at), 'dd/MM/yyyy', { locale })}</TableCell>
                     <TableCell>{sale.user_name}</TableCell>
                     <TableCell>{sale.pack_name}</TableCell>
-                    <TableCell className="text-center">{sale.credits}</TableCell>
+                    <TableCell className="hidden md:table-cell text-center">{sale.credits}</TableCell>
                     <TableCell className="text-right font-medium">
                       {sale.price_paid_cents === 0
                         ? <Badge variant="secondary" className="text-[10px]">{isFr ? 'Offert' : 'Gift'}</Badge>
@@ -469,12 +472,14 @@ export function AdminDashboardPage() {
                   </TableRow>
                 ))}
                 <TableRow className="font-bold border-t-2">
-                  <TableCell colSpan={3}>{isFr ? 'Total' : 'Total'}</TableCell>
-                  <TableCell className="text-center">{packSales.reduce((s, p) => s + p.credits, 0)}</TableCell>
+                  <TableCell className="hidden sm:table-cell"></TableCell>
+                  <TableCell colSpan={2}>{isFr ? 'Total' : 'Total'}</TableCell>
+                  <TableCell className="hidden md:table-cell text-center">{packSales.reduce((s, p) => s + p.credits, 0)}</TableCell>
                   <TableCell className="text-right">{formatEuros(totalRevenue, 0)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -488,32 +493,36 @@ export function AdminDashboardPage() {
           {bookings.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">{t('common.noResults')}</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{isFr ? 'Date' : 'Date'}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{isFr ? 'Date' : 'Date'}</TableHead>
                   <TableHead>{isFr ? 'Cours' : 'Class'}</TableHead>
                   <TableHead>{isFr ? 'Client' : 'Client'}</TableHead>
-                  <TableHead>{isFr ? 'Pack' : 'Pack'}</TableHead>
+                  <TableHead className="hidden md:table-cell">{isFr ? 'Pack' : 'Pack'}</TableHead>
                   <TableHead className="text-right">{isFr ? 'Valeur' : 'Value'}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {bookings.map(b => (
                   <TableRow key={b.id}>
-                    <TableCell className="text-sm">{b.starts_at ? format(new Date(b.starts_at), 'dd/MM HH:mm', { locale }) : '-'}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm">{b.starts_at ? format(new Date(b.starts_at), 'dd/MM HH:mm', { locale }) : '-'}</TableCell>
                     <TableCell>{b.class_name}</TableCell>
                     <TableCell>{b.user_name}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{b.pack_name}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{b.pack_name}</TableCell>
                     <TableCell className="text-right font-medium">{formatEuros(b.price_paid_cents / b.credit_count, 0)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold border-t-2">
-                  <TableCell colSpan={4}>{isFr ? 'Total' : 'Total'} ({bookings.length} {isFr ? 'crédits' : 'credits'})</TableCell>
+                  <TableCell className="hidden sm:table-cell"></TableCell>
+                  <TableCell colSpan={2}>{isFr ? 'Total' : 'Total'} ({bookings.length} {isFr ? 'crédits' : 'credits'})</TableCell>
+                  <TableCell className="hidden md:table-cell"></TableCell>
                   <TableCell className="text-right">{formatEuros(totalClassRevenue, 0)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -531,6 +540,7 @@ export function AdminDashboardPage() {
                 <Badge variant="outline">{selectedCoach.total_bookings} {isFr ? 'réservations' : 'bookings'}</Badge>
                 <Badge variant="outline">{formatEuros(selectedCoach.total_revenue_cents, 0)}</Badge>
               </div>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -543,7 +553,7 @@ export function AdminDashboardPage() {
                 <TableBody>
                   {selectedCoach.classes.map(c => (
                     <TableRow key={c.id}>
-                      <TableCell className="text-sm">{format(new Date(c.starts_at), 'EEE dd/MM HH:mm', { locale })}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{format(new Date(c.starts_at), 'EEE dd/MM HH:mm', { locale })}</TableCell>
                       <TableCell>{c.class_name}</TableCell>
                       <TableCell className="text-center">{c.bookings}</TableCell>
                       <TableCell className="text-right font-medium">{formatEuros(c.revenue_cents, 0)}</TableCell>
@@ -556,6 +566,7 @@ export function AdminDashboardPage() {
                   </TableRow>
                 </TableBody>
               </Table>
+              </div>
             </>
           )}
         </DialogContent>

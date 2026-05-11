@@ -22,6 +22,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { sendEmail } from '@/lib/send-email'
 import { useNavigate } from 'react-router-dom'
 import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy } from 'lucide-react'
 import { format } from 'date-fns'
@@ -193,11 +194,54 @@ export function AdminSchedulePage() {
     }
 
     if (editing) {
+      // Detect significant changes worth emailing enrolled members about
+      const oldStarts = new Date(editing.starts_at)
+      const newStarts = baseDate
+      const startsChanged = oldStarts.getTime() !== newStarts.getTime()
+      const floorChanged = (editing.floor ?? null) !== (basePayload.floor ?? null)
+      const coachChanged = (editing.coach_id ?? null) !== (basePayload.coach_id ?? null)
+      const durationChanged = editing.duration_minutes !== basePayload.duration_minutes
+      const significantChange = startsChanged || floorChanged || coachChanged || durationChanged
+
       const { error } = await supabase.from('scheduled_classes').update({
         ...basePayload,
-        starts_at: baseDate.toISOString(),
+        starts_at: newStarts.toISOString(),
       }).eq('id', editing.id)
       if (error) { toast.error(t('common.error')); return }
+
+      // Email enrolled members if something significant changed
+      if (significantChange) {
+        const { data: affectedBookings } = await supabase
+          .from('bookings')
+          .select('user_id')
+          .eq('scheduled_class_id', editing.id)
+          .eq('status', 'confirmed')
+
+        const userIds = [...new Set((affectedBookings ?? []).map(b => b.user_id))]
+        if (userIds.length > 0) {
+          const { data: memberProfiles } = await supabase
+            .from('profiles')
+            .select('id, display_name, email')
+            .in('id', userIds)
+
+          const newCoachName = coaches.find(c => c.id === basePayload.coach_id)?.display_name
+          const newRoomName = basePayload.floor ? (floorNames[basePayload.floor] || basePayload.floor) : undefined
+          const className = basePayload.title || classTypes.find(c => c.id === basePayload.class_type_id)?.name
+
+          for (const p of memberProfiles ?? []) {
+            if (!p.email) continue
+            sendEmail('class_modified', p.email, {
+              user_name: p.display_name,
+              class_name: className,
+              class_date: format(newStarts, "EEEE dd MMMM 'à' HH:mm", { locale: fr }),
+              old_class_date: startsChanged ? format(oldStarts, "EEEE dd MMMM 'à' HH:mm", { locale: fr }) : undefined,
+              coach_name: newCoachName,
+              room_name: newRoomName,
+              duration_minutes: basePayload.duration_minutes,
+            })
+          }
+        }
+      }
     } else {
       // Build candidate rows
       const candidates = []
@@ -522,7 +566,7 @@ export function AdminSchedulePage() {
       {filteredClasses.length === 0 ? (
         <EmptyState icon={CalendarDays} message={t('common.noResults')} actionLabel={t('admin.schedule.add')} onAction={openAdd} />
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -536,10 +580,10 @@ export function AdminSchedulePage() {
                 </TableHead>
                 <TableHead>{t('admin.schedule.date')}</TableHead>
                 <TableHead>{t('admin.schedule.time')}</TableHead>
-                <TableHead>{isFr ? 'Salle' : 'Room'}</TableHead>
+                <TableHead className="hidden md:table-cell">{isFr ? 'Salle' : 'Room'}</TableHead>
                 <TableHead>{t('admin.schedule.classType')}</TableHead>
-                <TableHead>{t('admin.schedule.coach')}</TableHead>
-                <TableHead className="text-center">{t('admin.schedule.maxParticipants')}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t('admin.schedule.coach')}</TableHead>
+                <TableHead className="hidden lg:table-cell text-center">Max</TableHead>
                 <TableHead className="w-[80px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -557,9 +601,9 @@ export function AdminSchedulePage() {
                         className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
                       />
                     </TableCell>
-                    <TableCell className="text-sm">{format(dt, 'EEE dd/MM', { locale })}</TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">{format(dt, 'EEE dd/MM', { locale })}</TableCell>
                     <TableCell className="text-sm font-medium">{format(dt, 'HH:mm')}</TableCell>
-                    <TableCell className="text-xs font-mono">
+                    <TableCell className="hidden md:table-cell text-xs font-mono">
                       {sc.floor || '—'}
                     </TableCell>
                     <TableCell>
@@ -568,8 +612,8 @@ export function AdminSchedulePage() {
                         {sc.title && <span className="text-xs text-muted-foreground ml-1.5">({sc.class_type?.name})</span>}
                       </div>
                     </TableCell>
-                    <TableCell>{sc.coach?.display_name ?? '—'}</TableCell>
-                    <TableCell className="text-center">{sc.max_participants}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{sc.coach?.display_name ?? '—'}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-center">{sc.max_participants}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" title={i18n.language === 'fr' ? 'Détail / inscrits' : 'Detail / participants'} onClick={() => navigate(`/coach/class/${sc.id}`)}>

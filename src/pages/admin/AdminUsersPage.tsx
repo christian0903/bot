@@ -369,19 +369,19 @@ export function AdminUsersPage() {
       {filteredUsers.length === 0 ? (
         <EmptyState icon={Users} message={t('common.noResults')} />
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t('admin.users.name')}</TableHead>
-                <TableHead>{t('admin.users.role')}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t('admin.users.role')}</TableHead>
                 <TableHead className="text-center">
                   <span className="flex items-center gap-1 justify-center">
                     <CreditCard className="h-3 w-3" />
                     {isFr ? 'Crédits' : 'Credits'}
                   </span>
                 </TableHead>
-                <TableHead>{t('admin.users.lastLogin')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('admin.users.lastLogin')}</TableHead>
                 <TableHead>{t('admin.users.actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -397,7 +397,7 @@ export function AdminUsersPage() {
                       <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <div className="flex gap-1 flex-wrap">
                       {user.roles.map(r => (
                         <Badge key={r} variant="outline" className="text-[10px]">
@@ -414,7 +414,7 @@ export function AdminUsersPage() {
                       {user.credits}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                     {user.last_sign_in_at
                       ? format(new Date(user.last_sign_in_at), 'dd/MM/yyyy HH:mm', { locale })
                       : '-'}

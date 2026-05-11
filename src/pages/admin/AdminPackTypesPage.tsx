@@ -190,16 +190,16 @@ export function AdminPackTypesPage() {
       {packTypes.length === 0 ? (
         <EmptyState icon={Package} message={t('common.noResults')} actionLabel={t('admin.packTypes.add')} onAction={openAdd} />
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t('admin.packTypes.name')}</TableHead>
-                <TableHead>{t('admin.packTypes.creditType')}</TableHead>
-                <TableHead>{t('admin.packTypes.credits')}</TableHead>
+                <TableHead className="hidden lg:table-cell">{t('admin.packTypes.creditType')}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t('admin.packTypes.credits')}</TableHead>
                 <TableHead>{t('admin.packTypes.price')}</TableHead>
-                <TableHead>{t('admin.packTypes.validity')}</TableHead>
-                <TableHead>{t('admin.packTypes.categories')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('admin.packTypes.validity')}</TableHead>
+                <TableHead className="hidden xl:table-cell">{t('admin.packTypes.categories')}</TableHead>
                 <TableHead>{t('admin.packTypes.active')}</TableHead>
                 <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
@@ -208,11 +208,11 @@ export function AdminPackTypesPage() {
               {packTypes.map((pt) => (
                 <TableRow key={pt.id}>
                   <TableCell className="font-medium">{pt.name}</TableCell>
-                  <TableCell>{pt.credit_type?.label_fr ?? '-'}</TableCell>
-                  <TableCell>{pt.credit_count}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{pt.credit_type?.label_fr ?? '-'}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{pt.credit_count}</TableCell>
                   <TableCell>{formatEuros(pt.price_cents)}</TableCell>
-                  <TableCell>{pt.validity_days}</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">{pt.validity_days}</TableCell>
+                  <TableCell className="hidden xl:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {pt.categories?.map(c => (
                         <Badge key={c.id} variant="secondary">{c.name}</Badge>

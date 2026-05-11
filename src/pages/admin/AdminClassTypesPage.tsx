@@ -155,14 +155,14 @@ export function AdminClassTypesPage() {
       {classTypes.length === 0 ? (
         <EmptyState icon={Dumbbell} message={t('common.noResults')} actionLabel={t('admin.classTypes.add')} onAction={openAdd} />
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t('admin.classTypes.name')}</TableHead>
-                <TableHead>{t('admin.classTypes.description')}</TableHead>
-                <TableHead>{t('admin.classTypes.creditType')}</TableHead>
-                <TableHead className="text-center">{t('schedule.defaultMaxParticipants')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('admin.classTypes.description')}</TableHead>
+                <TableHead className="hidden lg:table-cell">{t('admin.classTypes.creditType')}</TableHead>
+                <TableHead className="hidden sm:table-cell text-center">Max</TableHead>
                 <TableHead>{t('admin.classTypes.active')}</TableHead>
                 <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
@@ -171,9 +171,9 @@ export function AdminClassTypesPage() {
               {classTypes.map((ct) => (
                 <TableRow key={ct.id}>
                   <TableCell className="font-medium">{ct.name}</TableCell>
-                  <TableCell>{ct.description ?? '-'}</TableCell>
-                  <TableCell>{ct.credit_type?.label_fr ?? '-'}</TableCell>
-                  <TableCell className="text-center font-medium">{ct.default_max_participants ?? '-'}</TableCell>
+                  <TableCell className="hidden md:table-cell">{ct.description ?? '-'}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{ct.credit_type?.label_fr ?? '-'}</TableCell>
+                  <TableCell className="hidden sm:table-cell text-center font-medium">{ct.default_max_participants ?? '-'}</TableCell>
                   <TableCell>
                     <Badge variant={ct.is_active ? 'default' : 'secondary'}>
                       {ct.is_active ? t('common.active') : t('common.inactive')}

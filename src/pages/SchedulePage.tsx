@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -12,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
-import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Zap, MapPin, Lock, Ban, UserMinus, UserPlus, Info } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Lock, Ban, UserMinus, UserPlus, Info, SlidersHorizontal } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { toast } from 'sonner'
+import { sendEmail } from '@/lib/send-email'
 import { addDays, startOfWeek, format, isSameDay, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -68,7 +70,8 @@ function isBookingClosed(sc: ScheduledClass, bookingsCount: number, rules: Booki
 
 export function SchedulePage() {
   const { t, i18n } = useTranslation()
-  const { user, roles, hasRegistrationFee, hasUsedTrial, refreshProfile } = useAuth()
+  const navigate = useNavigate()
+  const { user, profile, roles, hasRegistrationFee, hasUsedTrial, refreshProfile } = useAuth()
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
   const [classes, setClasses] = useState<ScheduledClass[]>([])
@@ -79,12 +82,11 @@ export function SchedulePage() {
   const [bookingInProgress, setBookingInProgress] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDayIndex, setSelectedDayIndex] = useState(() => {
-    const today = new Date().getDay()
-    return today === 0 ? 6 : today - 1
-  })
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0)
   const [bookingRules, setBookingRules] = useState<BookingRules>(DEFAULT_RULES)
   const [roomNames, setRoomNames] = useState<Record<string, string>>({ haut: 'Back On Track Upstairs', bas: 'Back On Track Studio' })
+  const [swipeDirection, setSwipeDirection] = useState(0)
+  const [filterOpen, setFilterOpen] = useState(false)
 
   // Filters
   const [filterClassType, setFilterClassType] = useState<string>('all')
@@ -92,6 +94,11 @@ export function SchedulePage() {
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  // Day view: 7 days starting from currentDate (today by default), Technogym-style
+  const dayViewDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(currentDate, i)),
+    [currentDate]
+  )
 
   // Extract unique class types and coaches for filters
   const classTypes = useMemo(() => {
@@ -122,7 +129,8 @@ export function SchedulePage() {
   const fetchData = async () => {
     setLoading(true)
     const from = weekStart.toISOString()
-    const to = addDays(weekStart, 7).toISOString()
+    // Fetch 14 days to cover day view which can span past weekStart+7
+    const to = addDays(weekStart, 14).toISOString()
 
     const [classesRes, bookingsRes, waitlistRes, rulesRes, roomNamesRes] = await Promise.all([
       supabase
@@ -182,6 +190,16 @@ export function SchedulePage() {
 
   useEffect(() => { fetchData() }, [currentDate, user])
 
+  // Build email vars from a scheduled class
+  const classEmailVars = (sc: ScheduledClass, userName?: string) => ({
+    user_name: userName,
+    class_name: sc.title || sc.class_type?.name,
+    class_date: format(new Date(sc.starts_at), "EEEE dd MMMM 'à' HH:mm", { locale: fr }),
+    coach_name: sc.coach?.display_name,
+    room_name: sc.floor ? (roomNames[sc.floor] || sc.floor) : undefined,
+    duration_minutes: sc.duration_minutes,
+  })
+
   // ---- Booking handlers ----
   const handleBook = async (classId: string) => {
     if (!user) return
@@ -211,8 +229,21 @@ export function SchedulePage() {
     if (!credits || credits.length === 0) { toast.error(t('schedule.noCredits')); setBookingInProgress(null); return }
 
     const packPurchaseId = credits[0].pack_purchase_id
-    const { error } = await supabase.from('bookings').insert({ scheduled_class_id: classId, user_id: user.id, pack_purchase_id: packPurchaseId })
-    if (error) { toast.error(error.message); setBookingInProgress(null); return }
+
+    // Reactivate cancelled booking if one exists, else insert new
+    const { data: reactivated } = await supabase
+      .from('bookings')
+      .update({ status: 'confirmed', pack_purchase_id: packPurchaseId, cancelled_at: null })
+      .eq('scheduled_class_id', classId)
+      .eq('user_id', user.id)
+      .eq('status', 'cancelled')
+      .select()
+      .maybeSingle()
+
+    if (!reactivated) {
+      const { error } = await supabase.from('bookings').insert({ scheduled_class_id: classId, user_id: user.id, pack_purchase_id: packPurchaseId })
+      if (error) { toast.error(error.message); setBookingInProgress(null); return }
+    }
 
     await supabase.rpc('consume_credit', { p_pack_purchase_id: packPurchaseId })
     await logActivity({
@@ -222,6 +253,12 @@ export function SchedulePage() {
     })
     setUserBookings((prev) => new Set([...prev, classId]))
     setBookingCounts(prev => { const n = new Map(prev); n.set(classId, (n.get(classId) ?? 0) + 1); return n })
+
+    // Email confirmation (self-booking, optional)
+    if (profile?.email_on_self_booking && user.email) {
+      sendEmail('booking_confirmed', user.email, classEmailVars(scheduledClass, profile.display_name))
+    }
+
     toast.success(t('schedule.bookingConfirmed'))
     setBookingInProgress(null)
   }
@@ -262,12 +299,30 @@ export function SchedulePage() {
     const { data: credits } = await supabase.rpc('get_available_credits', { p_user_id: user.id, p_credit_type_id: scheduledClass.class_type.credit_type_id })
     if (!credits || credits.length === 0) { toast.error(t('schedule.noCredits')); setBookingInProgress(null); return }
     const packPurchaseId = credits[0].pack_purchase_id
-    const { error } = await supabase.from('bookings').insert({ scheduled_class_id: classId, user_id: user.id, pack_purchase_id: packPurchaseId })
-    if (error) { toast.error(error.message); setBookingInProgress(null); return }
+
+    const { data: reactivated } = await supabase
+      .from('bookings')
+      .update({ status: 'confirmed', pack_purchase_id: packPurchaseId, cancelled_at: null })
+      .eq('scheduled_class_id', classId)
+      .eq('user_id', user.id)
+      .eq('status', 'cancelled')
+      .select()
+      .maybeSingle()
+
+    if (!reactivated) {
+      const { error } = await supabase.from('bookings').insert({ scheduled_class_id: classId, user_id: user.id, pack_purchase_id: packPurchaseId })
+      if (error) { toast.error(error.message); setBookingInProgress(null); return }
+    }
+
     await supabase.rpc('consume_credit', { p_pack_purchase_id: packPurchaseId })
     await supabase.from('waitlist').update({ status: 'confirmed' }).eq('scheduled_class_id', classId).eq('user_id', user.id)
     setUserBookings((prev) => new Set([...prev, classId]))
     setUserWaitlist(prev => { const n = new Map(prev); n.delete(classId); return n })
+
+    if (profile?.email_on_self_booking && user.email) {
+      sendEmail('booking_confirmed', user.email, classEmailVars(scheduledClass, profile.display_name))
+    }
+
     toast.success(t('schedule.spotConfirmed'))
     setBookingInProgress(null)
   }
@@ -374,16 +429,25 @@ export function SchedulePage() {
       description: `Désinscription par ${roles.includes('admin') ? 'admin' : 'coach'}: ${booking.user?.display_name} du cours ${detailClass.class_type?.name}`,
     })
 
-    // Create notification for the member
+    // In-app notification
     await supabase.from('notifications').insert({
       user_id: booking.user_id,
       title: isFr ? 'Réservation annulée' : 'Booking cancelled',
       message: isFr
         ? `Votre réservation pour ${detailClass.class_type?.name} du ${format(new Date(detailClass.starts_at), 'dd/MM/yyyy HH:mm')} a été annulée par l'équipe.${result?.refunded ? ' Votre crédit a été restitué.' : ''}`
-        : `Your booking for ${detailClass.class_type?.name} on ${format(new Date(detailClass.starts_at), 'dd/MM/yyyy HH:mm')} was cancelled by staff.${result?.refunded ? ' Your credit has been refunded.' : ''}`,
+        : `Your booking for ${detailClass.class_type?.name} on ${format(new Date(detailClass.starts_at), 'dd/MM/yyyy HH:mm')} was cancelled by staff.${result?.refunded ? ' Votre crédit a été restitué.' : ''}`,
       type: 'warning',
       link: '/my-bookings',
     })
+
+    // Email (staff-cancel, always sent)
+    const { data: memberProfile } = await supabase.from('profiles').select('email, display_name').eq('id', booking.user_id).maybeSingle()
+    if (memberProfile?.email) {
+      sendEmail('booking_cancelled_by_staff', memberProfile.email, {
+        ...classEmailVars(detailClass, memberProfile.display_name ?? booking.user?.display_name),
+        refunded: result?.refunded as boolean | undefined,
+      })
+    }
 
     setDetailBookings(prev => prev.filter(b => b.id !== booking.id))
     setBookingCounts(prev => {
@@ -406,13 +470,20 @@ export function SchedulePage() {
       .eq('id', detailClass.id)
 
     // Cancel all bookings and refund credits
+    const userIds = detailBookings.map(b => b.user_id)
+    const { data: memberProfiles } = await supabase
+      .from('profiles')
+      .select('id, display_name, email')
+      .in('id', userIds)
+    const profileMap = new Map((memberProfiles ?? []).map(p => [p.id, p]))
+
     for (const booking of detailBookings) {
       await supabase.rpc('cancel_booking_v2', {
         p_booking_id: booking.id,
         p_user_id: booking.user_id,
       })
 
-      // Notify each member
+      // In-app notification
       await supabase.from('notifications').insert({
         user_id: booking.user_id,
         title: isFr ? 'Cours annulé' : 'Class cancelled',
@@ -422,6 +493,12 @@ export function SchedulePage() {
         type: 'error',
         link: '/schedule',
       })
+
+      // Email (class cancel, always sent)
+      const p = profileMap.get(booking.user_id)
+      if (p?.email) {
+        sendEmail('class_cancelled', p.email, classEmailVars(detailClass, p.display_name))
+      }
     }
 
     await logActivity({
@@ -507,16 +584,26 @@ export function SchedulePage() {
 
     setAddMemberLoading(true)
 
-    const { error } = await supabase.from('bookings').insert({
-      scheduled_class_id: detailClass.id,
-      user_id: member.user_id,
-      pack_purchase_id: member.pack_purchase_id,
-    })
+    const { data: reactivated } = await supabase
+      .from('bookings')
+      .update({ status: 'confirmed', pack_purchase_id: member.pack_purchase_id, cancelled_at: null })
+      .eq('scheduled_class_id', detailClass.id)
+      .eq('user_id', member.user_id)
+      .eq('status', 'cancelled')
+      .select()
+      .maybeSingle()
 
-    if (error) {
-      toast.error(error.message)
-      setAddMemberLoading(false)
-      return
+    if (!reactivated) {
+      const { error } = await supabase.from('bookings').insert({
+        scheduled_class_id: detailClass.id,
+        user_id: member.user_id,
+        pack_purchase_id: member.pack_purchase_id,
+      })
+      if (error) {
+        toast.error(error.message)
+        setAddMemberLoading(false)
+        return
+      }
     }
 
     await supabase.rpc('consume_credit', { p_pack_purchase_id: member.pack_purchase_id })
@@ -530,7 +617,7 @@ export function SchedulePage() {
       description: `${member.display_name} inscrit au cours ${detailClass.class_type?.name} du ${format(new Date(detailClass.starts_at), 'dd/MM/yyyy HH:mm')}`,
     })
 
-    // Notify the member
+    // In-app notification
     await supabase.from('notifications').insert({
       user_id: member.user_id,
       title: isFr ? 'Inscription à un cours' : 'Class booking',
@@ -540,6 +627,12 @@ export function SchedulePage() {
       type: 'success',
       link: '/my-bookings',
     })
+
+    // Email (staff-booking, always sent) — fetch member email
+    const { data: memberProfile } = await supabase.from('profiles').select('email').eq('id', member.user_id).maybeSingle()
+    if (memberProfile?.email) {
+      sendEmail('booking_created_by_staff', memberProfile.email, classEmailVars(detailClass, member.display_name))
+    }
 
     toast.success(isFr ? `${member.display_name} inscrit(e) !` : `${member.display_name} booked!`)
     setAddMemberOpen(false)
@@ -568,10 +661,80 @@ export function SchedulePage() {
     const spotsFree = sc.max_participants - spotsUsed
     const isFull = spotsFree <= 0
     const isBooking = bookingInProgress === sc.id
-    const creditLabel = isFr ? sc.class_type?.credit_type?.label_fr : sc.class_type?.credit_type?.label_en
-    const spotsPercent = Math.min((spotsUsed / sc.max_participants) * 100, 100)
     const classColor = sc.class_type?.color || '#3B82F6'
     const closed = !isPast && !isBooked && !isOnWaitlist && isBookingClosed(sc, spotsUsed, bookingRules)
+
+    const availabilityText = isPast
+      ? (isFr ? 'Terminé' : 'Past')
+      : isFull
+        ? (isFr ? 'Cours complet' : 'Class full')
+        : isFr
+          ? `${spotsFree} place${spotsFree > 1 ? 's' : ''} disponible${spotsFree > 1 ? 's' : ''}`
+          : `${spotsFree} spot${spotsFree > 1 ? 's' : ''} available`
+
+    const renderAction = () => {
+      if (isStaff) return (
+        <Button size="sm" variant="outline" className="rounded-full h-8 text-xs font-semibold"
+          onClick={(e) => { e.stopPropagation(); openClassDetail(sc) }}>
+          <Users className="h-3 w-3 mr-1" />{isFr ? 'Détail' : 'Detail'}
+        </Button>
+      )
+      if (isPast) return isBooked ? (
+        <span className="flex items-center gap-1 text-xs text-primary/70">
+          <Check className="h-3.5 w-3.5" />{t('schedule.booked')}
+        </span>
+      ) : null
+      if (isBooked) return (
+        <span className="flex items-center gap-1 text-xs font-semibold text-primary">
+          <Check className="h-4 w-4" />{t('schedule.booked')}
+        </span>
+      )
+      if (isOffered) return (
+        <Button size="sm" className="rounded-full h-8 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white"
+          onClick={(e) => { e.stopPropagation(); handleConfirmWaitlistSpot(sc.id) }} disabled={isBooking}>
+          {isBooking ? '...' : t('schedule.confirmSpot')}
+        </Button>
+      )
+      if (isOnWaitlist) return (
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Clock3 className="h-3 w-3" />
+            {t('schedule.onWaitlist', { position: waitlistEntry.position })}
+          </span>
+          <button onClick={(e) => { e.stopPropagation(); handleLeaveWaitlist(sc.id) }} className="text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )
+      if (closed) return (
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Lock className="h-3 w-3" />{isFr ? 'Fermé' : 'Closed'}
+        </span>
+      )
+      if (isFull) return (
+        <Button size="sm" variant="outline"
+          className="rounded-full h-8 text-xs font-bold border-primary/50 text-primary hover:bg-primary/10"
+          onClick={(e) => { e.stopPropagation(); handleJoinWaitlist(sc.id) }} disabled={isBooking}>
+          {isBooking ? '...' : (isFr ? 'Liste d\'attente' : 'Waitlist')}
+        </Button>
+      )
+      if (canUseTrial) return (
+        <Button size="sm"
+          className="rounded-full h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-4"
+          onClick={(e) => { e.stopPropagation(); handleTrialBooking(sc.id) }} disabled={isBooking}>
+          {isBooking ? '...' : (isFr ? 'Essai gratuit' : 'Free trial')}
+        </Button>
+      )
+      return (
+        <Button size="sm"
+          className="rounded-full h-8 text-xs font-bold bg-foreground hover:bg-foreground/90 text-background px-4 uppercase tracking-wide"
+          onClick={(e) => { e.stopPropagation(); handleBook(sc.id) }} disabled={isBooking}>
+          {isBooking ? '...' : (isFr ? 'Réserver' : 'Book')}
+        </Button>
+      )
+    }
+
+    const clientCanOpenBookings = !isStaff && isBooked && !isPast
 
     return (
       <motion.div
@@ -579,164 +742,89 @@ export function SchedulePage() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         className={cn(
-          'rounded-xl border bg-card p-4 transition-all',
-          isPast && 'opacity-50',
+          'flex rounded-2xl border bg-card overflow-hidden transition-all',
+          isPast && 'opacity-60',
           !isPast && !isBooked && 'hover:border-primary/40',
-          isBooked && !isPast && 'bg-primary/5',
-          isOffered && !isPast && 'border-orange-400/50',
-          isStaff && 'cursor-pointer'
+          isBooked && !isPast && 'ring-1 ring-primary/30 hover:bg-muted/40',
+          isOffered && !isPast && 'ring-1 ring-orange-400/50',
+          (isStaff || clientCanOpenBookings) && 'cursor-pointer'
         )}
-        style={{
-          borderLeftWidth: '4px',
-          borderLeftColor: isPast ? undefined : classColor,
-        }}
-        onClick={isStaff ? () => openClassDetail(sc) : undefined}
+        onClick={
+          isStaff
+            ? () => openClassDetail(sc)
+            : clientCanOpenBookings
+              ? () => navigate('/my-bookings')
+              : undefined
+        }
       >
-        {/* Header: name + badge */}
-        <div className="flex items-start justify-between mb-2">
-          <h3 className="font-bold text-base flex items-center gap-1.5">
-            {sc.title || sc.class_type?.name}
-            {sc.class_type?.description_md && (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setInfoClassType(sc.class_type!) }}
-                className="text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Info className="h-4 w-4" />
-              </button>
-            )}
-          </h3>
-          <span
-            className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-            style={{ backgroundColor: `${classColor}20`, color: classColor }}
-          >
-            {creditLabel}
-          </span>
-        </div>
-
-        {/* Coach + Floor */}
-        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-          {sc.coach && (
-            <span className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5" />
-              {sc.coach.display_name}
-            </span>
-          )}
-          {sc.floor && (
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" />
-              {isStaff ? sc.floor : (roomNames[sc.floor] || sc.floor)}
-            </span>
-          )}
-        </div>
-
-        {/* Time + Duration + Credits */}
-        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
-          <span className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
-            {format(startsAt, 'HH:mm')} · {sc.duration_minutes}min
-          </span>
-          <span className="flex items-center gap-1">
-            <Zap className="h-3.5 w-3.5" />
-            1 {isFr ? 'crédit' : 'credit'}
-          </span>
-        </div>
-
-        {/* Spots progress bar + action */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className={cn('h-full rounded-full transition-all', isFull ? 'bg-destructive' : '')}
-                style={{ width: `${spotsPercent}%`, backgroundColor: isFull ? undefined : classColor }}
-              />
+        {/* Left: image */}
+        <div className="relative w-20 sm:w-28 shrink-0 bg-muted">
+          {sc.class_type?.image_url ? (
+            <img
+              src={sc.class_type.image_url}
+              alt={sc.class_type.name}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ background: `linear-gradient(135deg, ${classColor}cc, ${classColor}66)` }}
+            >
+              <span className="text-white/80 font-bold text-lg">
+                {(sc.class_type?.name || 'C').charAt(0)}
+              </span>
             </div>
-            <span className={cn('text-xs whitespace-nowrap', isFull ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-              {spotsUsed}/{sc.max_participants}
+          )}
+          <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: classColor }} />
+        </div>
+
+        {/* Right: info */}
+        <div className="flex-1 p-3 min-w-0 flex flex-col gap-1.5">
+          {/* Top: time badge + availability */}
+          <div className="flex items-start justify-between gap-2">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-foreground text-background font-bold text-sm leading-none">
+              {format(startsAt, 'HH:mm')}
+            </span>
+            <span className={cn(
+              'text-[11px] sm:text-xs text-right leading-tight',
+              isFull ? 'text-muted-foreground' : 'text-muted-foreground'
+            )}>
+              {availabilityText}
             </span>
           </div>
 
-          {/* Action button — staff vs member */}
-          {isStaff ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-full px-3 h-7 text-xs font-semibold"
-              onClick={(e) => { e.stopPropagation(); openClassDetail(sc) }}
-            >
-              <Users className="h-3 w-3 mr-1" />
-              {isFr ? 'Détail' : 'Detail'}
-            </Button>
-          ) : isPast ? (
-            <span className="text-xs text-muted-foreground">
-              {isBooked ? (
-                <span className="flex items-center gap-1 text-primary/60">
-                  <Check className="h-3.5 w-3.5" />
-                  {t('schedule.booked')}
-                </span>
-              ) : (
-                isFr ? 'Terminé' : 'Past'
-              )}
-            </span>
-          ) : isBooked ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-primary">
-              <Check className="h-3.5 w-3.5" />
-              {t('schedule.booked')}
-            </span>
-          ) : isOffered ? (
-            <Button
-              size="sm"
-              className="rounded-full px-3 h-7 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white"
-              onClick={(e) => { e.stopPropagation(); handleConfirmWaitlistSpot(sc.id) }}
-              disabled={isBooking}
-            >
-              {isBooking ? '...' : t('schedule.confirmSpot')}
-            </Button>
-          ) : isOnWaitlist ? (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock3 className="h-3 w-3" />
-                {t('schedule.onWaitlist', { position: waitlistEntry.position })}
-              </span>
-              <button onClick={(e) => { e.stopPropagation(); handleLeaveWaitlist(sc.id) }} className="text-muted-foreground hover:text-foreground">
-                <X className="h-3.5 w-3.5" />
+          {/* Title + info icon */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h3 className="font-bold text-base sm:text-lg leading-tight truncate">
+              {sc.title || sc.class_type?.name}
+            </h3>
+            {(sc.class_type?.description_md || sc.class_type?.image_url) && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setInfoClassType(sc.class_type!) }}
+                className="text-muted-foreground hover:text-primary shrink-0"
+              >
+                <Info className="h-3.5 w-3.5" />
               </button>
-            </div>
-          ) : closed ? (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Lock className="h-3 w-3" />
-              {isFr ? 'Fermé' : 'Closed'}
-            </span>
-          ) : isFull ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-full px-3 h-7 text-xs font-semibold border-primary/50 text-primary hover:bg-primary/10"
-              onClick={(e) => { e.stopPropagation(); handleJoinWaitlist(sc.id) }}
-              disabled={isBooking}
-            >
-              {isBooking ? '...' : t('schedule.joinWaitlist')}
-            </Button>
-          ) : canUseTrial ? (
-            <Button
-              size="sm"
-              className="rounded-full px-3 h-7 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={(e) => { e.stopPropagation(); handleTrialBooking(sc.id) }}
-              disabled={isBooking}
-            >
-              {isBooking ? '...' : (isFr ? 'Essai gratuit' : 'Free trial')}
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-full px-3 h-7 text-xs font-semibold border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-              onClick={(e) => { e.stopPropagation(); handleBook(sc.id) }}
-              disabled={isBooking}
-            >
-              {isBooking ? '...' : t('schedule.book')}
-            </Button>
+            )}
+          </div>
+
+          {/* Coach · Room */}
+          {(sc.coach || sc.floor) && (
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+              {sc.coach?.display_name}
+              {sc.coach && sc.floor && <span className="mx-1.5">·</span>}
+              {sc.floor && (isStaff ? sc.floor : (roomNames[sc.floor] || sc.floor))}
+            </p>
           )}
+
+          {/* Bottom: duration + action */}
+          <div className="flex items-end justify-between gap-2 mt-auto pt-1">
+            <span className="text-xs text-muted-foreground font-medium">
+              {sc.duration_minutes} min
+            </span>
+            {renderAction()}
+          </div>
         </div>
       </motion.div>
     )
@@ -765,16 +853,20 @@ export function SchedulePage() {
       {/* Week nav + view toggle */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate((d) => addDays(d, -7))}>
+          <Button variant="ghost" size="icon" className="h-8 w-8"
+            onClick={() => { setSwipeDirection(-1); setCurrentDate((d) => addDays(d, -7)) }}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <button
-            onClick={() => setCurrentDate(new Date())}
+            onClick={() => { setSwipeDirection(0); setCurrentDate(new Date()); setSelectedDayIndex(0) }}
             className="text-sm font-medium hover:text-primary transition-colors"
           >
-            {format(weekStart, 'dd MMM', { locale })} — {format(addDays(weekStart, 6), 'dd MMM yyyy', { locale })}
+            {viewMode === 'day'
+              ? `${format(dayViewDays[0], 'dd MMM', { locale })} — ${format(dayViewDays[6], 'dd MMM yyyy', { locale })}`
+              : `${format(weekStart, 'dd MMM', { locale })} — ${format(addDays(weekStart, 6), 'dd MMM yyyy', { locale })}`}
           </button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate((d) => addDays(d, 7))}>
+          <Button variant="ghost" size="icon" className="h-8 w-8"
+            onClick={() => { setSwipeDirection(1); setCurrentDate((d) => addDays(d, 7)) }}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -804,75 +896,103 @@ export function SchedulePage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <Select value={filterClassType} onValueChange={(v) => setFilterClassType(v ?? 'all')}>
-          <SelectTrigger className="w-[180px] h-9">
-            <span className="text-sm">
-              {filterClassType === 'all'
-                ? (isFr ? 'Tous les cours' : 'All classes')
-                : classTypes.find(ct => ct.id === filterClassType)?.name}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{isFr ? 'Tous les cours' : 'All classes'}</SelectItem>
-            {classTypes.map(ct => (
-              <SelectItem key={ct.id} value={ct.id}>
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ct.color }} />
-                  {ct.name}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Filters — single button opens popup */}
+      {(() => {
+        const activeCount = (filterClassType !== 'all' ? 1 : 0) + (filterCoach !== 'all' ? 1 : 0)
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full h-9 gap-1.5"
+              onClick={() => setFilterOpen(true)}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="text-sm">{isFr ? 'Filtres' : 'Filters'}</span>
+              {activeCount > 0 && (
+                <Badge variant="default" className="h-5 px-1.5 text-[10px] ml-1">{activeCount}</Badge>
+              )}
+            </Button>
+            {activeCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-xs text-muted-foreground"
+                onClick={() => { setFilterClassType('all'); setFilterCoach('all') }}
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                {isFr ? 'Réinitialiser' : 'Reset'}
+              </Button>
+            )}
+          </div>
+        )
+      })()}
 
-        <Select value={filterCoach} onValueChange={(v) => setFilterCoach(v ?? 'all')}>
-          <SelectTrigger className="w-[180px] h-9">
-            <span className="text-sm">
-              {filterCoach === 'all'
-                ? (isFr ? 'Tous les coachs' : 'All coaches')
-                : coaches.find(c => c.id === filterCoach)?.name}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{isFr ? 'Tous les coachs' : 'All coaches'}</SelectItem>
-            {coaches.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* DAY VIEW */}
+      {/* DAY VIEW — Technogym style, swipeable week-by-week */}
       {viewMode === 'day' && (
         <>
-          {/* Day tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {weekDays.map((day, idx) => {
-              const dayClasses = getClassesForDay(day)
-              const isSelected = selectedDayIndex === idx
-              const today = isToday(day)
-              return (
-                <button
-                  key={day.toISOString()}
-                  onClick={() => setSelectedDayIndex(idx)}
-                  className={cn(
-                    'flex flex-col items-center min-w-[80px] px-4 py-2.5 rounded-xl border text-sm transition-all',
-                    isSelected
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border hover:border-muted-foreground/30',
-                    today && !isSelected && 'border-primary/30'
-                  )}
-                >
-                  <span className="font-semibold capitalize">{format(day, 'EEE', { locale })}</span>
-                  <span className="text-lg font-bold">{format(day, 'd')}</span>
-                  <span className="text-xs text-muted-foreground mt-0.5">
-                    {dayClasses.length} {isFr ? 'cours' : dayClasses.length === 1 ? 'class' : 'classes'}
-                  </span>
-                </button>
-              )
-            })}
+          {/* Day tabs — swipe horizontal = change week */}
+          <div className="relative overflow-hidden">
+            <AnimatePresence mode="popLayout" custom={swipeDirection} initial={false}>
+              <motion.div
+                key={dayViewDays[0].toDateString()}
+                custom={swipeDirection}
+                variants={{
+                  enter: (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
+                  center: { x: 0, opacity: 1 },
+                  exit: (dir: number) => ({ x: dir > 0 ? -300 : 300, opacity: 0 }),
+                }}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.3}
+                onDragEnd={(_, info) => {
+                  const threshold = 60
+                  if (info.offset.x < -threshold) {
+                    setSwipeDirection(1)
+                    setCurrentDate(d => addDays(d, 7))
+                  } else if (info.offset.x > threshold) {
+                    setSwipeDirection(-1)
+                    setCurrentDate(d => addDays(d, -7))
+                  }
+                }}
+                className="flex gap-1 touch-pan-y cursor-grab active:cursor-grabbing"
+              >
+                {dayViewDays.map((day, idx) => {
+                  const isSelected = selectedDayIndex === idx
+                  const today = isToday(day)
+                  const count = getClassesForDay(day).length
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedDayIndex(idx)}
+                      className={cn(
+                        'flex-1 flex flex-col items-center justify-center min-w-0 py-1 rounded-lg transition-colors select-none',
+                        isSelected ? 'bg-foreground text-background' : 'hover:bg-muted/50'
+                      )}
+                    >
+                      <span className="text-[9px] font-medium uppercase tracking-wide opacity-70">
+                        {format(day, 'EEE', { locale })}
+                      </span>
+                      <span className="text-base font-bold leading-none mt-0.5">{format(day, 'd')}</span>
+                      <span className={cn(
+                        'text-[9px] leading-none mt-0.5',
+                        isSelected ? 'opacity-70' : 'text-muted-foreground',
+                        count === 0 && 'invisible'
+                      )}>
+                        {count}
+                      </span>
+                      {today && (
+                        <span className={cn('h-1 w-1 rounded-full mt-0.5', isSelected ? 'bg-background' : 'bg-primary')} />
+                      )}
+                    </button>
+                  )
+                })}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           <AnimatePresence mode="wait">
@@ -883,11 +1003,11 @@ export function SchedulePage() {
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.15 }}
             >
-              {getClassesForDay(weekDays[selectedDayIndex]).length === 0 ? (
+              {getClassesForDay(dayViewDays[selectedDayIndex]).length === 0 ? (
                 <EmptyState icon={CalendarDays} message={t('schedule.noClasses')} />
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {getClassesForDay(weekDays[selectedDayIndex]).map((sc) => (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {getClassesForDay(dayViewDays[selectedDayIndex]).map((sc) => (
                     <ClassCard key={sc.id} sc={sc} />
                   ))}
                 </div>
@@ -1148,6 +1268,83 @@ export function SchedulePage() {
           />
         </>
       )}
+
+      {/* Filter popup */}
+      <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Filtres' : 'Filters'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {isFr ? 'Type de cours' : 'Class type'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={filterClassType === 'all' ? 'default' : 'outline'}
+                  className="rounded-full h-8 text-xs"
+                  onClick={() => setFilterClassType('all')}
+                >
+                  {isFr ? 'Tous' : 'All'}
+                </Button>
+                {classTypes.map(ct => (
+                  <Button
+                    key={ct.id}
+                    size="sm"
+                    variant={filterClassType === ct.id ? 'default' : 'outline'}
+                    className="rounded-full h-8 text-xs gap-1.5"
+                    onClick={() => setFilterClassType(ct.id)}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ct.color }} />
+                    {ct.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {isFr ? 'Coach' : 'Coach'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={filterCoach === 'all' ? 'default' : 'outline'}
+                  className="rounded-full h-8 text-xs"
+                  onClick={() => setFilterCoach('all')}
+                >
+                  {isFr ? 'Tous' : 'All'}
+                </Button>
+                {coaches.map(c => (
+                  <Button
+                    key={c.id}
+                    size="sm"
+                    variant={filterCoach === c.id ? 'default' : 'outline'}
+                    className="rounded-full h-8 text-xs"
+                    onClick={() => setFilterCoach(c.id)}
+                  >
+                    {c.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-2 border-t">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setFilterClassType('all'); setFilterCoach('all') }}
+            >
+              {isFr ? 'Réinitialiser' : 'Reset'}
+            </Button>
+            <Button size="sm" onClick={() => setFilterOpen(false)}>
+              {isFr ? 'Appliquer' : 'Apply'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Class type info popup */}
       <Dialog open={!!infoClassType} onOpenChange={(open) => { if (!open) setInfoClassType(null) }}>

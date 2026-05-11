@@ -30,6 +30,7 @@ export interface Profile {
   facebook_url: string | null
   linkedin_url: string | null
   coach_description: string | null
+  email_on_self_booking: boolean
   created_at: string
   updated_at: string
   last_sign_in_at: string | null

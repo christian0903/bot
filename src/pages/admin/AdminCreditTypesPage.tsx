@@ -98,22 +98,22 @@ export function AdminCreditTypesPage() {
       {creditTypes.length === 0 ? (
         <EmptyState icon={CreditCard} message={t('common.noResults')} actionLabel={t('admin.creditTypes.add')} onAction={openAdd} />
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('admin.creditTypes.name')}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t('admin.creditTypes.name')}</TableHead>
                 <TableHead>{t('admin.creditTypes.labelFr')}</TableHead>
-                <TableHead>{t('admin.creditTypes.labelEn')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('admin.creditTypes.labelEn')}</TableHead>
                 <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {creditTypes.map((ct) => (
                 <TableRow key={ct.id}>
-                  <TableCell className="font-medium">{ct.name}</TableCell>
+                  <TableCell className="hidden sm:table-cell font-medium">{ct.name}</TableCell>
                   <TableCell>{ct.label_fr}</TableCell>
-                  <TableCell>{ct.label_en}</TableCell>
+                  <TableCell className="hidden md:table-cell">{ct.label_en}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(ct)}>

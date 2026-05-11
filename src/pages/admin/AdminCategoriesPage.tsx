@@ -106,12 +106,12 @@ export function AdminCategoriesPage() {
       {categories.length === 0 ? (
         <EmptyState icon={Tags} message={t('common.noResults')} actionLabel={t('admin.categories.add')} onAction={openAdd} />
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t('admin.categories.name')}</TableHead>
-                <TableHead>{t('admin.categories.description')}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t('admin.categories.description')}</TableHead>
                 <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -119,7 +119,7 @@ export function AdminCategoriesPage() {
               {categories.map((cat) => (
                 <TableRow key={cat.id}>
                   <TableCell className="font-medium">{cat.name}</TableCell>
-                  <TableCell>{cat.description ?? '-'}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{cat.description ?? '-'}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(cat)}>

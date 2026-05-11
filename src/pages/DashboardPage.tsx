@@ -6,12 +6,15 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CalendarDays, CreditCard, ChevronRight, Dumbbell, ShoppingBag } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { CalendarDays, CreditCard, ChevronRight, Dumbbell, ShoppingBag, X, Clock, Megaphone } from 'lucide-react'
 import { LoadingState } from '@/components/common/LoadingState'
 import type { PackPurchase, Booking, ScheduledClass } from '@/types'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const CREDIT_COLORS: Record<string, string> = {
   semi_prive: 'bg-blue-500',
@@ -32,6 +35,23 @@ export function DashboardPage() {
   const [packs, setPacks] = useState<PackPurchase[]>([])
   const [upcomingBookings, setUpcomingBookings] = useState<(Booking & { scheduled_class: ScheduledClass })[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedPack, setSelectedPack] = useState<PackPurchase | null>(null)
+  const [packBookings, setPackBookings] = useState<(Booking & { scheduled_class: ScheduledClass })[]>([])
+  const [packBookingsLoading, setPackBookingsLoading] = useState(false)
+  const [announcement, setAnnouncement] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'announcement')
+      .single()
+      .then(({ data }) => {
+        if (data?.value?.content && data.value.published) {
+          setAnnouncement(data.value.content as string)
+        }
+      })
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -98,6 +118,36 @@ export function DashboardPage() {
     fetchData()
   }, [user])
 
+  const openPackDetail = async (pack: PackPurchase) => {
+    setSelectedPack(pack)
+    setPackBookingsLoading(true)
+    setPackBookings([])
+
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('pack_purchase_id', pack.id)
+      .order('created_at', { ascending: false })
+
+    const raw = (bookings as Booking[]) ?? []
+    if (raw.length > 0) {
+      const classIds = [...new Set(raw.map(b => b.scheduled_class_id))]
+      const { data: classData } = await supabase
+        .from('scheduled_classes')
+        .select('*, class_type:class_types(*)')
+        .in('id', classIds)
+      const classMap = new Map((classData ?? []).map(c => [c.id, c]))
+      for (const b of raw) {
+        (b as Booking & { scheduled_class: ScheduledClass }).scheduled_class = classMap.get(b.scheduled_class_id) as ScheduledClass
+      }
+      const withClasses = (raw as (Booking & { scheduled_class: ScheduledClass })[])
+        .filter(b => b.scheduled_class)
+        .sort((a, b) => new Date(b.scheduled_class.starts_at).getTime() - new Date(a.scheduled_class.starts_at).getTime())
+      setPackBookings(withClasses)
+    }
+    setPackBookingsLoading(false)
+  }
+
   if (loading) return <LoadingState />
 
   const firstName = profile?.first_name || profile?.display_name?.split(' ')[0] || ''
@@ -113,6 +163,26 @@ export function DashboardPage() {
           {isFr ? 'Prêt pour votre séance ?' : 'Ready for your session?'}
         </p>
       </motion.div>
+
+      {/* Announcement */}
+      {announcement && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }}>
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Megaphone className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{announcement}</ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Upcoming bookings — first and prominent */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
@@ -264,7 +334,11 @@ export function DashboardPage() {
                   const daysLeft = Math.ceil((new Date(pack.expires_at).getTime() - Date.now()) / 86400000)
 
                   return (
-                    <div key={pack.id} className="p-3 rounded-xl border bg-card">
+                    <div
+                      key={pack.id}
+                      onClick={() => openPackDetail(pack)}
+                      className="p-3 rounded-xl border bg-card cursor-pointer hover:bg-muted/40 transition-colors"
+                    >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Badge className={badgeClass} variant="secondary">{creditLabel}</Badge>
@@ -297,6 +371,84 @@ export function DashboardPage() {
           </Card>
         </motion.div>
       )}
+
+      {/* Pack detail — bookings made with this pack */}
+      <Dialog open={!!selectedPack} onOpenChange={(open) => { if (!open) setSelectedPack(null) }}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          {selectedPack && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selectedPack.pack_type?.name}</DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  {selectedPack.credits_remaining}/{selectedPack.pack_type?.credit_count} {isFr ? 'crédits restants' : 'credits remaining'}
+                  {' · '}
+                  {isFr ? 'expire le' : 'expires'} {format(new Date(selectedPack.expires_at), 'dd/MM/yyyy')}
+                </p>
+              </DialogHeader>
+
+              {packBookingsLoading ? (
+                <LoadingState />
+              ) : packBookings.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  {isFr ? 'Aucun cours réservé avec ce pack' : 'No bookings on this pack'}
+                </p>
+              ) : (
+                <div className="space-y-2 mt-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {isFr ? 'Cours réservés' : 'Bookings'} ({packBookings.length})
+                  </p>
+                  {packBookings.map((booking) => {
+                    const sc = booking.scheduled_class
+                    const startsAt = new Date(sc.starts_at)
+                    const isPast = startsAt < new Date()
+                    const isCancelled = booking.status === 'cancelled'
+                    const color = sc.class_type?.color || '#3B82F6'
+                    return (
+                      <div
+                        key={booking.id}
+                        className="flex items-center gap-3 p-2.5 rounded-lg border"
+                        style={{ borderLeftWidth: '3px', borderLeftColor: color }}
+                      >
+                        <div className="flex flex-col items-center justify-center h-10 w-10 rounded-lg bg-muted shrink-0">
+                          <span className="text-[10px] font-medium uppercase text-muted-foreground">
+                            {format(startsAt, 'MMM', { locale })}
+                          </span>
+                          <span className="text-sm font-bold leading-none">
+                            {format(startsAt, 'd')}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{sc.class_type?.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(startsAt, 'HH:mm')} · {sc.duration_minutes}min
+                          </p>
+                        </div>
+                        <div className="shrink-0">
+                          {isCancelled ? (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <X className="h-3 w-3" />
+                              {isFr ? 'Annulé' : 'Cancelled'}
+                            </span>
+                          ) : isPast ? (
+                            <span className="text-xs text-muted-foreground">
+                              {isFr ? 'Passé' : 'Past'}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-primary font-medium">
+                              <Clock className="h-3 w-3" />
+                              {isFr ? 'À venir' : 'Upcoming'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -43,8 +43,8 @@ export function AdminLayout() {
   return (
     <div className="flex flex-col md:flex-row gap-6">
       {/* Sidebar desktop / Horizontal scroll mobile */}
-      <nav className="md:w-56 shrink-0">
-        <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 md:sticky md:top-20">
+      <nav className="md:w-56 shrink-0 sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:static md:mx-0 md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none">
+        <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible md:sticky md:top-20">
           {adminNav.map(({ path, icon: Icon, labelKey }) => (
             <NavLink
               key={path}

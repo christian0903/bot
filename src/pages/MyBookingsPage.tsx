@@ -12,13 +12,14 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { CalendarDays } from 'lucide-react'
 import { toast } from 'sonner'
+import { sendEmail } from '@/lib/send-email'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import type { Booking } from '@/types'
 
 export function MyBookingsPage() {
   const { t, i18n } = useTranslation()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -101,6 +102,19 @@ export function MyBookingsPage() {
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' as const, cancelled_at: new Date().toISOString() } : b))
       )
 
+      // Email (self-cancel, optional)
+      if (profile?.email_on_self_booking && user.email && booking?.scheduled_class) {
+        const sc = booking.scheduled_class
+        sendEmail('booking_cancelled_by_self', user.email, {
+          user_name: profile.display_name,
+          class_name: sc.title || sc.class_type?.name,
+          class_date: format(new Date(sc.starts_at), "EEEE dd MMMM 'à' HH:mm", { locale: fr }),
+          coach_name: sc.coach?.display_name,
+          duration_minutes: sc.duration_minutes,
+          refunded,
+        })
+      }
+
       if (refunded) {
         toast.success(isFr
           ? 'Réservation annulée — crédit restitué'
@@ -117,12 +131,16 @@ export function MyBookingsPage() {
   if (loading) return <LoadingState />
 
   const now = new Date()
-  const upcoming = bookings.filter(
-    (b) => b.status === 'confirmed' && new Date(b.scheduled_class?.starts_at ?? '') > now
-  )
-  const past = bookings.filter(
-    (b) => b.status !== 'confirmed' || new Date(b.scheduled_class?.starts_at ?? '') <= now
-  )
+  const upcoming = bookings
+    .filter((b) => b.status === 'confirmed' && new Date(b.scheduled_class?.starts_at ?? '') > now)
+    .sort((a, b) =>
+      new Date(a.scheduled_class?.starts_at ?? '').getTime() - new Date(b.scheduled_class?.starts_at ?? '').getTime()
+    )
+  const past = bookings
+    .filter((b) => b.status !== 'confirmed' || new Date(b.scheduled_class?.starts_at ?? '') <= now)
+    .sort((a, b) =>
+      new Date(b.scheduled_class?.starts_at ?? '').getTime() - new Date(a.scheduled_class?.starts_at ?? '').getTime()
+    )
 
   const BookingCard = ({ booking }: { booking: Booking }) => (
     <Card>
