@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { sendEmail } from '@/lib/send-email'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -86,6 +87,9 @@ export function ProfilePage() {
 
     // Email change: only via auth, profiles.email is synced by a DB trigger
     // once the user confirms the new address by clicking the email link.
+    // Requires Supabase "Secure email change" to be OFF, so only the new
+    // address receives the actionable link. We send an informational
+    // notice to the OLD address ourselves (via Resend) for security audit.
     const currentEmail = user.email ?? ''
     const newEmail = form.email.trim()
     let emailChangeRequested = false
@@ -100,6 +104,12 @@ export function ProfilePage() {
         return
       }
       emailChangeRequested = true
+      if (currentEmail) {
+        sendEmail('email_change_notice', currentEmail, {
+          user_name: form.display_name || profile?.display_name || '',
+          new_email: newEmail,
+        })
+      }
     }
 
     const { error } = await supabase
@@ -134,9 +144,9 @@ export function ProfilePage() {
       if (emailChangeRequested) {
         toast.info(
           isFr
-            ? `Important : Supabase envoie un email à VOTRE ANCIENNE adresse (${currentEmail}) ET à la nouvelle (${newEmail}). Vous devez cliquer sur le lien dans LES DEUX emails pour valider le changement.`
-            : `Important: Supabase sends a confirmation email to BOTH your old address (${currentEmail}) AND the new one (${newEmail}). You must click the link in BOTH emails to validate the change.`,
-          { duration: 15000 },
+            ? `Un email de confirmation a été envoyé à ${newEmail}. Cliquez sur le lien pour valider. Un avertissement (sans action) a aussi été envoyé à ${currentEmail}.`
+            : `A confirmation email was sent to ${newEmail}. Click the link to validate. A notice (no action needed) was also sent to ${currentEmail}.`,
+          { duration: 10000 },
         )
       }
       refreshProfile()
@@ -178,8 +188,8 @@ export function ProfilePage() {
           </p>
           <p className="text-amber-700 dark:text-amber-300 mt-1">
             {isFr
-              ? `Vous avez demandé à changer votre email vers ${pendingNewEmail}. Le changement ne sera effectif qu'après avoir cliqué sur le lien envoyé à votre ANCIENNE adresse ET à la NOUVELLE.`
-              : `You requested to change your email to ${pendingNewEmail}. The change will only take effect after clicking the link sent to your OLD address AND the NEW one.`}
+              ? `Cliquez sur le lien envoyé à ${pendingNewEmail} pour valider le changement.`
+              : `Click the link sent to ${pendingNewEmail} to validate the change.`}
           </p>
         </div>
       )}

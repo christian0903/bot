@@ -6,6 +6,7 @@ export type TemplateKey =
   | 'class_modified'
   | 'class_cancelled'
   | 'password_reset_by_admin'
+  | 'email_change_notice'
 
 export interface TemplateVars {
   user_name?: string
@@ -16,6 +17,7 @@ export interface TemplateVars {
   room_name?: string
   duration_minutes?: number
   refunded?: boolean         // pour booking_cancelled_by_self
+  new_email?: string         // pour email_change_notice
   app_url?: string
 }
 
@@ -164,6 +166,22 @@ export function buildTemplate(template: TemplateKey, v: TemplateVars): { subject
         ${cta(`${appUrl}/auth`, 'Se connecter')}
       `
       return { subject, html: shell('Mot de passe réinitialisé', body) }
+    }
+
+    case 'email_change_notice': {
+      const subject = 'Votre adresse email va changer'
+      const body = `
+        <p>${hello}</p>
+        <p>Une demande de <strong>changement d'email</strong> a été initiée depuis votre compte Back On Track.</p>
+        <p>Votre nouvelle adresse sera : <strong>${v.new_email ?? ''}</strong></p>
+        <p>Un email de confirmation a été envoyé à cette nouvelle adresse. Le changement sera effectif dès que vous aurez cliqué sur le lien de confirmation.</p>
+        <p style="background:#fef3c7;border-radius:8px;padding:12px 14px;color:#92400e;font-size:14px;margin:18px 0;">
+          ⚠️ <strong>Vous n'êtes pas à l'origine de cette demande ?</strong><br>
+          Connectez-vous immédiatement et changez votre mot de passe, ou contactez-nous.
+        </p>
+        ${cta(`${appUrl}/auth`, 'Se connecter')}
+      `
+      return { subject, html: shell('Changement d\'adresse email', body) }
     }
   }
 }

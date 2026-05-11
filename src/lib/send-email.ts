@@ -8,6 +8,7 @@ export type EmailTemplate =
   | 'class_modified'
   | 'class_cancelled'
   | 'password_reset_by_admin'
+  | 'email_change_notice'
 
 export interface EmailVars {
   user_name?: string
@@ -18,6 +19,7 @@ export interface EmailVars {
   room_name?: string
   duration_minutes?: number
   refunded?: boolean
+  new_email?: string
   app_url?: string
 }
 
