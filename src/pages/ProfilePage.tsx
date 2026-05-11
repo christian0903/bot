@@ -94,10 +94,12 @@ export function ProfilePage() {
     const newEmail = form.email.trim()
     let emailChangeRequested = false
     if (newEmail && newEmail !== currentEmail) {
-      const { error: authError } = await supabase.auth.updateUser(
-        { email: newEmail },
-        { emailRedirectTo: `${window.location.origin}/profile` },
-      )
+      // No emailRedirectTo passed: Supabase will use the configured Site URL
+      // from the dashboard, which works whether the user is on localhost
+      // (dev) or the deployed app. Forcing window.location.origin caused
+      // dev-environment users to receive a link with localhost redirect,
+      // which Supabase rejects if not whitelisted.
+      const { error: authError } = await supabase.auth.updateUser({ email: newEmail })
       if (authError) {
         setLoading(false)
         toast.error(authError.message)
