@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Lock, Ban, UserMinus, UserPlus, Info, SlidersHorizontal } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { MarkdownLink } from '@/components/common/MarkdownLink'
 import { toast } from 'sonner'
 import { sendEmail } from '@/lib/send-email'
 import { addDays, startOfWeek, format, isSameDay, isToday } from 'date-fns'
@@ -1361,7 +1362,7 @@ export function SchedulePage() {
               </DialogHeader>
               {infoClassType.description_md && (
                 <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown>{infoClassType.description_md}</ReactMarkdown>
+                  <ReactMarkdown components={{ a: MarkdownLink }}>{infoClassType.description_md}</ReactMarkdown>
                 </div>
               )}
             </>

@@ -6,6 +6,7 @@ import { BookOpen, Shield } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { LoadingState } from '@/components/common/LoadingState'
+import { MarkdownLink } from '@/components/common/MarkdownLink'
 
 export function HelpPage() {
   const { i18n } = useTranslation()
@@ -42,7 +43,7 @@ export function HelpPage() {
 
   const MarkdownContent = ({ content }: { content: string }) => (
     <div className="max-w-3xl mx-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-a:text-primary prose-strong:text-foreground prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-table:text-sm">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{content}</ReactMarkdown>
     </div>
   )
 

@@ -21,6 +21,7 @@ import { formatEuros } from '@/lib/utils'
 import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import ReactMarkdown from 'react-markdown'
+import { MarkdownLink } from '@/components/common/MarkdownLink'
 
 export function AdminCoachDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -305,7 +306,7 @@ export function AdminCoachDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown>{profile.coach_description}</ReactMarkdown>
+              <ReactMarkdown components={{ a: MarkdownLink }}>{profile.coach_description}</ReactMarkdown>
             </div>
           </CardContent>
         </Card>

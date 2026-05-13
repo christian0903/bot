@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { CalendarDays, ShoppingBag, Megaphone, Dumbbell, ArrowRight } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { MarkdownLink } from '@/components/common/MarkdownLink'
 import remarkGfm from 'remark-gfm'
 import { motion } from 'framer-motion'
 
@@ -88,7 +89,7 @@ export function HomePage() {
                 <div>
                   <h3 className="font-semibold mb-2">{t('home.announcements')}</h3>
                   <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{announcement}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{announcement}</ReactMarkdown>
                   </div>
                 </div>
               </div>
