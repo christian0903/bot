@@ -7,6 +7,7 @@ export type TemplateKey =
   | 'class_cancelled'
   | 'password_reset_by_admin'
   | 'email_change_notice'
+  | 'email_change_by_admin'
 
 export interface TemplateVars {
   user_name?: string
@@ -17,7 +18,8 @@ export interface TemplateVars {
   room_name?: string
   duration_minutes?: number
   refunded?: boolean         // pour booking_cancelled_by_self
-  new_email?: string         // pour email_change_notice
+  new_email?: string         // pour email_change_notice / email_change_by_admin
+  confirmation_url?: string  // pour email_change_by_admin
   app_url?: string
 }
 
@@ -166,6 +168,22 @@ export function buildTemplate(template: TemplateKey, v: TemplateVars): { subject
         ${cta(`${appUrl}/auth`, 'Se connecter')}
       `
       return { subject, html: shell('Mot de passe réinitialisé', body) }
+    }
+
+    case 'email_change_by_admin': {
+      const subject = 'Confirmez votre nouvelle adresse email — Back On Track'
+      const body = `
+        <p>${hello}</p>
+        <p>Un administrateur de Back On Track a initié un <strong>changement d'adresse email</strong> sur votre compte (typiquement pour corriger une adresse mal saisie).</p>
+        <p>Votre nouvelle adresse sera : <strong>${v.new_email ?? ''}</strong></p>
+        <p>Cliquez sur le bouton ci-dessous pour <strong>confirmer ce changement</strong>. Sans confirmation, votre adresse actuelle reste inchangée.</p>
+        ${cta(v.confirmation_url ?? '#', 'Confirmer ma nouvelle adresse')}
+        <p style="background:#fef3c7;border-radius:8px;padding:12px 14px;color:#92400e;font-size:14px;margin:18px 0;">
+          ⚠️ <strong>Vous n'avez rien demandé&nbsp;?</strong><br>
+          Ne cliquez pas sur le lien et contactez-nous immédiatement.
+        </p>
+      `
+      return { subject, html: shell('Confirmer votre nouvelle adresse', body) }
     }
 
     case 'email_change_notice': {

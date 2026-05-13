@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
 import { adminUpdatePassword } from '@/lib/admin-update-password'
+import { adminUpdateEmail } from '@/lib/admin-update-email'
 import { sendEmail } from '@/lib/send-email'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory } from '@/types'
@@ -30,7 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
@@ -76,6 +77,11 @@ export function AdminUserDetailPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
+
+  // Email change dialog
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [emailSaving, setEmailSaving] = useState(false)
 
   // Edit profile (name) dialog
   const [editProfileOpen, setEditProfileOpen] = useState(false)
@@ -294,6 +300,41 @@ export function AdminUserDetailPage() {
     setNewPassword('')
     setConfirmPassword('')
     setPasswordDialogOpen(true)
+  }
+
+  const openEmailDialog = () => {
+    setNewEmail('')
+    setEmailDialogOpen(true)
+  }
+
+  const handleChangeEmail = async () => {
+    if (!profile || !id) return
+    const candidate = newEmail.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)) {
+      toast.error(isFr ? 'Email invalide' : 'Invalid email')
+      return
+    }
+    if (candidate === (profile.email ?? '').toLowerCase()) {
+      toast.error(isFr ? 'Adresse identique à l\'actuelle' : 'Same as current address')
+      return
+    }
+    setEmailSaving(true)
+    const result = await adminUpdateEmail(id, candidate)
+    setEmailSaving(false)
+    if (!result.ok) {
+      toast.error(result.error ?? (isFr ? 'Échec de la mise à jour' : 'Update failed'))
+      return
+    }
+    await logActivity({
+      action: 'email_change_by_admin',
+      actor_id: currentUser?.id ?? null,
+      target_user_id: id,
+      description: `Demande de changement d'email pour ${profile.display_name} : ${profile.email ?? '—'} → ${candidate} (en attente de confirmation)`,
+    })
+    toast.success(isFr
+      ? `Lien de confirmation envoyé à ${candidate}`
+      : `Confirmation link sent to ${candidate}`)
+    setEmailDialogOpen(false)
   }
 
   const openEditProfile = () => {
@@ -899,11 +940,29 @@ export function AdminUserDetailPage() {
                 />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {isFr
-                ? `Pour changer l'email, le membre doit le faire depuis sa page profil (confirmation par email requise).`
-                : `To change the email, the member must do it from their own profile page (email confirmation required).`}
-            </p>
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-xs font-medium">{isFr ? 'Adresse email' : 'Email address'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{profile.email ?? '—'}</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs shrink-0"
+                  onClick={() => { setEditProfileOpen(false); openEmailDialog() }}
+                >
+                  <Mail className="h-3 w-3 mr-1" />
+                  {isFr ? 'Corriger…' : 'Fix…'}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? `Un lien de confirmation sera envoyé à la nouvelle adresse. Le changement n'est effectif qu'après confirmation par le membre.`
+                  : `A confirmation link will be sent to the new address. The change applies only after the member confirms.`}
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditProfileOpen(false)} disabled={editProfileSaving}>
@@ -917,6 +976,47 @@ export function AdminUserDetailPage() {
       </Dialog>
 
       {/* Password Reset Dialog (super_admin only) */}
+      {/* Email change dialog (admin / super_admin) */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              {isFr ? `Corriger l'email de ${profile.display_name}` : `Fix email for ${profile.display_name}`}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? `Adresse actuelle : ${profile.email ?? '—'}. Un lien de confirmation sera envoyé à la nouvelle adresse — le changement ne s'applique qu'après que le membre clique sur ce lien.`
+                : `Current address: ${profile.email ?? '—'}. A confirmation link will be sent to the new address — the change applies only after the member clicks it.`}
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor="admin-new-email">{isFr ? 'Nouvelle adresse email' : 'New email'}</Label>
+              <Input
+                id="admin-new-email"
+                type="email"
+                autoComplete="off"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="prenom.nom@example.com"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailDialogOpen(false)} disabled={emailSaving}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleChangeEmail}
+              disabled={emailSaving || !newEmail.trim()}
+            >
+              {emailSaving ? '...' : (isFr ? 'Envoyer le lien' : 'Send link')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>

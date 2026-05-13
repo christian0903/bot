@@ -17,6 +17,7 @@ type ActivityAction =
   | 'check_in'
   | 'no_show'
   | 'password_reset_by_admin'
+  | 'email_change_by_admin'
 
 interface LogEntry {
   action: ActivityAction

@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, CalendarDays, Users, Clock, MapPin, Euro, Pencil } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Users, Clock, MapPin, Euro, Pencil, Mail } from 'lucide-react'
+import { adminUpdateEmail } from '@/lib/admin-update-email'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ImageUpload } from '@/components/common/ImageUpload'
@@ -39,7 +40,6 @@ export function AdminCoachDetailPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({
     display_name: '',
-    email: '',
     phone: '',
     avatar_url: '',
     coach_description: '',
@@ -49,10 +49,14 @@ export function AdminCoachDetailPage() {
   })
   const [editSaving, setEditSaving] = useState(false)
 
+  // Email change dialog
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [emailSaving, setEmailSaving] = useState(false)
+
   const openEdit = () => {
     setEditForm({
       display_name: profile?.display_name ?? '',
-      email: profile?.email ?? '',
       phone: profile?.phone ?? '',
       avatar_url: profile?.avatar_url ?? '',
       coach_description: profile?.coach_description ?? '',
@@ -68,7 +72,6 @@ export function AdminCoachDetailPage() {
     setEditSaving(true)
     const { error } = await supabase.from('profiles').update({
       display_name: editForm.display_name,
-      email: editForm.email || null,
       phone: editForm.phone || null,
       avatar_url: editForm.avatar_url || null,
       coach_description: editForm.coach_description || null,
@@ -83,6 +86,30 @@ export function AdminCoachDetailPage() {
     // Refresh profile
     const { data } = await supabase.from('profiles').select('*').eq('id', id).single()
     setProfile(data as Profile)
+  }
+
+  const handleChangeEmail = async () => {
+    if (!id || !profile) return
+    const candidate = newEmail.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)) {
+      toast.error(isFr ? 'Email invalide' : 'Invalid email')
+      return
+    }
+    if (candidate === (profile.email ?? '').toLowerCase()) {
+      toast.error(isFr ? 'Adresse identique à l\'actuelle' : 'Same as current address')
+      return
+    }
+    setEmailSaving(true)
+    const result = await adminUpdateEmail(id, candidate)
+    setEmailSaving(false)
+    if (!result.ok) {
+      toast.error(result.error ?? (isFr ? 'Échec de la mise à jour' : 'Update failed'))
+      return
+    }
+    toast.success(isFr
+      ? `Lien de confirmation envoyé à ${candidate}`
+      : `Confirmation link sent to ${candidate}`)
+    setEmailDialogOpen(false)
   }
 
   // Date filter
@@ -362,15 +389,32 @@ export function AdminCoachDetailPage() {
               <Label>{isFr ? 'Nom' : 'Name'}</Label>
               <Input value={editForm.display_name} onChange={e => setEditForm(f => ({ ...f, display_name: e.target.value }))} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+            <div className="space-y-2">
+              <Label>{isFr ? 'Téléphone' : 'Phone'}</Label>
+              <Input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} />
+            </div>
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-xs font-medium">Email</p>
+                  <p className="text-xs text-muted-foreground truncate">{profile?.email ?? '—'}</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs shrink-0"
+                  onClick={() => { setEditOpen(false); setNewEmail(''); setEmailDialogOpen(true) }}
+                >
+                  <Mail className="h-3 w-3 mr-1" />
+                  {isFr ? 'Corriger…' : 'Fix…'}
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label>{isFr ? 'Téléphone' : 'Phone'}</Label>
-                <Input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} />
-              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? `Un lien de confirmation sera envoyé à la nouvelle adresse.`
+                  : `A confirmation link will be sent to the new address.`}
+              </p>
             </div>
             <div>
               <Label>Photo</Label>
@@ -407,6 +451,44 @@ export function AdminCoachDetailPage() {
             <Button variant="outline" onClick={() => setEditOpen(false)}>{isFr ? 'Annuler' : 'Cancel'}</Button>
             <Button onClick={handleSaveProfile} disabled={editSaving}>
               {editSaving ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email change dialog (admin / super_admin) */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              {isFr ? `Corriger l'email de ${profile?.display_name ?? ''}` : `Fix email for ${profile?.display_name ?? ''}`}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? `Adresse actuelle : ${profile?.email ?? '—'}. Un lien de confirmation sera envoyé à la nouvelle adresse — le changement ne s'applique qu'après confirmation.`
+                : `Current address: ${profile?.email ?? '—'}. A confirmation link will be sent to the new address — the change applies only after confirmation.`}
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor="coach-new-email">{isFr ? 'Nouvelle adresse email' : 'New email'}</Label>
+              <Input
+                id="coach-new-email"
+                type="email"
+                autoComplete="off"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="prenom.nom@example.com"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailDialogOpen(false)} disabled={emailSaving}>
+              {isFr ? 'Annuler' : 'Cancel'}
+            </Button>
+            <Button onClick={handleChangeEmail} disabled={emailSaving || !newEmail.trim()}>
+              {emailSaving ? '...' : (isFr ? 'Envoyer le lien' : 'Send link')}
             </Button>
           </DialogFooter>
         </DialogContent>

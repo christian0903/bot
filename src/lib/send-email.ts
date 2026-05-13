@@ -9,6 +9,7 @@ export type EmailTemplate =
   | 'class_cancelled'
   | 'password_reset_by_admin'
   | 'email_change_notice'
+  | 'email_change_by_admin'
 
 export interface EmailVars {
   user_name?: string
