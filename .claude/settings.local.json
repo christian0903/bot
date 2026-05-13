@@ -42,7 +42,26 @@
       "Bash(mv /Users/christian/bot/supabase/schema.sql /Users/christian/bot/supabase/_archive/)",
       "Bash(mv /Users/christian/bot/supabase/phase1.sql /Users/christian/bot/supabase/_archive/)",
       "Bash(mv /Users/christian/bot/supabase/phase3.sql /Users/christian/bot/supabase/_archive/)",
-      "Bash(mv /Users/christian/bot/supabase/phase4.sql /Users/christian/bot/supabase/_archive/)"
+      "Bash(mv /Users/christian/bot/supabase/phase4.sql /Users/christian/bot/supabase/_archive/)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(file /Users/christian/bot/ios/App/App/Assets.xcassets/Splash.imageset/*.png)",
+      "Bash(cp /Users/christian/Downloads/splash-black-bot.png /Users/christian/bot/ios/App/App/Assets.xcassets/Splash.imageset/Default@1x~universal~anyany.png)",
+      "Bash(cp /Users/christian/Downloads/splash-black-bot.png /Users/christian/bot/ios/App/App/Assets.xcassets/Splash.imageset/Default@2x~universal~anyany.png)",
+      "Bash(cp /Users/christian/Downloads/splash-black-bot.png /Users/christian/bot/ios/App/App/Assets.xcassets/Splash.imageset/Default@3x~universal~anyany.png)",
+      "Bash(cp /Users/christian/Downloads/splash-black-bot.png /Users/christian/bot/ios/App/App/Assets.xcassets/Splash.imageset/Default@1x~universal~anyany-dark.png)",
+      "Bash(cp /Users/christian/Downloads/splash-black-bot.png /Users/christian/bot/ios/App/App/Assets.xcassets/Splash.imageset/Default@2x~universal~anyany-dark.png)",
+      "WebFetch(domain:faq.o2switch.fr)",
+      "Bash(curl -s ifconfig.me)",
+      "Bash(curl -s https://api.ipify.org)",
+      "Bash(rsync -avzn --delete --exclude=cgi-bin --exclude=.htaccess --exclude=.well-known -e 'ssh -i ~/.ssh/bot_o2switch -o StrictHostKeyChecking=accept-new' dist/ 'vach5679@109.234.165.117:~/desk.backontrackstudio.be/')",
+      "Bash(rsync -avzn --delete --exclude=cgi-bin --exclude=.htaccess --exclude=.well-known -e 'ssh -i ~/.ssh/bot_o2switch' dist/ 'vach5679@109.234.165.117:~/desk.backontrackstudio.be/')",
+      "Bash(rsync -avz --delete --exclude=cgi-bin --exclude=.htaccess --exclude=.well-known -e 'ssh -i ~/.ssh/bot_o2switch' dist/ 'vach5679@109.234.165.117:~/desk.backontrackstudio.be/')",
+      "Bash(ssh -i ~/.ssh/bot_o2switch vach5679@109.234.165.117 \"cd ~/desk.backontrackstudio.be && ls -la index.html && ls assets/ | grep -c '^Admin' && ls assets/ | grep -E '\\(send-email|admin-update\\)' | head -3\")",
+      "Bash(sed -n '6,20p' src/i18n/fr.json)",
+      "Bash(sed -n '6,20p' src/i18n/en.json)",
+      "Bash(echo \"TSC=$?\")",
+      "Bash(echo \"LINT=$?\")",
+      "Bash(lsof -i :5173 -sTCP:LISTEN)"
     ]
   }
 }
