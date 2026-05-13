@@ -87,6 +87,7 @@ export function AdminSchedulePage() {
   const [bulkAction, setBulkAction] = useState<'coach' | 'max' | 'duplicate' | null>(null)
   const [bulkCoachId, setBulkCoachId] = useState('')
   const [bulkMaxParticipants, setBulkMaxParticipants] = useState(4)
+  const [bulkDuplicateDays, setBulkDuplicateDays] = useState(7)
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const fetchData = async () => {
@@ -355,10 +356,16 @@ export function AdminSchedulePage() {
     if (bulkAction === 'duplicate') {
       const selectedClasses = classes.filter(sc => ids.includes(sc.id))
 
-      // Build candidate rows for next week
+      const dayOffset = bulkDuplicateDays
+      if (!Number.isInteger(dayOffset) || dayOffset < 1) {
+        toast.error(isFr ? 'Nombre de jours invalide (min. 1)' : 'Invalid number of days (min. 1)')
+        setBulkSaving(false); return
+      }
+
+      // Build candidate rows, en décalant chaque cours du même nombre de jours
       const candidates = selectedClasses.map(sc => {
         const nextWeek = new Date(sc.starts_at)
-        nextWeek.setDate(nextWeek.getDate() + 7)
+        nextWeek.setDate(nextWeek.getDate() + dayOffset)
         // Truncate to minute precision to avoid millisecond mismatch
         nextWeek.setSeconds(0, 0)
         return {
@@ -414,14 +421,15 @@ export function AdminSchedulePage() {
           : `No classes duplicated — all slots already taken`)
       } else {
         toast.success(isFr
-          ? `${rows.length} cours dupliqués pour la semaine suivante`
-          : `${rows.length} classes duplicated to next week`)
+          ? `${rows.length} cours dupliqués (+${dayOffset} jour${dayOffset > 1 ? 's' : ''})`
+          : `${rows.length} classes duplicated (+${dayOffset} day${dayOffset > 1 ? 's' : ''})`)
       }
     }
 
     setBulkSaving(false)
     setBulkAction(null)
     setSelectedIds(new Set())
+    setBulkDuplicateDays(7)
     await fetchData()
   }
 
@@ -530,16 +538,24 @@ export function AdminSchedulePage() {
               </Button>
             </div>
           ) : bulkAction === 'duplicate' ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">
-                {isFr
-                  ? `Dupliquer ${selectedIds.size} cours → semaine suivante ?`
-                  : `Duplicate ${selectedIds.size} classes → next week?`}
+                {isFr ? `Dupliquer ${selectedIds.size} cours dans` : `Duplicate ${selectedIds.size} classes in`}
               </span>
-              <Button size="sm" className="text-xs" onClick={handleBulkApply} disabled={bulkSaving}>
+              <Input
+                type="number"
+                min={1}
+                className="h-8 w-20 text-xs"
+                value={bulkDuplicateDays}
+                onChange={(e) => setBulkDuplicateDays(parseInt(e.target.value) || 1)}
+              />
+              <span className="text-xs text-muted-foreground">
+                {isFr ? `jour${bulkDuplicateDays > 1 ? 's' : ''} (1 = lendemain, 7 = sem. suiv.)` : `day${bulkDuplicateDays > 1 ? 's' : ''} (1 = tomorrow, 7 = next week)`}
+              </span>
+              <Button size="sm" className="text-xs" onClick={handleBulkApply} disabled={bulkSaving || bulkDuplicateDays < 1}>
                 {bulkSaving ? '...' : t('common.confirm')}
               </Button>
-              <Button size="sm" variant="ghost" className="text-xs" onClick={() => setBulkAction(null)}>
+              <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setBulkAction(null); setBulkDuplicateDays(7) }}>
                 {t('common.cancel')}
               </Button>
             </div>
@@ -555,7 +571,7 @@ export function AdminSchedulePage() {
               </Button>
               <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setBulkAction('duplicate')}>
                 <Copy className="h-3 w-3" />
-                {isFr ? 'Dupliquer sem. suivante' : 'Duplicate next week'}
+                {isFr ? 'Dupliquer…' : 'Duplicate…'}
               </Button>
             </>
           )}

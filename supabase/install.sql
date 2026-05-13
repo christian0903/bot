@@ -825,11 +825,14 @@ CREATE POLICY "Perf: delete" ON performances FOR DELETE
 -- 6. VUE : profils des coachs
 -- ============================================
 
+-- DISTINCT ON (p.id) + ORDER BY rang du rôle : un coach qui a plusieurs rôles
+-- (ex. coach ET admin) ne sort qu'une seule fois, avec son rôle le plus élevé.
 CREATE OR REPLACE VIEW coach_profiles AS
-SELECT p.id, p.display_name, p.avatar_url, p.email, p.phone, ur.role
+SELECT DISTINCT ON (p.id) p.id, p.display_name, p.avatar_url, p.email, p.phone, ur.role
 FROM profiles p
 JOIN user_roles ur ON ur.user_id = p.id
-WHERE ur.role IN ('coach', 'admin', 'super_admin');
+WHERE ur.role IN ('coach', 'admin', 'super_admin')
+ORDER BY p.id, CASE ur.role WHEN 'super_admin' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END;
 
 GRANT SELECT ON coach_profiles TO authenticated;
 GRANT SELECT ON coach_profiles TO anon;
