@@ -7,13 +7,29 @@
 
 ---
 
+> ## ⚠️ Avertissement — passages périmés (mis à jour le 2026-08-03)
+>
+> **La Phase 2 « Migration Stripe vers Mollie » n'a pas été réalisée, et ne le sera pas.**
+> Le projet fonctionne en production sur **Stripe** (`create-checkout-session` et `stripe-webhook`, avec bascule test/live via `app_settings.stripe_mode`).
+>
+> Conséquence : **tous les passages de ce plan écrits en API Mollie sont caducs** — Phase 2 en entier, et les mentions de `mollie-webhook` / `create-mollie-payment` dans les phases 3, 8, 11 et 12.
+> Partout où ce document dit « Mollie », lire « Stripe » ; les extraits de code Mollie sont à ignorer.
+>
+> La décision de rester sur Stripe a été prise le 2026-08-03, après vérification que Stripe couvre les trois besoins de la Phase 12 : cycle de 4 semaines, réduction ponctuelle sur une échéance, décalage d'échéance. Mollie ne couvre correctement que le premier.
+>
+> **La Phase 12 est remplacée par `dossier-fonctionnel-abonnement.md`**, qui fait foi. Voir aussi `grille-analyse-abonnement.md` pour les décisions métier des coachs.
+>
+> Le reste du plan (phases 1, 3-11, 13) reste valable.
+
+---
+
 ## Architecture existante
 
 | Couche | Technologie |
 |--------|-------------|
 | Frontend | React 19 + TypeScript + Tailwind CSS 4 + Vite 8 |
 | Backend | Supabase (PostgreSQL + Auth + Realtime + Edge Functions) |
-| Paiement | Stripe (à migrer vers Mollie) |
+| Paiement | **Stripe** (Checkout + webhook, bascule test/live via `app_settings`) |
 | Mobile | Capacitor 8 (iOS + Android) |
 | Notifications | In-app via Supabase Realtime (à enrichir avec push + email) |
 | Comptabilité | Odoo (externe, pas d'intégration directe dans l'app) |
@@ -78,7 +94,13 @@ Côté frontend : validation avec feedback visuel (force du mot de passe).
 
 ---
 
-## Phase 2 : Migration Stripe vers Mollie
+## Phase 2 : Migration Stripe vers Mollie — ❌ ABANDONNÉE
+
+> **Cette phase ne sera pas réalisée.** Décision du 2026-08-03 : le projet reste sur Stripe.
+> Motif : Stripe couvre les trois besoins de la Phase 12 (cycle de 4 semaines, réduction ponctuelle sur une échéance, décalage d'échéance), là où Mollie ne couvre correctement que le premier — pas de coupon sur abonnement, et `nextPaymentDate` en lecture seule.
+> Le point fort de Mollie (Bancontact natif, frais plus bas en Belgique) n'a pas pesé assez lourd face à ces manques.
+>
+> **Tout ce qui suit dans cette section est conservé pour mémoire uniquement.** Ne pas l'exécuter.
 
 **Durée estimée : 4-5 jours**
 **Prérequis : compte Mollie configuré**
@@ -993,7 +1015,23 @@ Nouvelles clés `app_settings` :
 
 ---
 
-## Phase 12 : Abonnements récurrents (différé)
+## Phase 12 : Abonnements récurrents — ⚠️ REMPLACÉE
+
+> **Le contenu de cette phase est périmé. Se référer à `dossier-fonctionnel-abonnement.md`**, qui fait foi depuis le 2026-08-03.
+>
+> Deux raisons :
+>
+> **1. L'API a changé** — écrit ici en Mollie, à faire en Stripe (`interval: 'week'` × `interval_count: 4`, coupon `duration: 'once'`, `billing_cycle_anchor`).
+>
+> **2. Le modèle a changé, et c'est le plus important** — la réunion coachs a établi qu'un abonnement n'est **pas une entité nouvelle** : c'est un **pack court avec renouvellement automatique**. Il n'y a donc ni table `subscription_plans`, ni `subscription_credits`, ni moteur de quota hebdomadaire à écrire. À chaque échéance payée, le webhook crée une ligne `pack_purchases` ordinaire, et tout le reste de l'app fonctionne sans savoir qu'il s'agit d'un abonnement.
+>
+> Ce qui reste à construire se réduit à : une table `subscriptions`, quatre colonnes, l'extension du webhook Stripe existant, une Edge Function d'administration, et trois boutons admin. Nettement moins que les 5-6 jours estimés ici.
+>
+> **Prérequis levé** : la Phase 12 ne dépend plus d'une Phase 2 abandonnée.
+>
+> **Déjà livré** : les packs illimités (`supabase/migrations/add-unlimited-packs.sql`, 2026-08-03).
+>
+> **Tout ce qui suit est conservé pour mémoire uniquement.**
 
 **Durée estimée : 5-6 jours**
 **Prérequis : Phase 2 (Mollie), montants confirmés**

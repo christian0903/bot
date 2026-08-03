@@ -28,7 +28,7 @@
 16. [Abonnements récurrents](#16-abonnements-récurrents)
 17. [Ce que voit le coach](#17-ce-que-voit-le-coach)
 18. [Ce que voit l'admin](#18-ce-que-voit-ladmin)
-19. [Paiement (Mollie)](#19-paiement-mollie)
+19. [Paiement (Stripe)](#19-paiement-stripe)
 20. [Codes promo](#20-codes-promo)
 
 ---
@@ -161,17 +161,37 @@ Toute personne peut bénéficier d'**une seule séance d'essai gratuite**. Pas b
 
 ### Fonctionnement
 
-- Le membre choisit un pack et paye via Mollie (Bancontact, carte bancaire, Apple Pay, Google Pay)
+- Le membre choisit un pack et paye via **Stripe Checkout** (carte bancaire)
 - Les crédits sont ajoutés immédiatement à son compte
 - Les crédits semi-privés ne peuvent être utilisés que pour des cours semi-privés
 - Les crédits PT ne peuvent être utilisés que pour du Personal Training
 - Un pack a une date d'expiration : passé ce délai, les crédits restants sont perdus
 
+### Packs illimités
+
+Un pack peut être marqué **illimité** (`is_unlimited`). Le membre réserve alors autant de cours qu'il veut pendant la durée de validité, sans décompte.
+
+La règle est **symétrique dans les deux sens** :
+
+| Action | Pack à crédits | Pack illimité |
+|--------|----------------|---------------|
+| Réservation | −1 crédit | aucun décompte |
+| Annulation dans les délais | +1 crédit restitué | aucune restitution |
+| Annulation hors délai | crédit perdu | sans objet |
+
+Le second point est la conséquence logique du premier : puisque rien n'a été décompté à la réservation, il n'y a rien à rendre à l'annulation.
+
+Dans tous les cas, **la réservation est enregistrée normalement**. Un membre illimité apparaît dans les listes de participants, est comptabilisé dans le remplissage des cours, et ses annulations alimentent son historique — c'est ce qui permet à l'admin de repérer un membre qui réserve puis se désiste systématiquement.
+
+Sur un pack illimité, le nombre de crédits affiché est **indicatif** : il n'est jamais consommé.
+
 ### Cas pratique
 
-> **Ingrid** achète un pack de 10 séances (199 EUR, valable 3 mois). Elle paye par Bancontact. Ses 10 crédits apparaissent immédiatement dans l'app. Elle a jusqu'au 19 juillet pour les utiliser. Si le 19 juillet il lui reste 3 crédits, ils sont perdus.
+> **Ingrid** achète un pack de 10 séances (199 EUR, valable 3 mois). Elle paye par carte. Ses 10 crédits apparaissent immédiatement dans l'app. Elle a jusqu'au 19 juillet pour les utiliser. Si le 19 juillet il lui reste 3 crédits, ils sont perdus.
 
 > **Ingrid** a aussi un pack PT de 5 séances. Elle ne peut PAS utiliser un crédit PT pour un cours semi-privé, et vice versa.
+
+> **Marco** a un pack illimité valable jusqu'au 30 septembre. Lundi il réserve trois cours dans la semaine. Aucun compteur ne bouge. Mercredi il annule celui du jeudi, plus de 12 h avant : là encore rien ne bouge, aucun crédit ne lui est rendu — il n'en avait pas dépensé. Il peut réserver un autre cours à la place. En revanche, ses trois réservations et son annulation figurent bien dans son historique.
 
 ---
 
@@ -518,7 +538,7 @@ En plus des packs (achat ponctuel), le membre peut souscrire un **abonnement men
 ### Fonctionnement
 
 - Renouvellement automatique toutes les 4 semaines
-- Paiement automatique via Mollie
+- Paiement automatique via Stripe
 - Email envoyé 7 jours avant le renouvellement
 - En cas d'échec de paiement : relance automatique à J+3, puis J+7, puis suspension
 - Le membre peut annuler son abonnement à tout moment (effectif à la fin de la période en cours)
@@ -647,26 +667,39 @@ Vue d'ensemble avec :
 
 ---
 
-## 19. Paiement (Mollie)
+## 19. Paiement (Stripe)
+
+> Mise à jour du 2026-08-03 : le prestataire de paiement est **Stripe**. Une migration vers Mollie avait été envisagée puis **abandonnée** — voir `plan-implementation-v2.md`, Phase 2.
 
 ### Moyens de paiement acceptés
 
-- **Bancontact** (obligatoire — majorité de clients belges)
 - Visa / Mastercard
-- Apple Pay
-- Google Pay
+- Apple Pay / Google Pay (selon la configuration Stripe)
+
+> **Point ouvert : Bancontact.** La majorité des clients sont belges et Bancontact était considéré comme obligatoire dans la version initiale de ce document. Stripe le propose, mais son fonctionnement en **paiement récurrent** doit être vérifié avant la mise en vente des abonnements. À trancher avec les coachs.
 
 ### Processus
 
 1. Le membre choisit un pack
-2. Il est redirigé vers la page de paiement sécurisée Mollie
+2. Il est redirigé vers la page de paiement sécurisée **Stripe Checkout**
 3. Il choisit son moyen de paiement et confirme
 4. Retour automatique dans l'app avec confirmation
-5. Aucune donnée de carte n'est stockée dans l'app (conformité PCI-DSS via Mollie)
+5. Aucune donnée de carte n'est stockée dans l'app (conformité PCI-DSS assurée par Stripe)
+
+Le studio dispose d'un **mode test et d'un mode live**, commutables depuis les paramètres d'administration.
 
 ### Abonnements
 
-Pour les abonnements récurrents, Mollie gère le prélèvement automatique (mandat SEPA ou carte enregistrée chez Mollie).
+Pour les abonnements récurrents, Stripe gère le prélèvement automatique toutes les **4 semaines** à la date anniversaire de la souscription.
+
+L'administrateur peut, depuis l'app :
+- **décaler la prochaine échéance** (congés, blessure) — les échéances suivantes suivent la nouvelle date ;
+- **accorder une réduction ponctuelle** sur la prochaine échéance seulement (parrainage, geste commercial) ;
+- **résilier** un abonnement.
+
+> À noter : un cycle de 4 semaines représente **13 prélèvements par an**, pas 12. La communication au membre doit dire « toutes les 4 semaines », jamais « par mois ».
+
+Détail complet dans `dossier-fonctionnel-abonnement.md`.
 
 ---
 
