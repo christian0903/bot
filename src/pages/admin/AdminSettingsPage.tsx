@@ -32,6 +32,9 @@ interface StudioInfo {
   phone: string
   email: string
   vat_number: string
+  instagram_url: string
+  facebook_url: string
+  website_url: string
 }
 
 export function AdminSettingsPage() {
@@ -63,6 +66,9 @@ export function AdminSettingsPage() {
     phone: '',
     email: '',
     vat_number: '',
+    instagram_url: '',
+    facebook_url: '',
+    website_url: '',
   })
 
   // Room names
@@ -161,6 +167,20 @@ export function AdminSettingsPage() {
             <div className="space-y-2">
               <Label>Email</Label>
               <Input type="email" value={studio.email} onChange={e => setStudio(s => ({ ...s, email: e.target.value }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Instagram</Label>
+              <Input value={studio.instagram_url} onChange={e => setStudio(s => ({ ...s, instagram_url: e.target.value }))} placeholder="https://instagram.com/..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Facebook</Label>
+              <Input value={studio.facebook_url} onChange={e => setStudio(s => ({ ...s, facebook_url: e.target.value }))} placeholder="https://facebook.com/..." />
+            </div>
+            <div className="space-y-2">
+              <Label>{isFr ? 'Site web' : 'Website'}</Label>
+              <Input value={studio.website_url} onChange={e => setStudio(s => ({ ...s, website_url: e.target.value }))} placeholder="https://..." />
             </div>
           </div>
           <Button size="sm" disabled={saving === 'studio_info'} onClick={() => saveSetting('studio_info', studio as unknown as Record<string, unknown>)}>

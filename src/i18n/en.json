@@ -9,6 +9,7 @@
     "myBookings": "My Bookings",
     "myPacks": "My Packs",
     "packs": "Buy a Pack",
+    "performances": "Performances",
     "profile": "Profile",
     "notifications": "Notifications",
     "help": "Help",
@@ -206,6 +207,9 @@
       "manualPayment": "Manual payment",
       "reason": "Reason"
     },
+    "coaches": {
+      "title": "Coaches & Admins"
+    },
     "categories": {
       "title": "Member Categories",
       "name": "Name",
@@ -245,6 +249,9 @@
       "add": "Add Class Type",
       "edit": "Edit",
       "delete": "Delete"
+    },
+    "performanceTypes": {
+      "title": "Perf Types"
     },
     "schedule": {
       "title": "Schedule Management",

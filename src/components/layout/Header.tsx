@@ -42,6 +42,7 @@ export function Header() {
     { label: t('nav.schedule'), path: '/schedule', show: !!user },
     { label: t('nav.myBookings'), path: '/my-bookings', show: !!user },
     { label: t('nav.myPacks'), path: '/my-packs', show: !!user },
+    { label: t('nav.performances'), path: '/performances', show: !!user },
     { label: t('nav.packs'), path: '/packs', show: !!user },
     { label: t('nav.coach'), path: '/coach/my-classes', show: hasRole('coach') },
     { label: t('nav.admin'), path: '/admin/users', show: hasRole('admin') },
@@ -63,7 +64,10 @@ export function Header() {
   )
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header
+      className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <div className="container flex h-14 items-center px-4 mx-auto max-w-7xl">
         <Link to="/" className="flex items-center gap-2 mr-6">
           <Dumbbell className="h-6 w-6 text-primary" />
@@ -138,8 +142,8 @@ export function Header() {
             <SheetTrigger className="inline-flex items-center justify-center rounded-md h-9 w-9 hover:bg-accent md:hidden">
               <Menu className="h-5 w-5" />
             </SheetTrigger>
-            <SheetContent side="left" className="w-64">
-              <div className="flex flex-col gap-4 mt-8">
+            <SheetContent side="left" className="w-64" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}>
+              <div className="flex flex-col gap-4 px-4">
                 <NavLinks onClick={() => setMobileOpen(false)} />
               </div>
             </SheetContent>

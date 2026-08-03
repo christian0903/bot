@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { formatEuros } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -133,7 +134,7 @@ export function InvoiceRequestPage() {
                     {selectedPurchase
                       ? (() => {
                           const p = purchases.find(p => p.id === selectedPurchase)
-                          return p ? `${p.pack_type?.name} — ${(p.price_paid_cents / 100).toFixed(0)} € — ${format(new Date(p.purchased_at), 'dd/MM/yyyy')}` : ''
+                          return p ? `${p.pack_type?.name} — ${formatEuros(p.price_paid_cents, 0)} — ${format(new Date(p.purchased_at), 'dd/MM/yyyy')}` : ''
                         })()
                       : (isFr ? 'Sélectionner un paiement' : 'Select a payment')}
                   </span>
@@ -141,7 +142,7 @@ export function InvoiceRequestPage() {
                 <SelectContent>
                   {purchases.map(p => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.pack_type?.name} — {(p.price_paid_cents / 100).toFixed(0)} € — {format(new Date(p.purchased_at), 'dd/MM/yyyy')}
+                      {p.pack_type?.name} — {formatEuros(p.price_paid_cents, 0)} — {format(new Date(p.purchased_at), 'dd/MM/yyyy')}
                     </SelectItem>
                   ))}
                 </SelectContent>

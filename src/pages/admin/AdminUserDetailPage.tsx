@@ -3,8 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
+import { adminUpdatePassword } from '@/lib/admin-update-password'
+import { adminUpdateEmail } from '@/lib/admin-update-email'
+import { sendEmail } from '@/lib/send-email'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Profile, PackPurchase, Booking, ScheduledClass } from '@/types'
+import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -28,15 +31,15 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { cn } from '@/lib/utils'
+import { cn, formatEuros } from '@/lib/utils'
 
 export function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, i18n } = useTranslation()
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, hasRole } = useAuth()
   const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
 
@@ -52,6 +55,12 @@ export function AdminUserDetailPage() {
   const [editExpiresAt, setEditExpiresAt] = useState('')
   const [editPackSaving, setEditPackSaving] = useState(false)
 
+  // Categories
+  const [categories, setCategories] = useState<MemberCategory[]>([])
+
+  // Show expired packs
+  const [showExpiredPacks, setShowExpiredPacks] = useState(false)
+
   // Registration fee
   const [hasRegFee, setHasRegFee] = useState(false)
   const [regFeeSaving, setRegFeeSaving] = useState(false)
@@ -63,10 +72,26 @@ export function AdminUserDetailPage() {
   const [selectedPackId, setSelectedPackId] = useState('')
   const [bookingSaving, setBookingSaving] = useState(false)
 
+  // Password reset dialog
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
+
+  // Email change dialog
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [emailSaving, setEmailSaving] = useState(false)
+
+  // Edit profile (name) dialog
+  const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [editProfileForm, setEditProfileForm] = useState({ display_name: '', first_name: '', last_name: '' })
+  const [editProfileSaving, setEditProfileSaving] = useState(false)
+
   const fetchData = async () => {
     if (!id) return
 
-    const [profileRes, packsRes, bookingsRes, regFeeRes] = await Promise.all([
+    const [profileRes, packsRes, bookingsRes, regFeeRes, catRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', id).single(),
       supabase
         .from('pack_purchases')
@@ -79,10 +104,12 @@ export function AdminUserDetailPage() {
         .eq('user_id', id)
         .order('created_at', { ascending: false }),
       supabase.from('registration_fees').select('id').eq('user_id', id).limit(1),
+      supabase.from('member_categories').select('*').order('name'),
     ])
 
     setProfile(profileRes.data as Profile)
     setHasRegFee((regFeeRes.data?.length ?? 0) > 0)
+    setCategories((catRes.data as MemberCategory[]) ?? [])
     setPacks((packsRes.data as PackPurchase[]) ?? [])
 
     // Resolve coaches for bookings
@@ -269,6 +296,121 @@ export function AdminUserDetailPage() {
     fetchData()
   }
 
+  const openPasswordDialog = () => {
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordDialogOpen(true)
+  }
+
+  const openEmailDialog = () => {
+    setNewEmail('')
+    setEmailDialogOpen(true)
+  }
+
+  const handleChangeEmail = async () => {
+    if (!profile || !id) return
+    const candidate = newEmail.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)) {
+      toast.error(isFr ? 'Email invalide' : 'Invalid email')
+      return
+    }
+    if (candidate === (profile.email ?? '').toLowerCase()) {
+      toast.error(isFr ? 'Adresse identique à l\'actuelle' : 'Same as current address')
+      return
+    }
+    setEmailSaving(true)
+    const result = await adminUpdateEmail(id, candidate)
+    setEmailSaving(false)
+    if (!result.ok) {
+      toast.error(result.error ?? (isFr ? 'Échec de la mise à jour' : 'Update failed'))
+      return
+    }
+    await logActivity({
+      action: 'email_change_by_admin',
+      actor_id: currentUser?.id ?? null,
+      target_user_id: id,
+      description: `Demande de changement d'email pour ${profile.display_name} : ${profile.email ?? '—'} → ${candidate} (en attente de confirmation)`,
+    })
+    toast.success(isFr
+      ? `Lien de confirmation envoyé à ${candidate}`
+      : `Confirmation link sent to ${candidate}`)
+    setEmailDialogOpen(false)
+  }
+
+  const openEditProfile = () => {
+    if (!profile) return
+    setEditProfileForm({
+      display_name: profile.display_name ?? '',
+      first_name: profile.first_name ?? '',
+      last_name: profile.last_name ?? '',
+    })
+    setEditProfileOpen(true)
+  }
+
+  const handleSaveProfile = async () => {
+    if (!id) return
+    if (!editProfileForm.display_name.trim()) {
+      toast.error(isFr ? 'Le nom affiché est requis' : 'Display name is required')
+      return
+    }
+    setEditProfileSaving(true)
+    const { error } = await supabase.from('profiles').update({
+      display_name: editProfileForm.display_name.trim(),
+      first_name: editProfileForm.first_name.trim() || null,
+      last_name: editProfileForm.last_name.trim() || null,
+    }).eq('id', id)
+    setEditProfileSaving(false)
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+    setProfile(prev => prev ? {
+      ...prev,
+      display_name: editProfileForm.display_name.trim(),
+      first_name: editProfileForm.first_name.trim() || null,
+      last_name: editProfileForm.last_name.trim() || null,
+    } : prev)
+    setEditProfileOpen(false)
+    toast.success(isFr ? 'Profil mis à jour' : 'Profile updated')
+  }
+
+  const handleResetPassword = async () => {
+    if (!profile || !id) return
+    if (newPassword.length < 12) {
+      toast.error(isFr ? 'Mot de passe : 12 caractères minimum' : 'Password: minimum 12 characters')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error(isFr ? 'Les mots de passe ne correspondent pas' : 'Passwords do not match')
+      return
+    }
+
+    setPasswordSaving(true)
+    const result = await adminUpdatePassword(id, newPassword)
+    if (!result.ok) {
+      toast.error(result.error ?? (isFr ? 'Échec de la mise à jour' : 'Update failed'))
+      setPasswordSaving(false)
+      return
+    }
+
+    await logActivity({
+      action: 'password_reset_by_admin',
+      actor_id: currentUser?.id ?? null,
+      target_user_id: id,
+      description: `Mot de passe réinitialisé pour ${profile.display_name}`,
+    })
+
+    if (profile.email) {
+      sendEmail('password_reset_by_admin', profile.email, { user_name: profile.display_name })
+    }
+
+    toast.success(isFr ? 'Mot de passe mis à jour' : 'Password updated')
+    setPasswordDialogOpen(false)
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordSaving(false)
+  }
+
   if (loading) return <LoadingState />
   if (!profile) return <EmptyState icon={User} message={t('common.noResults')} />
 
@@ -296,7 +438,12 @@ export function AdminUserDetailPage() {
           <AvatarFallback className="text-xl">{profile.display_name?.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={openEditProfile} title={isFr ? 'Éditer le nom' : 'Edit name'}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           {profile.email && (
             <a href={`mailto:${profile.email}`} className="text-sm text-primary hover:underline">
               {profile.email}
@@ -310,11 +457,57 @@ export function AdminUserDetailPage() {
         </div>
       </div>
 
-      {/* Registration fee + member status */}
+      {/* Coach info */}
+      {(profile.coach_description || profile.instagram_url || profile.facebook_url || profile.linkedin_url) && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {isFr ? 'Profil coach' : 'Coach profile'}
+            </p>
+            {profile.coach_description && (
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{profile.coach_description}</p>
+            )}
+            <div className="flex gap-3 flex-wrap">
+              {profile.instagram_url && (
+                <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">Instagram</a>
+              )}
+              {profile.facebook_url && (
+                <a href={profile.facebook_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">Facebook</a>
+              )}
+              {profile.linkedin_url && (
+                <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">LinkedIn</a>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Status + Category + Registration fee */}
       <div className="flex items-center gap-3 flex-wrap">
         <Badge variant="outline" className={profile.member_status === 'active' ? 'border-green-500 text-green-600' : profile.member_status === 'inactive' ? 'border-orange-500 text-orange-600' : profile.member_status === 'former' ? 'border-red-500 text-red-600' : ''}>
           {t(`profile.status.${profile.member_status}`)}
         </Badge>
+
+        {/* Category selector */}
+        <Select
+          value={profile.member_category_id ?? ''}
+          onValueChange={async (v) => {
+            const val = v || null
+            await supabase.from('profiles').update({ member_category_id: val }).eq('id', id!)
+            setProfile(prev => prev ? { ...prev, member_category_id: val } : prev)
+            toast.success(isFr ? 'Catégorie mise à jour' : 'Category updated')
+          }}
+        >
+          <SelectTrigger className="h-7 text-xs w-auto min-w-[120px]">
+            <span>{categories.find(c => c.id === profile.member_category_id)?.name || (isFr ? 'Catégorie' : 'Category')}</span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">{isFr ? 'Aucune' : 'None'}</SelectItem>
+            {categories.map(cat => (
+              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <div className="flex items-center gap-2">
           <Badge
@@ -323,8 +516,8 @@ export function AdminUserDetailPage() {
           >
             <Receipt className="h-3 w-3 mr-1" />
             {isFr
-              ? (hasRegFee ? 'Frais inscription OK' : 'Frais inscription non payés')
-              : (hasRegFee ? 'Registration fee OK' : 'Registration fee unpaid')}
+              ? (hasRegFee ? 'Frais OK' : 'Frais non payés')
+              : (hasRegFee ? 'Fee OK' : 'Fee unpaid')}
           </Badge>
           <Button
             variant="outline"
@@ -335,9 +528,21 @@ export function AdminUserDetailPage() {
           >
             {regFeeSaving ? '...' : hasRegFee
               ? (isFr ? 'Retirer' : 'Remove')
-              : (isFr ? 'Valider frais' : 'Confirm fee')}
+              : (isFr ? 'Valider' : 'Confirm')}
           </Button>
         </div>
+
+        {hasRole('super_admin') && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={openPasswordDialog}
+          >
+            <KeyRound className="h-3 w-3 mr-1" />
+            {isFr ? 'Changer mot de passe' : 'Change password'}
+          </Button>
+        )}
       </div>
 
       {/* Stats cards */}
@@ -370,7 +575,7 @@ export function AdminUserDetailPage() {
         <TabsList>
           <TabsTrigger value="packs">
             <Package className="h-4 w-4 mr-1.5" />
-            {t('packs.myPacks')} ({packs.length})
+            {t('packs.myPacks')} ({activePacks.length})
           </TabsTrigger>
           <TabsTrigger value="bookings">
             <CalendarDays className="h-4 w-4 mr-1.5" />
@@ -380,10 +585,26 @@ export function AdminUserDetailPage() {
 
         {/* PACKS TAB */}
         <TabsContent value="packs" className="mt-4 space-y-3">
-          {packs.length === 0 ? (
-            <EmptyState icon={Package} message={t('packs.noActivePacks')} />
-          ) : (
-            packs.map((pack) => {
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="show-expired"
+              checked={showExpiredPacks}
+              onChange={(e) => setShowExpiredPacks(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <label htmlFor="show-expired" className="text-xs text-muted-foreground cursor-pointer">
+              {isFr ? 'Montrer les packs expirés' : 'Show expired packs'}
+            </label>
+          </div>
+          {(() => {
+            const visiblePacks = showExpiredPacks
+              ? packs
+              : packs.filter(p => p.credits_remaining > 0 && new Date(p.expires_at) > now)
+            return visiblePacks.length === 0 ? (
+              <EmptyState icon={Package} message={isFr ? 'Aucun pack actif' : 'No active packs'} />
+            ) : (
+            visiblePacks.map((pack) => {
               const isExpired = new Date(pack.expires_at) < now
               const isEmpty = pack.credits_remaining <= 0
               const inactive = isExpired || isEmpty
@@ -432,7 +653,7 @@ export function AdminUserDetailPage() {
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>{pack.credits_remaining}/{totalInPack} crédits</span>
-                      <span>{(pack.price_paid_cents / 100).toFixed(0)}€</span>
+                      <span>{formatEuros(pack.price_paid_cents, 0)}</span>
                       <span>
                         {format(new Date(pack.purchased_at), 'dd/MM/yyyy', { locale })}
                         {' → '}
@@ -446,7 +667,8 @@ export function AdminUserDetailPage() {
                 </Card>
               )
             })
-          )}
+          )
+          })()}
         </TabsContent>
 
         {/* BOOKINGS TAB */}
@@ -602,7 +824,7 @@ export function AdminUserDetailPage() {
                   {' · '}
                   {i18n.language === 'fr' ? 'Acheté le' : 'Purchased'} {format(new Date(editingPack.purchased_at), 'dd/MM/yyyy', { locale })}
                   {' · '}
-                  {(editingPack.price_paid_cents / 100).toFixed(0)}€
+                  {formatEuros(editingPack.price_paid_cents, 0)}
                 </p>
               </div>
 
@@ -683,6 +905,163 @@ export function AdminUserDetailPage() {
             </Button>
             <Button onClick={handleEditPack} disabled={editPackSaving}>
               {editPackSaving ? '...' : t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Profile Dialog (name fields) */}
+      <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Éditer le profil' : 'Edit profile'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>{isFr ? 'Nom affiché' : 'Display name'}</Label>
+              <Input
+                value={editProfileForm.display_name}
+                onChange={(e) => setEditProfileForm(f => ({ ...f, display_name: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>{isFr ? 'Prénom' : 'First name'}</Label>
+                <Input
+                  value={editProfileForm.first_name}
+                  onChange={(e) => setEditProfileForm(f => ({ ...f, first_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>{isFr ? 'Nom' : 'Last name'}</Label>
+                <Input
+                  value={editProfileForm.last_name}
+                  onChange={(e) => setEditProfileForm(f => ({ ...f, last_name: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-xs font-medium">{isFr ? 'Adresse email' : 'Email address'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{profile.email ?? '—'}</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs shrink-0"
+                  onClick={() => { setEditProfileOpen(false); openEmailDialog() }}
+                >
+                  <Mail className="h-3 w-3 mr-1" />
+                  {isFr ? 'Corriger…' : 'Fix…'}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? `Un lien de confirmation sera envoyé à la nouvelle adresse. Le changement n'est effectif qu'après confirmation par le membre.`
+                  : `A confirmation link will be sent to the new address. The change applies only after the member confirms.`}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProfileOpen(false)} disabled={editProfileSaving}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSaveProfile} disabled={editProfileSaving || !editProfileForm.display_name.trim()}>
+              {editProfileSaving ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Reset Dialog (super_admin only) */}
+      {/* Email change dialog (admin / super_admin) */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              {isFr ? `Corriger l'email de ${profile.display_name}` : `Fix email for ${profile.display_name}`}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? `Adresse actuelle : ${profile.email ?? '—'}. Un lien de confirmation sera envoyé à la nouvelle adresse — le changement ne s'applique qu'après que le membre clique sur ce lien.`
+                : `Current address: ${profile.email ?? '—'}. A confirmation link will be sent to the new address — the change applies only after the member clicks it.`}
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor="admin-new-email">{isFr ? 'Nouvelle adresse email' : 'New email'}</Label>
+              <Input
+                id="admin-new-email"
+                type="email"
+                autoComplete="off"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="prenom.nom@example.com"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailDialogOpen(false)} disabled={emailSaving}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleChangeEmail}
+              disabled={emailSaving || !newEmail.trim()}
+            >
+              {emailSaving ? '...' : (isFr ? 'Envoyer le lien' : 'Send link')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4" />
+              {isFr ? 'Changer le mot de passe' : 'Change password'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? `Définir un nouveau mot de passe pour ${profile.display_name}. Le membre devra l'utiliser à sa prochaine connexion.`
+                : `Set a new password for ${profile.display_name}. The member will use it on next sign-in.`}
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor="new-password">{isFr ? 'Nouveau mot de passe' : 'New password'}</Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder={isFr ? 'Min. 12 caractères' : 'Min. 12 characters'}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="confirm-password">{isFr ? 'Confirmer' : 'Confirm'}</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)} disabled={passwordSaving}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={passwordSaving || newPassword.length < 12 || newPassword !== confirmPassword}
+            >
+              {passwordSaving ? '...' : (isFr ? 'Mettre à jour' : 'Update')}
             </Button>
           </DialogFooter>
         </DialogContent>

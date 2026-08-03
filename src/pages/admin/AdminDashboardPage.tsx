@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
+import { formatEuros } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -254,7 +255,7 @@ export function AdminDashboardPage() {
         'Client': s.user_name,
         'Pack': s.pack_name,
         'Crédits': s.credits,
-        'Montant (€)': s.price_paid_cents === 0 ? 'Offert' : (s.price_paid_cents / 100).toFixed(2),
+        'Montant (€)': s.price_paid_cents === 0 ? 'Offert' : formatEuros(s.price_paid_cents),
       })),
       `ventes-packs_${periodLabel}`
     )
@@ -271,7 +272,7 @@ export function AdminDashboardPage() {
         'Coach': b.coach_name,
         'Client': b.user_name,
         'Pack utilisé': b.pack_name,
-        'Valeur crédit (€)': (b.price_paid_cents / b.credit_count / 100).toFixed(2),
+        'Valeur crédit (€)': formatEuros(b.price_paid_cents / b.credit_count),
       })),
       `cours-reservations_${periodLabel}`
     )
@@ -345,7 +346,7 @@ export function AdminDashboardPage() {
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <p className="text-3xl font-bold">{(totalRevenue / 100).toFixed(0)}€</p>
+                <p className="text-3xl font-bold">{formatEuros(totalRevenue, 0)}</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   {isFr ? 'Recettes encaissées' : 'Revenue collected'}
                 </p>
@@ -369,7 +370,7 @@ export function AdminDashboardPage() {
                   {isFr ? 'Crédits consommés' : 'Credits consumed'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {isFr ? 'Valeur' : 'Value'}: {(totalClassRevenue / 100).toFixed(0)}€
+                  {isFr ? 'Valeur' : 'Value'}: {formatEuros(totalClassRevenue, 0)}
                 </p>
               </CardContent>
             </Card>
@@ -405,13 +406,14 @@ export function AdminDashboardPage() {
               {coachStats.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">{t('common.noResults')}</p>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>{isFr ? 'Coach' : 'Coach'}</TableHead>
-                      <TableHead className="text-center">{isFr ? 'Cours' : 'Classes'}</TableHead>
-                      <TableHead className="text-center">{isFr ? 'Réservations' : 'Bookings'}</TableHead>
-                      <TableHead className="text-right">{isFr ? 'Valeur crédits' : 'Credit value'}</TableHead>
+                      <TableHead className="hidden sm:table-cell text-center">{isFr ? 'Cours' : 'Classes'}</TableHead>
+                      <TableHead className="text-center">{isFr ? 'Résa.' : 'Book.'}</TableHead>
+                      <TableHead className="text-right">{isFr ? 'Valeur' : 'Value'}</TableHead>
                       <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -419,14 +421,15 @@ export function AdminDashboardPage() {
                     {coachStats.map(coach => (
                       <TableRow key={coach.coach_id} className="cursor-pointer hover:bg-muted/50" onClick={() => openCoachDetail(coach)}>
                         <TableCell className="font-medium">{coach.coach_name}</TableCell>
-                        <TableCell className="text-center">{coach.class_count}</TableCell>
+                        <TableCell className="hidden sm:table-cell text-center">{coach.class_count}</TableCell>
                         <TableCell className="text-center">{coach.total_bookings}</TableCell>
-                        <TableCell className="text-right font-medium">{(coach.total_revenue_cents / 100).toFixed(0)}€</TableCell>
+                        <TableCell className="text-right font-medium">{formatEuros(coach.total_revenue_cents, 0)}</TableCell>
                         <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -442,38 +445,41 @@ export function AdminDashboardPage() {
           {packSales.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">{t('common.noResults')}</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{isFr ? 'Date' : 'Date'}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{isFr ? 'Date' : 'Date'}</TableHead>
                   <TableHead>{isFr ? 'Client' : 'Client'}</TableHead>
                   <TableHead>{isFr ? 'Pack' : 'Pack'}</TableHead>
-                  <TableHead className="text-center">{isFr ? 'Crédits' : 'Credits'}</TableHead>
+                  <TableHead className="hidden md:table-cell text-center">{isFr ? 'Crédits' : 'Credits'}</TableHead>
                   <TableHead className="text-right">{isFr ? 'Montant' : 'Amount'}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {packSales.map(sale => (
                   <TableRow key={sale.id}>
-                    <TableCell className="text-sm">{format(new Date(sale.purchased_at), 'dd/MM/yyyy', { locale })}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm">{format(new Date(sale.purchased_at), 'dd/MM/yyyy', { locale })}</TableCell>
                     <TableCell>{sale.user_name}</TableCell>
                     <TableCell>{sale.pack_name}</TableCell>
-                    <TableCell className="text-center">{sale.credits}</TableCell>
+                    <TableCell className="hidden md:table-cell text-center">{sale.credits}</TableCell>
                     <TableCell className="text-right font-medium">
                       {sale.price_paid_cents === 0
                         ? <Badge variant="secondary" className="text-[10px]">{isFr ? 'Offert' : 'Gift'}</Badge>
-                        : `${(sale.price_paid_cents / 100).toFixed(0)}€`
+                        : formatEuros(sale.price_paid_cents, 0)
                       }
                     </TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold border-t-2">
-                  <TableCell colSpan={3}>{isFr ? 'Total' : 'Total'}</TableCell>
-                  <TableCell className="text-center">{packSales.reduce((s, p) => s + p.credits, 0)}</TableCell>
-                  <TableCell className="text-right">{(totalRevenue / 100).toFixed(0)}€</TableCell>
+                  <TableCell className="hidden sm:table-cell"></TableCell>
+                  <TableCell colSpan={2}>{isFr ? 'Total' : 'Total'}</TableCell>
+                  <TableCell className="hidden md:table-cell text-center">{packSales.reduce((s, p) => s + p.credits, 0)}</TableCell>
+                  <TableCell className="text-right">{formatEuros(totalRevenue, 0)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -487,32 +493,36 @@ export function AdminDashboardPage() {
           {bookings.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">{t('common.noResults')}</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{isFr ? 'Date' : 'Date'}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{isFr ? 'Date' : 'Date'}</TableHead>
                   <TableHead>{isFr ? 'Cours' : 'Class'}</TableHead>
                   <TableHead>{isFr ? 'Client' : 'Client'}</TableHead>
-                  <TableHead>{isFr ? 'Pack' : 'Pack'}</TableHead>
+                  <TableHead className="hidden md:table-cell">{isFr ? 'Pack' : 'Pack'}</TableHead>
                   <TableHead className="text-right">{isFr ? 'Valeur' : 'Value'}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {bookings.map(b => (
                   <TableRow key={b.id}>
-                    <TableCell className="text-sm">{b.starts_at ? format(new Date(b.starts_at), 'dd/MM HH:mm', { locale }) : '-'}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm">{b.starts_at ? format(new Date(b.starts_at), 'dd/MM HH:mm', { locale }) : '-'}</TableCell>
                     <TableCell>{b.class_name}</TableCell>
                     <TableCell>{b.user_name}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{b.pack_name}</TableCell>
-                    <TableCell className="text-right font-medium">{(b.price_paid_cents / b.credit_count / 100).toFixed(0)}€</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{b.pack_name}</TableCell>
+                    <TableCell className="text-right font-medium">{formatEuros(b.price_paid_cents / b.credit_count, 0)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold border-t-2">
-                  <TableCell colSpan={4}>{isFr ? 'Total' : 'Total'} ({bookings.length} {isFr ? 'crédits' : 'credits'})</TableCell>
-                  <TableCell className="text-right">{(totalClassRevenue / 100).toFixed(0)}€</TableCell>
+                  <TableCell className="hidden sm:table-cell"></TableCell>
+                  <TableCell colSpan={2}>{isFr ? 'Total' : 'Total'} ({bookings.length} {isFr ? 'crédits' : 'credits'})</TableCell>
+                  <TableCell className="hidden md:table-cell"></TableCell>
+                  <TableCell className="text-right">{formatEuros(totalClassRevenue, 0)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -528,8 +538,9 @@ export function AdminDashboardPage() {
               <div className="flex gap-4 mb-4">
                 <Badge variant="outline">{selectedCoach.class_count} {isFr ? 'cours' : 'classes'}</Badge>
                 <Badge variant="outline">{selectedCoach.total_bookings} {isFr ? 'réservations' : 'bookings'}</Badge>
-                <Badge variant="outline">{(selectedCoach.total_revenue_cents / 100).toFixed(0)}€</Badge>
+                <Badge variant="outline">{formatEuros(selectedCoach.total_revenue_cents, 0)}</Badge>
               </div>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -542,19 +553,20 @@ export function AdminDashboardPage() {
                 <TableBody>
                   {selectedCoach.classes.map(c => (
                     <TableRow key={c.id}>
-                      <TableCell className="text-sm">{format(new Date(c.starts_at), 'EEE dd/MM HH:mm', { locale })}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{format(new Date(c.starts_at), 'EEE dd/MM HH:mm', { locale })}</TableCell>
                       <TableCell>{c.class_name}</TableCell>
                       <TableCell className="text-center">{c.bookings}</TableCell>
-                      <TableCell className="text-right font-medium">{(c.revenue_cents / 100).toFixed(0)}€</TableCell>
+                      <TableCell className="text-right font-medium">{formatEuros(c.revenue_cents, 0)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold border-t-2">
                     <TableCell colSpan={2}>{isFr ? 'Total' : 'Total'}</TableCell>
                     <TableCell className="text-center">{selectedCoach.total_bookings}</TableCell>
-                    <TableCell className="text-right">{(selectedCoach.total_revenue_cents / 100).toFixed(0)}€</TableCell>
+                    <TableCell className="text-right">{formatEuros(selectedCoach.total_revenue_cents, 0)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
+              </div>
             </>
           )}
         </DialogContent>

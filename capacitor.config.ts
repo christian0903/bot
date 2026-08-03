@@ -6,10 +6,10 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   // Charger directement l'URL de production pour bénéficier des mises à jour
   // sans repasser par les stores. Commenter pour utiliser le build local (dist/).
-  server: {
-    url: 'https://desk.backontrackstudio.be',
-    cleartext: false,
-  },
+  // server: {
+  //   url: 'https://desk.backontrackstudio.be',
+  //   cleartext: false,
+  // },
   ios: {
     contentInset: 'always',
   },

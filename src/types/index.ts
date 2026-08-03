@@ -26,6 +26,11 @@ export interface Profile {
   referral_code: string | null
   member_status: MemberStatus
   weekly_goal: number
+  instagram_url: string | null
+  facebook_url: string | null
+  linkedin_url: string | null
+  coach_description: string | null
+  email_on_self_booking: boolean
   created_at: string
   updated_at: string
   last_sign_in_at: string | null
@@ -95,6 +100,8 @@ export interface ClassType {
   id: string
   name: string
   description: string | null
+  description_md: string | null
+  image_url: string | null
   credit_type_id: string
   default_max_participants: number
   color: string
@@ -223,4 +230,26 @@ export interface ReferralReward {
   used_at: string | null
   expires_at: string | null
   created_at: string
+}
+
+export interface PerformanceType {
+  id: string
+  name: string
+  unit_hint: string | null
+  color: string | null
+  display_order: number
+  archived: boolean
+  created_at: string
+}
+
+export interface Performance {
+  id: string
+  user_id: string
+  performance_type_id: string
+  date: string
+  value: string
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  performance_type?: PerformanceType
 }

@@ -16,7 +16,33 @@
 - Cours par coach (nombre de cours, réservations)
 - Filtres par période personnalisée
 
-## 2. Gestion des utilisateurs (`/admin/users`)
+## 2. Coaches & Admins (`/admin/coaches`)
+
+### Liste des coaches
+- Grille de cartes : photo, nom, email, badges rôles, nombre de cours à venir
+- Clic → fiche coach détaillée
+
+### Fiche coach (`/admin/coaches/:id`)
+- **Header** : photo, nom, email, téléphone, badges rôles, bouton modifier (crayon)
+- **Liens sociaux** : Instagram, Facebook, LinkedIn
+- **Filtre période** : date de début et fin — toutes les stats se mettent à jour
+- **4 compteurs** : cours à venir, cours donnés, inscriptions, revenu de la période
+- **Description** : rendu markdown (spécialités, parcours)
+- **Liste des cours** : nom, date, heure, salle, inscrits/max, revenu par cours
+- Clic sur un cours → page détail (check-in, ajouter/retirer membre)
+
+### Modifier le profil coach
+- Bouton crayon à côté du nom → dialog avec :
+  - Upload photo (Supabase Storage)
+  - Description (markdown)
+  - Instagram, Facebook, LinkedIn URLs
+
+### Différences avec les membres
+- Les coaches ne sont **jamais** affichés dans la page "Membres"
+- Les coaches n'ont pas de packs, crédits, réservations client
+- Les coaches n'ont pas de frais d'inscription
+
+## 3. Gestion des membres (`/admin/users`)
 
 ### Liste des membres
 - Recherche par nom, prénom, email
@@ -31,6 +57,9 @@
 
 ### Fiche membre détaillée (`/admin/users/:id`)
 - Informations personnelles, photo, statut membre
+- **Modifier le nom** : crayon à côté du display_name → dialog avec display_name, prénom, nom (admin + super_admin)
+- **Changer le mot de passe** (super_admin uniquement) : bouton à côté de "Frais d'inscription" → dialog avec mot de passe + confirmation (min 12 caractères). Le membre reçoit automatiquement un email l'informant que son mot de passe a été réinitialisé
+- L'email du membre n'est pas modifiable par l'admin — c'est le membre qui le change lui-même via son profil
 - **Onglet Packs** : liste des packs achetés avec barre de progression des crédits. Cliquer sur un pack affiche :
   - Crédits restants (modifiable)
   - Date d'expiration (modifiable)
@@ -78,6 +107,8 @@
 - Chaque type est lié à un type de crédit (semi-privé ou PT)
 - Nombre max de participants par défaut
 - Couleur du cours (affichée dans le planning)
+- **Photo** : upload d'image via Supabase Storage
+- **Description détaillée** (markdown) : visible via l'icône (i) dans le planning client
 
 ## 5. Types de packs (`/admin/pack-types`)
 
@@ -161,7 +192,25 @@
 ### Mode paiement (Super Admin uniquement)
 - Toggle test/production (Stripe)
 
-## 14. Stats des membres
+## 14. Types de performances (`/performance-types`)
+
+Catalogue partagé des types de performances (rameur, ski erg, squat, etc.). Accessible **coach + admin**.
+
+### Créer un type
+- Nom (ex. "Rameur 500m", "Squat")
+- **Unité indicative** (optionnel) : `kg`, `min`, `m`, `s`… affichée comme indication sur la page membre
+- **Couleur** (hex) : utilisée pour la pastille et le chart (ex. `#ef4444`)
+- **Ordre d'affichage** : entier, plus bas = en premier
+- **Archivé** : masqué dans les listes mais l'historique reste accessible
+
+### Modifier / Supprimer
+- Crayon pour éditer
+- Corbeille pour supprimer. **Si des performances utilisent ce type**, la suppression échoue (FK RESTRICT). Préférer "Archivé" dans ce cas.
+
+### Encodage pour un membre
+Les coaches et admins peuvent encoder une performance pour n'importe quel membre (RLS le permet). L'UI dédiée dans la fiche utilisateur est prévue dans un prochain commit ; en attendant, l'API REST Supabase ou le membre lui-même peuvent l'encoder.
+
+## 15. Stats des membres
 
 Les membres ont accès à leur page `/stats` avec :
 - Compteurs : séances total, ce mois, cette semaine, streak

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { sendEmail } from '@/lib/send-email'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,12 +11,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Copy, Share2, ScanLine, FileText } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import type { MemberCategory } from '@/types'
 
 const STATUS_COLORS: Record<string, string> = {
   visitor: 'bg-gray-100 text-gray-800',
@@ -26,15 +27,17 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function ProfilePage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isFr = i18n.language === 'fr'
   const navigate = useNavigate()
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile, roles, refreshProfile } = useAuth()
+  const isCoachOrAdmin = roles.includes('coach') || roles.includes('admin') || roles.includes('super_admin')
   const [loading, setLoading] = useState(false)
-  const [categories, setCategories] = useState<MemberCategory[]>([])
   const [form, setForm] = useState({
     display_name: '',
     first_name: '',
     last_name: '',
+    email: '',
     phone: '',
     bio: '',
     date_of_birth: '',
@@ -44,7 +47,11 @@ export function ProfilePage() {
     objectives: '',
     fitness_level: '',
     medical_conditions: '',
-    member_category_id: '',
+    instagram_url: '',
+    facebook_url: '',
+    linkedin_url: '',
+    coach_description: '',
+    email_on_self_booking: true,
   })
 
   useEffect(() => {
@@ -53,6 +60,7 @@ export function ProfilePage() {
         display_name: profile.display_name ?? '',
         first_name: profile.first_name ?? '',
         last_name: profile.last_name ?? '',
+        email: user?.email ?? profile.email ?? '',
         phone: profile.phone ?? '',
         bio: profile.bio ?? '',
         date_of_birth: profile.date_of_birth ?? '',
@@ -62,23 +70,52 @@ export function ProfilePage() {
         objectives: profile.objectives ?? '',
         fitness_level: profile.fitness_level ?? '',
         medical_conditions: profile.medical_conditions ?? '',
-        member_category_id: profile.member_category_id ?? '',
+        instagram_url: profile.instagram_url ?? '',
+        facebook_url: profile.facebook_url ?? '',
+        linkedin_url: profile.linkedin_url ?? '',
+        coach_description: profile.coach_description ?? '',
+        email_on_self_booking: profile.email_on_self_booking ?? true,
       })
     }
   }, [profile])
 
-  useEffect(() => {
-    supabase
-      .from('member_categories')
-      .select('*')
-      .order('name')
-      .then(({ data }) => setCategories(data ?? []))
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
     setLoading(true)
+
+    // Email change: only via auth, profiles.email is synced by a DB trigger
+    // once the user confirms the new address by clicking the email link.
+    // Requires Supabase "Secure email change" to be OFF, so only the new
+    // address receives the actionable link. We send an informational
+    // notice to the OLD address ourselves (via Resend) for security audit.
+    const currentEmail = user.email ?? ''
+    const newEmail = form.email.trim()
+    let emailChangeRequested = false
+    if (newEmail && newEmail !== currentEmail) {
+      // Always redirect to a production URL so the link works regardless
+      // of where the user submitted from. VITE_APP_URL must point to the
+      // deployed app's origin; the path lands on a dedicated confirmation
+      // screen so users get clear feedback after clicking the email link.
+      const appUrl = import.meta.env.VITE_APP_URL ?? window.location.origin
+      const { error: authError } = await supabase.auth.updateUser(
+        { email: newEmail },
+        { emailRedirectTo: `${appUrl}/auth/email-changed` },
+      )
+      if (authError) {
+        setLoading(false)
+        toast.error(authError.message)
+        return
+      }
+      emailChangeRequested = true
+      if (currentEmail) {
+        sendEmail('email_change_notice', currentEmail, {
+          user_name: form.display_name || profile?.display_name || '',
+          new_email: newEmail,
+        })
+      }
+    }
 
     const { error } = await supabase
       .from('profiles')
@@ -95,7 +132,11 @@ export function ProfilePage() {
         objectives: form.objectives || null,
         fitness_level: form.fitness_level || null,
         medical_conditions: form.medical_conditions || null,
-        member_category_id: form.member_category_id || null,
+        instagram_url: form.instagram_url || null,
+        facebook_url: form.facebook_url || null,
+        linkedin_url: form.linkedin_url || null,
+        coach_description: form.coach_description || null,
+        email_on_self_booking: form.email_on_self_booking,
       })
       .eq('id', user.id)
 
@@ -105,6 +146,14 @@ export function ProfilePage() {
       toast.error(error.message)
     } else {
       toast.success(t('profile.updated'))
+      if (emailChangeRequested) {
+        toast.info(
+          isFr
+            ? `Un email de confirmation a été envoyé à ${newEmail}. Cliquez sur le lien pour valider. Un avertissement (sans action) a aussi été envoyé à ${currentEmail}.`
+            : `A confirmation email was sent to ${newEmail}. Click the link to validate. A notice (no action needed) was also sent to ${currentEmail}.`,
+          { duration: 10000 },
+        )
+      }
       refreshProfile()
     }
   }
@@ -132,61 +181,45 @@ export function ProfilePage() {
 
   if (!profile) return <LoadingState />
 
+  // Pending email change (Supabase exposes user.new_email until both confirmations done)
+  const pendingNewEmail = (user as { new_email?: string } | null)?.new_email
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Status + Referral Card */}
+      {pendingNewEmail && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <p className="font-semibold text-amber-700 dark:text-amber-300">
+            {isFr ? '⏳ Changement d\'email en attente' : '⏳ Email change pending'}
+          </p>
+          <p className="text-amber-700 dark:text-amber-300 mt-1">
+            {isFr
+              ? `Cliquez sur le lien envoyé à ${pendingNewEmail} pour valider le changement.`
+              : `Click the link sent to ${pendingNewEmail} to validate the change.`}
+          </p>
+        </div>
+      )}
+      {/* Identity header */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={profile.avatar_url ?? undefined} />
-                <AvatarFallback className="text-xl">
-                  {profile.display_name?.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="text-lg font-semibold">{profile.display_name}</h2>
-                <Badge className={STATUS_COLORS[profile.member_status] ?? STATUS_COLORS.visitor}>
-                  {t(`profile.status.${profile.member_status}`)}
-                </Badge>
-              </div>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={profile.avatar_url ?? undefined} />
+              <AvatarFallback className="text-xl">
+                {profile.display_name?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold truncate">{profile.display_name}</h2>
+              {(profile.email || user?.email) && (
+                <p className="text-sm text-muted-foreground truncate">
+                  {profile.email || user?.email}
+                </p>
+              )}
+              <Badge className={`mt-1 ${STATUS_COLORS[profile.member_status] ?? STATUS_COLORS.visitor}`}>
+                {t(`profile.status.${profile.member_status}`)}
+              </Badge>
             </div>
           </div>
-
-          {/* QR Code for check-in */}
-          <div className="mt-4 rounded-lg border p-4">
-            <p className="text-sm font-medium mb-3 flex items-center gap-2">
-              <ScanLine className="h-4 w-4" />
-              {t('profile.qrTitle')}
-            </p>
-            <div className="flex justify-center">
-              <div className="bg-white p-3 rounded-lg">
-                <QRCodeSVG value={profile.id} size={160} />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              {t('profile.qrDesc')}
-            </p>
-          </div>
-
-          {/* Referral code */}
-          {profile.referral_code && (
-            <div className="mt-4 rounded-lg border p-4">
-              <p className="text-sm font-medium mb-2">{t('profile.referralTitle')}</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 rounded bg-muted px-3 py-2 text-sm font-mono">
-                  {profile.referral_code}
-                </code>
-                <Button type="button" variant="outline" size="icon" onClick={copyReferralCode}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button type="button" variant="outline" size="icon" onClick={shareReferralCode}>
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
 
           {/* Invoice request link */}
           <div className="mt-4">
@@ -230,6 +263,21 @@ export function ProfilePage() {
                     onChange={(e) => setForm({ ...form, last_name: e.target.value })}
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('auth.email')}</Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+                {form.email && form.email !== (user?.email ?? '') && (
+                  <p className="text-xs text-muted-foreground">
+                    {isFr
+                      ? 'Un email de confirmation sera envoyé à la nouvelle adresse.'
+                      : 'A confirmation email will be sent to the new address.'}
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -323,26 +371,31 @@ export function ProfilePage() {
               </div>
             </div>
 
-            {/* Category + Bio */}
+            {/* Email notifications */}
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>{t('profile.category')}</Label>
-                <Select
-                  value={form.member_category_id}
-                  onValueChange={(v) => setForm({ ...form, member_category_id: v ?? '' })}
-                >
-                  <SelectTrigger>
-                    <span>{categories.find(c => c.id === form.member_category_id)?.name || t('profile.category')}</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                {isFr ? 'Notifications email' : 'Email notifications'}
+              </h3>
+              <div className="flex items-start gap-3 p-3 rounded-lg border">
+                <Switch
+                  checked={form.email_on_self_booking}
+                  onCheckedChange={(checked) => setForm({ ...form, email_on_self_booking: checked })}
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {isFr ? 'Confirmation par email' : 'Email confirmations'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isFr
+                      ? 'Recevoir un email à chaque réservation ou annulation que vous effectuez vous-même. Les inscriptions/annulations par un coach ou admin, et les modifications de cours, sont toujours envoyées.'
+                      : 'Receive an email for each booking or cancellation you make yourself. Staff-initiated actions and class changes are always sent.'}
+                  </p>
+                </div>
               </div>
+            </div>
+
+            {/* Bio */}
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label>{t('profile.bio')}</Label>
                 <Textarea
@@ -353,12 +406,95 @@ export function ProfilePage() {
               </div>
             </div>
 
+            {/* Coach section */}
+            {isCoachOrAdmin && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  {isFr ? 'Profil coach' : 'Coach profile'}
+                </h3>
+                <div className="space-y-2">
+                  <Label>{isFr ? 'Description (markdown)' : 'Description (markdown)'}</Label>
+                  <Textarea
+                    value={form.coach_description}
+                    onChange={(e) => setForm({ ...form, coach_description: e.target.value })}
+                    rows={5}
+                    placeholder={isFr ? 'Spécialités, parcours, philosophie...' : 'Specialties, background, philosophy...'}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Instagram</Label>
+                    <Input
+                      value={form.instagram_url}
+                      onChange={(e) => setForm({ ...form, instagram_url: e.target.value })}
+                      placeholder="https://instagram.com/..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Facebook</Label>
+                    <Input
+                      value={form.facebook_url}
+                      onChange={(e) => setForm({ ...form, facebook_url: e.target.value })}
+                      placeholder="https://facebook.com/..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>LinkedIn</Label>
+                    <Input
+                      value={form.linkedin_url}
+                      onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
+                      placeholder="https://linkedin.com/in/..."
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 justify-end">
               <Button type="submit" disabled={loading}>
                 {t('profile.save')}
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* QR Code + Referral code at bottom */}
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          {/* QR Code for check-in */}
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-medium mb-3 flex items-center gap-2">
+              <ScanLine className="h-4 w-4" />
+              {t('profile.qrTitle')}
+            </p>
+            <div className="flex justify-center">
+              <div className="bg-white p-3 rounded-lg">
+                <QRCodeSVG value={profile.id} size={160} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              {t('profile.qrDesc')}
+            </p>
+          </div>
+
+          {/* Referral code */}
+          {profile.referral_code && (
+            <div className="rounded-lg border p-4">
+              <p className="text-sm font-medium mb-2">{t('profile.referralTitle')}</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded bg-muted px-3 py-2 text-sm font-mono">
+                  {profile.referral_code}
+                </code>
+                <Button type="button" variant="outline" size="icon" onClick={copyReferralCode}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="outline" size="icon" onClick={shareReferralCode}>
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

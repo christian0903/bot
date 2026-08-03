@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
+import { formatEuros } from '@/lib/utils'
 import type { Coupon } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -84,7 +85,7 @@ export function AdminCouponsPage() {
     setForm({
       code: c.code,
       discount_percent: c.discount_percent?.toString() ?? '',
-      discount_amount_cents: c.discount_amount_cents ? (c.discount_amount_cents / 100).toFixed(2) : '',
+      discount_amount_cents: c.discount_amount_cents ? formatEuros(c.discount_amount_cents) : '',
       max_uses: c.max_uses?.toString() ?? '',
       valid_from: c.valid_from ? format(new Date(c.valid_from), 'yyyy-MM-dd') : '',
       valid_until: c.valid_until ? format(new Date(c.valid_until), 'yyyy-MM-dd') : '',
@@ -127,7 +128,7 @@ export function AdminCouponsPage() {
 
   const formatDiscount = (c: Coupon) => {
     if (c.discount_percent) return `${c.discount_percent}%`
-    if (c.discount_amount_cents) return `${(c.discount_amount_cents / 100).toFixed(2)} \u20AC`
+    if (c.discount_amount_cents) return `${formatEuros(c.discount_amount_cents)} \u20AC`
     return '-'
   }
 
@@ -146,14 +147,14 @@ export function AdminCouponsPage() {
       {coupons.length === 0 ? (
         <EmptyState icon={Ticket} message={t('common.noResults')} actionLabel={t('admin.coupons.add')} onAction={openAdd} />
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t('admin.coupons.code')}</TableHead>
                 <TableHead>{t('admin.coupons.discount')}</TableHead>
-                <TableHead>{t('admin.coupons.uses')}</TableHead>
-                <TableHead>{t('admin.coupons.validity')}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t('admin.coupons.uses')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('admin.coupons.validity')}</TableHead>
                 <TableHead>{t('admin.coupons.active')}</TableHead>
                 <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
@@ -163,10 +164,10 @@ export function AdminCouponsPage() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium font-mono">{c.code}</TableCell>
                   <TableCell>{formatDiscount(c)}</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     {c.current_uses}{c.max_uses ? ` / ${c.max_uses}` : ''}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     {format(new Date(c.valid_from), 'dd/MM/yyyy', { locale })}
                     {c.valid_until ? ` - ${format(new Date(c.valid_until), 'dd/MM/yyyy', { locale })}` : ''}
                   </TableCell>

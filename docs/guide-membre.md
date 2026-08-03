@@ -129,11 +129,21 @@ Si vous n'avez pas encore de pack et n'avez jamais fait d'essai, un bouton vert 
 
 ### Informations modifiables
 - Nom d'affichage, prénom, nom
+- **Email** (avec confirmation, voir ci-dessous)
 - Téléphone, date de naissance, adresse
 - Contact d'urgence (nom + téléphone)
 - Objectifs, niveau (débutant/intermédiaire/avancé), conditions médicales
 - Bio
 - Catégorie de membre
+
+### Changer l'adresse email
+1. Modifier le champ "Email" dans le profil et cliquer "Enregistrer"
+2. Un email avec un lien de confirmation est envoyé à la **nouvelle** adresse
+3. Un avertissement (sans lien d'action) est envoyé à l'**ancienne** adresse pour information / sécurité
+4. Cliquer sur le lien dans la nouvelle adresse → page "Adresse email mise à jour"
+5. Tant que le clic n'est pas fait, un bandeau jaune "Changement d'email en attente" reste visible sur le profil
+
+Le nouvel email devient l'identifiant de connexion immédiatement après la confirmation.
 
 ## 11. Parrainage (`/referral`)
 
@@ -196,7 +206,37 @@ Les badges non encore débloqués apparaissent en grisé.
 - Bouton "Tout marquer comme lu"
 - Cloche avec compteur dans le header
 
-## 14. Statuts membre
+## 14. Performances (`/performances`)
+
+Encodez et suivez vos performances (rameur, ski erg, soulevés de terre, etc.).
+
+### Encoder une performance
+- Bouton "Nouvelle performance" (ou icône `+` sur mobile)
+- **Type** : choisir parmi le catalogue défini par les coaches (Rameur 500m, Squat, etc.)
+- **Date** : par défaut aujourd'hui
+- **Valeur** : texte libre — ex. `13 kg`, `250 kg`, `1:47`, `1500m`. Le format reste libre, vous écrivez ce qui a du sens pour vous
+- **Notes** (optionnel) : commentaire libre (ex. "5x5 facile", "PR ! ")
+
+### Voir mes performances
+- Liste chronologique (plus récent en haut)
+- **Filtres par type** : boutons colorés en haut de la page, "Tous" pour ne pas filtrer
+- Bouton crayon : éditer une perf existante
+- Bouton corbeille : supprimer une perf (sans limite de temps)
+
+### Graphique de progression
+Quand un **type est sélectionné** dans le filtre, une carte chart apparaît :
+- **3 vues** : Jour / Semaine / Mois
+- **Navigation** : flèches `<` `>` pour se déplacer dans le temps
+- **Barres** : valeur numérique extraite (ex. `13 kg` → 13). Les valeurs non numériques sont affichées dans la liste mais pas dans le chart
+- **Durées** : `1:47` est interprété comme 1.7 minute pour le chart
+- **Résumé** : nombre d'entrées + meilleur score sur la période
+
+### Limites actuelles
+- Pas encore de comparaison multi-types sur un même graphe
+- Pas de marquage automatique des records personnels (PR)
+- La vue "Mois" affiche jusqu'à 31 barres, c'est dense sur petit écran
+
+## 15. Statuts membre
 
 Votre statut évolue automatiquement :
 

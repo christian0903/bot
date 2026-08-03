@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { Save } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { MarkdownLink } from '@/components/common/MarkdownLink'
 
 interface AnnouncementValue {
   content: string
@@ -20,7 +21,7 @@ interface AnnouncementValue {
 }
 
 export function AdminAnnouncementsPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { user } = useAuth()
   const [content, setContent] = useState('')
   const [published, setPublished] = useState(false)
@@ -114,6 +115,11 @@ export function AdminAnnouncementsPage() {
                 className="font-mono text-sm"
                 placeholder="Markdown..."
               />
+              <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                {i18n.language === 'fr'
+                  ? <>Syntaxe utile : <code>**gras**</code>, <code>*italique*</code>, <code>- liste</code>, lien : <code>[texte du lien](https://exemple.be)</code>. Les liens s'ouvrent dans le navigateur système sur iOS/Android.</>
+                  : <>Useful syntax: <code>**bold**</code>, <code>*italic*</code>, <code>- list</code>, link: <code>[link text](https://example.com)</code>. Links open in the system browser on iOS/Android.</>}
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -125,7 +131,7 @@ export function AdminAnnouncementsPage() {
             </CardHeader>
             <CardContent>
               <div className="prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{content}</ReactMarkdown>
               </div>
             </CardContent>
           </Card>

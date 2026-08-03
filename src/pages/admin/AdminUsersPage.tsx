@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
+import { formatEuros } from '@/lib/utils'
 import { logActivity } from '@/lib/activity-log'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Profile, UserRole, PackType } from '@/types'
+import type { Profile, UserRole, PackType, MemberCategory } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -41,6 +42,7 @@ import { fr, enUS } from 'date-fns/locale'
 
 interface UserWithRole extends Profile {
   role: UserRole
+  roles: UserRole[]
   credits: number
 }
 
@@ -81,9 +83,11 @@ export function AdminUsersPage() {
   const [packPriceOverride, setPackPriceOverride] = useState('')
   const [packSaving, setPackSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [categories, setCategories] = useState<MemberCategory[]>([])
+  const [filterCategory, setFilterCategory] = useState<string>('all')
 
   const fetchUsers = async () => {
-    const [profilesRes, rolesRes, packsRes] = await Promise.all([
+    const [profilesRes, rolesRes, packsRes, catRes] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('user_roles').select('user_id, role'),
       supabase
@@ -91,9 +95,18 @@ export function AdminUsersPage() {
         .select('user_id, credits_remaining, expires_at')
         .gt('credits_remaining', 0)
         .gt('expires_at', new Date().toISOString()),
+      supabase.from('member_categories').select('*').order('name'),
     ])
 
-    const roleMap = new Map((rolesRes.data ?? []).map((r: { user_id: string; role: UserRole }) => [r.user_id, r.role]))
+    setCategories((catRes.data as MemberCategory[]) ?? [])
+
+    // Build roles map (user can have multiple roles)
+    const rolesMap = new Map<string, UserRole[]>()
+    for (const r of rolesRes.data ?? []) {
+      const existing = rolesMap.get(r.user_id) ?? []
+      existing.push(r.role as UserRole)
+      rolesMap.set(r.user_id, existing)
+    }
 
     // Sum credits per user
     const creditMap = new Map<string, number>()
@@ -101,12 +114,26 @@ export function AdminUsersPage() {
       creditMap.set(p.user_id, (creditMap.get(p.user_id) ?? 0) + p.credits_remaining)
     }
 
-    const merged: UserWithRole[] = (profilesRes.data ?? []).map((p: Profile) => ({
-      ...p,
-      role: roleMap.get(p.id) ?? 'client',
-      credits: creditMap.get(p.id) ?? 0,
-    }))
-    setUsers(merged)
+    // Primary role for display: super_admin > admin > coach > client
+    const primaryRole = (roles: UserRole[]): UserRole => {
+      if (roles.includes('super_admin')) return 'super_admin'
+      if (roles.includes('admin')) return 'admin'
+      if (roles.includes('coach')) return 'coach'
+      return 'client'
+    }
+
+    const merged: UserWithRole[] = (profilesRes.data ?? []).map((p: Profile) => {
+      const userRoles = rolesMap.get(p.id) ?? ['client']
+      return {
+        ...p,
+        role: primaryRole(userRoles),
+        roles: userRoles,
+        credits: creditMap.get(p.id) ?? 0,
+      }
+    })
+    // Exclude coaches and admins — they have their own page
+    const clientsOnly = merged.filter(u => !u.roles.includes('coach') && !u.roles.includes('admin') && !u.roles.includes('super_admin'))
+    setUsers(clientsOnly)
     setLoading(false)
   }
 
@@ -242,7 +269,7 @@ export function AdminUsersPage() {
         price_paid_cents: priceCents,
         expires_at: expiresAt.toISOString(),
       },
-      description: `Pack "${packType.name}" (${packType.credit_count} crédits, ${(priceCents / 100).toFixed(0)}€) attribué à ${packTarget.display_name}`,
+      description: `Pack "${packType.name}" (${packType.credit_count} crédits, ${formatEuros(priceCents, 0)}) attribué à ${packTarget.display_name}`,
     })
 
     // Update local credits count
@@ -257,11 +284,12 @@ export function AdminUsersPage() {
   if (loading) return <LoadingState />
 
   const filteredUsers = users.filter(u => {
-    if (roleFilter !== 'all') {
-      if (roleFilter === 'admin') {
-        if (u.role !== 'admin' && u.role !== 'super_admin') return false
+    if (roleFilter !== 'all' && roleFilter !== u.role) return false
+    if (filterCategory !== 'all') {
+      if (filterCategory === 'none') {
+        if (u.member_category_id) return false
       } else {
-        if (u.role !== roleFilter) return false
+        if (u.member_category_id !== filterCategory) return false
       }
     }
     if (searchQuery) {
@@ -280,7 +308,7 @@ export function AdminUsersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">{t('admin.users.title')}</h1>
+        <h1 className="text-2xl font-bold">{isFr ? 'Membres' : 'Members'}</h1>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
@@ -293,7 +321,7 @@ export function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Search + Role filter */}
+      {/* Search + Category filter */}
       <div className="flex items-center gap-3 flex-wrap">
         <Input
           type="text"
@@ -302,9 +330,27 @@ export function AdminUsersPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-64 h-8 text-sm"
         />
+        {categories.length > 0 && (
+          <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v ?? 'all')}>
+            <SelectTrigger className="h-8 text-xs w-auto min-w-[140px]">
+              <span>{filterCategory === 'all'
+                ? (isFr ? 'Toutes catégories' : 'All categories')
+                : filterCategory === 'none'
+                  ? (isFr ? 'Sans catégorie' : 'No category')
+                  : categories.find(c => c.id === filterCategory)?.name}</span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{isFr ? 'Toutes catégories' : 'All categories'}</SelectItem>
+              <SelectItem value="none">{isFr ? 'Sans catégorie' : 'No category'}</SelectItem>
+              {categories.map(cat => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-        {(['client', 'coach', 'admin', 'all'] as const).map((role) => (
+        {(['all', 'client'] as const).map((role) => (
           <Button
             key={role}
             variant={roleFilter === role ? 'default' : 'outline'}
@@ -314,7 +360,7 @@ export function AdminUsersPage() {
           >
             {role === 'all' ? t('common.all') : t(`roles.${role}`)}
             <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-[10px]">
-              {role === 'all' ? users.length : role === 'admin' ? users.filter(u => u.role === 'admin' || u.role === 'super_admin').length : users.filter(u => u.role === role).length}
+              {users.length}
             </Badge>
           </Button>
         ))}
@@ -323,19 +369,19 @@ export function AdminUsersPage() {
       {filteredUsers.length === 0 ? (
         <EmptyState icon={Users} message={t('common.noResults')} />
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t('admin.users.name')}</TableHead>
-                <TableHead>{t('admin.users.role')}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t('admin.users.role')}</TableHead>
                 <TableHead className="text-center">
                   <span className="flex items-center gap-1 justify-center">
                     <CreditCard className="h-3 w-3" />
                     {isFr ? 'Crédits' : 'Credits'}
                   </span>
                 </TableHead>
-                <TableHead>{t('admin.users.lastLogin')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('admin.users.lastLogin')}</TableHead>
                 <TableHead>{t('admin.users.actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -351,10 +397,14 @@ export function AdminUsersPage() {
                       <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[11px]">
-                      {t(`roles.${user.role}`)}
-                    </Badge>
+                  <TableCell className="hidden sm:table-cell">
+                    <div className="flex gap-1 flex-wrap">
+                      {user.roles.map(r => (
+                        <Badge key={r} variant="outline" className="text-[10px]">
+                          {t(`roles.${r}`)}
+                        </Badge>
+                      ))}
+                    </div>
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge
@@ -364,7 +414,7 @@ export function AdminUsersPage() {
                       {user.credits}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                     {user.last_sign_in_at
                       ? format(new Date(user.last_sign_in_at), 'dd/MM/yyyy HH:mm', { locale })
                       : '-'}
@@ -524,7 +574,7 @@ export function AdminUsersPage() {
                   <SelectContent>
                     {packTypes.map(pt => (
                       <SelectItem key={pt.id} value={pt.id}>
-                        {pt.name} — {pt.credit_count} crédits — {(pt.price_cents / 100).toFixed(0)}€
+                        {pt.name} — {pt.credit_count} crédits — {formatEuros(pt.price_cents, 0)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -546,7 +596,7 @@ export function AdminUsersPage() {
                     <Input
                       type="number"
                       min={0}
-                      placeholder={(selectedPack.price_cents / 100).toFixed(0)}
+                      placeholder={formatEuros(selectedPack.price_cents, 0)}
                       value={packPriceOverride}
                       onChange={(e) => setPackPriceOverride(e.target.value)}
                     />
@@ -566,9 +616,9 @@ export function AdminUsersPage() {
                         variant="outline"
                         size="sm"
                         className="text-xs"
-                        onClick={() => setPackPriceOverride((selectedPack.price_cents / 100).toFixed(0))}
+                        onClick={() => setPackPriceOverride(formatEuros(selectedPack.price_cents, 0))}
                       >
-                        {t('admin.users.manualPayment')} ({(selectedPack.price_cents / 100).toFixed(0)}€)
+                        {t('admin.users.manualPayment')} ({formatEuros(selectedPack.price_cents, 0)}€)
                       </Button>
                     </div>
                   </div>

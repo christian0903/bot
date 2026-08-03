@@ -2,10 +2,12 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Users,
+  UserCog,
   Tags,
   CreditCard,
   Package,
   Dumbbell,
+  Activity,
   CalendarDays,
   BookOpen,
   Ticket,
@@ -20,10 +22,12 @@ import { cn } from '@/lib/utils'
 
 const adminNav = [
   { path: '/admin/users', icon: Users, labelKey: 'admin.users.title' },
+  { path: '/admin/coaches', icon: UserCog, labelKey: 'admin.coaches.title' },
   { path: '/admin/categories', icon: Tags, labelKey: 'admin.categories.title' },
   { path: '/admin/credit-types', icon: CreditCard, labelKey: 'admin.creditTypes.title' },
   { path: '/admin/pack-types', icon: Package, labelKey: 'admin.packTypes.title' },
   { path: '/admin/class-types', icon: Dumbbell, labelKey: 'admin.classTypes.title' },
+  { path: '/performance-types', icon: Activity, labelKey: 'admin.performanceTypes.title' },
   { path: '/admin/schedule', icon: CalendarDays, labelKey: 'admin.schedule.title' },
   { path: '/admin/bookings', icon: BookOpen, labelKey: 'admin.bookings.title' },
   { path: '/admin/coupons', icon: Ticket, labelKey: 'admin.coupons.title' },
@@ -41,8 +45,8 @@ export function AdminLayout() {
   return (
     <div className="flex flex-col md:flex-row gap-6">
       {/* Sidebar desktop / Horizontal scroll mobile */}
-      <nav className="md:w-56 shrink-0">
-        <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 md:sticky md:top-20">
+      <nav className="md:w-56 shrink-0 sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:static md:mx-0 md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none">
+        <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible md:sticky md:top-20">
           {adminNav.map(({ path, icon: Icon, labelKey }) => (
             <NavLink
               key={path}
