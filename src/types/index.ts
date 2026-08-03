@@ -51,9 +51,12 @@ export interface PackType {
   name: string
   description: string | null
   credit_type_id: string
+  /** Sur un pack illimité : indicatif seulement, jamais consommé. */
   credit_count: number
   price_cents: number
   validity_days: number
+  /** Accès illimité : pas de décompte à la réservation, pas de recrédit à l'annulation. */
+  is_unlimited: boolean
   is_active: boolean
   created_at: string
   updated_at: string

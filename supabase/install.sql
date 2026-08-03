@@ -109,6 +109,10 @@ CREATE TABLE coupons (
 );
 
 -- Types de packs
+-- is_unlimited : accès illimité — aucun décompte à la réservation,
+-- aucun recrédit à l'annulation. credit_count reste NOT NULL > 0 : sur un
+-- pack illimité il est purement indicatif (jamais consommé, jamais utilisé
+-- comme diviseur — cf. booking_revenue).
 CREATE TABLE pack_types (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -117,6 +121,7 @@ CREATE TABLE pack_types (
   credit_count INTEGER NOT NULL CHECK (credit_count > 0),
   price_cents INTEGER NOT NULL CHECK (price_cents > 0),
   validity_days INTEGER NOT NULL CHECK (validity_days > 0),
+  is_unlimited BOOLEAN NOT NULL DEFAULT FALSE,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -286,31 +291,63 @@ RETURNS BOOLEAN AS $$
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
--- Crédits disponibles
+-- Packs utilisables d'un membre pour un type de crédit.
+-- Un pack illimité reste utilisable quel que soit credits_remaining.
+-- Ordre : packs à crédits d'abord (ils expirent et se perdent),
+-- illimité en filet.
 CREATE OR REPLACE FUNCTION get_available_credits(p_user_id UUID, p_credit_type_id UUID)
-RETURNS TABLE(pack_purchase_id UUID, credits_remaining INTEGER, expires_at TIMESTAMPTZ) AS $$
-  SELECT pp.id, pp.credits_remaining, pp.expires_at
+RETURNS TABLE(pack_purchase_id UUID, credits_remaining INTEGER, expires_at TIMESTAMPTZ, is_unlimited BOOLEAN) AS $$
+  SELECT pp.id, pp.credits_remaining, pp.expires_at, pt.is_unlimited
   FROM pack_purchases pp
   JOIN pack_types pt ON pp.pack_type_id = pt.id
   WHERE pp.user_id = p_user_id
     AND pt.credit_type_id = p_credit_type_id
-    AND pp.credits_remaining > 0
+    AND (pt.is_unlimited OR pp.credits_remaining > 0)
     AND pp.expires_at > NOW()
-  ORDER BY pp.expires_at ASC;
+  ORDER BY pt.is_unlimited ASC, pp.expires_at ASC;
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
--- Décrémenter un crédit
+-- Décrémenter un crédit (réservation). Sans effet sur un pack illimité.
 CREATE OR REPLACE FUNCTION consume_credit(p_pack_purchase_id UUID)
 RETURNS VOID AS $$
-  UPDATE pack_purchases
-  SET credits_remaining = credits_remaining - 1
-  WHERE id = p_pack_purchase_id AND credits_remaining > 0;
+  UPDATE pack_purchases pp
+  SET credits_remaining = pp.credits_remaining - 1
+  FROM pack_types pt
+  WHERE pp.id = p_pack_purchase_id
+    AND pp.pack_type_id = pt.id
+    AND NOT pt.is_unlimited
+    AND pp.credits_remaining > 0;
 $$ LANGUAGE sql SECURITY DEFINER;
 
--- Revenu d'une réservation
+-- Restituer un crédit (annulation dans les délais).
+-- Symétrique de consume_credit : sans effet sur un pack illimité, puisque
+-- rien n'a été décompté à la réservation.
+CREATE OR REPLACE FUNCTION refund_credit(p_pack_purchase_id UUID)
+RETURNS VOID AS $$
+  UPDATE pack_purchases pp
+  SET credits_remaining = pp.credits_remaining + 1
+  FROM pack_types pt
+  WHERE pp.id = p_pack_purchase_id
+    AND pp.pack_type_id = pt.id
+    AND NOT pt.is_unlimited;
+$$ LANGUAGE sql SECURITY DEFINER;
+
+-- Revenu d'une réservation.
+-- Pack à crédits : prix / credit_count.
+-- Pack illimité : prix / séances réellement consommées — credit_count n'a
+-- pas de sens comme diviseur et vaudrait 0 (division par zéro).
 CREATE OR REPLACE FUNCTION booking_revenue(p_booking_id UUID)
 RETURNS NUMERIC AS $$
-  SELECT (pp.price_paid_cents::NUMERIC / pt.credit_count) / 100
+  SELECT CASE
+    WHEN pt.is_unlimited THEN
+      (pp.price_paid_cents::NUMERIC / GREATEST(
+        (SELECT COUNT(*) FROM bookings b2
+          WHERE b2.pack_purchase_id = pp.id
+            AND b2.status <> 'cancelled'), 1)) / 100
+    WHEN pt.credit_count > 0 THEN
+      (pp.price_paid_cents::NUMERIC / pt.credit_count) / 100
+    ELSE 0
+  END
   FROM bookings b
   JOIN pack_purchases pp ON b.pack_purchase_id = pp.id
   JOIN pack_types pt ON pp.pack_type_id = pt.id
@@ -519,9 +556,9 @@ BEGIN
 
   UPDATE bookings SET status = ''cancelled'', cancelled_at = NOW() WHERE id = p_booking_id;
 
+  -- Sans effet si le pack est illimité (cf. refund_credit)
   IF v_refund THEN
-    UPDATE pack_purchases SET credits_remaining = credits_remaining + 1
-    WHERE id = v_booking.pack_purchase_id;
+    PERFORM refund_credit(v_booking.pack_purchase_id);
   END IF;
 
   PERFORM promote_from_waitlist(v_booking.scheduled_class_id);

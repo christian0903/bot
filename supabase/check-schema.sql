@@ -37,6 +37,7 @@ FROM (
   UNION ALL SELECT 'Col: bookings.checked_in_at', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='checked_in_at')
   UNION ALL SELECT 'Col: bookings.is_no_show', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='is_no_show')
   UNION ALL SELECT 'Col: pack_purchases.mollie_payment_id', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='pack_purchases' AND column_name='mollie_payment_id')
+  UNION ALL SELECT 'Col: pack_types.is_unlimited', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='pack_types' AND column_name='is_unlimited')
 
   -- ENUMS
   UNION ALL SELECT 'Enum: user_role.super_admin', EXISTS(SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid=t.oid WHERE t.typname='user_role' AND e.enumlabel='super_admin')
@@ -48,6 +49,7 @@ FROM (
   UNION ALL SELECT 'Func: has_role', EXISTS(SELECT 1 FROM pg_proc WHERE proname='has_role')
   UNION ALL SELECT 'Func: get_available_credits', EXISTS(SELECT 1 FROM pg_proc WHERE proname='get_available_credits')
   UNION ALL SELECT 'Func: consume_credit', EXISTS(SELECT 1 FROM pg_proc WHERE proname='consume_credit')
+  UNION ALL SELECT 'Func: refund_credit', EXISTS(SELECT 1 FROM pg_proc WHERE proname='refund_credit')
   UNION ALL SELECT 'Func: booking_revenue', EXISTS(SELECT 1 FROM pg_proc WHERE proname='booking_revenue')
   UNION ALL SELECT 'Func: generate_referral_code', EXISTS(SELECT 1 FROM pg_proc WHERE proname='generate_referral_code')
   UNION ALL SELECT 'Func: handle_new_user', EXISTS(SELECT 1 FROM pg_proc WHERE proname='handle_new_user')
