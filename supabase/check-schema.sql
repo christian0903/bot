@@ -36,7 +36,7 @@ FROM (
   UNION ALL SELECT 'Col: class_types.color', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='class_types' AND column_name='color')
   UNION ALL SELECT 'Col: bookings.checked_in_at', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='checked_in_at')
   UNION ALL SELECT 'Col: bookings.is_no_show', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='is_no_show')
-  UNION ALL SELECT 'Col: pack_purchases.mollie_payment_id', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='pack_purchases' AND column_name='mollie_payment_id')
+  UNION ALL SELECT 'Col: pack_purchases.stripe_payment_intent_id', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='pack_purchases' AND column_name='stripe_payment_intent_id')
   UNION ALL SELECT 'Col: pack_types.is_unlimited', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='pack_types' AND column_name='is_unlimited')
 
   -- ENUMS

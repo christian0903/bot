@@ -174,7 +174,6 @@ export interface RegistrationFee {
   amount_cents: number
   paid_at: string
   stripe_payment_intent_id: string | null
-  mollie_payment_id: string | null
   created_at: string
 }
 

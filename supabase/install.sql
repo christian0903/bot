@@ -144,7 +144,6 @@ CREATE TABLE pack_purchases (
   purchased_at TIMESTAMPTZ DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
   stripe_payment_intent_id TEXT,
-  mollie_payment_id TEXT,
   coupon_id UUID REFERENCES coupons(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -250,7 +249,6 @@ CREATE TABLE registration_fees (
   amount_cents INTEGER NOT NULL DEFAULT 3000,
   paid_at TIMESTAMPTZ DEFAULT NOW(),
   stripe_payment_intent_id TEXT,
-  mollie_payment_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

@@ -254,6 +254,8 @@ Dans tous les cas, la **réservation reste enregistrée normalement** dans `book
 
 **L'infrastructure existe déjà** : `create-checkout-session` et `stripe-webhook` sont en place, avec bascule test/live via `app_settings.stripe_mode`, et les clés en variables d'environnement. Tout ce qui suit est une **extension** de l'existant, pas une construction.
 
+> **Reliquat Mollie.** Les tables `pack_purchases` et `registration_fees` portent une colonne `mollie_payment_id`, créée d'avance pour une migration abandonnée. Elle n'a jamais été ni écrite ni lue. Elle a été retirée des scripts d'installation (`install.sql`) et du type TypeScript, **mais volontairement pas supprimée des bases existantes** : un `DROP COLUMN` est irréversible et n'apporte rien ici. Elle disparaîtra d'elle-même à la prochaine installation propre. Le script historique `phase3.sql` la mentionne encore — c'est normal, il décrit un état passé déjà appliqué.
+
 ### 5.1 Cycle de 4 semaines
 
 ```ts
