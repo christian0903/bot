@@ -219,6 +219,30 @@ ALTER TABLE pack_purchases ADD COLUMN stripe_invoice_id TEXT;
 
 **Le principe** : à chaque échéance payée, le webhook crée une **nouvelle ligne `pack_purchases`** exactement comme pour un achat ponctuel. Le reste de l'application — réservation, décompte, expiration, affichage — ne voit aucune différence. C'est ce qui rend la Phase 12 légère.
 
+### 4.4 Une ligne par cycle, jamais une date modifiée
+
+Question tranchée le 2026-08-04 : à la reconduction, **on crée un nouveau `pack_purchases`**, on ne prolonge pas l'existant.
+
+```
+Abonnement Stripe (1 ligne, permanente)
+   │
+   ├── cycle 1 : pack_purchases #a  04/08 → 01/09   ← facture Stripe #1
+   ├── cycle 2 : pack_purchases #b  01/09 → 29/09   ← facture Stripe #2
+   └── cycle 3 : pack_purchases #c  29/09 → 27/10   ← facture Stripe #3
+```
+
+Chaque `booking` porte le `pack_purchase_id` du cycle pendant lequel il a été fait. Trois conséquences, toutes voulues :
+
+**Les compteurs se remettent à zéro tout seuls.** Les annulations d'un membre se comptent sur le cycle en cours, sans code de remise à zéro ni tâche planifiée : les nouvelles réservations pointent simplement vers le nouveau pack. C'est ce qui permet de répondre à « combien d'annulations **ce mois-ci** » plutôt qu'à « depuis son inscription », seule question utile pour arbitrer une dérive.
+
+**L'historique reste intact.** Chaque cycle conserve ses réservations, ses annulations et son montant payé. On peut répondre à « combien de séances en juillet », ce qu'une date d'expiration déplacée rendrait impossible.
+
+**La comptabilité suit.** Une ligne `pack_purchases` = une facture Stripe = une période. Le rapprochement avec Odoo se fait sans reconstruction.
+
+> Modifier `expires_at` au lieu de créer une ligne effacerait l'histoire à chaque échéance : plus de décompte par cycle, plus de traçabilité comptable, et un compteur d'annulations qui cumulerait treize cycles par an sans jamais rien dire d'exploitable.
+
+**Le décalage d'échéance (§3.3) est le seul cas où l'on touche à une date** : il prolonge le cycle *en cours* (congés, blessure) sans créer de ligne, puisqu'aucun paiement n'a lieu. Le cycle suivant repartira de la nouvelle date.
+
 ### 4.3 Illimité — à développer, rien n'existe
 
 > **Vérifié dans le code le 2026-08-03 : l'illimité n'est pas implémenté.** Aucune occurrence de `unlimited` en base ; `pack_purchases.credits_remaining` est `NOT NULL` ; `get_available_pack()` filtre sur `credits_remaining > 0` ; `consume_credit()` fait un `-1` sec. C'est donc du développement, pas de la réutilisation.

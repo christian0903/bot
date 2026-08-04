@@ -47,6 +47,8 @@ export function AdminUserDetailPage() {
   const [packs, setPacks] = useState<PackPurchase[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
+  /** Seuil d'alerte annulations par cycle (Réglages → Alerte annulations). */
+  const [cancelAlertThreshold, setCancelAlertThreshold] = useState(4)
 
   // Edit pack dialog
   const [editPackDialogOpen, setEditPackDialogOpen] = useState(false)
@@ -91,7 +93,7 @@ export function AdminUserDetailPage() {
   const fetchData = async () => {
     if (!id) return
 
-    const [profileRes, packsRes, bookingsRes, regFeeRes, catRes] = await Promise.all([
+    const [profileRes, packsRes, bookingsRes, regFeeRes, catRes, alertRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', id).single(),
       supabase
         .from('pack_purchases')
@@ -105,9 +107,12 @@ export function AdminUserDetailPage() {
         .order('created_at', { ascending: false }),
       supabase.from('registration_fees').select('id').eq('user_id', id).limit(1),
       supabase.from('member_categories').select('*').order('name'),
+      supabase.from('app_settings').select('value').eq('key', 'cancellation_alert').maybeSingle(),
     ])
 
     setProfile(profileRes.data as Profile)
+    const alertVal = alertRes.data?.value as { threshold_per_cycle?: number } | undefined
+    if (alertVal?.threshold_per_cycle) setCancelAlertThreshold(alertVal.threshold_per_cycle)
     setHasRegFee((regFeeRes.data?.length ?? 0) > 0)
     setCategories((catRes.data as MemberCategory[]) ?? [])
     setPacks((packsRes.data as PackPurchase[]) ?? [])
@@ -424,30 +429,41 @@ export function AdminUserDetailPage() {
 
   // ---- Annulations et no-show : reperage des derives de reservation ----
   // Un membre illimite peut reserver sans compter puis se desister : il bloque
-  // des places sans que rien ne le lui coute. C'est ce que ces indicateurs
-  // rendent visible, la sanction restant humaine (decision de la reunion).
+  // des places sans que rien ne le lui coute. Ces indicateurs le rendent
+  // visible, la sanction restant humaine (decision de la reunion).
+  //
+  // IMPORTANT : on raisonne PAR CYCLE, pas sur tout l'historique. Chaque
+  // echeance payee cree une nouvelle ligne pack_purchases, et les reservations
+  // pointent vers celle en cours : le compteur se remet donc a zero tout seul a
+  // chaque reconduction. Cumuler 13 cycles d'abonnement ne dirait rien d'utile.
   const cancelledBookings = bookings
     .filter(b => b.status === 'cancelled' || b.is_no_show)
     .sort((a, b) => new Date(b.scheduled_class?.starts_at ?? '').getTime() - new Date(a.scheduled_class?.starts_at ?? '').getTime())
 
-  const noShowCount = bookings.filter(b => b.is_no_show).length
-
-  /** Annulations tardives : moins de N heures avant le cours (defaut 12 h). */
-  const lateCancellations = bookings.filter(b => {
+  const isLateCancel = (b: Booking) => {
     if (b.status !== 'cancelled' || !b.cancelled_at || !b.scheduled_class?.starts_at) return false
-    const hoursBefore = (new Date(b.scheduled_class.starts_at).getTime() - new Date(b.cancelled_at).getTime()) / 3600000
-    return hoursBefore < 12
-  }).length
+    return (new Date(b.scheduled_class.starts_at).getTime() - new Date(b.cancelled_at).getTime()) / 3600000 < 12
+  }
 
-  const last30d = new Date(now.getTime() - 30 * 86400000)
-  const cancelledLast30d = cancelledBookings.filter(
-    b => b.cancelled_at && new Date(b.cancelled_at) > last30d
-  ).length
+  /** Pack actif le plus recent : definit le cycle en cours. */
+  const currentPack = packs
+    .filter(p => new Date(p.expires_at) > now)
+    .sort((a, b) => new Date(b.purchased_at).getTime() - new Date(a.purchased_at).getTime())[0]
 
-  const confirmedTotal = bookings.filter(b => b.status === 'confirmed').length
-  const cancellationRate = bookings.length > 0
-    ? Math.round((cancelledBookings.length / bookings.length) * 100)
+  const cycleBookings = currentPack
+    ? bookings.filter(b => b.pack_purchase_id === currentPack.id)
+    : []
+  const cycleCancelled = cycleBookings.filter(b => b.status === 'cancelled' || b.is_no_show)
+  const cycleLate = cycleBookings.filter(isLateCancel).length
+  const cycleNoShow = cycleBookings.filter(b => b.is_no_show).length
+  const cycleRate = cycleBookings.length > 0
+    ? Math.round((cycleCancelled.length / cycleBookings.length) * 100)
     : 0
+  const overThreshold = cycleCancelled.length > cancelAlertThreshold
+
+  const confirmedTotal = bookings.filter(b => b.status === 'confirmed' && !b.is_no_show).length
+  /** Nombre de cycles (packs) ayant donne lieu a au moins une reservation. */
+  const cyclesWithActivity = new Set(bookings.map(b => b.pack_purchase_id).filter(Boolean)).size
 
   // For booking dialog: filter packs compatible with selected class
   const selectedClass = availableClasses.find(c => c.id === selectedClassId)
@@ -755,53 +771,87 @@ export function AdminUserDetailPage() {
 
         {/* CANCELLATIONS TAB */}
         <TabsContent value="cancellations" className="mt-4 space-y-4">
-          {/* Indicateurs de derive */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card>
-              <CardContent className="p-3">
-                <p className="text-2xl font-bold">{cancelledBookings.length}</p>
+          {/* Cycle en cours */}
+          {currentPack ? (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">
+                  {isFr ? 'Cycle en cours' : 'Current cycle'} — {currentPack.pack_type?.name}
+                </h3>
                 <p className="text-xs text-muted-foreground">
-                  {isFr ? 'Annulations totales' : 'Total cancellations'}
+                  {isFr ? 'depuis le' : 'since'}{' '}
+                  {format(new Date(currentPack.purchased_at), 'dd/MM/yyyy', { locale })}
+                  {' · '}
+                  {isFr ? 'fin le' : 'ends'}{' '}
+                  {format(new Date(currentPack.expires_at), 'dd/MM/yyyy', { locale })}
                 </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <p className="text-2xl font-bold">{cancelledLast30d}</p>
-                <p className="text-xs text-muted-foreground">
-                  {isFr ? 'Sur 30 jours' : 'Last 30 days'}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <p className={cn('text-2xl font-bold', lateCancellations > 0 && 'text-orange-500')}>
-                  {lateCancellations}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {isFr ? 'Tardives (< 12 h)' : 'Late (< 12 h)'}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <p className={cn('text-2xl font-bold', noShowCount > 0 && 'text-destructive')}>
-                  {noShowCount}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {isFr ? 'Absences (no-show)' : 'No-shows'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
 
-          {bookings.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {isFr
-                ? `Taux d'annulation : ${cancellationRate} % (${cancelledBookings.length} sur ${bookings.length} réservations)`
-                : `Cancellation rate: ${cancellationRate}% (${cancelledBookings.length} of ${bookings.length} bookings)`}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card className={cn(overThreshold && 'border-orange-500')}>
+                  <CardContent className="p-3">
+                    <p className={cn('text-2xl font-bold', overThreshold && 'text-orange-500')}>
+                      {cycleCancelled.length}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isFr ? 'Annulations' : 'Cancellations'}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3">
+                    <p className={cn('text-2xl font-bold', cycleLate > 0 && 'text-orange-500')}>
+                      {cycleLate}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isFr ? 'Tardives (< 12 h)' : 'Late (< 12 h)'}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3">
+                    <p className={cn('text-2xl font-bold', cycleNoShow > 0 && 'text-destructive')}>
+                      {cycleNoShow}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isFr ? 'Absences' : 'No-shows'}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3">
+                    <p className="text-2xl font-bold">{cycleRate} %</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isFr
+                        ? `sur ${cycleBookings.length} résa.`
+                        : `of ${cycleBookings.length} bookings`}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {overThreshold && (
+                <p className="text-xs text-orange-600 dark:text-orange-400">
+                  {isFr
+                    ? `Au-delà du seuil de ${cancelAlertThreshold} annulations par cycle — à évoquer avec le membre.`
+                    : `Above the ${cancelAlertThreshold} cancellations per cycle threshold — worth discussing with the member.`}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {isFr ? 'Aucun pack actif — pas de cycle en cours.' : 'No active pack — no current cycle.'}
             </p>
           )}
+
+          {/* Historique tous cycles confondus */}
+          <div className="border-t pt-3">
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? `Depuis l'inscription : ${cancelledBookings.length} annulation(s) sur ${bookings.length} réservation(s), ${cyclesWithActivity} cycle(s).`
+                : `Since sign-up: ${cancelledBookings.length} cancellation(s) out of ${bookings.length} booking(s), across ${cyclesWithActivity} cycle(s).`}
+            </p>
+          </div>
 
           {cancelledBookings.length > 0 ? (
             <div className="space-y-2">
@@ -830,6 +880,11 @@ export function AdminUserDetailPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {currentPack && b.pack_purchase_id === currentPack.id && (
+                          <Badge variant="outline" className="text-[11px]">
+                            {isFr ? 'Cycle en cours' : 'Current cycle'}
+                          </Badge>
+                        )}
                         {b.is_no_show && (
                           <Badge variant="destructive" className="text-[11px]">
                             {isFr ? 'Absent' : 'No-show'}

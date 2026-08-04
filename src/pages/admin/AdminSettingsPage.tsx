@@ -82,13 +82,15 @@ export function AdminSettingsPage() {
   const [regFeeEnabled, setRegFeeEnabled] = useState(true)
   /** Coût moyen d'une séance sur un pack illimité (€), pour le calcul du CA. */
   const [unlimitedCost, setUnlimitedCost] = useState(0)
+  /** Seuil d'alerte : nombre d'annulations par cycle au-delà duquel signaler. */
+  const [cancelAlert, setCancelAlert] = useState(4)
 
   useEffect(() => {
     const fetchData = async () => {
       const { data } = await supabase
         .from('app_settings')
         .select('*')
-        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost'])
+        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert'])
 
       for (const setting of data ?? []) {
         if (setting.key === 'stripe_mode') {
@@ -111,6 +113,10 @@ export function AdminSettingsPage() {
         if (setting.key === 'unlimited_session_cost') {
           const val = setting.value as { amount_cents?: number }
           setUnlimitedCost((val.amount_cents ?? 0) / 100)
+        }
+        if (setting.key === 'cancellation_alert') {
+          const val = setting.value as { threshold_per_cycle?: number }
+          setCancelAlert(val.threshold_per_cycle ?? 4)
         }
       }
       setLoading(false)
@@ -354,6 +360,40 @@ export function AdminSettingsPage() {
             onClick={() => saveSetting('unlimited_session_cost', { amount_cents: Math.round(unlimitedCost * 100) })}
           >
             {saving === 'unlimited_session_cost' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Seuil d'alerte sur les annulations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Clock className="h-4 w-4 text-primary" />
+            {isFr ? 'Alerte annulations' : 'Cancellation alert'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? "Au-delà de ce nombre d'annulations sur un même cycle, le compteur passe en orange dans la fiche du membre. C'est un signalement visuel : aucune sanction n'est appliquée automatiquement, l'arbitrage reste humain."
+              : 'Above this number of cancellations within a single cycle, the counter turns orange on the member page. This is a visual flag only: no automatic penalty, the decision stays human.'}
+          </p>
+          <div className="space-y-2">
+            <Label>{isFr ? 'Seuil par cycle' : 'Threshold per cycle'}</Label>
+            <Input
+              type="number"
+              min={1}
+              className="w-32"
+              value={cancelAlert}
+              onChange={e => setCancelAlert(parseInt(e.target.value) || 1)}
+            />
+          </div>
+          <Button
+            size="sm"
+            disabled={saving === 'cancellation_alert'}
+            onClick={() => saveSetting('cancellation_alert', { threshold_per_cycle: cancelAlert })}
+          >
+            {saving === 'cancellation_alert' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
           </Button>
         </CardContent>
       </Card>
