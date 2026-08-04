@@ -21,7 +21,7 @@ import { sendEmail } from '@/lib/send-email'
 import { addDays, startOfWeek, format, isSameDay, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion, AnimatePresence } from 'framer-motion'
-import { cn } from '@/lib/utils'
+import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
 import type { ScheduledClass, Booking } from '@/types'
 
 type ViewMode = 'day' | 'week' | 'list'
@@ -90,6 +90,8 @@ export function SchedulePage() {
   const [filterOpen, setFilterOpen] = useState(false)
   /** Le membre a-t-il au moins un pack valide (illimité compris) ? */
   const [hasUsablePack, setHasUsablePack] = useState(false)
+  /** Minimum d'inscrits pour qu'un cours compte comme donné (Réglages). */
+  const [minParticipants, setMinParticipants] = useState(1)
 
   // Filters
   const [filterClassType, setFilterClassType] = useState<string>('all')
@@ -135,13 +137,15 @@ export function SchedulePage() {
     // Fetch 14 days to cover day view which can span past weekStart+7
     const to = addDays(weekStart, 14).toISOString()
 
-    const [classesRes, bookingsRes, waitlistRes, rulesRes, roomNamesRes] = await Promise.all([
+    const [classesRes, bookingsRes, waitlistRes, rulesRes, roomNamesRes, givenRuleRes] = await Promise.all([
+      // Les cours annulés sont chargés, puis filtrés selon le rôle plus bas :
+      // visibles pour le staff (information de gestion), masqués pour les
+      // clients — un planning parsemé d'« Annulé » donne une mauvaise image.
       supabase
         .from('scheduled_classes')
         .select('*, class_type:class_types(*, credit_type:credit_types(name, label_fr, label_en))')
         .gte('starts_at', from)
         .lt('starts_at', to)
-        .eq('is_cancelled', false)
         .order('starts_at'),
       user
         ? supabase.from('bookings').select('scheduled_class_id').eq('user_id', user.id).eq('status', 'confirmed')
@@ -151,6 +155,7 @@ export function SchedulePage() {
         : Promise.resolve({ data: [] }),
       supabase.from('app_settings').select('value').eq('key', 'booking_rules').single(),
       supabase.from('app_settings').select('value').eq('key', 'room_names').single(),
+      supabase.from('app_settings').select('value').eq('key', 'class_given_rule').maybeSingle(),
     ])
 
     // Le membre possède-t-il un pack utilisable ? Un illimité compte même si
@@ -171,6 +176,9 @@ export function SchedulePage() {
       setHasUsablePack(false)
     }
 
+    const givenRule = givenRuleRes.data?.value as { min_participants?: number } | undefined
+    if (givenRule?.min_participants) setMinParticipants(givenRule.min_participants)
+
     if (rulesRes.data?.value) {
       setBookingRules({ ...DEFAULT_RULES, ...(rulesRes.data.value as Partial<BookingRules>) })
     }
@@ -178,7 +186,11 @@ export function SchedulePage() {
       setRoomNames(prev => ({ ...prev, ...(roomNamesRes.data.value as Record<string, string>) }))
     }
 
-    const rawClasses = (classesRes.data as ScheduledClass[]) ?? []
+    // Le staff voit les cours annulés (information de gestion) ; les clients
+    // non, pour ne pas afficher un planning parsemé d'annulations.
+    const staffView = !!user && (roles.includes('admin') || roles.includes('super_admin') || roles.includes('coach'))
+    const rawClasses = ((classesRes.data as ScheduledClass[]) ?? [])
+      .filter(c => staffView || !c.is_cancelled)
 
     // Fetch coach profiles
     const coachIds = [...new Set(rawClasses.map(c => c.coach_id).filter(Boolean))]
@@ -697,12 +709,30 @@ export function SchedulePage() {
           : `${spotsFree} spot${spotsFree > 1 ? 's' : ''} available`
 
     const renderAction = () => {
-      if (isStaff) return (
-        <Button size="sm" variant="outline" className="rounded-full h-8 text-xs font-semibold"
-          onClick={(e) => { e.stopPropagation(); openClassDetail(sc) }}>
-          <Users className="h-3 w-3 mr-1" />{isFr ? 'Détail' : 'Detail'}
-        </Button>
-      )
+      if (isStaff) {
+        // Statut dérivé, réservé au staff : les clients ne voient jamais
+        // "Annulé" ni "Effectif insuffisant".
+        const status = getClassStatus({
+          starts_at: sc.starts_at,
+          is_cancelled: sc.is_cancelled,
+          bookings: bookingCounts.get(sc.id) ?? 0,
+          minParticipants,
+        })
+        const badge = classStatusLabel(status, isFr)
+        return (
+          <div className="flex items-center gap-2">
+            {status !== 'scheduled' && (
+              <Badge variant={badge.variant} className={cn('text-[10px]', badge.className)}>
+                {badge.label}
+              </Badge>
+            )}
+            <Button size="sm" variant="outline" className="rounded-full h-8 text-xs font-semibold"
+              onClick={(e) => { e.stopPropagation(); openClassDetail(sc) }}>
+              <Users className="h-3 w-3 mr-1" />{isFr ? 'Détail' : 'Detail'}
+            </Button>
+          </div>
+        )
+      }
       if (isPast) return isBooked ? (
         <span className="flex items-center gap-1 text-xs text-primary/70">
           <Check className="h-3.5 w-3.5" />{t('schedule.booked')}

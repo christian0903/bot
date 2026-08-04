@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import { Settings, CreditCard, Users, Clock, Building, Shield } from 'lucide-react'
+import { Settings, CreditCard, Users, Clock, Building, Shield, CalendarDays } from 'lucide-react'
 
 interface RoomNames {
   haut: string
@@ -84,13 +84,15 @@ export function AdminSettingsPage() {
   const [unlimitedCost, setUnlimitedCost] = useState(0)
   /** Seuil d'alerte : nombre d'annulations par cycle au-delà duquel signaler. */
   const [cancelAlert, setCancelAlert] = useState(4)
+  /** Minimum de participants pour qu'un cours compte comme donné. */
+  const [minParticipants, setMinParticipants] = useState(1)
 
   useEffect(() => {
     const fetchData = async () => {
       const { data } = await supabase
         .from('app_settings')
         .select('*')
-        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert'])
+        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert', 'class_given_rule'])
 
       for (const setting of data ?? []) {
         if (setting.key === 'stripe_mode') {
@@ -117,6 +119,10 @@ export function AdminSettingsPage() {
         if (setting.key === 'cancellation_alert') {
           const val = setting.value as { threshold_per_cycle?: number }
           setCancelAlert(val.threshold_per_cycle ?? 4)
+        }
+        if (setting.key === 'class_given_rule') {
+          const val = setting.value as { min_participants?: number }
+          setMinParticipants(val.min_participants ?? 1)
         }
       }
       setLoading(false)
@@ -394,6 +400,40 @@ export function AdminSettingsPage() {
             onClick={() => saveSetting('cancellation_alert', { threshold_per_cycle: cancelAlert })}
           >
             {saving === 'cancellation_alert' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Règle "cours donné" */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CalendarDays className="h-4 w-4 text-primary" />
+            {isFr ? 'Cours donné — seuil de participants' : 'Class given — attendee threshold'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? "Un cours planifié n'est comptabilisé comme donné que s'il a réuni au moins ce nombre de participants et n'a pas été annulé. Sert au tableau de bord (colonne « Cours donnés ») pour distinguer ce qui a réellement eu lieu de ce qui était au planning."
+              : 'A scheduled class only counts as given if it gathered at least this many attendees and was not cancelled. Used in the dashboard ("Classes given") to tell what actually happened from what was merely planned.'}
+          </p>
+          <div className="space-y-2">
+            <Label>{isFr ? 'Minimum de participants' : 'Minimum attendees'}</Label>
+            <Input
+              type="number"
+              min={1}
+              className="w-32"
+              value={minParticipants}
+              onChange={e => setMinParticipants(parseInt(e.target.value) || 1)}
+            />
+          </div>
+          <Button
+            size="sm"
+            disabled={saving === 'class_given_rule'}
+            onClick={() => saveSetting('class_given_rule', { min_participants: minParticipants })}
+          >
+            {saving === 'class_given_rule' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
           </Button>
         </CardContent>
       </Card>

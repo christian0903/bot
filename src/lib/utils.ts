@@ -44,6 +44,63 @@ export function creditValueCents(
 }
 
 // ---------------------------------------------------------------------------
+// Statut d'un cours
+//
+// DÉRIVÉ, jamais stocké : il se déduit de la date, de is_cancelled et du
+// nombre d'inscrits. Une colonne en base devrait être entretenue par une tâche
+// planifiée et finirait par diverger du réel (un cours passe de "à risque" à
+// "exécuté" par le simple écoulement du temps).
+// ---------------------------------------------------------------------------
+
+export type ClassStatus = 'scheduled' | 'at_risk' | 'given' | 'not_given' | 'cancelled'
+
+export interface ClassStatusInput {
+  starts_at: string
+  is_cancelled?: boolean
+  /** Réservations confirmées sur ce cours. */
+  bookings: number
+  /** Minimum d'inscrits pour qu'un cours compte comme donné (Réglages). */
+  minParticipants: number
+  /** À combien d'heures du cours on alerte sur un effectif insuffisant. */
+  atRiskHours?: number
+}
+
+export function getClassStatus(c: ClassStatusInput, now = new Date()): ClassStatus {
+  if (c.is_cancelled) return 'cancelled'
+
+  const startsAt = new Date(c.starts_at)
+  const hoursUntil = (startsAt.getTime() - now.getTime()) / 3600000
+  const hasQuorum = c.bookings >= c.minParticipants
+
+  // Cours passé : il a eu lieu ou non, selon l'effectif atteint.
+  if (hoursUntil <= 0) return hasQuorum ? 'given' : 'not_given'
+
+  // Cours à venir : "à risque" quand l'échéance approche sans quorum.
+  if (!hasQuorum && hoursUntil <= (c.atRiskHours ?? 24)) return 'at_risk'
+  return 'scheduled'
+}
+
+/** Libellé + couleur d'un statut, pour les badges. */
+export function classStatusLabel(status: ClassStatus, isFr = true): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string } {
+  switch (status) {
+    case 'cancelled':
+      return { label: isFr ? 'Annulé' : 'Cancelled', variant: 'destructive' }
+    case 'given':
+      return { label: isFr ? 'Exécuté' : 'Given', variant: 'default' }
+    case 'not_given':
+      return { label: isFr ? 'Non donné' : 'Not given', variant: 'secondary' }
+    case 'at_risk':
+      return {
+        label: isFr ? 'Effectif insuffisant' : 'Below minimum',
+        variant: 'outline',
+        className: 'border-orange-500 text-orange-600 dark:text-orange-400',
+      }
+    default:
+      return { label: isFr ? 'Planifié' : 'Scheduled', variant: 'outline' }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Validité des packs
 //
 // La base stocke des JOURS (`validity_days`) : les Edge Functions Stripe et le

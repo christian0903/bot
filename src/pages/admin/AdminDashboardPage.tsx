@@ -44,10 +44,10 @@ interface BookingDetail {
 interface CoachStat {
   coach_id: string
   coach_name: string
-  /** Cours effectivement donnés (déjà passés) sur la période. */
+  /** Cours réellement donnés : passés, non annulés, avec le minimum d'inscrits. */
   class_count: number
-  /** Cours encore à venir sur la période : planifiés, pas encore donnés. */
-  upcoming_count: number
+  /** Tous les cours au programme sur la période (à venir et annulés compris). */
+  scheduled_count: number
   total_bookings: number
   total_revenue_cents: number
   classes: {
@@ -56,6 +56,7 @@ interface CoachStat {
     starts_at: string
     bookings: number
     revenue_cents: number
+    was_given: boolean
   }[]
 }
 
@@ -81,17 +82,24 @@ export function AdminDashboardPage() {
    * entier du pack serait attribué à chaque séance.
    */
   const [unlimitedSessionCost, setUnlimitedSessionCost] = useState<number | null>(null)
+  /** Minimum d'inscrits pour qu'un cours compte comme donné (Réglages). */
+  const [minParticipants, setMinParticipants] = useState(1)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   useEffect(() => {
     supabase
       .from('app_settings')
-      .select('value')
-      .eq('key', 'unlimited_session_cost')
-      .maybeSingle()
+      .select('key, value')
+      .in('key', ['unlimited_session_cost', 'class_given_rule'])
       .then(({ data }) => {
-        const val = data?.value as { amount_cents?: number } | undefined
-        setUnlimitedSessionCost(val?.amount_cents ?? null)
+        for (const s of data ?? []) {
+          if (s.key === 'unlimited_session_cost') {
+            setUnlimitedSessionCost((s.value as { amount_cents?: number })?.amount_cents ?? null)
+          }
+          if (s.key === 'class_given_rule') {
+            setMinParticipants((s.value as { min_participants?: number })?.min_participants ?? 1)
+          }
+        }
         setSettingsLoaded(true)
       })
   }, [])
@@ -115,7 +123,7 @@ export function AdminDashboardPage() {
   // seraient valorisées à 0 au premier rendu.
   useEffect(() => {
     if (settingsLoaded) fetchData()
-  }, [dateFrom, dateTo, settingsLoaded, unlimitedSessionCost])
+  }, [dateFrom, dateTo, settingsLoaded, unlimitedSessionCost, minParticipants])
 
   const fetchData = async () => {
     setLoading(true)
@@ -149,15 +157,19 @@ export function AdminDashboardPage() {
     setPackSales(sales)
 
     // 2. Bookings (credits consumed) in period — based on class date
-    const { data: classesInPeriod } = await supabase
+    // Les cours annulés sont chargés eux aussi : ils comptent dans les cours
+    // PLANIFIÉS (ils étaient au programme) mais jamais dans les cours DONNÉS.
+    const { data: allClassesInPeriod } = await supabase
       .from('scheduled_classes')
-      .select('id, class_type_id, coach_id, starts_at, title, class_type:class_types(name)')
+      .select('id, class_type_id, coach_id, starts_at, title, is_cancelled, class_type:class_types(name)')
       .gte('starts_at', from)
       .lte('starts_at', to)
-      .eq('is_cancelled', false)
       .order('starts_at')
 
-    const classIds = (classesInPeriod ?? []).map(c => c.id)
+    // Les réservations et le CA ne portent que sur les cours non annulés.
+    const classesInPeriod = (allClassesInPeriod ?? []).filter(c => !c.is_cancelled)
+
+    const classIds = classesInPeriod.map(c => c.id)
     let allBookings: any[] = []
     if (classIds.length > 0) {
       const { data: bookingsData } = await supabase
@@ -211,28 +223,35 @@ export function AdminDashboardPage() {
     setBookings(bookingDetails)
 
     // 3. Coach stats
-    // Un cours n'est comptabilisé comme DONNÉ que s'il a déjà eu lieu. Sans
-    // cette distinction, un planning rempli sur trois mois gonflait la colonne
-    // avec des cours à venir, incomparables au nombre de participants.
+    //
+    // Deux compteurs, sur les seuls cours DÉJÀ PASSÉS de la période. Un cours
+    // à venir n'a pas encore eu l'occasion d'être donné : l'inclure rendrait
+    // les deux chiffres incomparables.
+    //  - PLANIFIÉS : les cours qui étaient au programme, annulations comprises.
+    //  - DONNÉS : ceux qui ont réellement eu lieu — non annulés, et ayant
+    //    réuni au moins `minParticipants` inscrits.
     const nowTs = Date.now()
     const coachMap = new Map<string, CoachStat>()
-    for (const sc of classesInPeriod ?? []) {
+    for (const sc of allClassesInPeriod ?? []) {
+      // Les cours à venir ne sont comptés dans aucun des deux compteurs.
+      if (new Date(sc.starts_at).getTime() >= nowTs) continue
       const cid = sc.coach_id ?? 'none'
       if (!coachMap.has(cid)) {
         coachMap.set(cid, {
           coach_id: cid,
           coach_name: profileMap.get(cid) ?? (isFr ? 'Sans coach' : 'No coach'),
           class_count: 0,
-          upcoming_count: 0,
+          scheduled_count: 0,
           total_bookings: 0,
           total_revenue_cents: 0,
           classes: [],
         })
       }
       const stat = coachMap.get(cid)!
-      const isPast = new Date(sc.starts_at).getTime() < nowTs
-      if (isPast) stat.class_count++
-      else stat.upcoming_count++
+      stat.scheduled_count++
+
+      // Un cours annulé reste planifié, mais n'est ni donné ni générateur de CA.
+      if (sc.is_cancelled) continue
 
       // allBookings est déjà filtré sur status='confirmed' à la requête.
       const classBookings = allBookings.filter((b: any) => b.scheduled_class_id === sc.id)
@@ -248,6 +267,10 @@ export function AdminDashboardPage() {
         ) ?? 0
       }
 
+      // Le cours est forcément passé et non annulé ici : reste le seuil.
+      const wasGiven = classBookings.length >= minParticipants
+      if (wasGiven) stat.class_count++
+
       stat.total_bookings += classBookings.length
       stat.total_revenue_cents += classRevenue
       stat.classes.push({
@@ -256,6 +279,7 @@ export function AdminDashboardPage() {
         starts_at: sc.starts_at,
         bookings: classBookings.length,
         revenue_cents: classRevenue,
+        was_given: wasGiven,
       })
     }
     setCoachStats([...coachMap.values()].sort((a, b) => b.total_revenue_cents - a.total_revenue_cents))
@@ -427,9 +451,14 @@ export function AdminDashboardPage() {
                     <CalendarDays className="h-5 w-5 text-purple-600" />
                   </div>
                 </div>
-                <p className="text-3xl font-bold">{coachStats.reduce((s, c) => s + c.class_count, 0)}</p>
+                <p className="text-3xl font-bold">
+                  {coachStats.reduce((s, c) => s + c.class_count, 0)}
+                  <span className="text-lg text-muted-foreground font-normal">
+                    {' '}/ {coachStats.reduce((s, c) => s + c.scheduled_count, 0)}
+                  </span>
+                </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {isFr ? 'Cours donnés' : 'Classes given'}
+                  {isFr ? 'Cours donnés / planifiés' : 'Classes given / scheduled'}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {coachStats.length} {isFr ? 'coach(s)' : 'coach(es)'}
@@ -455,8 +484,10 @@ export function AdminDashboardPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{isFr ? 'Coach' : 'Coach'}</TableHead>
-                      {/* Cours donnés uniquement : les cours à venir sont indiqués à part */}
-                      <TableHead className="hidden sm:table-cell text-center">{isFr ? 'Cours donnés' : 'Classes given'}</TableHead>
+                      {/* donnés (planifiés) — cours passés de la période uniquement */}
+                      <TableHead className="hidden sm:table-cell text-center">
+                        {isFr ? 'Donnés (planifiés)' : 'Given (scheduled)'}
+                      </TableHead>
                       {/* Participants aux cours du coach, pas des réservations lui appartenant */}
                       <TableHead className="text-center">{isFr ? 'Nb part.' : 'Attendees'}</TableHead>
                       <TableHead className="text-right">{isFr ? 'Valeur' : 'Value'}</TableHead>
@@ -467,13 +498,12 @@ export function AdminDashboardPage() {
                     {coachStats.map(coach => (
                       <TableRow key={coach.coach_id} className="cursor-pointer hover:bg-muted/50" onClick={() => openCoachDetail(coach)}>
                         <TableCell className="font-medium">{coach.coach_name}</TableCell>
+                        {/* donnés (planifiés) */}
                         <TableCell className="hidden sm:table-cell text-center">
                           {coach.class_count}
-                          {coach.upcoming_count > 0 && (
-                            <span className="text-muted-foreground text-xs">
-                              {' '}(+{coach.upcoming_count} {isFr ? 'à venir' : 'upcoming'})
-                            </span>
-                          )}
+                          <span className="text-muted-foreground text-xs">
+                            {' '}({coach.scheduled_count})
+                          </span>
                         </TableCell>
                         <TableCell className="text-center">{coach.total_bookings}</TableCell>
                         <TableCell className="text-right font-medium">{formatEuros(coach.total_revenue_cents, 0)}</TableCell>
@@ -590,14 +620,10 @@ export function AdminDashboardPage() {
             <>
               <div className="flex gap-4 mb-4">
                 <Badge variant="outline">
-                  {selectedCoach.class_count} {isFr ? 'cours donnés' : 'classes given'}
+                  {selectedCoach.class_count} / {selectedCoach.scheduled_count}{' '}
+                  {isFr ? 'cours donnés' : 'classes given'}
                 </Badge>
-                {selectedCoach.upcoming_count > 0 && (
-                  <Badge variant="secondary">
-                    {selectedCoach.upcoming_count} {isFr ? 'à venir' : 'upcoming'}
-                  </Badge>
-                )}
-                <Badge variant="outline">{selectedCoach.total_bookings} {isFr ? 'réservations' : 'bookings'}</Badge>
+                <Badge variant="outline">{selectedCoach.total_bookings} {isFr ? 'participants' : 'attendees'}</Badge>
                 <Badge variant="outline">{formatEuros(selectedCoach.total_revenue_cents, 0)}</Badge>
               </div>
               <div className="overflow-x-auto">
@@ -606,15 +632,22 @@ export function AdminDashboardPage() {
                   <TableRow>
                     <TableHead>{isFr ? 'Date' : 'Date'}</TableHead>
                     <TableHead>{isFr ? 'Cours' : 'Class'}</TableHead>
-                    <TableHead className="text-center">{isFr ? 'Résa.' : 'Book.'}</TableHead>
+                    <TableHead className="text-center">{isFr ? 'Nb part.' : 'Attendees'}</TableHead>
                     <TableHead className="text-right">{isFr ? 'Valeur' : 'Value'}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {selectedCoach.classes.map(c => (
-                    <TableRow key={c.id}>
+                    <TableRow key={c.id} className={c.was_given ? undefined : 'opacity-50'}>
                       <TableCell className="text-sm whitespace-nowrap">{format(new Date(c.starts_at), 'EEE dd/MM HH:mm', { locale })}</TableCell>
-                      <TableCell>{c.class_name}</TableCell>
+                      <TableCell>
+                        {c.class_name}
+                        {!c.was_given && (
+                          <span className="text-xs text-muted-foreground ml-1.5">
+                            ({isFr ? 'non donné' : 'not given'})
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-center">{c.bookings}</TableCell>
                       <TableCell className="text-right font-medium">{formatEuros(c.revenue_cents, 0)}</TableCell>
                     </TableRow>
