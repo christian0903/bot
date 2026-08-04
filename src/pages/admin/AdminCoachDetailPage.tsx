@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ImageUpload } from '@/components/common/ImageUpload'
 import { toast } from 'sonner'
-import { formatEuros } from '@/lib/utils'
+import { formatEuros, creditValueCents } from '@/lib/utils'
 import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import ReactMarkdown from 'react-markdown'
@@ -152,16 +152,21 @@ export function AdminCoachDetailPage() {
       if (packIds.length > 0) {
         const { data: packData } = await supabase
           .from('pack_purchases')
-          .select('id, price_paid_cents, pack_type:pack_types(credit_count)')
+          .select('id, price_paid_cents, pack_type:pack_types(credit_count, is_unlimited)')
           .in('id', packIds)
         const packMap = new Map((packData ?? []).map(p => [p.id, p]))
+
+        // Coût moyen paramétré, utilisé quand le pack est illimité
+        const { data: costSetting } = await supabase
+          .from('app_settings').select('value').eq('key', 'unlimited_session_cost').maybeSingle()
+        const unlimitedCost = (costSetting?.value as { amount_cents?: number } | undefined)?.amount_cents ?? null
 
         const revenue = new Map<string, number>()
         for (const b of bookingData ?? []) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const pack = packMap.get(b.pack_purchase_id) as any
           if (pack) {
-            const creditValue = pack.price_paid_cents / (pack.pack_type?.credit_count || 1)
+            const creditValue = creditValueCents(pack.price_paid_cents, pack.pack_type, unlimitedCost) ?? 0
             revenue.set(b.scheduled_class_id, (revenue.get(b.scheduled_class_id) ?? 0) + creditValue)
           }
         }

@@ -160,6 +160,57 @@ export function MyBookingsPage() {
       new Date(b.scheduled_class?.starts_at ?? '').getTime() - new Date(a.scheduled_class?.starts_at ?? '').getTime()
     )
 
+  /**
+   * Regroupe des réservations par pack d'origine, packs les plus récents en
+   * tête. Sur un abonnement reconduit toutes les 4 semaines, chaque cycle est
+   * un pack distinct : le regroupement rend visible « ce que j'ai consommé sur
+   * l'abonnement en cours » plutôt qu'une liste indifférenciée.
+   */
+  const groupByPack = (list: Booking[]) => {
+    const groups = new Map<string, { pack: Booking['pack_purchase']; items: Booking[] }>()
+    for (const b of list) {
+      const key = b.pack_purchase_id ?? 'none'
+      if (!groups.has(key)) groups.set(key, { pack: b.pack_purchase, items: [] })
+      groups.get(key)!.items.push(b)
+    }
+    return [...groups.values()].sort((a, b) => {
+      const da = a.pack?.expires_at ? new Date(a.pack.expires_at).getTime() : 0
+      const db = b.pack?.expires_at ? new Date(b.pack.expires_at).getTime() : 0
+      return db - da
+    })
+  }
+
+  /** En-tête d'un groupe : nom du pack, période, et ce qu'il en reste. */
+  const PackGroupHeader = ({ pack, count }: { pack: Booking['pack_purchase']; count: number }) => {
+    if (!pack?.pack_type) {
+      return (
+        <h3 className="text-sm font-semibold text-muted-foreground mt-4 mb-2">
+          {isFr ? 'Sans pack' : 'No pack'} ({count})
+        </h3>
+      )
+    }
+    const isUnlimited = pack.pack_type.is_unlimited
+    const isActive = new Date(pack.expires_at) > now
+    return (
+      <div className="mt-4 mb-2 flex items-center gap-2 flex-wrap">
+        <h3 className="text-sm font-semibold">{pack.pack_type.name}</h3>
+        {isActive && (
+          <Badge variant="default" className="text-[10px]">
+            {isFr ? 'En cours' : 'Current'}
+          </Badge>
+        )}
+        <span className="text-xs text-muted-foreground">
+          {isFr ? "jusqu'au" : 'until'} {format(new Date(pack.expires_at), 'dd/MM/yyyy', { locale })}
+          {' · '}
+          {count} {isFr ? (count > 1 ? 'séances' : 'séance') : count > 1 ? 'sessions' : 'session'}
+          {!isUnlimited && (
+            <> · {pack.credits_remaining} {isFr ? 'crédit(s) restant(s)' : 'credit(s) left'}</>
+          )}
+        </span>
+      </div>
+    )
+  }
+
   const BookingCard = ({ booking }: { booking: Booking }) => (
     <Card>
       <CardContent className="p-4 flex items-center justify-between">
@@ -178,7 +229,7 @@ export function MyBookingsPage() {
               ? (new Date(startsAt).getTime() - new Date(booking.cancelled_at).getTime()) / 3600000
               : null
             const isUnlimited = booking.pack_purchase?.pack_type?.is_unlimited
-            const packName = booking.pack_purchase?.pack_type?.name
+            // Le pack est déjà nommé en en-tête de groupe : pas de répétition ici.
             return (
               <p className="text-xs text-muted-foreground mt-1">
                 {isFr ? 'Annulé le' : 'Cancelled'}{' '}
@@ -186,7 +237,6 @@ export function MyBookingsPage() {
                 {hoursBefore !== null && (
                   <> · {Math.round(hoursBefore)} h {isFr ? 'avant' : 'before'}</>
                 )}
-                {packName && <> · {packName}</>}
                 {hoursBefore !== null && hoursBefore < cancellationHours && !isUnlimited && (
                   <span className="text-amber-600 dark:text-amber-400">
                     {' '}· {isFr ? 'crédit non restitué' : 'credit not refunded'}
@@ -253,7 +303,14 @@ export function MyBookingsPage() {
           {past.length === 0 ? (
             <EmptyState icon={CalendarDays} message={t('bookings.noBookings')} />
           ) : (
-            past.map((b) => <BookingCard key={b.id} booking={b} />)
+            groupByPack(past).map((g, i) => (
+              <div key={g.pack?.id ?? `none-${i}`}>
+                <PackGroupHeader pack={g.pack} count={g.items.length} />
+                <div className="space-y-2">
+                  {g.items.map((b) => <BookingCard key={b.id} booking={b} />)}
+                </div>
+              </div>
+            ))
           )}
         </TabsContent>
         <TabsContent value="cancelled" className="space-y-2 mt-4">
@@ -263,7 +320,14 @@ export function MyBookingsPage() {
               message={isFr ? 'Aucune annulation' : 'No cancellations'}
             />
           ) : (
-            cancelled.map((b) => <BookingCard key={b.id} booking={b} />)
+            groupByPack(cancelled).map((g, i) => (
+              <div key={g.pack?.id ?? `none-${i}`}>
+                <PackGroupHeader pack={g.pack} count={g.items.length} />
+                <div className="space-y-2">
+                  {g.items.map((b) => <BookingCard key={b.id} booking={b} />)}
+                </div>
+              </div>
+            ))
           )}
         </TabsContent>
       </Tabs>

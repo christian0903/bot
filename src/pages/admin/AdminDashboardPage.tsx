@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
-import { formatEuros } from '@/lib/utils'
+import { formatEuros, creditValueCents } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,13 +38,16 @@ interface BookingDetail {
   starts_at: string
   pack_name: string
   price_paid_cents: number
-  credit_count: number
+  credit_value_cents: number
 }
 
 interface CoachStat {
   coach_id: string
   coach_name: string
+  /** Cours effectivement donnés (déjà passés) sur la période. */
   class_count: number
+  /** Cours encore à venir sur la période : planifiés, pas encore donnés. */
+  upcoming_count: number
   total_bookings: number
   total_revenue_cents: number
   classes: {
@@ -72,6 +75,26 @@ export function AdminDashboardPage() {
 
   const [detailDialog, setDetailDialog] = useState<'packs' | 'credits' | 'coach' | null>(null)
   const [selectedCoach, setSelectedCoach] = useState<CoachStat | null>(null)
+  /**
+   * Coût moyen d'une séance sur un pack illimité (Réglages). Sur ces packs
+   * credit_count n'est pas un diviseur valable : sans ce montant, le prix
+   * entier du pack serait attribué à chaque séance.
+   */
+  const [unlimitedSessionCost, setUnlimitedSessionCost] = useState<number | null>(null)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'unlimited_session_cost')
+      .maybeSingle()
+      .then(({ data }) => {
+        const val = data?.value as { amount_cents?: number } | undefined
+        setUnlimitedSessionCost(val?.amount_cents ?? null)
+        setSettingsLoaded(true)
+      })
+  }, [])
 
   // Compute date range
   const { dateFrom, dateTo } = useMemo(() => {
@@ -88,9 +111,11 @@ export function AdminDashboardPage() {
     }
   }, [preset, customFrom, customTo])
 
+  // Attendre le paramètre : sans lui, les séances des packs illimités
+  // seraient valorisées à 0 au premier rendu.
   useEffect(() => {
-    fetchData()
-  }, [dateFrom, dateTo])
+    if (settingsLoaded) fetchData()
+  }, [dateFrom, dateTo, settingsLoaded, unlimitedSessionCost])
 
   const fetchData = async () => {
     setLoading(true)
@@ -100,7 +125,7 @@ export function AdminDashboardPage() {
     // 1. Pack sales in period
     const { data: purchasesData } = await supabase
       .from('pack_purchases')
-      .select('id, user_id, pack_type_id, price_paid_cents, credits_remaining, purchased_at, pack_type:pack_types(name, credit_count)')
+      .select('id, user_id, pack_type_id, price_paid_cents, credits_remaining, purchased_at, pack_type:pack_types(name, credit_count, is_unlimited)')
       .gte('purchased_at', from)
       .lte('purchased_at', to)
       .order('purchased_at', { ascending: false })
@@ -137,7 +162,7 @@ export function AdminDashboardPage() {
     if (classIds.length > 0) {
       const { data: bookingsData } = await supabase
         .from('bookings')
-        .select('id, scheduled_class_id, user_id, pack_purchase_id, status, pack_purchase:pack_purchases(price_paid_cents, pack_type:pack_types(name, credit_count))')
+        .select('id, scheduled_class_id, user_id, pack_purchase_id, status, pack_purchase:pack_purchases(price_paid_cents, pack_type:pack_types(name, credit_count, is_unlimited))')
         .in('scheduled_class_id', classIds)
         .eq('status', 'confirmed')
 
@@ -174,12 +199,22 @@ export function AdminDashboardPage() {
         starts_at: sc?.starts_at ?? '',
         pack_name: pp?.pack_type?.name ?? '-',
         price_paid_cents: pp?.price_paid_cents ?? 0,
-        credit_count: pp?.pack_type?.credit_count ?? 1,
+        // Valeur de la séance, calculée une seule fois ici : prix / crédits,
+        // ou le coût moyen paramétré si le pack est illimité.
+        credit_value_cents: creditValueCents(
+          pp?.price_paid_cents ?? 0,
+          pp?.pack_type,
+          unlimitedSessionCost,
+        ) ?? 0,
       }
     })
     setBookings(bookingDetails)
 
     // 3. Coach stats
+    // Un cours n'est comptabilisé comme DONNÉ que s'il a déjà eu lieu. Sans
+    // cette distinction, un planning rempli sur trois mois gonflait la colonne
+    // avec des cours à venir, incomparables au nombre de participants.
+    const nowTs = Date.now()
     const coachMap = new Map<string, CoachStat>()
     for (const sc of classesInPeriod ?? []) {
       const cid = sc.coach_id ?? 'none'
@@ -188,20 +223,29 @@ export function AdminDashboardPage() {
           coach_id: cid,
           coach_name: profileMap.get(cid) ?? (isFr ? 'Sans coach' : 'No coach'),
           class_count: 0,
+          upcoming_count: 0,
           total_bookings: 0,
           total_revenue_cents: 0,
           classes: [],
         })
       }
       const stat = coachMap.get(cid)!
-      stat.class_count++
+      const isPast = new Date(sc.starts_at).getTime() < nowTs
+      if (isPast) stat.class_count++
+      else stat.upcoming_count++
 
+      // allBookings est déjà filtré sur status='confirmed' à la requête.
       const classBookings = allBookings.filter((b: any) => b.scheduled_class_id === sc.id)
       let classRevenue = 0
       for (const b of classBookings) {
         const pp = b.pack_purchase
-        const creditValue = (pp?.price_paid_cents ?? 0) / (pp?.pack_type?.credit_count ?? 1)
-        classRevenue += creditValue
+        // Sur un illimité, credit_count n'est pas un diviseur valable :
+        // on retombe sur le coût moyen paramétré dans les Réglages.
+        classRevenue += creditValueCents(
+          pp?.price_paid_cents ?? 0,
+          pp?.pack_type,
+          unlimitedSessionCost,
+        ) ?? 0
       }
 
       stat.total_bookings += classBookings.length
@@ -222,7 +266,7 @@ export function AdminDashboardPage() {
   // Totals
   const totalRevenue = packSales.reduce((s, p) => s + p.price_paid_cents, 0)
   const totalCreditsConsumed = bookings.length
-  const totalClassRevenue = bookings.reduce((s, b) => s + (b.price_paid_cents / b.credit_count), 0)
+  const totalClassRevenue = bookings.reduce((s, b) => s + b.credit_value_cents, 0)
 
   const presets: { value: PeriodPreset; label: string }[] = [
     { value: 'week', label: isFr ? 'Cette semaine' : 'This week' },
@@ -272,7 +316,7 @@ export function AdminDashboardPage() {
         'Coach': b.coach_name,
         'Client': b.user_name,
         'Pack utilisé': b.pack_name,
-        'Valeur crédit (€)': formatEuros(b.price_paid_cents / b.credit_count),
+        'Valeur crédit (€)': formatEuros(b.credit_value_cents),
       })),
       `cours-reservations_${periodLabel}`
     )
@@ -411,8 +455,10 @@ export function AdminDashboardPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{isFr ? 'Coach' : 'Coach'}</TableHead>
-                      <TableHead className="hidden sm:table-cell text-center">{isFr ? 'Cours' : 'Classes'}</TableHead>
-                      <TableHead className="text-center">{isFr ? 'Résa.' : 'Book.'}</TableHead>
+                      {/* Cours donnés uniquement : les cours à venir sont indiqués à part */}
+                      <TableHead className="hidden sm:table-cell text-center">{isFr ? 'Cours donnés' : 'Classes given'}</TableHead>
+                      {/* Participants aux cours du coach, pas des réservations lui appartenant */}
+                      <TableHead className="text-center">{isFr ? 'Nb part.' : 'Attendees'}</TableHead>
                       <TableHead className="text-right">{isFr ? 'Valeur' : 'Value'}</TableHead>
                       <TableHead className="w-10"></TableHead>
                     </TableRow>
@@ -421,7 +467,14 @@ export function AdminDashboardPage() {
                     {coachStats.map(coach => (
                       <TableRow key={coach.coach_id} className="cursor-pointer hover:bg-muted/50" onClick={() => openCoachDetail(coach)}>
                         <TableCell className="font-medium">{coach.coach_name}</TableCell>
-                        <TableCell className="hidden sm:table-cell text-center">{coach.class_count}</TableCell>
+                        <TableCell className="hidden sm:table-cell text-center">
+                          {coach.class_count}
+                          {coach.upcoming_count > 0 && (
+                            <span className="text-muted-foreground text-xs">
+                              {' '}(+{coach.upcoming_count} {isFr ? 'à venir' : 'upcoming'})
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-center">{coach.total_bookings}</TableCell>
                         <TableCell className="text-right font-medium">{formatEuros(coach.total_revenue_cents, 0)}</TableCell>
                         <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
@@ -511,7 +564,7 @@ export function AdminDashboardPage() {
                     <TableCell>{b.class_name}</TableCell>
                     <TableCell>{b.user_name}</TableCell>
                     <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{b.pack_name}</TableCell>
-                    <TableCell className="text-right font-medium">{formatEuros(b.price_paid_cents / b.credit_count, 0)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatEuros(b.credit_value_cents, 0)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold border-t-2">
@@ -536,7 +589,14 @@ export function AdminDashboardPage() {
           {selectedCoach && (
             <>
               <div className="flex gap-4 mb-4">
-                <Badge variant="outline">{selectedCoach.class_count} {isFr ? 'cours' : 'classes'}</Badge>
+                <Badge variant="outline">
+                  {selectedCoach.class_count} {isFr ? 'cours donnés' : 'classes given'}
+                </Badge>
+                {selectedCoach.upcoming_count > 0 && (
+                  <Badge variant="secondary">
+                    {selectedCoach.upcoming_count} {isFr ? 'à venir' : 'upcoming'}
+                  </Badge>
+                )}
                 <Badge variant="outline">{selectedCoach.total_bookings} {isFr ? 'réservations' : 'bookings'}</Badge>
                 <Badge variant="outline">{formatEuros(selectedCoach.total_revenue_cents, 0)}</Badge>
               </div>
