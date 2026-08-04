@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -100,6 +100,8 @@ function App() {
 
                   {/* Admin */}
                   <Route path="/admin" element={<AuthGuard><RoleGuard roles={['admin']}><AdminLayout /></RoleGuard></AuthGuard>}>
+                    {/* Sans index, /admin affichait la mise en page sans contenu */}
+                    <Route index element={<Navigate to="/admin/dashboard" replace />} />
                     <Route path="users" element={<Lazy><AdminUsersPage /></Lazy>} />
                     <Route path="users/:id" element={<Lazy><AdminUserDetailPage /></Lazy>} />
                     <Route path="coaches" element={<Lazy><AdminCoachesPage /></Lazy>} />

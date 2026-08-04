@@ -13,22 +13,30 @@ import { motion } from 'framer-motion'
 
 export function HomePage() {
   const { t } = useTranslation()
-  const { user, roles } = useAuth()
+  const { user, roles, loading } = useAuth()
   const navigate = useNavigate()
   const [announcement, setAnnouncement] = useState<string | null>(null)
 
   // Redirection selon le rôle : un admin ou un coach n'a que faire du tableau
   // de bord client (ses packs, ses réservations) — il arrive sur son espace.
+  //
+  // Attendre `loading` est indispensable : `roles` démarre à [] et se remplit
+  // de façon asynchrone. Sans cette garde, l'effet partait avec un tableau
+  // vide, concluait « client » et redirigeait vers /dashboard — la navigation
+  // étant déjà faite, l'arrivée des rôles ne la corrigeait plus.
   useEffect(() => {
-    if (!user) return
+    if (loading || !user) return
     if (roles.includes('admin') || roles.includes('super_admin')) {
-      navigate('/admin', { replace: true })
+      navigate('/admin/dashboard', { replace: true })
     } else if (roles.includes('coach')) {
+      // Un coach SANS le rôle admin ne peut pas entrer dans /admin (RoleGuard
+      // le renverrait ici, et la boucle serait sans fin) : son espace, c'est
+      // la liste de ses cours.
       navigate('/coach/my-classes', { replace: true })
     } else {
       navigate('/dashboard', { replace: true })
     }
-  }, [user, roles, navigate])
+  }, [user, roles, loading, navigate])
 
   useEffect(() => {
     supabase
