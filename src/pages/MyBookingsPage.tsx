@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,6 +16,9 @@ import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import type { Booking } from '@/types'
 
+/** Nature d'une réservation dans la liste. */
+type BookingKind = 'upcoming' | 'past' | 'cancelled'
+
 export function MyBookingsPage() {
   const { t, i18n } = useTranslation()
   const { user, profile } = useAuth()
@@ -26,6 +28,8 @@ export function MyBookingsPage() {
   const [loading, setLoading] = useState(true)
   const [cancelId, setCancelId] = useState<string | null>(null)
   const [cancellationHours, setCancellationHours] = useState(12)
+  /** Natures affichées. Les trois par défaut : la liste montre tout. */
+  const [filters, setFilters] = useState<BookingKind[]>(['upcoming', 'past', 'cancelled'])
 
   useEffect(() => {
     if (!user) return
@@ -141,24 +145,34 @@ export function MyBookingsPage() {
   if (loading) return <LoadingState />
 
   const now = new Date()
-  const upcoming = bookings
-    .filter((b) => b.status === 'confirmed' && new Date(b.scheduled_class?.starts_at ?? '') > now)
-    .sort((a, b) =>
-      new Date(a.scheduled_class?.starts_at ?? '').getTime() - new Date(b.scheduled_class?.starts_at ?? '').getTime()
-    )
-  // "Passées" = séances réellement honorées. Les annulations et les absences
-  // ont leur propre onglet : les mélanger rendait l'historique illisible.
-  // Un no-show garde status='confirmed', d'où l'exclusion explicite.
-  const past = bookings
-    .filter((b) => b.status === 'confirmed' && !b.is_no_show && new Date(b.scheduled_class?.starts_at ?? '') <= now)
-    .sort((a, b) =>
-      new Date(b.scheduled_class?.starts_at ?? '').getTime() - new Date(a.scheduled_class?.starts_at ?? '').getTime()
-    )
-  const cancelled = bookings
-    .filter((b) => b.status === 'cancelled' || b.is_no_show)
-    .sort((a, b) =>
-      new Date(b.scheduled_class?.starts_at ?? '').getTime() - new Date(a.scheduled_class?.starts_at ?? '').getTime()
-    )
+
+  /**
+   * Nature d'une réservation. Un no-show garde status='confirmed' en base,
+   * d'où le test explicite avant celui sur la date.
+   */
+  const kindOf = (b: Booking): BookingKind => {
+    if (b.status === 'cancelled' || b.is_no_show) return 'cancelled'
+    return new Date(b.scheduled_class?.starts_at ?? '') > now ? 'upcoming' : 'past'
+  }
+
+  const counts = {
+    upcoming: bookings.filter(b => kindOf(b) === 'upcoming').length,
+    past: bookings.filter(b => kindOf(b) === 'past').length,
+    cancelled: bookings.filter(b => kindOf(b) === 'cancelled').length,
+  }
+
+  // Liste unique : filtrée par nature, puis triée du plus récent au plus
+  // ancien. Les séances à venir restent en tête, dans l'ordre chronologique.
+  const visible = bookings
+    .filter(b => filters.includes(kindOf(b)))
+    .sort((a, b) => {
+      const ka = kindOf(a), kb = kindOf(b)
+      if (ka === 'upcoming' && kb !== 'upcoming') return -1
+      if (kb === 'upcoming' && ka !== 'upcoming') return 1
+      const ta = new Date(a.scheduled_class?.starts_at ?? '').getTime()
+      const tb = new Date(b.scheduled_class?.starts_at ?? '').getTime()
+      return ka === 'upcoming' ? ta - tb : tb - ta
+    })
 
   /**
    * Regroupe des réservations par pack d'origine, packs les plus récents en
@@ -202,7 +216,8 @@ export function MyBookingsPage() {
         <span className="text-xs text-muted-foreground">
           {isFr ? "jusqu'au" : 'until'} {format(new Date(pack.expires_at), 'dd/MM/yyyy', { locale })}
           {' · '}
-          {count} {isFr ? (count > 1 ? 'séances' : 'séance') : count > 1 ? 'sessions' : 'session'}
+          {/* Nombre d'éléments AFFICHÉS : dépend des filtres actifs */}
+          {count} {isFr ? (count > 1 ? 'lignes' : 'ligne') : count > 1 ? 'entries' : 'entry'}
           {!isUnlimited && (
             <> · {pack.credits_remaining} {isFr ? 'crédit(s) restant(s)' : 'credit(s) left'}</>
           )}
@@ -247,12 +262,15 @@ export function MyBookingsPage() {
           })()}
         </div>
         <div className="flex items-center gap-2">
+          {/* Les natures étant mélangées dans la liste, chaque carte l'affiche */}
           {booking.is_no_show ? (
             <Badge variant="destructive">{isFr ? 'Absent' : 'No-show'}</Badge>
+          ) : booking.status === 'cancelled' ? (
+            <Badge variant="secondary">{isFr ? 'Annulée' : 'Cancelled'}</Badge>
+          ) : kindOf(booking) === 'upcoming' ? (
+            <Badge variant="default">{isFr ? 'À venir' : 'Upcoming'}</Badge>
           ) : (
-            <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
-              {t(`bookings.status.${booking.status}`)}
-            </Badge>
+            <Badge variant="outline">{isFr ? 'Passée' : 'Past'}</Badge>
           )}
           {booking.status === 'confirmed' && new Date(booking.scheduled_class?.starts_at ?? '') > now && (() => {
             const startsAt = new Date(booking.scheduled_class?.starts_at ?? '')
@@ -284,53 +302,50 @@ export function MyBookingsPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{t('bookings.title')}</h1>
 
-      <Tabs defaultValue="upcoming">
-        <TabsList>
-          <TabsTrigger value="upcoming">{t('bookings.upcoming')} ({upcoming.length})</TabsTrigger>
-          <TabsTrigger value="past">{t('bookings.past')} ({past.length})</TabsTrigger>
-          <TabsTrigger value="cancelled">
-            {isFr ? 'Annulations' : 'Cancellations'} ({cancelled.length})
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="upcoming" className="space-y-2 mt-4">
-          {upcoming.length === 0 ? (
-            <EmptyState icon={CalendarDays} message={t('bookings.noBookings')} />
-          ) : (
-            upcoming.map((b) => <BookingCard key={b.id} booking={b} />)
-          )}
-        </TabsContent>
-        <TabsContent value="past" className="space-y-2 mt-4">
-          {past.length === 0 ? (
-            <EmptyState icon={CalendarDays} message={t('bookings.noBookings')} />
-          ) : (
-            groupByPack(past).map((g, i) => (
-              <div key={g.pack?.id ?? `none-${i}`}>
-                <PackGroupHeader pack={g.pack} count={g.items.length} />
-                <div className="space-y-2">
-                  {g.items.map((b) => <BookingCard key={b.id} booking={b} />)}
-                </div>
+      {/* Filtres : liste unique, on choisit ce qu'on veut voir */}
+      <div className="flex gap-2 flex-wrap">
+        {([
+          { key: 'upcoming' as const, label: t('bookings.upcoming'), count: counts.upcoming },
+          { key: 'past' as const, label: t('bookings.past'), count: counts.past },
+          { key: 'cancelled' as const, label: isFr ? 'Annulations' : 'Cancellations', count: counts.cancelled },
+        ]).map(f => {
+          const active = filters.includes(f.key)
+          return (
+            <Button
+              key={f.key}
+              size="sm"
+              variant={active ? 'default' : 'outline'}
+              className="rounded-full h-8 text-xs"
+              onClick={() =>
+                setFilters(prev =>
+                  // Ne jamais tout décocher : la liste resterait vide sans raison.
+                  prev.includes(f.key)
+                    ? (prev.length > 1 ? prev.filter(k => k !== f.key) : prev)
+                    : [...prev, f.key]
+                )
+              }
+            >
+              {f.label} ({f.count})
+            </Button>
+          )
+        })}
+      </div>
+
+      {/* Liste unique, groupée par pack */}
+      <div className="space-y-2">
+        {visible.length === 0 ? (
+          <EmptyState icon={CalendarDays} message={t('bookings.noBookings')} />
+        ) : (
+          groupByPack(visible).map((g, i) => (
+            <div key={g.pack?.id ?? `none-${i}`}>
+              <PackGroupHeader pack={g.pack} count={g.items.length} />
+              <div className="space-y-2">
+                {g.items.map((b) => <BookingCard key={b.id} booking={b} />)}
               </div>
-            ))
-          )}
-        </TabsContent>
-        <TabsContent value="cancelled" className="space-y-2 mt-4">
-          {cancelled.length === 0 ? (
-            <EmptyState
-              icon={CalendarDays}
-              message={isFr ? 'Aucune annulation' : 'No cancellations'}
-            />
-          ) : (
-            groupByPack(cancelled).map((g, i) => (
-              <div key={g.pack?.id ?? `none-${i}`}>
-                <PackGroupHeader pack={g.pack} count={g.items.length} />
-                <div className="space-y-2">
-                  {g.items.map((b) => <BookingCard key={b.id} booking={b} />)}
-                </div>
-              </div>
-            ))
-          )}
-        </TabsContent>
-      </Tabs>
+            </div>
+          ))
+        )}
+      </div>
 
       <ConfirmDialog
         open={!!cancelId}
