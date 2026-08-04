@@ -13,16 +13,22 @@ import { motion } from 'framer-motion'
 
 export function HomePage() {
   const { t } = useTranslation()
-  const { user } = useAuth()
+  const { user, roles } = useAuth()
   const navigate = useNavigate()
   const [announcement, setAnnouncement] = useState<string | null>(null)
 
-  // Redirect logged-in users to dashboard
+  // Redirection selon le rôle : un admin ou un coach n'a que faire du tableau
+  // de bord client (ses packs, ses réservations) — il arrive sur son espace.
   useEffect(() => {
-    if (user) {
+    if (!user) return
+    if (roles.includes('admin') || roles.includes('super_admin')) {
+      navigate('/admin', { replace: true })
+    } else if (roles.includes('coach')) {
+      navigate('/coach/my-classes', { replace: true })
+    } else {
       navigate('/dashboard', { replace: true })
     }
-  }, [user, navigate])
+  }, [user, roles, navigate])
 
   useEffect(() => {
     supabase

@@ -92,6 +92,8 @@ export function SchedulePage() {
   const [hasUsablePack, setHasUsablePack] = useState(false)
   /** Minimum d'inscrits pour qu'un cours compte comme donné (Réglages). */
   const [minParticipants, setMinParticipants] = useState(1)
+  /** Cours que le staff a choisi de maintenir : retirés du bandeau de revue. */
+  const [reviewDismissed, setReviewDismissed] = useState<string[]>([])
 
   // Filters
   const [filterClassType, setFilterClassType] = useState<string>('all')
@@ -400,6 +402,21 @@ export function SchedulePage() {
   const [infoClassType, setInfoClassType] = useState<ScheduledClass['class_type'] | null>(null)
   const isStaff = user && (roles.includes('admin') || roles.includes('super_admin') || roles.includes('coach'))
 
+  /**
+   * Cours à signaler au staff : réservations fermées, cours pas encore commencé,
+   * effectif sous le minimum. Ce sont les candidats à l'annulation — proposés,
+   * jamais annulés d'office : le coach peut vouloir maintenir la séance.
+   */
+  const classesToReview = isStaff
+    ? classes.filter(sc => {
+        if (sc.is_cancelled || reviewDismissed.includes(sc.id)) return false
+        const startsAt = new Date(sc.starts_at)
+        if (startsAt <= new Date()) return false
+        const count = bookingCounts.get(sc.id) ?? 0
+        return count < minParticipants && isBookingClosed(sc, count, bookingRules)
+      })
+    : []
+
   // ---- Class detail dialog (coach/admin) ----
   const [detailClass, setDetailClass] = useState<ScheduledClass | null>(null)
   const [detailBookings, setDetailBookings] = useState<Booking[]>([])
@@ -496,6 +513,78 @@ export function SchedulePage() {
       : `${booking.user?.display_name} removed — credit ${result?.refunded ? 'refunded' : 'not refunded'}`)
   }
 
+  /**
+   * Annule un cours : restitue les crédits, notifie et informe par e-mail les
+   * inscrits. Utilisée par le dialogue de détail et par le bandeau de revue des
+   * cours sous le seuil.
+   */
+  const cancelClass = async (sc: ScheduledClass, bookingsOfClass: Booking[], reason?: 'below_minimum') => {
+    if (!user) return
+
+    await supabase
+      .from('scheduled_classes')
+      .update({ is_cancelled: true })
+      .eq('id', sc.id)
+
+    const userIds = bookingsOfClass.map(b => b.user_id)
+    const { data: memberProfiles } = await supabase
+      .from('profiles')
+      .select('id, display_name, email')
+      .in('id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000'])
+    const profileMap = new Map((memberProfiles ?? []).map(p => [p.id, p]))
+
+    for (const booking of bookingsOfClass) {
+      // Le crédit revient toujours : l'annulation vient du studio.
+      await supabase.rpc('cancel_booking_by_studio', { p_booking_id: booking.id })
+
+      const when = format(new Date(sc.starts_at), 'EEEE dd/MM à HH:mm', { locale })
+      const isUnlimited = booking.pack_purchase?.pack_type?.is_unlimited
+      await supabase.from('notifications').insert({
+        user_id: booking.user_id,
+        title: isFr ? 'Cours annulé' : 'Class cancelled',
+        message: isFr
+          ? `Le cours ${sc.class_type?.name} du ${when} a été annulé${reason === 'below_minimum' ? ' (nombre de participants insuffisant)' : ''}.${isUnlimited ? '' : ' Votre crédit a été restitué.'}`
+          : `The class ${sc.class_type?.name} on ${when} has been cancelled${reason === 'below_minimum' ? ' (not enough participants)' : ''}.${isUnlimited ? '' : ' Your credit has been refunded.'}`,
+        type: 'error',
+        link: '/schedule',
+      })
+
+      const p = profileMap.get(booking.user_id)
+      if (p?.email) {
+        sendEmail('class_cancelled', p.email, classEmailVars(sc, p.display_name))
+      }
+    }
+
+    await logActivity({
+      action: 'booking_cancelled',
+      actor_id: user.id,
+      target_user_id: user.id,
+      entity_type: 'scheduled_class',
+      entity_id: sc.id,
+      details: {
+        class_name: sc.class_type?.name,
+        cancelled_class: true,
+        members_notified: bookingsOfClass.length,
+        reason: reason ?? 'manual',
+      },
+      description: `Cours annulé: ${sc.class_type?.name} du ${format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm')}${reason === 'below_minimum' ? ' (effectif insuffisant)' : ''} — ${bookingsOfClass.length} membre(s) notifié(s)`,
+    })
+  }
+
+  /** Annulation depuis le bandeau de revue : charge les inscrits puis annule. */
+  const cancelClassFromReview = async (sc: ScheduledClass) => {
+    const { data } = await supabase
+      .from('bookings')
+      .select('*, pack_purchase:pack_purchases(pack_type:pack_types(is_unlimited))')
+      .eq('scheduled_class_id', sc.id)
+      .eq('status', 'confirmed')
+    await cancelClass(sc, (data as Booking[]) ?? [], 'below_minimum')
+    toast.success(isFr
+      ? `Cours annulé — ${(data ?? []).length} membre(s) notifié(s)`
+      : `Class cancelled — ${(data ?? []).length} member(s) notified`)
+    fetchData()
+  }
+
   const handleCancelClass = async () => {
     if (!detailClass || !user) return
 
@@ -514,10 +603,9 @@ export function SchedulePage() {
     const profileMap = new Map((memberProfiles ?? []).map(p => [p.id, p]))
 
     for (const booking of detailBookings) {
-      await supabase.rpc('cancel_booking_v2', {
-        p_booking_id: booking.id,
-        p_user_id: booking.user_id,
-      })
+      // cancel_booking_by_studio et non cancel_booking_v2 : l'annulation vient
+      // du studio, le crédit revient toujours — même à moins de 24 h du cours.
+      await supabase.rpc('cancel_booking_by_studio', { p_booking_id: booking.id })
 
       // In-app notification
       await supabase.from('notifications').insert({
@@ -903,6 +991,44 @@ export function SchedulePage() {
           {isFr ? 'Réserve ta place et viens transpirer' : 'Book your spot and come sweat'}
         </p>
       </div>
+
+      {/* Cours sous le seuil, réservations fermées — proposés à l'annulation.
+          Rien n'est annulé d'office : le coach peut vouloir maintenir. */}
+      {classesToReview.length > 0 && (
+        <div className="rounded-xl border border-orange-500/50 bg-orange-50 dark:bg-orange-950/30 p-3 space-y-2">
+          <p className="text-sm font-semibold text-orange-700 dark:text-orange-400">
+            {isFr
+              ? `${classesToReview.length} cours sous le seuil de ${minParticipants} participant(s), réservations fermées`
+              : `${classesToReview.length} class(es) below the ${minParticipants}-attendee threshold, bookings closed`}
+          </p>
+          {classesToReview.map(sc => {
+            const count = bookingCounts.get(sc.id) ?? 0
+            return (
+              <div key={sc.id} className="flex items-center justify-between gap-3 flex-wrap text-sm">
+                <span>
+                  <span className="font-medium">{sc.class_type?.name}</span>
+                  {' · '}
+                  {format(new Date(sc.starts_at), 'EEE dd/MM HH:mm', { locale })}
+                  {' · '}
+                  <span className={count === 0 ? 'text-destructive' : undefined}>
+                    {count}/{minParticipants} {isFr ? 'inscrit(s)' : 'booked'}
+                  </span>
+                </span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="h-7 text-xs"
+                    onClick={() => setReviewDismissed(prev => [...prev, sc.id])}>
+                    {isFr ? 'Maintenir' : 'Keep'}
+                  </Button>
+                  <Button size="sm" variant="destructive" className="h-7 text-xs"
+                    onClick={() => cancelClassFromReview(sc)}>
+                    {isFr ? 'Annuler le cours' : 'Cancel class'}
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Week nav + view toggle */}
       <div className="flex items-center justify-between flex-wrap gap-3">
