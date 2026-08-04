@@ -132,16 +132,21 @@ export function AdminSettingsPage() {
 
   const saveSetting = async (key: string, value: Record<string, unknown>) => {
     setSaving(key)
+
+    // upsert et non update : un UPDATE sur une clé absente ne renvoie PAS
+    // d'erreur, il touche zéro ligne. L'ancien code affichait donc
+    // « Paramètres enregistrés » sans rien écrire pour tout nouveau réglage.
     const { error } = await supabase
       .from('app_settings')
-      .update({ value, updated_by: user?.id ?? null })
-      .eq('key', key)
+      .upsert({ key, value, updated_by: user?.id ?? null }, { onConflict: 'key' })
+
+    setSaving(null)
 
     if (error) {
-      // Try insert if not exists
-      await supabase.from('app_settings').insert({ key, value, updated_by: user?.id ?? null })
+      console.error('app_settings upsert', error)
+      toast.error(error.message)
+      return
     }
-    setSaving(null)
     toast.success(isFr ? 'Paramètres enregistrés' : 'Settings saved')
   }
 

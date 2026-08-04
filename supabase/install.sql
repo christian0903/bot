@@ -812,7 +812,13 @@ CREATE POLICY "Notifications: system insert" ON notifications FOR INSERT WITH CH
 
 -- APP_SETTINGS
 CREATE POLICY "Settings: public read" ON app_settings FOR SELECT USING (true);
-CREATE POLICY "Settings: admin manage" ON app_settings FOR ALL USING (has_role(auth.uid(), 'admin'));
+-- WITH CHECK explicite : sur un INSERT, PostgreSQL évalue WITH CHECK et non
+-- USING. En son absence il retombe sur USING, mais mieux vaut ne pas dépendre
+-- de ce repli implicite pour une table de configuration.
+CREATE POLICY "Settings: admin manage" ON app_settings
+  FOR ALL
+  USING (has_role(auth.uid(), 'admin'))
+  WITH CHECK (has_role(auth.uid(), 'admin'));
 
 -- ACTIVITY_LOG
 CREATE POLICY "Activity log: admin read" ON activity_log FOR SELECT USING (has_role(auth.uid(), 'admin'));
