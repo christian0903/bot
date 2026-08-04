@@ -234,7 +234,7 @@
       "creditType": "Type de crédit",
       "credits": "Crédits",
       "price": "Prix",
-      "validity": "Validité (jours)",
+      "validity": "Validité (semaines)",
       "unlimited": "Accès illimité",
       "unlimitedHint": "Aucun décompte à la réservation, aucun recrédit à l'annulation.",
       "categories": "Catégories éligibles",

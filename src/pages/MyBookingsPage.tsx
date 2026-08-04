@@ -41,7 +41,7 @@ export function MyBookingsPage() {
     const fetchBookings = async () => {
       const { data } = await supabase
         .from('bookings')
-        .select('*, scheduled_class:scheduled_classes(*, class_type:class_types(*))')
+        .select('*, scheduled_class:scheduled_classes(*, class_type:class_types(*)), pack_purchase:pack_purchases(id, credits_remaining, expires_at, pack_type:pack_types(name, is_unlimited))')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -115,14 +115,24 @@ export function MyBookingsPage() {
         })
       }
 
-      if (refunded) {
+      // Sur un pack illimité, aucun crédit n'a été décompté à la réservation :
+      // parler de restitution n'aurait aucun sens.
+      const packType = booking?.pack_purchase?.pack_type
+      const packName = packType?.name
+      const packSuffix = packName ? ` (${packName})` : ''
+
+      if (packType?.is_unlimited) {
         toast.success(isFr
-          ? 'Réservation annulée — crédit restitué'
-          : 'Booking cancelled — credit refunded')
+          ? `Réservation annulée${packSuffix} — accès illimité, aucun crédit décompté`
+          : `Booking cancelled${packSuffix} — unlimited access, no credit deducted`)
+      } else if (refunded) {
+        toast.success(isFr
+          ? `Réservation annulée${packSuffix} — crédit restitué`
+          : `Booking cancelled${packSuffix} — credit refunded`)
       } else {
         toast.warning(isFr
-          ? `Annulation tardive (${hoursBefore}h avant) — crédit non restitué`
-          : `Late cancellation (${hoursBefore}h before) — credit not refunded`)
+          ? `Annulation tardive (${hoursBefore}h avant)${packSuffix} — crédit non restitué`
+          : `Late cancellation (${hoursBefore}h before)${packSuffix} — credit not refunded`)
       }
     }
     setCancelId(null)
@@ -168,7 +178,8 @@ export function MyBookingsPage() {
                 <Button variant="outline" size="sm" onClick={() => setCancelId(booking.id)}>
                   {t('bookings.cancel')}
                 </Button>
-                {!isFreeCancel && (
+                {/* Sans objet sur un illimité : aucun crédit n'est en jeu */}
+                {!isFreeCancel && !booking.pack_purchase?.pack_type?.is_unlimited && (
                   <span className="text-[11px] text-amber-600 dark:text-amber-400 max-w-[160px] text-right">
                     {isFr
                       ? `Crédit non restitué (< ${cancellationHours}h)`

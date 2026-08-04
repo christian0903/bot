@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
@@ -420,6 +420,33 @@ export function AdminUserDetailPage() {
   const upcomingBookings = bookings.filter(b => b.status === 'confirmed' && new Date(b.scheduled_class?.starts_at ?? '') > now)
   const pastBookings = bookings.filter(b => b.status !== 'confirmed' || new Date(b.scheduled_class?.starts_at ?? '') <= now)
 
+  // ---- Annulations et no-show : reperage des derives de reservation ----
+  // Un membre illimite peut reserver sans compter puis se desister : il bloque
+  // des places sans que rien ne le lui coute. C'est ce que ces indicateurs
+  // rendent visible, la sanction restant humaine (decision de la reunion).
+  const cancelledBookings = bookings
+    .filter(b => b.status === 'cancelled' || b.is_no_show)
+    .sort((a, b) => new Date(b.scheduled_class?.starts_at ?? '').getTime() - new Date(a.scheduled_class?.starts_at ?? '').getTime())
+
+  const noShowCount = bookings.filter(b => b.is_no_show).length
+
+  /** Annulations tardives : moins de N heures avant le cours (defaut 12 h). */
+  const lateCancellations = bookings.filter(b => {
+    if (b.status !== 'cancelled' || !b.cancelled_at || !b.scheduled_class?.starts_at) return false
+    const hoursBefore = (new Date(b.scheduled_class.starts_at).getTime() - new Date(b.cancelled_at).getTime()) / 3600000
+    return hoursBefore < 12
+  }).length
+
+  const last30d = new Date(now.getTime() - 30 * 86400000)
+  const cancelledLast30d = cancelledBookings.filter(
+    b => b.cancelled_at && new Date(b.cancelled_at) > last30d
+  ).length
+
+  const confirmedTotal = bookings.filter(b => b.status === 'confirmed').length
+  const cancellationRate = bookings.length > 0
+    ? Math.round((cancelledBookings.length / bookings.length) * 100)
+    : 0
+
   // For booking dialog: filter packs compatible with selected class
   const selectedClass = availableClasses.find(c => c.id === selectedClassId)
   const compatiblePacks = selectedClass
@@ -579,7 +606,11 @@ export function AdminUserDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="bookings">
             <CalendarDays className="h-4 w-4 mr-1.5" />
-            {t('bookings.title')} ({bookings.length})
+            {t('bookings.title')} ({confirmedTotal})
+          </TabsTrigger>
+          <TabsTrigger value="cancellations">
+            <X className="h-4 w-4 mr-1.5" />
+            {isFr ? 'Annulations' : 'Cancellations'} ({cancelledBookings.length})
           </TabsTrigger>
         </TabsList>
 
@@ -655,7 +686,15 @@ export function AdminUserDetailPage() {
                       />
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{isUnlimited ? (isFr ? 'Illimité' : 'Unlimited') : `${pack.credits_remaining}/${totalInPack} crédits`}</span>
+                      <span>
+                        {isUnlimited
+                          // Sur un illimité on ne compte pas des crédits : on
+                          // compte ce qui a réellement été consommé.
+                          ? `${isFr ? 'Illimité' : 'Unlimited'} · ${
+                              bookings.filter(b => b.pack_purchase_id === pack.id && b.status === 'confirmed').length
+                            } ${isFr ? 'séances' : 'sessions'}`
+                          : `${pack.credits_remaining}/${totalInPack} crédits`}
+                      </span>
                       <span>{formatEuros(pack.price_paid_cents, 0)}</span>
                       <span>
                         {format(new Date(pack.purchased_at), 'dd/MM/yyyy', { locale })}
@@ -709,6 +748,112 @@ export function AdminUserDetailPage() {
 
           {bookings.length === 0 && (
             <EmptyState icon={CalendarDays} message={t('bookings.noBookings')} />
+          )}
+        </TabsContent>
+
+        {/* CANCELLATIONS TAB */}
+        <TabsContent value="cancellations" className="mt-4 space-y-4">
+          {/* Indicateurs de derive */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card>
+              <CardContent className="p-3">
+                <p className="text-2xl font-bold">{cancelledBookings.length}</p>
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'Annulations totales' : 'Total cancellations'}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3">
+                <p className="text-2xl font-bold">{cancelledLast30d}</p>
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'Sur 30 jours' : 'Last 30 days'}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3">
+                <p className={cn('text-2xl font-bold', lateCancellations > 0 && 'text-orange-500')}>
+                  {lateCancellations}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'Tardives (< 12 h)' : 'Late (< 12 h)'}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3">
+                <p className={cn('text-2xl font-bold', noShowCount > 0 && 'text-destructive')}>
+                  {noShowCount}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'Absences (no-show)' : 'No-shows'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {bookings.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? `Taux d'annulation : ${cancellationRate} % (${cancelledBookings.length} sur ${bookings.length} réservations)`
+                : `Cancellation rate: ${cancellationRate}% (${cancelledBookings.length} of ${bookings.length} bookings)`}
+            </p>
+          )}
+
+          {cancelledBookings.length > 0 ? (
+            <div className="space-y-2">
+              {cancelledBookings.map((b) => {
+                const startsAt = b.scheduled_class?.starts_at
+                const hoursBefore = b.cancelled_at && startsAt
+                  ? (new Date(startsAt).getTime() - new Date(b.cancelled_at).getTime()) / 3600000
+                  : null
+                const isLate = hoursBefore !== null && hoursBefore < 12
+                return (
+                  <Card key={b.id}>
+                    <CardContent className="p-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {b.scheduled_class?.class_type?.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {startsAt && format(new Date(startsAt), 'dd/MM/yyyy HH:mm', { locale })}
+                          {b.cancelled_at && (
+                            <>
+                              {' · '}
+                              {isFr ? 'annulé le' : 'cancelled'}{' '}
+                              {format(new Date(b.cancelled_at), 'dd/MM/yyyy HH:mm', { locale })}
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {b.is_no_show && (
+                          <Badge variant="destructive" className="text-[11px]">
+                            {isFr ? 'Absent' : 'No-show'}
+                          </Badge>
+                        )}
+                        {isLate && !b.is_no_show && (
+                          <Badge className="text-[11px] bg-orange-500 hover:bg-orange-500">
+                            {isFr ? 'Tardive' : 'Late'}
+                          </Badge>
+                        )}
+                        {hoursBefore !== null && hoursBefore >= 12 && (
+                          <Badge variant="secondary" className="text-[11px]">
+                            {isFr ? `${Math.round(hoursBefore)} h avant` : `${Math.round(hoursBefore)} h before`}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              icon={X}
+              message={isFr ? 'Aucune annulation' : 'No cancellations'}
+            />
           )}
         </TabsContent>
       </Tabs>

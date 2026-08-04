@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
-import { formatEuros } from '@/lib/utils'
+import { formatEuros, daysToWeeks, weeksToDays, formatValidity } from '@/lib/utils'
 import type { PackType, CreditType, MemberCategory } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -43,7 +43,8 @@ interface PackTypeForm {
   credit_type_id: string
   credit_count: number
   price_euros: string
-  validity_days: number
+  /** Saisi en semaines ; converti en jours (validity_days) a l'enregistrement. */
+  validity_weeks: number
   is_unlimited: boolean
   is_active: boolean
   category_ids: string[]
@@ -55,14 +56,15 @@ const emptyForm: PackTypeForm = {
   credit_type_id: '',
   credit_count: 1,
   price_euros: '',
-  validity_days: 30,
+  validity_weeks: 4,
   is_unlimited: false,
   is_active: true,
   category_ids: [],
 }
 
 export function AdminPackTypesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isFr = i18n.language === 'fr'
   const [packTypes, setPackTypes] = useState<PackType[]>([])
   const [creditTypes, setCreditTypes] = useState<CreditType[]>([])
   const [categories, setCategories] = useState<MemberCategory[]>([])
@@ -117,7 +119,7 @@ export function AdminPackTypesPage() {
       credit_type_id: pt.credit_type_id,
       credit_count: pt.credit_count,
       price_euros: (pt.price_cents / 100).toString(),
-      validity_days: pt.validity_days,
+      validity_weeks: daysToWeeks(pt.validity_days),
       is_unlimited: pt.is_unlimited,
       is_active: pt.is_active,
       category_ids: pt.categories?.map(c => c.id) ?? [],
@@ -134,7 +136,8 @@ export function AdminPackTypesPage() {
       // contrainte CHECK (credit_count > 0) impose une valeur.
       credit_count: form.is_unlimited ? 1 : form.credit_count,
       price_cents: Math.round(parseFloat(form.price_euros || '0') * 100),
-      validity_days: form.validity_days,
+      // L'interface parle en semaines, la base stocke des jours
+      validity_days: weeksToDays(form.validity_weeks),
       is_unlimited: form.is_unlimited,
       is_active: form.is_active,
     }
@@ -217,7 +220,7 @@ export function AdminPackTypesPage() {
                   <TableCell className="hidden lg:table-cell">{pt.credit_type?.label_fr ?? '-'}</TableCell>
                   <TableCell className="hidden sm:table-cell">{pt.is_unlimited ? '∞' : pt.credit_count}</TableCell>
                   <TableCell>{formatEuros(pt.price_cents)}</TableCell>
-                  <TableCell className="hidden md:table-cell">{pt.validity_days}</TableCell>
+                  <TableCell className="hidden md:table-cell">{formatValidity(pt.validity_days, isFr)}</TableCell>
                   <TableCell className="hidden xl:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {pt.categories?.map(c => (
@@ -313,9 +316,12 @@ export function AdminPackTypesPage() {
               <Input
                 type="number"
                 min={1}
-                value={form.validity_days}
-                onChange={(e) => setForm(f => ({ ...f, validity_days: parseInt(e.target.value) || 1 }))}
+                value={form.validity_weeks}
+                onChange={(e) => setForm(f => ({ ...f, validity_weeks: parseInt(e.target.value) || 1 }))}
               />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                = {weeksToDays(form.validity_weeks)} {isFr ? 'jours' : 'days'}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Switch

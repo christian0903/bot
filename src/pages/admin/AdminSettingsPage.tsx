@@ -80,13 +80,15 @@ export function AdminSettingsPage() {
   // Registration fee
   const [regFeeAmount, setRegFeeAmount] = useState(30)
   const [regFeeEnabled, setRegFeeEnabled] = useState(true)
+  /** Coût moyen d'une séance sur un pack illimité (€), pour le calcul du CA. */
+  const [unlimitedCost, setUnlimitedCost] = useState(0)
 
   useEffect(() => {
     const fetchData = async () => {
       const { data } = await supabase
         .from('app_settings')
         .select('*')
-        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names'])
+        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost'])
 
       for (const setting of data ?? []) {
         if (setting.key === 'stripe_mode') {
@@ -105,6 +107,10 @@ export function AdminSettingsPage() {
         }
         if (setting.key === 'room_names') {
           setRoomNames(prev => ({ ...prev, ...(setting.value as Partial<RoomNames>) }))
+        }
+        if (setting.key === 'unlimited_session_cost') {
+          const val = setting.value as { amount_cents?: number }
+          setUnlimitedCost((val.amount_cents ?? 0) / 100)
         }
       }
       setLoading(false)
@@ -313,6 +319,41 @@ export function AdminSettingsPage() {
           </div>
           <Button size="sm" disabled={saving === 'registration_fee'} onClick={() => saveSetting('registration_fee', { amount_cents: Math.round(regFeeAmount * 100), enabled: regFeeEnabled })}>
             {saving === 'registration_fee' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Coût moyen d'une séance illimitée */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4 text-primary" />
+            {isFr ? 'Packs illimités — coût par séance' : 'Unlimited packs — cost per session'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? "Sur un pack illimité, aucun crédit n'est décompté : le chiffre d'affaires par séance ne peut pas être calculé automatiquement. Ce montant sert de valeur de référence dans les statistiques. Laisser à 0 pour ne rien attribuer."
+              : 'On an unlimited pack no credit is deducted, so revenue per session cannot be derived. This amount is used as a reference value in statistics. Leave at 0 to attribute nothing.'}
+          </p>
+          <div className="space-y-2">
+            <Label>{isFr ? 'Montant par séance (€)' : 'Amount per session (€)'}</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.5"
+              className="w-32"
+              value={unlimitedCost}
+              onChange={e => setUnlimitedCost(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+          <Button
+            size="sm"
+            disabled={saving === 'unlimited_session_cost'}
+            onClick={() => saveSetting('unlimited_session_cost', { amount_cents: Math.round(unlimitedCost * 100) })}
+          >
+            {saving === 'unlimited_session_cost' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
           </Button>
         </CardContent>
       </Card>

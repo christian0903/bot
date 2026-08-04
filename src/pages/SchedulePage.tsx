@@ -88,6 +88,8 @@ export function SchedulePage() {
   const [roomNames, setRoomNames] = useState<Record<string, string>>({ haut: 'Back On Track Upstairs', bas: 'Back On Track Studio' })
   const [swipeDirection, setSwipeDirection] = useState(0)
   const [filterOpen, setFilterOpen] = useState(false)
+  /** Le membre a-t-il au moins un pack valide (illimité compris) ? */
+  const [hasUsablePack, setHasUsablePack] = useState(false)
 
   // Filters
   const [filterClassType, setFilterClassType] = useState<string>('all')
@@ -150,6 +152,24 @@ export function SchedulePage() {
       supabase.from('app_settings').select('value').eq('key', 'booking_rules').single(),
       supabase.from('app_settings').select('value').eq('key', 'room_names').single(),
     ])
+
+    // Le membre possède-t-il un pack utilisable ? Un illimité compte même si
+    // credits_remaining vaut 0 : son compteur n'est jamais décrémenté.
+    if (user) {
+      const { data: packRows } = await supabase
+        .from('pack_purchases')
+        .select('credits_remaining, pack_type:pack_types(is_unlimited)')
+        .eq('user_id', user.id)
+        .gt('expires_at', new Date().toISOString())
+      setHasUsablePack(
+        (packRows ?? []).some((p) => {
+          const pt = p.pack_type as unknown as { is_unlimited?: boolean } | null
+          return pt?.is_unlimited || p.credits_remaining > 0
+        })
+      )
+    } else {
+      setHasUsablePack(false)
+    }
 
     if (rulesRes.data?.value) {
       setBookingRules({ ...DEFAULT_RULES, ...(rulesRes.data.value as Partial<BookingRules>) })
@@ -359,7 +379,10 @@ export function SchedulePage() {
     setBookingInProgress(null)
   }
 
-  const canUseTrial = user && !hasUsedTrial && !hasRegistrationFee
+  // Un membre qui possède un pack utilisable n'est plus un prospect en essai :
+  // sans cette condition, un pack attribué par l'admin (sans paiement des frais
+  // d'inscription) laissait le bouton bloqué sur « Essai gratuit ».
+  const canUseTrial = user && !hasUsedTrial && !hasRegistrationFee && !hasUsablePack
 
   // Class info popup
   const [infoClassType, setInfoClassType] = useState<ScheduledClass['class_type'] | null>(null)

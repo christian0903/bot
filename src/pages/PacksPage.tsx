@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ShoppingBag, Check, Zap, Flame, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn, formatPackCredits, formatValidity } from '@/lib/utils'
 import type { PackType } from '@/types'
 import { motion } from 'framer-motion'
 
@@ -170,11 +170,11 @@ export function PacksPage() {
               const isPopular = index === popularIndex
               const creditLabel = isFr ? pack.credit_type?.label_fr : pack.credit_type?.label_en
               const priceEuros = (pack.price_cents / 100).toFixed(0).replace('.', ',')
-              const pricePerCredit = (pack.price_cents / 100 / pack.credit_count).toFixed(1).replace('.', ',')
-              const validityMonths = Math.round(pack.validity_days / 30)
-              const validityLabel = validityMonths >= 1
-                ? `${validityMonths} ${isFr ? 'mois' : validityMonths === 1 ? 'month' : 'months'}`
-                : `${pack.validity_days} ${isFr ? 'jours' : 'days'}`
+              // Pas de prix par credit sur un illimite : rien ne se decompte
+              const pricePerCredit = pack.is_unlimited
+                ? null
+                : (pack.price_cents / 100 / pack.credit_count).toFixed(1).replace('.', ',')
+              const validityLabel = formatValidity(pack.validity_days, isFr)
 
               return (
                 <motion.div
@@ -216,11 +216,13 @@ export function PacksPage() {
                     <div className="flex items-center gap-2 text-sm mb-5">
                       <span className="flex items-center gap-1 text-primary font-semibold">
                         <Zap className="h-3.5 w-3.5" />
-                        {pack.credit_count} {isFr ? 'crédits' : 'credits'}
+                        {formatPackCredits(pack, isFr)}
                       </span>
-                      <span className="text-muted-foreground">
-                        {pricePerCredit}€/{isFr ? 'crédit' : 'credit'}
-                      </span>
+                      {pricePerCredit && (
+                        <span className="text-muted-foreground">
+                          {pricePerCredit}€/{isFr ? 'crédit' : 'credit'}
+                        </span>
+                      )}
                     </div>
 
                     {/* Features */}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
-import { formatEuros, formatPackCredits } from '@/lib/utils'
+import { formatEuros, formatPackCredits, formatValidity } from '@/lib/utils'
 import { logActivity } from '@/lib/activity-log'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Profile, UserRole, PackType, MemberCategory } from '@/types'
@@ -44,6 +44,8 @@ interface UserWithRole extends Profile {
   role: UserRole
   roles: UserRole[]
   credits: number
+  /** Le membre a un pack illimité valide : la colonne Crédits affiche "Illimité". */
+  hasUnlimited: boolean
 }
 
 const exportCsv = (data: Record<string, unknown>[], filename: string) => {
@@ -92,8 +94,8 @@ export function AdminUsersPage() {
       supabase.from('user_roles').select('user_id, role'),
       supabase
         .from('pack_purchases')
-        .select('user_id, credits_remaining, expires_at')
-        .gt('credits_remaining', 0)
+        // Pas de filtre sur credits_remaining : un illimité valide a souvent 0.
+        .select('user_id, credits_remaining, expires_at, pack_type:pack_types(is_unlimited)')
         .gt('expires_at', new Date().toISOString()),
       supabase.from('member_categories').select('*').order('name'),
     ])
@@ -108,10 +110,16 @@ export function AdminUsersPage() {
       rolesMap.set(r.user_id, existing)
     }
 
-    // Sum credits per user
+    // Somme des crédits par membre, et repérage des accès illimités
     const creditMap = new Map<string, number>()
+    const unlimitedSet = new Set<string>()
     for (const p of packsRes.data ?? []) {
-      creditMap.set(p.user_id, (creditMap.get(p.user_id) ?? 0) + p.credits_remaining)
+      const pt = p.pack_type as unknown as { is_unlimited?: boolean } | null
+      if (pt?.is_unlimited) {
+        unlimitedSet.add(p.user_id)
+      } else if (p.credits_remaining > 0) {
+        creditMap.set(p.user_id, (creditMap.get(p.user_id) ?? 0) + p.credits_remaining)
+      }
     }
 
     // Primary role for display: super_admin > admin > coach > client
@@ -129,6 +137,7 @@ export function AdminUsersPage() {
         role: primaryRole(userRoles),
         roles: userRoles,
         credits: creditMap.get(p.id) ?? 0,
+        hasUnlimited: unlimitedSet.has(p.id),
       }
     })
     // Exclude coaches and admins — they have their own page
@@ -208,7 +217,7 @@ export function AdminUsersPage() {
       name: u.display_name,
       email: u.email ?? '',
       role: u.role,
-      credits: u.credits,
+      credits: u.hasUnlimited ? (isFr ? 'Illimité' : 'Unlimited') : u.credits,
       joined: u.created_at,
     }))
     exportCsv(data, 'users')
@@ -410,10 +419,10 @@ export function AdminUsersPage() {
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge
-                      variant={user.credits > 0 ? 'default' : 'secondary'}
+                      variant={user.hasUnlimited || user.credits > 0 ? 'default' : 'secondary'}
                       className="text-xs"
                     >
-                      {user.credits}
+                      {user.hasUnlimited ? (isFr ? 'Illimité' : 'Unlimited') : user.credits}
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
@@ -590,7 +599,7 @@ export function AdminUsersPage() {
                       {i18n.language === 'fr' ? selectedPack.credit_type?.label_fr : selectedPack.credit_type?.label_en}
                     </Badge>
                     <Badge variant="outline">{formatPackCredits(selectedPack, isFr)}</Badge>
-                    <Badge variant="outline">{selectedPack.validity_days}j</Badge>
+                    <Badge variant="outline">{formatValidity(selectedPack.validity_days, isFr)}</Badge>
                   </div>
 
                   <div className="space-y-2">

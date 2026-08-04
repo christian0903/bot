@@ -234,7 +234,7 @@
       "creditType": "Credit Type",
       "credits": "Credits",
       "price": "Price",
-      "validity": "Validity (days)",
+      "validity": "Validity (weeks)",
       "unlimited": "Unlimited access",
       "unlimitedHint": "No credit deducted on booking, none refunded on cancellation.",
       "categories": "Eligible Categories",
