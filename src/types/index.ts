@@ -62,6 +62,14 @@ export interface PackType {
   validity_days: number
   /** Accès illimité : pas de décompte à la réservation, pas de recrédit à l'annulation. */
   is_unlimited: boolean
+  /** Vendu en abonnement : renouvellement automatique par Stripe. */
+  is_recurring: boolean
+  /** Unité du cycle. « week » × 4 = 28 jours fixes ; « month » × 1 = mois calendaire. */
+  recurring_interval: 'day' | 'week' | 'month' | null
+  recurring_interval_count: number | null
+  /** Price Stripe, distinct selon le mode : un prix de test n'existe pas en live. */
+  stripe_price_id_test: string | null
+  stripe_price_id_live: string | null
   is_active: boolean
   created_at: string
   updated_at: string

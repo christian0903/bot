@@ -46,6 +46,9 @@ interface PackTypeForm {
   /** Saisi en semaines ; converti en jours (validity_days) a l'enregistrement. */
   validity_weeks: number
   is_unlimited: boolean
+  is_recurring: boolean
+  recurring_interval: 'day' | 'week' | 'month'
+  recurring_interval_count: number
   is_active: boolean
   category_ids: string[]
 }
@@ -58,6 +61,10 @@ const emptyForm: PackTypeForm = {
   price_euros: '',
   validity_weeks: 4,
   is_unlimited: false,
+  is_recurring: false,
+  // 4 semaines par défaut : le cycle retenu pour les abonnements du studio.
+  recurring_interval: 'week',
+  recurring_interval_count: 4,
   is_active: true,
   category_ids: [],
 }
@@ -121,6 +128,9 @@ export function AdminPackTypesPage() {
       price_euros: (pt.price_cents / 100).toString(),
       validity_weeks: daysToWeeks(pt.validity_days),
       is_unlimited: pt.is_unlimited,
+      is_recurring: pt.is_recurring,
+      recurring_interval: pt.recurring_interval ?? 'week',
+      recurring_interval_count: pt.recurring_interval_count ?? 4,
       is_active: pt.is_active,
       category_ids: pt.categories?.map(c => c.id) ?? [],
     })
@@ -139,7 +149,27 @@ export function AdminPackTypesPage() {
       // L'interface parle en semaines, la base stocke des jours
       validity_days: weeksToDays(form.validity_weeks),
       is_unlimited: form.is_unlimited,
+      is_recurring: form.is_recurring,
+      // La contrainte pack_types_recurring_coherent impose une périodicité
+      // renseignée si récurrent — et rien de résiduel sinon.
+      recurring_interval: form.is_recurring ? form.recurring_interval : null,
+      recurring_interval_count: form.is_recurring ? form.recurring_interval_count : null,
       is_active: form.is_active,
+    }
+
+    // Un Price Stripe est immuable : son montant et sa périodicité ne peuvent
+    // pas être modifiés après création. Si l'un des deux change, on efface les
+    // identifiants mémorisés pour qu'un nouveau Price soit créé au prochain
+    // achat. Les abonnements déjà souscrits gardent l'ancien prix — c'est le
+    // comportement attendu : on ne change pas le tarif de quelqu'un sans le
+    // prévenir.
+    const priceOrIntervalChanged = editing && (
+      editing.price_cents !== payload.price_cents ||
+      editing.recurring_interval !== payload.recurring_interval ||
+      editing.recurring_interval_count !== payload.recurring_interval_count
+    )
+    if (priceOrIntervalChanged) {
+      Object.assign(payload, { stripe_price_id_test: null, stripe_price_id_live: null })
     }
 
     let packTypeId = editing?.id
@@ -220,7 +250,17 @@ export function AdminPackTypesPage() {
                   <TableCell className="hidden lg:table-cell">{pt.credit_type?.label_fr ?? '-'}</TableCell>
                   <TableCell className="hidden sm:table-cell">{pt.is_unlimited ? '∞' : pt.credit_count}</TableCell>
                   <TableCell>{formatEuros(pt.price_cents)}</TableCell>
-                  <TableCell className="hidden md:table-cell">{formatValidity(pt.validity_days, isFr)}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {formatValidity(pt.validity_days, isFr)}
+                    {pt.is_recurring && pt.recurring_interval_count && (
+                      <Badge variant="secondary" className="ml-1.5 text-[10px]">
+                        {isFr ? 'tous les' : 'every'} {pt.recurring_interval_count}{' '}
+                        {pt.recurring_interval === 'day' ? (isFr ? 'j' : 'd')
+                          : pt.recurring_interval === 'month' ? (isFr ? 'mois' : 'mo')
+                            : (isFr ? 'sem' : 'wk')}
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="hidden xl:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {pt.categories?.map(c => (
@@ -323,6 +363,81 @@ export function AdminPackTypesPage() {
                 = {weeksToDays(form.validity_weeks)} {isFr ? 'jours' : 'days'}
               </p>
             </div>
+            {/* Abonnement : renouvellement automatique par Stripe */}
+            <div className="rounded-lg border p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={form.is_recurring}
+                  onCheckedChange={(checked) => setForm(f => ({ ...f, is_recurring: checked }))}
+                />
+                <div>
+                  <Label>{isFr ? 'Abonnement (paiement récurrent)' : 'Subscription (recurring payment)'}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {isFr
+                      ? 'Le pack se renouvelle et se paie automatiquement à chaque échéance.'
+                      : 'The pack renews and is charged automatically at each cycle.'}
+                  </p>
+                </div>
+              </div>
+
+              {form.is_recurring && (
+                <div className="space-y-2 pl-1">
+                  <Label>{isFr ? 'Prélèvement tous les' : 'Charge every'}</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="number"
+                      min={1}
+                      className="w-20"
+                      value={form.recurring_interval_count}
+                      onChange={(e) => setForm(f => ({ ...f, recurring_interval_count: parseInt(e.target.value) || 1 }))}
+                    />
+                    <Select
+                      value={form.recurring_interval}
+                      onValueChange={(val) =>
+                        setForm(f => ({ ...f, recurring_interval: (val as 'day' | 'week' | 'month') ?? 'week' }))
+                      }
+                    >
+                      <SelectTrigger className="w-40">
+                        <span>
+                          {form.recurring_interval === 'day'
+                            ? (isFr ? 'jours' : 'days')
+                            : form.recurring_interval === 'month'
+                              ? (isFr ? 'mois' : 'months')
+                              : (isFr ? 'semaines' : 'weeks')}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="day">{isFr ? 'jours' : 'days'}</SelectItem>
+                        <SelectItem value="week">{isFr ? 'semaines' : 'weeks'}</SelectItem>
+                        <SelectItem value="month">{isFr ? 'mois' : 'months'}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 4 semaines ≠ 1 mois : 13 échéances par an au lieu de 12 */}
+                  {form.recurring_interval === 'week' && form.recurring_interval_count === 4 && (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                      {isFr
+                        ? '28 jours fixes, soit 13 prélèvements par an (et non 12). À annoncer au membre comme « toutes les 4 semaines », jamais « par mois ».'
+                        : '28 fixed days = 13 charges per year (not 12). Communicate it as "every 4 weeks", never "monthly".'}
+                    </p>
+                  )}
+
+                  {form.validity_weeks * 7 !== (
+                    form.recurring_interval === 'week' ? form.recurring_interval_count * 7
+                      : form.recurring_interval === 'day' ? form.recurring_interval_count
+                        : form.recurring_interval_count * 30
+                  ) && (
+                    <p className="text-[11px] text-destructive">
+                      {isFr
+                        ? `La validité (${form.validity_weeks} sem.) ne correspond pas au cycle de prélèvement : les crédits expireraient avant ou après le renouvellement.`
+                        : `Validity (${form.validity_weeks} wk) does not match the billing cycle: credits would expire before or after renewal.`}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-2">
               <Switch
                 checked={form.is_unlimited}
