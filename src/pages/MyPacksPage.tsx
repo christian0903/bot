@@ -91,7 +91,9 @@ export function MyPacksPage() {
         <div className="grid gap-4 md:grid-cols-2">
           {packs.map((pack) => {
             const isExpired = new Date(pack.expires_at) < now
-            const isEmpty = pack.credits_remaining <= 0
+            const isUnlimited = pack.pack_type?.is_unlimited ?? false
+            // Un pack illimité n'est jamais "épuisé" : son compteur ne bouge pas.
+            const isEmpty = !isUnlimited && pack.credits_remaining <= 0
             const creditLabel = i18n.language === 'fr'
               ? pack.pack_type?.credit_type?.label_fr
               : pack.pack_type?.credit_type?.label_en
@@ -114,7 +116,9 @@ export function MyPacksPage() {
                   <div className="space-y-1 text-sm">
                     <p>{creditLabel}</p>
                     <p className="font-semibold text-lg">
-                      {t('packs.creditsRemaining', { count: pack.credits_remaining })}
+                      {isUnlimited
+                        ? t('packs.unlimited')
+                        : t('packs.creditsRemaining', { count: pack.credits_remaining })}
                     </p>
                     <p className="text-muted-foreground">
                       {t('packs.expiresAt', { date: format(new Date(pack.expires_at), 'dd MMM yyyy', { locale }) })}
@@ -138,7 +142,9 @@ export function MyPacksPage() {
               <DialogHeader>
                 <DialogTitle>{selectedPack.pack_type?.name}</DialogTitle>
                 <p className="text-sm text-muted-foreground">
-                  {selectedPack.credits_remaining}/{selectedPack.pack_type?.credit_count} {isFr ? 'crédits restants' : 'credits remaining'}
+                  {selectedPack.pack_type?.is_unlimited
+                    ? (isFr ? 'Accès illimité' : 'Unlimited access')
+                    : `${selectedPack.credits_remaining}/${selectedPack.pack_type?.credit_count} ${isFr ? 'crédits restants' : 'credits remaining'}`}
                   {' · '}
                   {isFr ? 'expire le' : 'expires'} {format(new Date(selectedPack.expires_at), 'dd/MM/yyyy')}
                 </p>

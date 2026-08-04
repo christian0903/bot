@@ -44,6 +44,7 @@ interface PackTypeForm {
   credit_count: number
   price_euros: string
   validity_days: number
+  is_unlimited: boolean
   is_active: boolean
   category_ids: string[]
 }
@@ -55,6 +56,7 @@ const emptyForm: PackTypeForm = {
   credit_count: 1,
   price_euros: '',
   validity_days: 30,
+  is_unlimited: false,
   is_active: true,
   category_ids: [],
 }
@@ -116,6 +118,7 @@ export function AdminPackTypesPage() {
       credit_count: pt.credit_count,
       price_euros: (pt.price_cents / 100).toString(),
       validity_days: pt.validity_days,
+      is_unlimited: pt.is_unlimited,
       is_active: pt.is_active,
       category_ids: pt.categories?.map(c => c.id) ?? [],
     })
@@ -127,9 +130,12 @@ export function AdminPackTypesPage() {
       name: form.name,
       description: form.description || null,
       credit_type_id: form.credit_type_id,
-      credit_count: form.credit_count,
+      // Sur un pack illimité, credit_count n'est jamais consommé — mais la
+      // contrainte CHECK (credit_count > 0) impose une valeur.
+      credit_count: form.is_unlimited ? 1 : form.credit_count,
       price_cents: Math.round(parseFloat(form.price_euros || '0') * 100),
       validity_days: form.validity_days,
+      is_unlimited: form.is_unlimited,
       is_active: form.is_active,
     }
 
@@ -209,7 +215,7 @@ export function AdminPackTypesPage() {
                 <TableRow key={pt.id}>
                   <TableCell className="font-medium">{pt.name}</TableCell>
                   <TableCell className="hidden lg:table-cell">{pt.credit_type?.label_fr ?? '-'}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{pt.credit_count}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{pt.is_unlimited ? '∞' : pt.credit_count}</TableCell>
                   <TableCell>{formatEuros(pt.price_cents)}</TableCell>
                   <TableCell className="hidden md:table-cell">{pt.validity_days}</TableCell>
                   <TableCell className="hidden xl:table-cell">
@@ -285,7 +291,9 @@ export function AdminPackTypesPage() {
                 <Input
                   type="number"
                   min={1}
-                  value={form.credit_count}
+                  disabled={form.is_unlimited}
+                  value={form.is_unlimited ? '' : form.credit_count}
+                  placeholder={form.is_unlimited ? '∞' : undefined}
                   onChange={(e) => setForm(f => ({ ...f, credit_count: parseInt(e.target.value) || 1 }))}
                 />
               </div>
@@ -308,6 +316,16 @@ export function AdminPackTypesPage() {
                 value={form.validity_days}
                 onChange={(e) => setForm(f => ({ ...f, validity_days: parseInt(e.target.value) || 1 }))}
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={form.is_unlimited}
+                onCheckedChange={(checked) => setForm(f => ({ ...f, is_unlimited: checked }))}
+              />
+              <div>
+                <Label>{t('admin.packTypes.unlimited')}</Label>
+                <p className="text-xs text-muted-foreground">{t('admin.packTypes.unlimitedHint')}</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Switch
