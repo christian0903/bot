@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
-import { formatEuros } from '@/lib/utils'
+import { formatEuros, formatPackCredits } from '@/lib/utils'
 import { logActivity } from '@/lib/activity-log'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Profile, UserRole, PackType, MemberCategory } from '@/types'
@@ -251,8 +251,8 @@ export function AdminUsersPage() {
       user_id: packTarget.id,
       title: i18n.language === 'fr' ? 'Pack attribué' : 'Pack assigned',
       message: i18n.language === 'fr'
-        ? `Le pack "${packType.name}" (${packType.credit_count} crédits) vous a été attribué. Valide jusqu'au ${format(expiresAt, 'dd/MM/yyyy')}.`
-        : `The pack "${packType.name}" (${packType.credit_count} credits) has been assigned to you. Valid until ${format(expiresAt, 'dd/MM/yyyy')}.`,
+        ? `Le pack "${packType.name}" (${formatPackCredits(packType, true)}) vous a été attribué. Valide jusqu'au ${format(expiresAt, 'dd/MM/yyyy')}.`
+        : `The pack "${packType.name}" (${formatPackCredits(packType, false)}) has been assigned to you. Valid until ${format(expiresAt, 'dd/MM/yyyy')}.`,
       type: 'success',
       link: '/my-packs',
     })
@@ -269,13 +269,15 @@ export function AdminUsersPage() {
         price_paid_cents: priceCents,
         expires_at: expiresAt.toISOString(),
       },
-      description: `Pack "${packType.name}" (${packType.credit_count} crédits, ${formatEuros(priceCents, 0)}) attribué à ${packTarget.display_name}`,
+      description: `Pack "${packType.name}" (${formatPackCredits(packType, true)}, ${formatEuros(priceCents, 0)}) attribué à ${packTarget.display_name}`,
     })
 
-    // Update local credits count
-    setUsers(prev => prev.map(u =>
-      u.id === packTarget.id ? { ...u, credits: u.credits + packType.credit_count } : u
-    ))
+    // Update local credits count (un illimité n'ajoute aucun credit au total)
+    if (!packType.is_unlimited) {
+      setUsers(prev => prev.map(u =>
+        u.id === packTarget.id ? { ...u, credits: u.credits + packType.credit_count } : u
+      ))
+    }
 
     toast.success(t('admin.users.packAssigned'))
     setPackDialogOpen(false)
@@ -567,14 +569,14 @@ export function AdminUsersPage() {
                   <SelectTrigger>
                     <span>
                       {selectedPack
-                        ? `${selectedPack.name} — ${selectedPack.credit_count} crédits`
+                        ? `${selectedPack.name} — ${formatPackCredits(selectedPack, isFr)}`
                         : t('admin.users.selectPack')}
                     </span>
                   </SelectTrigger>
                   <SelectContent>
                     {packTypes.map(pt => (
                       <SelectItem key={pt.id} value={pt.id}>
-                        {pt.name} — {pt.credit_count} crédits — {formatEuros(pt.price_cents, 0)}
+                        {pt.name} — {formatPackCredits(pt, isFr)} — {formatEuros(pt.price_cents, 0)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -587,7 +589,7 @@ export function AdminUsersPage() {
                     <Badge variant="outline">
                       {i18n.language === 'fr' ? selectedPack.credit_type?.label_fr : selectedPack.credit_type?.label_en}
                     </Badge>
-                    <Badge variant="outline">{selectedPack.credit_count} crédits</Badge>
+                    <Badge variant="outline">{formatPackCredits(selectedPack, isFr)}</Badge>
                     <Badge variant="outline">{selectedPack.validity_days}j</Badge>
                   </div>
 

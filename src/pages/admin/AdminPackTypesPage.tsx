@@ -142,10 +142,10 @@ export function AdminPackTypesPage() {
     let packTypeId = editing?.id
     if (editing) {
       const { error } = await supabase.from('pack_types').update(payload).eq('id', editing.id)
-      if (error) { toast.error(t('common.error')); return }
+      if (error) { console.error('pack_types update', error); toast.error(error.message); return }
     } else {
       const { data, error } = await supabase.from('pack_types').insert(payload).select().single()
-      if (error) { toast.error(t('common.error')); return }
+      if (error) { console.error('pack_types insert', error); toast.error(error.message); return }
       packTypeId = data.id
     }
 

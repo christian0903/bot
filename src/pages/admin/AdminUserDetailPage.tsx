@@ -600,17 +600,20 @@ export function AdminUserDetailPage() {
           {(() => {
             const visiblePacks = showExpiredPacks
               ? packs
-              : packs.filter(p => p.credits_remaining > 0 && new Date(p.expires_at) > now)
+              // Un illimité reste actif quel que soit son compteur
+              : packs.filter(p => (p.pack_type?.is_unlimited || p.credits_remaining > 0) && new Date(p.expires_at) > now)
             return visiblePacks.length === 0 ? (
               <EmptyState icon={Package} message={isFr ? 'Aucun pack actif' : 'No active packs'} />
             ) : (
             visiblePacks.map((pack) => {
               const isExpired = new Date(pack.expires_at) < now
-              const isEmpty = pack.credits_remaining <= 0
+              const isUnlimited = pack.pack_type?.is_unlimited ?? false
+              const isEmpty = !isUnlimited && pack.credits_remaining <= 0
               const inactive = isExpired || isEmpty
               const totalInPack = pack.pack_type?.credit_count ?? 1
               const used = totalInPack - pack.credits_remaining
-              const progress = (used / totalInPack) * 100
+              // Pas de barre de progression sur un illimité : rien ne se consomme
+              const progress = isUnlimited ? 0 : (used / totalInPack) * 100
               const creditLabel = i18n.language === 'fr'
                 ? pack.pack_type?.credit_type?.label_fr
                 : pack.pack_type?.credit_type?.label_en
@@ -652,7 +655,7 @@ export function AdminUserDetailPage() {
                       />
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{pack.credits_remaining}/{totalInPack} crédits</span>
+                      <span>{isUnlimited ? (isFr ? 'Illimité' : 'Unlimited') : `${pack.credits_remaining}/${totalInPack} crédits`}</span>
                       <span>{formatEuros(pack.price_paid_cents, 0)}</span>
                       <span>
                         {format(new Date(pack.purchased_at), 'dd/MM/yyyy', { locale })}
@@ -828,19 +831,28 @@ export function AdminUserDetailPage() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label>{i18n.language === 'fr' ? 'Crédits restants' : 'Credits remaining'}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={editingPack.pack_type?.credit_count ?? 999}
-                  value={editCredits}
-                  onChange={(e) => setEditCredits(parseInt(e.target.value) || 0)}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  {i18n.language === 'fr' ? 'Pack original' : 'Original pack'}: {editingPack.pack_type?.credit_count} crédits
-                </p>
-              </div>
+              {editingPack.pack_type?.is_unlimited ? (
+                // Rien a ajuster sur un illimite : le compteur n'est jamais consomme
+                <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                  {isFr
+                    ? "Accès illimité — aucun crédit n'est décompté ni restitué. Seule la date de fin de validité s'applique."
+                    : 'Unlimited access — no credit is deducted or refunded. Only the expiry date applies.'}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>{i18n.language === 'fr' ? 'Crédits restants' : 'Credits remaining'}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={editingPack.pack_type?.credit_count ?? 999}
+                    value={editCredits}
+                    onChange={(e) => setEditCredits(parseInt(e.target.value) || 0)}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    {i18n.language === 'fr' ? 'Pack original' : 'Original pack'}: {editingPack.pack_type?.credit_count} crédits
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>{i18n.language === 'fr' ? 'Date de fin de validité' : 'Expiry date'}</Label>
