@@ -418,7 +418,9 @@ export function AdminUserDetailPage() {
   const activePacks = packs.filter(p => p.credits_remaining > 0 && new Date(p.expires_at) > now)
   const totalCredits = activePacks.reduce((sum, p) => sum + p.credits_remaining, 0)
   const upcomingBookings = bookings.filter(b => b.status === 'confirmed' && new Date(b.scheduled_class?.starts_at ?? '') > now)
-  const pastBookings = bookings.filter(b => b.status !== 'confirmed' || new Date(b.scheduled_class?.starts_at ?? '') <= now)
+  // Séances réellement honorées : les annulations et absences ont leur onglet
+  // (un no-show garde status='confirmed', d'où l'exclusion explicite).
+  const pastBookings = bookings.filter(b => b.status === 'confirmed' && !b.is_no_show && new Date(b.scheduled_class?.starts_at ?? '') <= now)
 
   // ---- Annulations et no-show : reperage des derives de reservation ----
   // Un membre illimite peut reserver sans compter puis se desister : il bloque

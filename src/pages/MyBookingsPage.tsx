@@ -146,8 +146,16 @@ export function MyBookingsPage() {
     .sort((a, b) =>
       new Date(a.scheduled_class?.starts_at ?? '').getTime() - new Date(b.scheduled_class?.starts_at ?? '').getTime()
     )
+  // "Passées" = séances réellement honorées. Les annulations et les absences
+  // ont leur propre onglet : les mélanger rendait l'historique illisible.
+  // Un no-show garde status='confirmed', d'où l'exclusion explicite.
   const past = bookings
-    .filter((b) => b.status !== 'confirmed' || new Date(b.scheduled_class?.starts_at ?? '') <= now)
+    .filter((b) => b.status === 'confirmed' && !b.is_no_show && new Date(b.scheduled_class?.starts_at ?? '') <= now)
+    .sort((a, b) =>
+      new Date(b.scheduled_class?.starts_at ?? '').getTime() - new Date(a.scheduled_class?.starts_at ?? '').getTime()
+    )
+  const cancelled = bookings
+    .filter((b) => b.status === 'cancelled' || b.is_no_show)
     .sort((a, b) =>
       new Date(b.scheduled_class?.starts_at ?? '').getTime() - new Date(a.scheduled_class?.starts_at ?? '').getTime()
     )
@@ -163,11 +171,39 @@ export function MyBookingsPage() {
           <p className="text-sm text-muted-foreground">
             {t('schedule.coach')}: {booking.scheduled_class?.coach?.display_name}
           </p>
+          {/* Contexte d'annulation : quand, et avec quel pack */}
+          {booking.status === 'cancelled' && booking.cancelled_at && (() => {
+            const startsAt = booking.scheduled_class?.starts_at
+            const hoursBefore = startsAt
+              ? (new Date(startsAt).getTime() - new Date(booking.cancelled_at).getTime()) / 3600000
+              : null
+            const isUnlimited = booking.pack_purchase?.pack_type?.is_unlimited
+            const packName = booking.pack_purchase?.pack_type?.name
+            return (
+              <p className="text-xs text-muted-foreground mt-1">
+                {isFr ? 'Annulé le' : 'Cancelled'}{' '}
+                {format(new Date(booking.cancelled_at), 'dd/MM/yyyy HH:mm', { locale })}
+                {hoursBefore !== null && (
+                  <> · {Math.round(hoursBefore)} h {isFr ? 'avant' : 'before'}</>
+                )}
+                {packName && <> · {packName}</>}
+                {hoursBefore !== null && hoursBefore < cancellationHours && !isUnlimited && (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    {' '}· {isFr ? 'crédit non restitué' : 'credit not refunded'}
+                  </span>
+                )}
+              </p>
+            )
+          })()}
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
-            {t(`bookings.status.${booking.status}`)}
-          </Badge>
+          {booking.is_no_show ? (
+            <Badge variant="destructive">{isFr ? 'Absent' : 'No-show'}</Badge>
+          ) : (
+            <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
+              {t(`bookings.status.${booking.status}`)}
+            </Badge>
+          )}
           {booking.status === 'confirmed' && new Date(booking.scheduled_class?.starts_at ?? '') > now && (() => {
             const startsAt = new Date(booking.scheduled_class?.starts_at ?? '')
             const hoursUntil = (startsAt.getTime() - now.getTime()) / (1000 * 60 * 60)
@@ -202,6 +238,9 @@ export function MyBookingsPage() {
         <TabsList>
           <TabsTrigger value="upcoming">{t('bookings.upcoming')} ({upcoming.length})</TabsTrigger>
           <TabsTrigger value="past">{t('bookings.past')} ({past.length})</TabsTrigger>
+          <TabsTrigger value="cancelled">
+            {isFr ? 'Annulations' : 'Cancellations'} ({cancelled.length})
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming" className="space-y-2 mt-4">
           {upcoming.length === 0 ? (
@@ -215,6 +254,16 @@ export function MyBookingsPage() {
             <EmptyState icon={CalendarDays} message={t('bookings.noBookings')} />
           ) : (
             past.map((b) => <BookingCard key={b.id} booking={b} />)
+          )}
+        </TabsContent>
+        <TabsContent value="cancelled" className="space-y-2 mt-4">
+          {cancelled.length === 0 ? (
+            <EmptyState
+              icon={CalendarDays}
+              message={isFr ? 'Aucune annulation' : 'No cancellations'}
+            />
+          ) : (
+            cancelled.map((b) => <BookingCard key={b.id} booking={b} />)
           )}
         </TabsContent>
       </Tabs>
