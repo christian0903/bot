@@ -11,7 +11,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { ShoppingBag, Check, Zap, Flame, AlertTriangle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn, formatPackCredits, formatValidity } from '@/lib/utils'
-import type { PackType, Subscription } from '@/types'
+import type { PackType, Subscription, CreditNote } from '@/types'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
@@ -42,6 +42,11 @@ export function PacksPage() {
   const [loading, setLoading] = useState(true)
   /** Abonnement en cours : on n'en propose pas un second. */
   const [activeSubscription, setActiveSubscription] = useState<Subscription | null>(null)
+  /** Bons d'achat utilisables, celui qui expire le plus tôt en tête. */
+  const [creditNotes, setCreditNotes] = useState<CreditNote[]>([])
+  /** Achat en attente de confirmation, quand un bon peut s'appliquer. */
+  const [pendingPurchase, setPendingPurchase] = useState<{ pack: PackType | null; isFee: boolean } | null>(null)
+  const [useCreditNote, setUseCreditNote] = useState(true)
 
   useEffect(() => {
     const fetchPacks = async () => {
@@ -71,6 +76,11 @@ export function PacksPage() {
           .limit(1)
           .maybeSingle()
         setActiveSubscription((sub as Subscription) ?? null)
+
+        const { data: notes } = await supabase.rpc('get_usable_credit_notes', {
+          p_user_id: user.id,
+        })
+        setCreditNotes((notes as CreditNote[]) ?? [])
       }
 
       setLoading(false)
@@ -80,7 +90,21 @@ export function PacksPage() {
 
   const [regFeeLoading, setRegFeeLoading] = useState(false)
 
-  const handlePayRegistrationFee = async () => {
+  /** Le bon qu'on proposera : celui qui expire le plus tôt. */
+  const bestNote = creditNotes[0] ?? null
+
+  const handlePayRegistrationFee = () => {
+    // Un bon disponible : on le propose avant de lancer le paiement, plutôt
+    // que de l'appliquer d'office ou de le laisser dormir.
+    if (bestNote) {
+      setUseCreditNote(true)
+      setPendingPurchase({ pack: null, isFee: true })
+      return
+    }
+    startRegistrationFee()
+  }
+
+  const startRegistrationFee = async (noteId?: string) => {
     try {
       setRegFeeLoading(true)
       const { data: { session } } = await supabase.auth.getSession()
@@ -92,13 +116,25 @@ export function PacksPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({
             type: 'registration_fee',
+            credit_note_id: noteId ?? null,
             success_url: `${window.location.origin}/packs?fee_paid=true`,
             cancel_url: `${window.location.origin}/packs?cancelled=true`,
           }),
         }
       )
       const data = await response.json()
+      // Bon couvrant la totalité : rien à payer, tout s'est fait côté serveur.
+      if (data.paid_with_credit_note) {
+        toast.success(isFr
+          ? 'Frais d\'inscription couverts par ton bon. Rien à payer.'
+          : 'Registration fee covered by your credit note. Nothing to pay.')
+        setPendingPurchase(null)
+        refreshProfile()
+        window.location.reload()
+        return
+      }
       if (data.url) {
+        setPendingPurchase(null)
         await Browser.open({ url: data.url, presentationStyle: 'popover' })
       } else {
         toast.error(data.error || t('common.error'))
@@ -134,13 +170,20 @@ export function PacksPage() {
           : 'You already have an active subscription.')
         return
       }
+      setUseCreditNote(!!bestNote)
       setPendingSubscription(packType)
+      return
+    }
+    // Pack ponctuel : on ne demande confirmation que s'il y a un bon à proposer.
+    if (bestNote) {
+      setUseCreditNote(true)
+      setPendingPurchase({ pack: packType, isFee: false })
       return
     }
     await startCheckout(packType)
   }
 
-  const startCheckout = async (packType: PackType) => {
+  const startCheckout = async (packType: PackType, noteId?: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { toast.error(t('common.error')); return }
@@ -151,13 +194,24 @@ export function PacksPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({
             pack_type_id: packType.id,
+            credit_note_id: noteId ?? null,
             success_url: `${window.location.origin}/my-packs?success=true`,
             cancel_url: `${window.location.origin}/packs?cancelled=true`,
           }),
         }
       )
       const data = await response.json()
+      // Bon couvrant la totalité : le pack est déjà crédité, rien à payer.
+      if (data.paid_with_credit_note) {
+        toast.success(isFr
+          ? 'Pack activé, couvert par ton bon. Rien à payer.'
+          : 'Pack activated, covered by your credit note. Nothing to pay.')
+        setPendingPurchase(null)
+        navigate('/my-packs')
+        return
+      }
       if (data.url) {
+        setPendingPurchase(null)
         await Browser.open({ url: data.url, presentationStyle: 'popover' })
       } else {
         toast.error(data.error || t('common.error'))
@@ -449,6 +503,108 @@ export function PacksPage() {
         </div>
       )}
 
+      {/* Proposition du bon d'achat sur un achat ponctuel ou les frais
+          d'inscription. Le bon n'est jamais appliqué d'office : le membre
+          confirme, et s'il perd de la valeur, il le sait avant. */}
+      <Dialog
+        open={!!pendingPurchase}
+        onOpenChange={(open) => { if (!open) setPendingPurchase(null) }}
+      >
+        <DialogContent className="max-w-md">
+          {pendingPurchase && bestNote && (() => {
+            const priceCents = pendingPurchase.isFee
+              ? 3000
+              : pendingPurchase.pack?.price_cents ?? 0
+            const loss = Math.max(0, bestNote.amount_cents - priceCents)
+            const due = Math.max(0, priceCents - bestNote.amount_cents)
+            const eur = (c: number) => `${(c / 100).toFixed(2).replace('.', ',')} €`
+
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    {pendingPurchase.isFee
+                      ? (isFr ? 'Frais d\'inscription' : 'Registration fee')
+                      : pendingPurchase.pack?.name}
+                  </DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4 text-sm">
+                  <div className="rounded-lg border p-3 space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{isFr ? 'Montant' : 'Amount'}</span>
+                      <span>{eur(priceCents)}</span>
+                    </div>
+                    {useCreditNote && (
+                      <div className="flex justify-between text-green-600">
+                        <span>{isFr ? 'Bon' : 'Credit note'} {bestNote.code}</span>
+                        <span>-{eur(Math.min(bestNote.amount_cents, priceCents))}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-semibold pt-1 border-t">
+                      <span>{isFr ? 'À payer' : 'To pay'}</span>
+                      <span>{useCreditNote ? eur(due) : eur(priceCents)}</span>
+                    </div>
+                  </div>
+
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useCreditNote}
+                      onChange={(e) => setUseCreditNote(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 mt-0.5"
+                    />
+                    <span>
+                      {isFr
+                        ? `Utiliser mon bon de ${eur(bestNote.amount_cents)}`
+                        : `Use my ${eur(bestNote.amount_cents)} credit note`}
+                      {bestNote.expires_at && (
+                        <span className="block text-xs text-muted-foreground">
+                          {isFr ? 'Valable jusqu\'au ' : 'Valid until '}
+                          {new Date(bestNote.expires_at).toLocaleDateString('fr-BE')}
+                          {creditNotes.length > 1 && (isFr
+                            ? ` · ${creditNotes.length} bons disponibles`
+                            : ` · ${creditNotes.length} notes available`)}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+
+                  {/* Le bon vaut plus que l'achat : la différence est perdue.
+                      On le dit avant, le membre choisit de reporter ou non. */}
+                  {useCreditNote && loss > 0 && (
+                    <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-500/40 p-3">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                      <p className="text-amber-900 dark:text-amber-200">
+                        {isFr
+                          ? `Ton bon vaut ${eur(bestNote.amount_cents)}, cet achat coûte ${eur(priceCents)}. Tu perdrais ${eur(loss)}. Tu peux le garder pour un achat plus important.`
+                          : `Your note is worth ${eur(bestNote.amount_cents)}, this purchase costs ${eur(priceCents)}. You would lose ${eur(loss)}. You can keep it for a bigger purchase.`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="outline" onClick={() => setPendingPurchase(null)}>
+                    {isFr ? 'Annuler' : 'Cancel'}
+                  </Button>
+                  <Button
+                    disabled={regFeeLoading}
+                    onClick={() => {
+                      const noteId = useCreditNote ? bestNote.id : undefined
+                      if (pendingPurchase.isFee) startRegistrationFee(noteId)
+                      else if (pendingPurchase.pack) startCheckout(pendingPurchase.pack, noteId)
+                    }}
+                  >
+                    {isFr ? 'Continuer' : 'Continue'}
+                  </Button>
+                </DialogFooter>
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
+
       {/* Confirmation avant souscription : le client doit avoir lu le mot
           « automatiquement » et la périodicité avant d'arriver chez Stripe. */}
       <Dialog
@@ -475,6 +631,30 @@ export function PacksPage() {
                   </p>
                 </div>
 
+                {/* Bon d'achat : il ne vaut que pour la PREMIÈRE échéance
+                    (coupon Stripe duration:once). Les suivantes repartent au
+                    tarif plein — c'est ce que dit le texte. */}
+                {bestNote && (
+                  <label className="flex items-start gap-2 cursor-pointer rounded-lg border p-3">
+                    <input
+                      type="checkbox"
+                      checked={useCreditNote}
+                      onChange={(e) => setUseCreditNote(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 mt-0.5"
+                    />
+                    <span>
+                      {isFr
+                        ? `Utiliser mon bon de ${(bestNote.amount_cents / 100).toFixed(2).replace('.', ',')} €`
+                        : `Use my ${(bestNote.amount_cents / 100).toFixed(2).replace('.', ',')} € credit note`}
+                      <span className="block text-xs text-muted-foreground">
+                        {isFr
+                          ? 'Déduit de la première échéance seulement. Les suivantes reviennent au tarif normal.'
+                          : 'Applied to the first payment only. Later payments return to the normal price.'}
+                      </span>
+                    </span>
+                  </label>
+                )}
+
                 <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-500/40 p-3">
                   <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-amber-900 dark:text-amber-200">
@@ -492,8 +672,9 @@ export function PacksPage() {
                 <Button
                   onClick={() => {
                     const pack = pendingSubscription
+                    const noteId = useCreditNote && bestNote ? bestNote.id : undefined
                     setPendingSubscription(null)
-                    startCheckout(pack)
+                    startCheckout(pack, noteId)
                   }}
                 >
                   {isFr ? 'Je m\'abonne' : 'Subscribe'}

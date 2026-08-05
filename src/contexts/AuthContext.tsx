@@ -70,32 +70,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setHasUsedTrial((trialRes.data?.length ?? 0) > 0)
   }
 
-  const processReferralCode = async (userId: string, metadata: Record<string, unknown>) => {
+  /**
+   * Enregistre le parrainage saisi à l'inscription.
+   *
+   * Passe par `claim_referral_code` plutôt que par un INSERT direct : la
+   * policy qui autorisait l'écriture depuis le client laissait n'importe qui
+   * s'attribuer un parrain arbitraire. La fonction vérifie tout côté serveur
+   * et renvoie la raison d'un échec.
+   *
+   * Le retour est remonté à l'appelant pour que l'inscription puisse prévenir
+   * d'un code inconnu — jusqu'ici l'échec était silencieux et le filleul
+   * croyait son parrainage enregistré.
+   */
+  const processReferralCode = async (
+    _userId: string,
+    metadata: Record<string, unknown>,
+  ): Promise<{ ok: boolean; error?: string }> => {
     const refCode = metadata?.referral_code as string | undefined
-    if (!refCode) return
+    if (!refCode) return { ok: true }
 
-    // Check if referral already exists for this user
-    const { data: existing } = await supabase
-      .from('referrals')
-      .select('id')
-      .eq('referee_id', userId)
-      .limit(1)
-    if (existing && existing.length > 0) return
-
-    // Find the referrer by code
-    const { data: referrer } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('referral_code', refCode.toUpperCase())
-      .single()
-    if (!referrer || referrer.id === userId) return
-
-    // Create the referral
-    await supabase.from('referrals').insert({
-      referrer_id: referrer.id,
-      referee_id: userId,
-      referral_code: refCode.toUpperCase(),
+    const { data, error } = await supabase.rpc('claim_referral_code', {
+      p_referral_code: refCode,
     })
+    if (error) return { ok: false, error: 'rpc_failed' }
+    return (data as { ok: boolean; error?: string }) ?? { ok: false }
   }
 
   const refreshProfile = async () => {

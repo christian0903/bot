@@ -138,6 +138,57 @@ async function creditPack(opts: {
   return { alreadyProcessed: error?.code === '23505', expiresAt }
 }
 
+/**
+ * Qualifie le parrainage du membre si un paiement vient d'aboutir.
+ *
+ * Appelée aux trois endroits où de l'argent rentre : frais d'inscription, pack
+ * ponctuel, échéance d'abonnement. Le premier des trois déclenche les deux bons
+ * de 30 € — c'est la règle « au premier achat payé » retenue le 2026-08-05.
+ *
+ * La fonction SQL filtre sur `status = 'pending'` : un rejeu d'événement Stripe
+ * ne crée pas de bons en double, et les paiements suivants ne font rien.
+ */
+async function qualifyReferral(userId: string | undefined) {
+  if (!userId) return
+  const { data, error } = await admin.rpc('check_referral_qualification', {
+    p_referee_id: userId,
+  })
+  if (error) {
+    // Un parrainage non qualifié ne doit jamais faire échouer un paiement :
+    // on trace et on continue.
+    console.error('check_referral_qualification', error)
+    return
+  }
+  if ((data as { qualified?: boolean } | null)?.qualified) {
+    console.log('Parrainage qualifié pour', userId)
+  }
+}
+
+/**
+ * Marque un bon d'achat comme consommé.
+ *
+ * Uniquement ici, une fois le paiement confirmé : si on le faisait au moment du
+ * calcul, un client qui ferme la page de paiement perdrait son bon sans avoir
+ * rien acheté. Même principe que pour les crédits — le webhook est le seul
+ * endroit qui engage quelque chose.
+ *
+ * La fonction SQL est idempotente (UPDATE conditionné à is_used = FALSE) : un
+ * rejeu d'événement ne consomme pas deux fois.
+ */
+async function consumeCreditNote(
+  noteId: string | undefined,
+  userId: string | undefined,
+  usedOn: 'pack' | 'subscription' | 'registration_fee',
+) {
+  if (!noteId || !userId) return
+  const { error } = await admin.rpc('consume_credit_note', {
+    p_note_id: noteId,
+    p_user_id: userId,
+    p_used_on: usedOn,
+  })
+  if (error) console.error('consume_credit_note', error)
+}
+
 async function notify(userId: string, title: string, message: string, type = 'success', link = '/my-packs') {
   await admin.from('notifications').insert({ user_id: userId, title, message, type, link })
 }
@@ -211,6 +262,8 @@ serve(async (req) => {
             'Vos frais d\'inscription ont bien été reçus. Vous pouvez maintenant acheter un pack.',
             'success', '/packs',
           )
+          await consumeCreditNote(md.credit_note_id, md.user_id, 'registration_fee')
+          await qualifyReferral(md.user_id)
           break
         }
 
@@ -235,6 +288,10 @@ serve(async (req) => {
           // Le premier cycle est crédité par l'invoice.paid qui suit — ne rien
           // faire ici évite de créditer deux fois.
           if (subRow) {
+            // Le bon a servi à réduire la première facture (coupon
+            // duration:once) : on le consomme ici, où les métadonnées de la
+            // session le portent encore.
+            await consumeCreditNote(md.credit_note_id, md.user_id, 'subscription')
             await notify(
               md.user_id,
               'Abonnement activé',
@@ -268,6 +325,8 @@ serve(async (req) => {
             'Achat confirmé',
             `Votre pack est activé (${creditCount} crédit(s)). Valide jusqu'au ${expiresAt.toLocaleDateString('fr-BE')}.`,
           )
+          await consumeCreditNote(md.credit_note_id, md.user_id, 'pack')
+          await qualifyReferral(md.user_id)
         }
         break
       }
@@ -372,6 +431,9 @@ serve(async (req) => {
           'Abonnement renouvelé',
           `Votre abonnement ${pt.name} a été renouvelé. Crédits disponibles jusqu'au ${expiresAt.toLocaleDateString('fr-BE')}.`,
         )
+        // La souscription initiale passe aussi par ici : c'est donc le point
+        // de qualification pour un filleul qui commence par un abonnement.
+        await qualifyReferral(subRow.user_id)
         break
       }
 

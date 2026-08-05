@@ -273,15 +273,36 @@ export interface Referral {
   referrer?: Profile
 }
 
+/**
+ * Bon d'achat utilisable, tel que renvoyé par get_usable_credit_notes().
+ * Un bon se consomme EN ENTIER : pas de solde partiel.
+ */
+export interface CreditNote {
+  id: string
+  /** Code lisible (BON-4F8A) — référence et saisie de secours. */
+  code: string
+  amount_cents: number
+  origin: 'parrainage' | 'geste_commercial' | 'dedommagement' | 'autre'
+  reason: string | null
+  expires_at: string | null
+}
+
 export interface ReferralReward {
   id: string
   user_id: string
-  referral_id: string
+  /** Nul quand le bon vient d'un geste du studio et non d'un parrainage. */
+  referral_id: string | null
   amount_cents: number
   is_used: boolean
   used_at: string | null
   expires_at: string | null
   created_at: string
+  code: string
+  origin: 'parrainage' | 'geste_commercial' | 'dedommagement' | 'autre'
+  reason: string | null
+  granted_by: string | null
+  /** Sur quoi le bon a servi — utile pour retracer une réclamation. */
+  used_on: 'pack' | 'subscription' | 'registration_fee' | null
 }
 
 export interface PerformanceType {

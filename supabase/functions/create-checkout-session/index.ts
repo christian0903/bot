@@ -43,7 +43,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
-    const { type, pack_type_id, coupon_code, success_url, cancel_url } = await req.json()
+    const { type, pack_type_id, coupon_code, credit_note_id, success_url, cancel_url } = await req.json()
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -68,6 +68,29 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
     const origin = req.headers.get('origin') ?? ''
 
+    // ---- Bon d'achat éventuel --------------------------------------------
+    // Nominatif : on vérifie qu'il appartient bien à l'appelant, qu'il n'est
+    // pas déjà consommé et qu'il n'a pas expiré. Le bon n'est PAS marqué
+    // utilisé ici — c'est le webhook qui le fera, une fois le paiement
+    // confirmé. Sinon un client qui ferme la page perdrait son bon sans avoir
+    // rien acheté.
+    let creditNote: { id: string; amount_cents: number; code: string } | null = null
+    if (credit_note_id) {
+      const { data: note } = await admin
+        .from('referral_rewards')
+        .select('id, amount_cents, code, expires_at, is_used')
+        .eq('id', credit_note_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (!note) return json({ error: 'Bon d\'achat introuvable' }, 404)
+      if (note.is_used) return json({ error: 'Ce bon a déjà été utilisé' }, 400)
+      if (note.expires_at && new Date(note.expires_at) < new Date()) {
+        return json({ error: 'Ce bon a expiré' }, 400)
+      }
+      creditNote = { id: note.id, amount_cents: note.amount_cents, code: note.code }
+    }
+
     // ========================================================================
     // CAS 1 — Frais d'inscription
     // ========================================================================
@@ -86,6 +109,38 @@ serve(async (req) => {
         return json({ error: 'Les frais d\'inscription sont désactivés' }, 400)
       }
       const amountCents = fee?.amount_cents ?? 3000
+      // Achat ponctuel : c'est l'application qui soustrait, pas Stripe. Il n'y
+      // a pas de récurrence à protéger (cf. docs/cadrage-bons-achat.md).
+      const dueCents = Math.max(0, amountCents - (creditNote?.amount_cents ?? 0))
+
+      // Bon supérieur ou égal au montant dû : Stripe refuse une session à 0 €.
+      // On enregistre directement, en consommant le bon — c'est le cas nominal
+      // du parrainage, où 30 € de bon couvrent 30 € de frais d'inscription.
+      if (creditNote && dueCents === 0) {
+        const { error: feeError } = await admin.from('registration_fees').insert({
+          user_id: user.id,
+          amount_cents: amountCents,
+        })
+        if (feeError) return json({ error: feeError.message }, 500)
+
+        await admin.rpc('consume_credit_note', {
+          p_note_id: creditNote.id,
+          p_user_id: user.id,
+          p_used_on: 'registration_fee',
+        })
+        await admin.rpc('update_member_status', { p_user_id: user.id })
+        await admin.rpc('check_referral_qualification', { p_referee_id: user.id })
+
+        await admin.from('notifications').insert({
+          user_id: user.id,
+          title: 'Inscription confirmée',
+          message: `Vos frais d'inscription sont couverts par votre bon de ${(creditNote.amount_cents / 100).toFixed(2)} €. Rien à payer.`,
+          type: 'success',
+          link: '/packs',
+        })
+
+        return json({ paid_with_credit_note: true, code: creditNote.code })
+      }
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -94,7 +149,7 @@ serve(async (req) => {
           price_data: {
             currency: 'eur',
             product_data: { name: 'Frais d\'inscription' },
-            unit_amount: amountCents,
+            unit_amount: dueCents,
           },
           quantity: 1,
         }],
@@ -105,6 +160,7 @@ serve(async (req) => {
           kind: 'registration_fee',
           user_id: user.id,
           amount_cents: amountCents.toString(),
+          credit_note_id: creditNote?.id ?? '',
         },
       })
 
@@ -267,14 +323,34 @@ serve(async (req) => {
         await admin.from('pack_types').update({ [priceColumn]: priceId }).eq('id', pack_type_id)
       }
 
+      // Sur un abonnement, c'est Stripe qui soustrait — jamais l'application.
+      // `duration: 'once'` applique la remise à la PREMIÈRE facture puis retire
+      // le coupon de lui-même : le prix récurrent reste intact. Baisser le
+      // Price rendrait la réduction permanente.
+      let noteCouponId: string | null = null
+      if (creditNote) {
+        if (stripeCouponId) {
+          return json({ error: 'Un seul code par achat : coupon ou bon d\'achat' }, 400)
+        }
+        const c = await stripe.coupons.create({
+          duration: 'once',
+          amount_off: creditNote.amount_cents,
+          currency: 'eur',
+          name: `Bon ${creditNote.code}`,
+        })
+        noteCouponId = c.id
+      }
+
+      const appliedCoupon = stripeCouponId ?? noteCouponId
+
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
         line_items: [{ price: priceId, quantity: 1 }],
-        ...(stripeCouponId ? { discounts: [{ coupon: stripeCouponId }] } : {}),
+        ...(appliedCoupon ? { discounts: [{ coupon: appliedCoupon }] } : {}),
         success_url: success_url || `${origin}/my-packs?success=true`,
         cancel_url: cancel_url || `${origin}/packs?cancelled=true`,
         customer_email: user.email,
-        metadata: { ...metadata, kind: 'subscription' },
+        metadata: { ...metadata, kind: 'subscription', credit_note_id: creditNote?.id ?? '' },
         // Recopiées sur l'abonnement lui-même : les factures de renouvellement
         // ne portent pas les métadonnées de la session de checkout.
         subscription_data: { metadata: { ...metadata, kind: 'subscription' } },
@@ -286,6 +362,45 @@ serve(async (req) => {
     // ========================================================================
     // CAS 2 — Pack ponctuel
     // ========================================================================
+    // Achat ponctuel : l'application soustrait le bon avant l'envoi à Stripe.
+    const dueCents = Math.max(0, priceCents - (creditNote?.amount_cents ?? 0))
+
+    // Bon couvrant la totalité : Stripe refuse une session à 0 €, on crédite
+    // directement le pack en consommant le bon.
+    if (creditNote && dueCents === 0) {
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + packType.validity_days)
+
+      const { error: purchaseError } = await admin.from('pack_purchases').insert({
+        user_id: user.id,
+        pack_type_id: pack_type_id,
+        price_paid_cents: 0,
+        credits_remaining: packType.credit_count,
+        purchased_at: new Date().toISOString(),
+        expires_at: expiresAt.toISOString(),
+        coupon_id: couponId,
+      })
+      if (purchaseError) return json({ error: purchaseError.message }, 500)
+
+      await admin.rpc('consume_credit_note', {
+        p_note_id: creditNote.id,
+        p_user_id: user.id,
+        p_used_on: 'pack',
+      })
+      if (couponId) await admin.rpc('increment_coupon_usage', { p_coupon_id: couponId })
+      await admin.rpc('check_referral_qualification', { p_referee_id: user.id })
+
+      await admin.from('notifications').insert({
+        user_id: user.id,
+        title: 'Pack activé',
+        message: `Votre pack ${packType.name} est activé, couvert par votre bon de ${(creditNote.amount_cents / 100).toFixed(2)} €. Valide jusqu'au ${expiresAt.toLocaleDateString('fr-BE')}.`,
+        type: 'success',
+        link: '/my-packs',
+      })
+
+      return json({ paid_with_credit_note: true, code: creditNote.code })
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -298,14 +413,19 @@ serve(async (req) => {
               ? `Accès illimité — ${packType.credit_type?.label_fr ?? ''}`
               : `${packType.credit_count} crédit(s) — ${packType.credit_type?.label_fr ?? ''}`,
           },
-          unit_amount: priceCents,
+          unit_amount: dueCents,
         },
         quantity: 1,
       }],
       success_url: success_url || `${origin}/my-packs?success=true`,
       cancel_url: cancel_url || `${origin}/packs?cancelled=true`,
       customer_email: user.email,
-      metadata: { ...metadata, kind: 'pack', price_paid_cents: String(priceCents) },
+      metadata: {
+        ...metadata,
+        kind: 'pack',
+        price_paid_cents: String(dueCents),
+        credit_note_id: creditNote?.id ?? '',
+      },
     })
 
     return json({ url: session.url, session_id: session.id })
