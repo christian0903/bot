@@ -64,16 +64,17 @@ Quand plusieurs bons sont disponibles, proposer **celui dont l'expiration est la
 | Le bon est **proposé**, pas imposé | Le membre confirme ; s'il refuse, le bon reste |
 | Les **coupons restent hors de cette table** | Ils gardent leur mécanisme actuel (`coupons`), il leur manque seulement un champ de saisie |
 
-### Point à reconfirmer : l'achat plus petit que le bon
+### L'achat plus petit que le bon — tranché
 
-Deux règles ont été évoquées successivement, elles ne donnent pas le même résultat :
+Le bon est **toujours proposé**, même si l'achat coûte moins. L'avertissement annonce ce qui sera perdu :
 
-- **(a) Le bon ne s'applique pas** — un bon de 30 € sur un achat de 25 € n'est pas proposé. Il reste intact pour un achat plus gros. *(Retenu en premier lieu.)*
-- **(b) Le bon s'applique et la différence est perdue** — l'achat passe à 0 €, les 5 € restants sont perdus. *(Évoqué ensuite.)*
+> *« Ton bon vaut 30 €, cet achat coûte 25 €. Tu perdrais 5 €. L'utiliser quand même ? »*
 
-**Recommandation : (a)**, mais en proposant quand même le bon avec un avertissement clair — *« Ton bon vaut 30 €, cet achat coûte 25 €. Tu perdrais 5 €. L'utiliser quand même ? »*. Le membre décide en connaissance de cause, et personne ne découvre la perte après coup.
+Le membre décide : il accepte la perte, ou il reporte sur un achat plus gros où il ne perdra rien. Le choix lui appartient en connaissance de cause, et personne ne découvre la perte après coup.
 
-En pratique le cas est rare : sur neuf produits du catalogue, **un seul** est en dessous de 30 € (carte séance unique à 25 €).
+Cette règle vaut pour le parrain comme pour le filleul.
+
+En pratique le cas restera rare : sur neuf produits du catalogue, **un seul** est en dessous de 30 € (carte séance unique à 25 €).
 
 ---
 
@@ -138,8 +139,7 @@ Par ordre de dépendance :
 ## Questions ouvertes pour les coachs
 
 1. **Quand le parrainage se qualifie-t-il ?** Au premier achat payé du filleul (position de Christian : les frais d'inscription valant 30 € comme le bon, **le parrainage rend l'inscription gratuite**), au paiement des frais seulement, ou frais + premier pack ?
-2. **Achat plus petit que le bon** : règle (a) ou (b) ci-dessus ?
-3. **Garde-t-on les coupons collectifs ?** Le mécanisme est presque terminé, il ne manque que le champ de saisie. À noter : avec l'abonnement, un coupon ne peut jouer qu'à la souscription.
-4. **Quels gestes commerciaux faites-vous déjà à la main ?** C'est ce qui déterminera les origines à prévoir.
-5. **Montant du bon** : 30 € pour les deux, ou variable selon ce qu'achète le filleul ?
-6. **Durée de validité** d'un bon.
+2. **Garde-t-on les coupons collectifs ?** Le mécanisme est presque terminé, il ne manque que le champ de saisie. À noter : avec l'abonnement, un coupon ne peut jouer qu'à la souscription.
+3. **Quels gestes commerciaux faites-vous déjà à la main ?** C'est ce qui déterminera les origines à prévoir.
+4. **Montant du bon** : 30 € pour les deux, ou variable selon ce qu'achète le filleul ?
+5. **Durée de validité** d'un bon.
