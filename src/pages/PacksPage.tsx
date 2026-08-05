@@ -11,7 +11,8 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { ShoppingBag, Check, Zap, Flame, AlertTriangle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn, formatPackCredits, formatValidity } from '@/lib/utils'
-import type { PackType } from '@/types'
+import type { PackType, Subscription } from '@/types'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
 /**
@@ -34,10 +35,13 @@ function formatRecurrence(pack: PackType, isFr: boolean): string {
 
 export function PacksPage() {
   const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
   const isFr = i18n.language === 'fr'
-  const { profile, hasRegistrationFee, refreshProfile } = useAuth()
+  const { user, profile, hasRegistrationFee, refreshProfile } = useAuth()
   const [packTypes, setPackTypes] = useState<PackType[]>([])
   const [loading, setLoading] = useState(true)
+  /** Abonnement en cours : on n'en propose pas un second. */
+  const [activeSubscription, setActiveSubscription] = useState<Subscription | null>(null)
 
   useEffect(() => {
     const fetchPacks = async () => {
@@ -56,10 +60,23 @@ export function PacksPage() {
         })
       }
       setPackTypes(packs)
+
+      if (user) {
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('*, pack_type:pack_types(*)')
+          .eq('user_id', user.id)
+          .in('status', ['active', 'past_due', 'paused', 'incomplete'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        setActiveSubscription((sub as Subscription) ?? null)
+      }
+
       setLoading(false)
     }
     fetchPacks()
-  }, [profile])
+  }, [profile, user])
 
   const [regFeeLoading, setRegFeeLoading] = useState(false)
 
@@ -110,6 +127,13 @@ export function PacksPage() {
     // Un abonnement engage des prélèvements répétés : on demande une
     // confirmation explicite plutôt que de lancer le paiement sur un clic.
     if (packType.is_recurring) {
+      // La section est déjà masquée ; ceci couvre un état de page périmé.
+      if (activeSubscription) {
+        toast.error(isFr
+          ? 'Tu as déjà un abonnement en cours.'
+          : 'You already have an active subscription.')
+        return
+      }
       setPendingSubscription(packType)
       return
     }
@@ -319,8 +343,39 @@ export function PacksPage() {
         <EmptyState icon={ShoppingBag} message={t('packs.noPacks')} />
       ) : (
         <div className="space-y-10">
+          {/* Déjà abonné : on ne propose pas un second abonnement, on rappelle
+              celui en cours et on renvoie vers sa gestion. */}
+          {activeSubscription && (
+            <Card className="border-primary/40 max-w-2xl mx-auto">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <RefreshCw className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold">
+                      {isFr ? 'Tu es déjà abonné' : 'You are already subscribed'}
+                      {activeSubscription.pack_type?.name && ` — ${activeSubscription.pack_type.name}`}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {isFr
+                        ? 'Pour changer de formule ou résilier, passe par « Mes packs ». Un seul abonnement à la fois.'
+                        : 'To change plan or cancel, go to "My packs". One subscription at a time.'}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => navigate('/my-packs')}
+                    >
+                      {isFr ? 'Voir mon abonnement' : 'View my subscription'}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Abonnements — mis en avant */}
-          {subscriptionPacks.length > 0 && (
+          {!activeSubscription && subscriptionPacks.length > 0 && (
             <div className="space-y-4">
               <div className="text-center">
                 <h2 className="text-xl font-bold">

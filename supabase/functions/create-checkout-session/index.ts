@@ -217,6 +217,26 @@ serve(async (req) => {
         return json({ error: 'Périodicité manquante sur ce pack récurrent' }, 400)
       }
 
+      // Un seul abonnement à la fois. Sans ce contrôle, un membre pouvait
+      // souscrire deux fois et se retrouver prélevé en double — le front masque
+      // déjà les offres, mais la fonction est appelable directement.
+      // 'canceled' est exclu : une résiliation programmée laisse le statut
+      // 'active' avec cancel_at_period_end, et il ne faut pas non plus
+      // souscrire par-dessus.
+      const { data: existing } = await admin
+        .from('subscriptions')
+        .select('id, status, current_period_end')
+        .eq('user_id', user.id)
+        .in('status', ['active', 'past_due', 'paused', 'incomplete'])
+        .limit(1)
+        .maybeSingle()
+
+      if (existing) {
+        return json({
+          error: 'Vous avez déjà un abonnement en cours. Résiliez-le avant d\'en souscrire un autre, ou contactez le studio pour en changer.',
+        }, 409)
+      }
+
       // Price Stripe : réutilisé s'il existe, créé sinon. Les identifiants test
       // et live sont distincts et ne sont jamais interchangeables.
       const priceColumn = isLive ? 'stripe_price_id_live' : 'stripe_price_id_test'
