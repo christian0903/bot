@@ -137,6 +137,15 @@ Par ordre de dépendance :
 2. **Qualification du parrainage** dans le webhook Stripe — n'existe pas aujourd'hui ; crée les deux bons au premier paiement du filleul
 3. **Proposition du bon** au moment du paiement, avec confirmation
 4. **Consommation** : sur un paiement ponctuel (`create-checkout-session`) et sur une échéance d'abonnement (réutiliser le `duration: once` de `manage-subscription`)
+
+   > **Deux chemins de calcul, selon la nature de l'achat :**
+   >
+   > | | Qui soustrait ? | Pourquoi |
+   > |---|---|---|
+   > | **Abonnement** | **Stripe**, via un coupon `duration: 'once'` portant le montant du bon | Protège le prix récurrent — l'application ne touche jamais au Price |
+   > | **Achat ponctuel** | **L'application**, avant l'envoi à Stripe (`priceCents - bon`) | Pas de récurrence à protéger ; c'est déjà ce que fait le code des coupons |
+   >
+   > **Dans les deux cas, le bon n'est marqué consommé que dans le webhook**, une fois le paiement confirmé. Jamais au moment du calcul : un client qui ferme la page de paiement perdrait son bon sans rien avoir acheté. Même règle que pour les crédits — *« le webhook est le seul endroit qui crédite »*.
 5. **Champ de saisie** sur les écrans d'achat — pour le code de parrainage, les coupons collectifs et, en secours, le code d'un bon
 6. **Bouton admin « accorder un bon »** sur la fiche membre, à côté des actions d'abonnement
 7. **Rattachement rétroactif d'un parrain** par l'admin — les codes oubliés seront fréquents et réclamés après coup
