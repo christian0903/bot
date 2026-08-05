@@ -7,7 +7,7 @@ import { adminUpdatePassword } from '@/lib/admin-update-password'
 import { adminUpdateEmail } from '@/lib/admin-update-email'
 import { sendEmail } from '@/lib/send-email'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory, Subscription, SubscriptionDiscount } from '@/types'
+import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory, Subscription, SubscriptionDiscount, ReferralReward } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X, RefreshCw, PauseCircle, PlayCircle, AlertTriangle, RotateCcw } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X, RefreshCw, PauseCircle, PlayCircle, AlertTriangle, RotateCcw, TicketPercent, UserPlus } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
@@ -104,6 +104,18 @@ export function AdminUserDetailPage() {
   const [cancelSubDialogOpen, setCancelSubDialogOpen] = useState(false)
   const [cancelImmediately, setCancelImmediately] = useState(false)
 
+  // ---- Parrainage et bons d'achat --------------------------------------
+  const [referrerCodeInput, setReferrerCodeInput] = useState('')
+  const [attachReferrerOpen, setAttachReferrerOpen] = useState(false)
+  const [attachingReferrer, setAttachingReferrer] = useState(false)
+  const [memberReferral, setMemberReferral] = useState<{ referral_code: string; status: string } | null>(null)
+  const [creditNotes, setCreditNotes] = useState<ReferralReward[]>([])
+  const [grantNoteOpen, setGrantNoteOpen] = useState(false)
+  const [grantAmount, setGrantAmount] = useState('')
+  const [grantReason, setGrantReason] = useState('')
+  const [grantOrigin, setGrantOrigin] = useState<'geste_commercial' | 'dedommagement' | 'autre'>('geste_commercial')
+  const [granting, setGranting] = useState(false)
+
   // ---- Remise à zéro (mode test uniquement) ----------------------------
   const [stripeTestMode, setStripeTestMode] = useState(false)
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
@@ -144,6 +156,14 @@ export function AdminUserDetailPage() {
     // moyen de détruire des achats réels par mégarde.
     const modeVal = modeRes.data?.value as { mode?: string } | undefined
     setStripeTestMode((modeVal?.mode ?? 'test') !== 'live')
+
+    // Parrainage du membre (en tant que filleul) et bons d'achat détenus.
+    const [refRes, notesRes] = await Promise.all([
+      supabase.from('referrals').select('referral_code, status').eq('referee_id', id).maybeSingle(),
+      supabase.from('referral_rewards').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+    ])
+    setMemberReferral(refRes.data as { referral_code: string; status: string } | null)
+    setCreditNotes((notesRes.data as ReferralReward[]) ?? [])
 
     const sub = (subRes.data as Subscription) ?? null
     setSubscription(sub)
@@ -293,6 +313,69 @@ export function AdminUserDetailPage() {
     if (ok) {
       setCancelSubDialogOpen(false)
       setCancelImmediately(false)
+    }
+  }
+
+  /**
+   * Rattache un parrain après coup.
+   *
+   * Les codes oubliés à l'inscription sont fréquents et réclamés plus tard :
+   * il faut pouvoir corriger sans passer par la base.
+   */
+  const handleAttachReferrer = async () => {
+    if (!id || !referrerCodeInput.trim()) return
+    setAttachingReferrer(true)
+    try {
+      const { data, error } = await supabase.rpc('attach_referrer', {
+        p_referee_id: id,
+        p_referral_code: referrerCodeInput.trim(),
+      })
+      if (error) { toast.error(error.message); return }
+      const res = data as { ok: boolean; error?: string }
+      if (res?.ok) {
+        toast.success(isFr
+          ? 'Parrain rattaché. Le bon sera créé au prochain paiement du membre.'
+          : 'Referrer attached. The credit note will be created on the member\'s next payment.')
+        setAttachReferrerOpen(false)
+        setReferrerCodeInput('')
+        await fetchData()
+      } else {
+        toast.error(res?.error ?? t('common.error'))
+      }
+    } finally {
+      setAttachingReferrer(false)
+    }
+  }
+
+  /** Accorde un bon d'achat à la main (geste commercial, dédommagement). */
+  const handleGrantNote = async () => {
+    if (!id) return
+    const value = parseFloat(grantAmount.replace(',', '.'))
+    if (!value || value <= 0) {
+      toast.error(isFr ? 'Indiquez un montant valide' : 'Enter a valid amount')
+      return
+    }
+    setGranting(true)
+    try {
+      const { data, error } = await supabase.rpc('grant_credit_note', {
+        p_user_id: id,
+        p_amount_cents: Math.round(value * 100),
+        p_origin: grantOrigin,
+        p_reason: grantReason || null,
+      })
+      if (error) { toast.error(error.message); return }
+      const res = data as { ok: boolean; code?: string }
+      if (res?.ok) {
+        toast.success(isFr
+          ? `Bon de ${value.toFixed(2)} € accordé (${res.code})`
+          : `${value.toFixed(2)} € credit note granted (${res.code})`)
+        setGrantNoteOpen(false)
+        setGrantAmount('')
+        setGrantReason('')
+        await fetchData()
+      }
+    } finally {
+      setGranting(false)
     }
   }
 
@@ -892,6 +975,11 @@ export function AdminUserDetailPage() {
               {isFr ? 'Abonnement' : 'Subscription'}
             </TabsTrigger>
           )}
+          <TabsTrigger value="credits">
+            <TicketPercent className="h-4 w-4 mr-1.5" />
+            {isFr ? 'Bons' : 'Credits'}
+            {creditNotes.filter(n => !n.is_used).length > 0 && ` (${creditNotes.filter(n => !n.is_used).length})`}
+          </TabsTrigger>
         </TabsList>
 
         {/* PACKS TAB */}
@@ -1338,7 +1426,193 @@ export function AdminUserDetailPage() {
             )}
           </TabsContent>
         )}
+        {/* CREDITS TAB — parrainage et bons d'achat */}
+        <TabsContent value="credits" className="mt-4 space-y-4">
+          {/* Parrainage du membre en tant que filleul */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {isFr ? 'Parrainage' : 'Referral'}
+              </p>
+              {memberReferral ? (
+                <p className="text-sm">
+                  {isFr ? 'Parrainé avec le code ' : 'Referred with code '}
+                  <span className="font-mono font-medium">{memberReferral.referral_code}</span>
+                  {' · '}
+                  <Badge variant={memberReferral.status === 'pending' ? 'secondary' : 'outline'}
+                         className={memberReferral.status !== 'pending' ? 'border-green-500 text-green-600' : ''}>
+                    {memberReferral.status === 'pending'
+                      ? (isFr ? 'En attente du 1er paiement' : 'Awaiting first payment')
+                      : (isFr ? 'Qualifié' : 'Qualified')}
+                  </Badge>
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {isFr
+                      ? 'Aucun parrain. Si le membre a oublié le code à l\'inscription, tu peux le rattacher ici.'
+                      : 'No referrer. If the member forgot the code at signup, you can attach it here.'}
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => setAttachReferrerOpen(true)}>
+                    <UserPlus className="h-4 w-4 mr-1.5" />
+                    {isFr ? 'Rattacher un parrain' : 'Attach a referrer'}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Bons d'achat */}
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {isFr ? 'Bons d\'achat' : 'Credit notes'}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => setGrantNoteOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              {isFr ? 'Accorder un bon' : 'Grant a note'}
+            </Button>
+          </div>
+
+          {creditNotes.length === 0 ? (
+            <EmptyState icon={TicketPercent} message={isFr ? 'Aucun bon' : 'No credit notes'} />
+          ) : (
+            <div className="space-y-2">
+              {creditNotes.map(note => {
+                const expired = note.expires_at && new Date(note.expires_at) < now
+                return (
+                  <Card key={note.id} className={note.is_used || expired ? 'opacity-60' : ''}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div>
+                          <p className="font-medium">
+                            {formatEuros(note.amount_cents)}
+                            <span className="font-mono text-xs text-muted-foreground ml-2">{note.code}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {note.origin === 'parrainage'
+                              ? (isFr ? 'Parrainage' : 'Referral')
+                              : note.origin === 'dedommagement'
+                                ? (isFr ? 'Dédommagement' : 'Compensation')
+                                : note.origin === 'geste_commercial'
+                                  ? (isFr ? 'Geste commercial' : 'Goodwill')
+                                  : (isFr ? 'Autre' : 'Other')}
+                            {note.reason && ` · ${note.reason}`}
+                            {note.expires_at && ` · ${isFr ? 'exp.' : 'exp.'} ${format(new Date(note.expires_at), 'dd/MM/yyyy')}`}
+                          </p>
+                        </div>
+                        {note.is_used ? (
+                          <Badge variant="secondary">
+                            {isFr ? 'Utilisé' : 'Used'}
+                            {note.used_at && ` ${format(new Date(note.used_at), 'dd/MM/yy')}`}
+                          </Badge>
+                        ) : expired ? (
+                          <Badge variant="secondary">{isFr ? 'Expiré' : 'Expired'}</Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-green-500 text-green-600">
+                            {isFr ? 'Disponible' : 'Available'}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* Rattacher un parrain a posteriori */}
+      <Dialog open={attachReferrerOpen} onOpenChange={setAttachReferrerOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Rattacher un parrain' : 'Attach a referrer'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {isFr
+                ? 'Le parrainage sera enregistré comme si le code avait été saisi à l\'inscription. Les deux bons seront créés au prochain paiement du membre.'
+                : 'The referral will be recorded as if the code had been entered at signup. Both credit notes will be created on the member\'s next payment.'}
+            </p>
+            <div className="space-y-2">
+              <Label>{isFr ? 'Code du parrain' : 'Referrer code'}</Label>
+              <Input
+                value={referrerCodeInput}
+                onChange={(e) => setReferrerCodeInput(e.target.value.toUpperCase())}
+                placeholder="ABC123"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setAttachReferrerOpen(false)} disabled={attachingReferrer}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleAttachReferrer} disabled={attachingReferrer || !referrerCodeInput.trim()}>
+              {attachingReferrer ? (isFr ? 'Rattachement…' : 'Attaching…') : (isFr ? 'Rattacher' : 'Attach')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Accorder un bon d'achat */}
+      <Dialog open={grantNoteOpen} onOpenChange={setGrantNoteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Accorder un bon d\'achat' : 'Grant a credit note'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {isFr
+                ? 'Le bon sera proposé au membre lors de son prochain achat. Il s\'utilise en une fois, en entier.'
+                : 'The note will be offered to the member on their next purchase. It is used once, in full.'}
+            </p>
+
+            <div className="space-y-2">
+              <Label>{isFr ? 'Montant en euros' : 'Amount in euros'}</Label>
+              <Input
+                type="number" min="1" step="0.01"
+                value={grantAmount}
+                onChange={(e) => setGrantAmount(e.target.value)}
+                placeholder="30"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{isFr ? 'Motif' : 'Reason'}</Label>
+              <div className="flex gap-2 flex-wrap">
+                {(['geste_commercial', 'dedommagement', 'autre'] as const).map(o => (
+                  <Button
+                    key={o}
+                    type="button"
+                    variant={grantOrigin === o ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setGrantOrigin(o)}
+                  >
+                    {o === 'geste_commercial' ? (isFr ? 'Geste commercial' : 'Goodwill')
+                      : o === 'dedommagement' ? (isFr ? 'Dédommagement' : 'Compensation')
+                        : (isFr ? 'Autre' : 'Other')}
+                  </Button>
+                ))}
+              </div>
+              <Input
+                value={grantReason}
+                onChange={(e) => setGrantReason(e.target.value)}
+                placeholder={isFr ? 'Précision (facultatif)' : 'Details (optional)'}
+                maxLength={80}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setGrantNoteOpen(false)} disabled={granting}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleGrantNote} disabled={granting || !grantAmount}>
+              {granting ? (isFr ? 'Création…' : 'Creating…') : (isFr ? 'Accorder' : 'Grant')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Réduction ponctuelle — s'applique à la prochaine échéance seulement */}
       <Dialog open={discountDialogOpen} onOpenChange={setDiscountDialogOpen}>

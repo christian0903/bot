@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Browser } from '@capacitor/browser'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -47,6 +48,10 @@ export function PacksPage() {
   /** Achat en attente de confirmation, quand un bon peut s'appliquer. */
   const [pendingPurchase, setPendingPurchase] = useState<{ pack: PackType | null; isFee: boolean } | null>(null)
   const [useCreditNote, setUseCreditNote] = useState(true)
+  /** Le membre a-t-il déjà un parrain ? Sinon on lui propose de saisir un code. */
+  const [hasReferrer, setHasReferrer] = useState(true)
+  const [referralInput, setReferralInput] = useState('')
+  const [referralClaiming, setReferralClaiming] = useState(false)
 
   useEffect(() => {
     const fetchPacks = async () => {
@@ -81,6 +86,15 @@ export function PacksPage() {
           p_user_id: user.id,
         })
         setCreditNotes((notes as CreditNote[]) ?? [])
+
+        // Beaucoup oublient le code à l'inscription : on le repropose au
+        // moment de payer, quand ils l'ont sous les yeux.
+        const { data: ref } = await supabase
+          .from('referrals')
+          .select('id')
+          .eq('referee_id', user.id)
+          .limit(1)
+        setHasReferrer((ref?.length ?? 0) > 0)
       }
 
       setLoading(false)
@@ -93,11 +107,49 @@ export function PacksPage() {
   /** Le bon qu'on proposera : celui qui expire le plus tôt. */
   const bestNote = creditNotes[0] ?? null
 
+  /**
+   * Enregistre le code du parrain saisi au moment de payer.
+   *
+   * Le parrainage doit exister AVANT le paiement : c'est le webhook qui
+   * qualifie une fois l'argent reçu, et il ne trouvera rien si le lien n'est
+   * pas encore là.
+   */
+  const claimReferral = async () => {
+    if (!referralInput.trim()) return
+    setReferralClaiming(true)
+    try {
+      const { data, error } = await supabase.rpc('claim_referral_code', {
+        p_referral_code: referralInput.trim(),
+      })
+      if (error) { toast.error(t('common.error')); return }
+
+      const res = data as { ok: boolean; error?: string }
+      if (res?.ok) {
+        setHasReferrer(true)
+        setReferralInput('')
+        toast.success(isFr
+          ? 'Code de parrainage enregistré. Ton bon arrivera après ce paiement.'
+          : 'Referral code saved. Your credit note will arrive after this payment.')
+        return
+      }
+
+      const messages: Record<string, { fr: string; en: string }> = {
+        unknown_code: { fr: 'Ce code de parrainage n\'existe pas.', en: 'This referral code does not exist.' },
+        already_referred: { fr: 'Tu as déjà un parrain.', en: 'You already have a referrer.' },
+        self_referral: { fr: 'Tu ne peux pas utiliser ton propre code.', en: 'You cannot use your own code.' },
+      }
+      const m = messages[res?.error ?? '']
+      toast.error(m ? (isFr ? m.fr : m.en) : t('common.error'))
+    } finally {
+      setReferralClaiming(false)
+    }
+  }
+
   const handlePayRegistrationFee = () => {
-    // Un bon disponible : on le propose avant de lancer le paiement, plutôt
-    // que de l'appliquer d'office ou de le laisser dormir.
-    if (bestNote) {
-      setUseCreditNote(true)
+    // On ouvre le dialogue s'il y a un bon à proposer, ou si le membre peut
+    // encore déclarer un parrain — c'est le dernier moment utile pour le faire.
+    if (bestNote || !hasReferrer) {
+      setUseCreditNote(!!bestNote)
       setPendingPurchase({ pack: null, isFee: true })
       return
     }
@@ -174,9 +226,10 @@ export function PacksPage() {
       setPendingSubscription(packType)
       return
     }
-    // Pack ponctuel : on ne demande confirmation que s'il y a un bon à proposer.
-    if (bestNote) {
-      setUseCreditNote(true)
+    // Pack ponctuel : confirmation s'il y a un bon à proposer, ou si le membre
+    // peut encore déclarer un parrain.
+    if (bestNote || !hasReferrer) {
+      setUseCreditNote(!!bestNote)
       setPendingPurchase({ pack: packType, isFee: false })
       return
     }
@@ -511,12 +564,13 @@ export function PacksPage() {
         onOpenChange={(open) => { if (!open) setPendingPurchase(null) }}
       >
         <DialogContent className="max-w-md">
-          {pendingPurchase && bestNote && (() => {
+          {pendingPurchase && (() => {
             const priceCents = pendingPurchase.isFee
               ? 3000
               : pendingPurchase.pack?.price_cents ?? 0
-            const loss = Math.max(0, bestNote.amount_cents - priceCents)
-            const due = Math.max(0, priceCents - bestNote.amount_cents)
+            const noteCents = bestNote?.amount_cents ?? 0
+            const loss = Math.max(0, noteCents - priceCents)
+            const due = Math.max(0, priceCents - noteCents)
             const eur = (c: number) => `${(c / 100).toFixed(2).replace('.', ',')} €`
 
             return (
@@ -535,44 +589,83 @@ export function PacksPage() {
                       <span className="text-muted-foreground">{isFr ? 'Montant' : 'Amount'}</span>
                       <span>{eur(priceCents)}</span>
                     </div>
-                    {useCreditNote && (
+                    {bestNote && useCreditNote && (
                       <div className="flex justify-between text-green-600">
                         <span>{isFr ? 'Bon' : 'Credit note'} {bestNote.code}</span>
-                        <span>-{eur(Math.min(bestNote.amount_cents, priceCents))}</span>
+                        <span>-{eur(Math.min(noteCents, priceCents))}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-semibold pt-1 border-t">
                       <span>{isFr ? 'À payer' : 'To pay'}</span>
-                      <span>{useCreditNote ? eur(due) : eur(priceCents)}</span>
+                      <span>{bestNote && useCreditNote ? eur(due) : eur(priceCents)}</span>
                     </div>
                   </div>
 
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={useCreditNote}
-                      onChange={(e) => setUseCreditNote(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 mt-0.5"
-                    />
-                    <span>
-                      {isFr
-                        ? `Utiliser mon bon de ${eur(bestNote.amount_cents)}`
-                        : `Use my ${eur(bestNote.amount_cents)} credit note`}
-                      {bestNote.expires_at && (
-                        <span className="block text-xs text-muted-foreground">
-                          {isFr ? 'Valable jusqu\'au ' : 'Valid until '}
-                          {new Date(bestNote.expires_at).toLocaleDateString('fr-BE')}
-                          {creditNotes.length > 1 && (isFr
-                            ? ` · ${creditNotes.length} bons disponibles`
-                            : ` · ${creditNotes.length} notes available`)}
-                        </span>
-                      )}
-                    </span>
-                  </label>
+                  {bestNote && (
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useCreditNote}
+                        onChange={(e) => setUseCreditNote(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 mt-0.5"
+                      />
+                      <span>
+                        {isFr
+                          ? `Utiliser mon bon de ${eur(noteCents)}`
+                          : `Use my ${eur(noteCents)} credit note`}
+                        {bestNote.expires_at && (
+                          <span className="block text-xs text-muted-foreground">
+                            {isFr ? 'Valable jusqu\'au ' : 'Valid until '}
+                            {new Date(bestNote.expires_at).toLocaleDateString('fr-BE')}
+                            {creditNotes.length > 1 && (isFr
+                              ? ` · ${creditNotes.length} bons disponibles`
+                              : ` · ${creditNotes.length} notes available`)}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  )}
+
+                  {/* Dernier moment utile pour déclarer un parrain : le membre
+                      a son code sous les yeux quand il paie. Le parrainage doit
+                      exister AVANT le paiement, sinon le webhook ne trouvera
+                      rien à qualifier. */}
+                  {!hasReferrer && (
+                    <div className="rounded-lg border border-dashed p-3 space-y-2">
+                      <p className="text-sm font-medium">
+                        {isFr ? 'Tu as été parrainé ?' : 'Were you referred?'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {isFr
+                          ? 'Saisis le code de ton parrain : vous recevrez chacun un bon de 30 € après ce paiement.'
+                          : 'Enter your referrer\'s code: you will each receive a 30 € credit note after this payment.'}
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={referralInput}
+                          onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
+                          placeholder={isFr ? 'Code du parrain' : 'Referrer code'}
+                          className="h-9"
+                          autoComplete="off"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 shrink-0"
+                          disabled={!referralInput.trim() || referralClaiming}
+                          onClick={claimReferral}
+                        >
+                          {referralClaiming
+                            ? (isFr ? '…' : '…')
+                            : (isFr ? 'Valider' : 'Apply')}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Le bon vaut plus que l'achat : la différence est perdue.
                       On le dit avant, le membre choisit de reporter ou non. */}
-                  {useCreditNote && loss > 0 && (
+                  {bestNote && useCreditNote && loss > 0 && (
                     <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-500/40 p-3">
                       <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                       <p className="text-amber-900 dark:text-amber-200">
@@ -591,7 +684,7 @@ export function PacksPage() {
                   <Button
                     disabled={regFeeLoading}
                     onClick={() => {
-                      const noteId = useCreditNote ? bestNote.id : undefined
+                      const noteId = bestNote && useCreditNote ? bestNote.id : undefined
                       if (pendingPurchase.isFee) startRegistrationFee(noteId)
                       else if (pendingPurchase.pack) startCheckout(pendingPurchase.pack, noteId)
                     }}
@@ -630,6 +723,40 @@ export function PacksPage() {
                     </span>
                   </p>
                 </div>
+
+                {/* Déclaration d'un parrain, ici aussi : une souscription est
+                    souvent le premier achat, donc le moment où le parrainage
+                    se qualifie. */}
+                {!hasReferrer && (
+                  <div className="rounded-lg border border-dashed p-3 space-y-2">
+                    <p className="text-sm font-medium">
+                      {isFr ? 'Tu as été parrainé ?' : 'Were you referred?'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isFr
+                        ? 'Saisis le code de ton parrain : vous recevrez chacun un bon de 30 € après ce paiement.'
+                        : 'Enter your referrer\'s code: you will each receive a 30 € credit note after this payment.'}
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={referralInput}
+                        onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
+                        placeholder={isFr ? 'Code du parrain' : 'Referrer code'}
+                        className="h-9"
+                        autoComplete="off"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 shrink-0"
+                        disabled={!referralInput.trim() || referralClaiming}
+                        onClick={claimReferral}
+                      >
+                        {isFr ? 'Valider' : 'Apply'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Bon d'achat : il ne vaut que pour la PREMIÈRE échéance
                     (coupon Stripe duration:once). Les suivantes repartent au
