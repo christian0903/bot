@@ -29,6 +29,80 @@ const admin = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+/**
+ * Bornes du cycle courant d'un abonnement.
+ *
+ * Les versions récentes de l'API Stripe (à partir de 2025-03) ont déplacé
+ * `current_period_start` / `current_period_end` de la racine de l'abonnement
+ * vers ses items. Lire uniquement la racine donnait `undefined`, puis une
+ * "Invalid time value" au moment du `.toISOString()` — et le webhook échouait
+ * avant d'avoir rien écrit.
+ *
+ * On lit donc les deux emplacements, en préférant l'item quand il est présent.
+ */
+function periodOf(sub: Stripe.Subscription): { start: string | null; end: string | null } {
+  // deno-lint-ignore no-explicit-any
+  const item = (sub.items?.data?.[0] ?? {}) as any
+  // deno-lint-ignore no-explicit-any
+  const anySub = sub as any
+
+  const toIso = (ts: unknown): string | null => {
+    if (typeof ts !== 'number' || !Number.isFinite(ts)) return null
+    const d = new Date(ts * 1000)
+    return Number.isNaN(d.getTime()) ? null : d.toISOString()
+  }
+
+  return {
+    start: toIso(item.current_period_start ?? anySub.current_period_start),
+    end: toIso(item.current_period_end ?? anySub.current_period_end),
+  }
+}
+
+/**
+ * Abonnement rattaché à une facture.
+ *
+ * Même mouvement que pour les périodes : les API récentes ont déplacé
+ * `invoice.subscription` vers `invoice.parent.subscription_details.subscription`.
+ * Sans cette lecture double, invoice.paid sortait sans rien créditer.
+ */
+function subscriptionIdOf(invoice: Stripe.Invoice): string | null {
+  // deno-lint-ignore no-explicit-any
+  const inv = invoice as any
+  const direct = inv.subscription
+  if (typeof direct === 'string') return direct
+  if (direct?.id) return direct.id
+
+  const nested = inv.parent?.subscription_details?.subscription
+  if (typeof nested === 'string') return nested
+  if (nested?.id) return nested.id
+
+  // Dernier recours : la ligne de facture porte aussi le lien.
+  const line = inv.lines?.data?.[0]
+  const fromLine = line?.subscription ?? line?.parent?.subscription_item_details?.subscription
+  if (typeof fromLine === 'string') return fromLine
+  if (fromLine?.id) return fromLine.id
+
+  return null
+}
+
+/** Bornes de période portées par une facture (racine ou première ligne). */
+function invoicePeriod(invoice: Stripe.Invoice): { start: string | null; end: string | null } {
+  // deno-lint-ignore no-explicit-any
+  const inv = invoice as any
+  const line = inv.lines?.data?.[0]
+
+  const toIso = (ts: unknown): string | null => {
+    if (typeof ts !== 'number' || !Number.isFinite(ts)) return null
+    const d = new Date(ts * 1000)
+    return Number.isNaN(d.getTime()) ? null : d.toISOString()
+  }
+
+  return {
+    start: toIso(inv.period_start ?? line?.period?.start),
+    end: toIso(inv.period_end ?? line?.period?.end),
+  }
+}
+
 /** Crée une ligne pack_purchases : un cycle payé = une ligne. */
 async function creditPack(opts: {
   userId: string
@@ -143,6 +217,7 @@ serve(async (req) => {
         // ---- Abonnement : création + premier cycle ----
         if (md.kind === 'subscription' && session.subscription) {
           const sub = await stripe.subscriptions.retrieve(session.subscription as string)
+          const period = periodOf(sub)
 
           const { data: subRow } = await admin.from('subscriptions').upsert({
             user_id: md.user_id,
@@ -152,8 +227,8 @@ serve(async (req) => {
             stripe_price_id: sub.items.data[0]?.price.id ?? '',
             stripe_mode: isLive ? 'live' : 'test',
             status: sub.status === 'active' || sub.status === 'trialing' ? 'active' : 'incomplete',
-            current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+            current_period_start: period.start,
+            current_period_end: period.end,
             cancel_at_period_end: sub.cancel_at_period_end,
           }, { onConflict: 'stripe_subscription_id' }).select().single()
 
@@ -163,7 +238,9 @@ serve(async (req) => {
             await notify(
               md.user_id,
               'Abonnement activé',
-              `Votre abonnement est actif. Prochaine échéance le ${new Date(sub.current_period_end * 1000).toLocaleDateString('fr-BE')}.`,
+              period.end
+                ? `Votre abonnement est actif. Prochaine échéance le ${new Date(period.end).toLocaleDateString('fr-BE')}.`
+                : 'Votre abonnement est actif.',
             )
           }
           break
@@ -200,18 +277,62 @@ serve(async (req) => {
       // renouvellement, y compris pour le tout premier cycle.
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice
-        if (!invoice.subscription) break
+        const invoiceSubId = subscriptionIdOf(invoice)
+        // Une facture sans abonnement (paiement isolé) ne nous concerne pas.
+        if (!invoiceSubId) break
 
-        const { data: subRow } = await admin
-          .from('subscriptions')
-          .select('*, pack_type:pack_types(*)')
-          .eq('stripe_subscription_id', invoice.subscription as string)
-          .maybeSingle()
-
-        if (!subRow) {
-          console.error('Abonnement inconnu', invoice.subscription)
+        // Décaler l'échéance passe par `trial_end` : Stripe clôt alors la
+        // période d'essai en émettant une facture à 0 €. Sans ce filtre, elle
+        // était comptée comme un cycle payé et créait un second pack — le
+        // membre se retrouvait avec deux packs pour un seul paiement.
+        // Un cycle réel a toujours un montant : 0 € = pas de cycle acheté.
+        if (!invoice.amount_paid || invoice.amount_paid <= 0) {
+          console.log('invoice.paid à 0 € ignorée (fin d\'essai / ajustement)', invoice.id)
           break
         }
+
+        let { data: subRow } = await admin
+          .from('subscriptions')
+          .select('*, pack_type:pack_types(*)')
+          .eq('stripe_subscription_id', invoiceSubId)
+          .maybeSingle()
+
+        // Stripe ne garantit pas l'ordre de livraison : invoice.paid peut
+        // précéder checkout.session.completed, qui crée normalement la ligne.
+        // Plutôt que d'abandonner le crédit, on crée l'abonnement ici à partir
+        // des métadonnées portées par l'objet Stripe. L'upsert sur
+        // stripe_subscription_id rend l'opération sûre si l'autre événement
+        // arrive ensuite.
+        if (!subRow) {
+          console.log('invoice.paid avant checkout : création de l\'abonnement', invoiceSubId)
+          const sub = await stripe.subscriptions.retrieve(invoiceSubId)
+          const md = sub.metadata ?? {}
+
+          if (!md.user_id || !md.pack_type_id) {
+            console.error('Abonnement sans métadonnées exploitables', invoiceSubId)
+            break
+          }
+
+          const period = periodOf(sub)
+          const { data: created } = await admin.from('subscriptions').upsert({
+            user_id: md.user_id,
+            pack_type_id: md.pack_type_id,
+            stripe_subscription_id: sub.id,
+            stripe_customer_id: sub.customer as string,
+            stripe_price_id: sub.items.data[0]?.price.id ?? '',
+            stripe_mode: isLive ? 'live' : 'test',
+            status: 'active',
+            current_period_start: period.start,
+            current_period_end: period.end,
+            cancel_at_period_end: sub.cancel_at_period_end,
+          }, { onConflict: 'stripe_subscription_id' })
+            .select('*, pack_type:pack_types(*)')
+            .single()
+
+          subRow = created
+        }
+
+        if (!subRow) break
 
         const pt = subRow.pack_type as {
           credit_count: number; validity_days: number; name: string
@@ -239,12 +360,11 @@ serve(async (req) => {
             .is('consumed_at', null)
         }
 
+        const invPeriod = invoicePeriod(invoice)
         await admin.from('subscriptions').update({
           status: 'active',
-          current_period_start: invoice.period_start
-            ? new Date(invoice.period_start * 1000).toISOString() : null,
-          current_period_end: invoice.period_end
-            ? new Date(invoice.period_end * 1000).toISOString() : null,
+          current_period_start: invPeriod.start,
+          current_period_end: invPeriod.end,
         }).eq('id', subRow.id)
 
         await notify(
@@ -260,12 +380,13 @@ serve(async (req) => {
       // Une carte expirée ne doit pas coûter un client.
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
-        if (!invoice.subscription) break
+        const failedSubId = subscriptionIdOf(invoice)
+        if (!failedSubId) break
 
         const { data: subRow } = await admin
           .from('subscriptions')
           .select('*, pack_type:pack_types(name)')
-          .eq('stripe_subscription_id', invoice.subscription as string)
+          .eq('stripe_subscription_id', failedSubId)
           .maybeSingle()
         if (!subRow) break
 
@@ -305,35 +426,82 @@ serve(async (req) => {
                 ? 'canceled'
                 : 'incomplete'
 
-        await admin.from('subscriptions').update({
+        const period = periodOf(sub)
+        const md = sub.metadata ?? {}
+
+        const { data: touched } = await admin.from('subscriptions').update({
           status,
-          current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+          current_period_start: period.start,
+          current_period_end: period.end,
           cancel_at_period_end: sub.cancel_at_period_end,
           paused_at: paused ? new Date().toISOString() : null,
           stripe_price_id: sub.items.data[0]?.price.id ?? '',
-        }).eq('stripe_subscription_id', sub.id)
+        }).eq('stripe_subscription_id', sub.id).select('id')
+
+        // Un UPDATE qui ne touche aucune ligne ne renvoie pas d'erreur : si cet
+        // événement précède checkout.session.completed, l'état serait perdu
+        // sans bruit. On crée alors la ligne à partir des métadonnées.
+        if ((touched?.length ?? 0) === 0 && md.user_id && md.pack_type_id) {
+          await admin.from('subscriptions').upsert({
+            user_id: md.user_id,
+            pack_type_id: md.pack_type_id,
+            stripe_subscription_id: sub.id,
+            stripe_customer_id: sub.customer as string,
+            stripe_price_id: sub.items.data[0]?.price.id ?? '',
+            stripe_mode: isLive ? 'live' : 'test',
+            status,
+            current_period_start: period.start,
+            current_period_end: period.end,
+            cancel_at_period_end: sub.cancel_at_period_end,
+            paused_at: paused ? new Date().toISOString() : null,
+          }, { onConflict: 'stripe_subscription_id' })
+        }
         break
       }
 
       // ====================================================================
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription
+        const endedAt = new Date()
+
         const { data: subRow } = await admin
           .from('subscriptions')
-          .update({ status: 'canceled', canceled_at: new Date().toISOString() })
+          .update({ status: 'canceled', canceled_at: endedAt.toISOString() })
           .eq('stripe_subscription_id', sub.id)
-          .select('user_id')
+          .select('id, user_id, current_period_end')
           .maybeSingle()
 
-        if (subRow) {
-          await notify(
-            subRow.user_id,
-            'Abonnement terminé',
-            'Votre abonnement a pris fin. Vos crédits en cours restent utilisables jusqu\'à leur date d\'expiration.',
-            'info', '/my-packs',
-          )
+        if (!subRow) break
+
+        // Deux résiliations très différentes, à distinguer par la date de fin :
+        //   - en fin de période : le terme payé est atteint, les packs ont
+        //     expiré d'eux-mêmes. Rien à faire.
+        //   - immédiate : le studio coupe avant le terme. Le pack doit être
+        //     clôturé aussi (décision du 2026-08-05), sinon le membre continue
+        //     de s'entraîner sans payer — et l'avertissement affiché à l'admin
+        //     (« le membre perd immédiatement l'accès ») serait mensonger.
+        const periodEnd = subRow.current_period_end ? new Date(subRow.current_period_end) : null
+        const endedEarly = periodEnd ? endedAt < periodEnd : false
+
+        let closedPacks = 0
+        if (endedEarly) {
+          const { data: closed } = await admin
+            .from('pack_purchases')
+            .update({ expires_at: endedAt.toISOString() })
+            .eq('subscription_id', subRow.id)
+            .gt('expires_at', endedAt.toISOString())
+            .select('id')
+          closedPacks = closed?.length ?? 0
         }
+
+        await notify(
+          subRow.user_id,
+          'Abonnement terminé',
+          closedPacks > 0
+            ? 'Votre abonnement a pris fin et vos accès sont clôturés. Contactez le studio pour toute question.'
+            : 'Votre abonnement a pris fin. Vos crédits en cours restent utilisables jusqu\'à leur date d\'expiration.',
+          'info', '/my-packs',
+        )
         break
       }
 

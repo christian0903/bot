@@ -35,7 +35,7 @@ import {
 
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Package, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Package, Pencil, Plus, Trash2, RefreshCw } from 'lucide-react'
 
 interface PackTypeForm {
   name: string
@@ -216,6 +216,28 @@ export function AdminPackTypesPage() {
 
   if (loading) return <LoadingState />
 
+  // Abonnements d'abord, packs ponctuels ensuite — même ordre que la page
+  // client, pour que l'admin voie son catalogue tel que le membre le verra.
+  // Les en-têtes sont des lignes du tableau : pas de sous-tableaux, pas de
+  // colonnes qui se désalignent.
+  type Row =
+    | { kind: 'header'; key: string; recurring: boolean; count: number }
+    | { kind: 'pack'; pt: PackType }
+
+  const recurringPacks = packTypes.filter(p => p.is_recurring)
+  const oneOffPacks = packTypes.filter(p => !p.is_recurring)
+
+  const groupedPackTypes: Row[] = [
+    ...(recurringPacks.length > 0
+      ? [{ kind: 'header', key: 'h-sub', recurring: true, count: recurringPacks.length } as Row,
+         ...recurringPacks.map(pt => ({ kind: 'pack', pt } as Row))]
+      : []),
+    ...(oneOffPacks.length > 0
+      ? [{ kind: 'header', key: 'h-oneoff', recurring: false, count: oneOffPacks.length } as Row,
+         ...oneOffPacks.map(pt => ({ kind: 'pack', pt } as Row))]
+      : []),
+  ]
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -244,8 +266,20 @@ export function AdminPackTypesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {packTypes.map((pt) => (
-                <TableRow key={pt.id}>
+              {groupedPackTypes.map((entry) => entry.kind === 'header' ? (
+                <TableRow key={entry.key} className="bg-muted/50 hover:bg-muted/50">
+                  <TableCell colSpan={8} className="py-2">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {entry.recurring
+                        ? <><RefreshCw className="h-3.5 w-3.5" />{isFr ? 'Abonnements' : 'Subscriptions'}</>
+                        : <><Package className="h-3.5 w-3.5" />{isFr ? 'Packs à l\'unité' : 'One-off packs'}</>}
+                      <span className="font-normal normal-case">({entry.count})</span>
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                <TableRow key={entry.pt.id}>
+                  {(() => { const pt = entry.pt; return <>
                   <TableCell className="font-medium">{pt.name}</TableCell>
                   <TableCell className="hidden lg:table-cell">{pt.credit_type?.label_fr ?? '-'}</TableCell>
                   <TableCell className="hidden sm:table-cell">{pt.is_unlimited ? '∞' : pt.credit_count}</TableCell>
@@ -283,6 +317,7 @@ export function AdminPackTypesPage() {
                       </Button>
                     </div>
                   </TableCell>
+                  </> })()}
                 </TableRow>
               ))}
             </TableBody>

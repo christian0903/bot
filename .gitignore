@@ -43,3 +43,6 @@ android/.idea/
 android/app/release/
 android/app/debug/
 *.iml
+
+# Cache de la CLI Supabase (versions des services, regenere a chaque commande)
+supabase/.temp/

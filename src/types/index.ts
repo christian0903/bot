@@ -89,6 +89,50 @@ export interface PackPurchase {
   coupon_id: string | null
   created_at: string
   pack_type?: PackType
+  /** Rempli quand la ligne provient d'une échéance d'abonnement. */
+  subscription_id?: string | null
+  stripe_invoice_id?: string | null
+}
+
+/**
+ * Abonnement Stripe. Reflet local de l'objet distant : c'est le webhook qui
+ * tient cette table à jour, jamais le front.
+ */
+export interface Subscription {
+  id: string
+  user_id: string
+  pack_type_id: string
+  stripe_subscription_id: string
+  stripe_customer_id: string
+  stripe_price_id: string
+  /** Un abonnement de test n'est jamais piloté avec la clé live. */
+  stripe_mode: 'test' | 'live'
+  /** 'paused' = suspension décidée par le studio. */
+  status: 'active' | 'past_due' | 'paused' | 'canceled' | 'incomplete'
+  current_period_start: string | null
+  /** Prochaine échéance. */
+  current_period_end: string | null
+  /** Résiliation programmée : droits conservés jusqu'au terme payé. */
+  cancel_at_period_end: boolean
+  canceled_at: string | null
+  paused_at: string | null
+  created_at: string
+  updated_at: string
+  pack_type?: PackType
+}
+
+/** Remise ponctuelle accordée par le studio sur une échéance d'abonnement. */
+export interface SubscriptionDiscount {
+  id: string
+  subscription_id: string
+  stripe_coupon_id: string
+  amount_off_cents: number | null
+  percent_off: number | null
+  reason: string | null
+  applied_by: string | null
+  applied_at: string
+  /** Renseigné par le webhook quand la facture réduite a été payée. */
+  consumed_at: string | null
 }
 
 export interface Coupon {

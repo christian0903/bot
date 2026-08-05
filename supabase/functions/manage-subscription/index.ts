@@ -32,6 +32,23 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 
+/**
+ * Fin du cycle courant, en français.
+ *
+ * Les API Stripe récentes ont déplacé `current_period_end` de la racine de
+ * l'abonnement vers ses items : lire la racine seule produisait « Invalid
+ * Date » dans les messages de confirmation.
+ */
+function periodEndLabel(sub: Stripe.Subscription): string | null {
+  // deno-lint-ignore no-explicit-any
+  const item = (sub.items?.data?.[0] ?? {}) as any
+  // deno-lint-ignore no-explicit-any
+  const ts = item.current_period_end ?? (sub as any).current_period_end
+  if (typeof ts !== 'number' || !Number.isFinite(ts)) return null
+  const d = new Date(ts * 1000)
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-BE')
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -83,6 +100,19 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
     const subId = subRow.stripe_subscription_id
 
+    /** Trace le geste du studio : ces décisions doivent rester lisibles après coup. */
+    const logAction = async (act: string, description: string, details: Record<string, unknown> = {}) => {
+      await admin.from('activity_log').insert({
+        action: act,
+        actor_id: user.id,
+        target_user_id: subRow.user_id,
+        entity_type: 'subscription',
+        entity_id: subRow.id,
+        details,
+        description,
+      })
+    }
+
     switch (action) {
       // ====================================================================
       // Réduction sur la PROCHAINE échéance uniquement.
@@ -115,6 +145,12 @@ serve(async (req) => {
           applied_by: user.id,
         })
 
+        await logAction(
+          'subscription_discounted',
+          `Réduction accordée : ${percent_off ? `-${percent_off} %` : `-${(Number(amount_off_cents) / 100).toFixed(2)} €`}${reason ? ` (${reason})` : ''}`,
+          { percent_off: percent_off ?? null, amount_off_cents: amount_off_cents ?? null, reason: reason ?? null },
+        )
+
         return json({
           ok: true,
           message: 'Réduction appliquée à la prochaine échéance uniquement.',
@@ -125,12 +161,50 @@ serve(async (req) => {
       // Décaler l'échéance : tous les cycles suivants suivent la nouvelle
       // date. `proration_behavior: 'none'` — l'intervalle offert n'est pas
       // facturé, c'est le geste attendu pour des congés ou une blessure.
+      //
+      // Le pack en cours est prolongé d'autant. Décidé le 2026-08-05 : une
+      // maladie déclarée en milieu de cycle ne se « met pas en pause », elle
+      // se compense. Couper l'accès ne protégerait rien (la personne empêchée
+      // ne vient pas), et sur un illimité cela n'aurait aucun sens.
       case 'postpone': {
         if (!new_date) return json({ error: 'new_date est requis' }, 400)
 
-        const anchor = Math.floor(new Date(new_date).getTime() / 1000)
+        const target = new Date(new_date)
+        if (Number.isNaN(target.getTime())) {
+          return json({ error: 'Date invalide' }, 400)
+        }
+
+        const anchor = Math.floor(target.getTime() / 1000)
         if (anchor <= Math.floor(Date.now() / 1000)) {
           return json({ error: 'La nouvelle date doit être dans le futur' }, 400)
+        }
+
+        // Mesuré depuis l'échéance connue, pas depuis aujourd'hui : c'est le
+        // décalage réel du cycle, indépendamment du moment de la demande.
+        const previousEnd = subRow.current_period_end
+          ? new Date(subRow.current_period_end)
+          : null
+
+        // Un report ne peut que repousser. Une date antérieure avancerait le
+        // prélèvement et raccourcirait le pack (décalage négatif) : le membre
+        // paierait plus tôt et perdrait des jours d'accès. Refusé ici même si
+        // le formulaire l'interdit déjà — la fonction est appelable seule.
+        if (previousEnd && target <= previousEnd) {
+          return json({
+            error: `La nouvelle date doit être postérieure à l'échéance actuelle (${previousEnd.toLocaleDateString('fr-BE')}).`,
+          }, 400)
+        }
+
+        // Garde-fou : au-delà d'un an, c'est presque sûrement une faute de
+        // saisie (année mal tapée). Le studio peut toujours refaire l'opération.
+        if (previousEnd) {
+          const maxShiftDays = 365
+          const shiftDays = (target.getTime() - previousEnd.getTime()) / 86400000
+          if (shiftDays > maxShiftDays) {
+            return json({
+              error: `Report de ${Math.round(shiftDays)} jours refusé : le maximum est de ${maxShiftDays} jours.`,
+            }, 400)
+          }
         }
 
         const updated = await stripe.subscriptions.update(subId, {
@@ -138,9 +212,50 @@ serve(async (req) => {
           proration_behavior: 'none',
         })
 
+        let extendedUntil: string | null = null
+        if (previousEnd) {
+          const shiftMs = new Date(anchor * 1000).getTime() - previousEnd.getTime()
+          if (shiftMs > 0) {
+            // Le pack vivant du cycle courant : celui qui n'a pas encore expiré.
+            const { data: pack } = await admin
+              .from('pack_purchases')
+              .select('id, expires_at')
+              .eq('subscription_id', subRow.id)
+              .order('purchased_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+
+            if (pack) {
+              const newExpiry = new Date(new Date(pack.expires_at).getTime() + shiftMs)
+              await admin
+                .from('pack_purchases')
+                .update({ expires_at: newExpiry.toISOString() })
+                .eq('id', pack.id)
+              extendedUntil = newExpiry.toLocaleDateString('fr-BE')
+            }
+          }
+        }
+
+        await admin.from('activity_log').insert({
+          action: 'subscription_postponed',
+          actor_id: user.id,
+          target_user_id: subRow.user_id,
+          entity_type: 'subscription',
+          entity_id: subRow.id,
+          details: {
+            new_date: new Date(anchor * 1000).toISOString(),
+            previous_end: previousEnd?.toISOString() ?? null,
+            pack_extended_until: extendedUntil,
+          },
+          description: `Échéance décalée au ${new Date(anchor * 1000).toLocaleDateString('fr-BE')}${extendedUntil ? `, accès prolongé jusqu'au ${extendedUntil}` : ''}`,
+        })
+
+        const label = periodEndLabel(updated)
         return json({
           ok: true,
-          message: `Prochaine échéance décalée au ${new Date(updated.current_period_end * 1000).toLocaleDateString('fr-BE')}.`,
+          message: label
+            ? `Prochaine échéance décalée au ${label}.${extendedUntil ? ` L'accès est prolongé jusqu'au ${extendedUntil}.` : ''}`
+            : 'Prochaine échéance décalée.',
         })
       }
 
@@ -150,11 +265,13 @@ serve(async (req) => {
         await stripe.subscriptions.update(subId, {
           pause_collection: { behavior: 'void' },
         })
+        await logAction('subscription_paused', 'Abonnement suspendu par le studio')
         return json({ ok: true, message: 'Abonnement suspendu. Aucun prélèvement jusqu\'à la reprise.' })
       }
 
       case 'resume': {
         await stripe.subscriptions.update(subId, { pause_collection: null })
+        await logAction('subscription_resumed', 'Abonnement réactivé par le studio')
         return json({ ok: true, message: 'Abonnement réactivé.' })
       }
 
@@ -164,14 +281,48 @@ serve(async (req) => {
       case 'cancel': {
         if (immediately) {
           await stripe.subscriptions.cancel(subId)
-          return json({ ok: true, message: 'Abonnement résilié immédiatement.' })
+
+          // Clôture des accès en cours. Le webhook customer.subscription.deleted
+          // fait la même chose, mais il peut arriver avec du retard : l'admin
+          // doit voir l'effet tout de suite. L'opération est idempotente.
+          const now = new Date().toISOString()
+          const { data: closed } = await admin
+            .from('pack_purchases')
+            .update({ expires_at: now })
+            .eq('subscription_id', subRow.id)
+            .gt('expires_at', now)
+            .select('id')
+
+          await admin.from('subscriptions')
+            .update({ status: 'canceled', canceled_at: now })
+            .eq('id', subRow.id)
+
+          const n = closed?.length ?? 0
+          await logAction(
+            'subscription_cancelled',
+            `Abonnement résilié immédiatement par le studio${n > 0 ? `, ${n} accès clôturé(s)` : ''}`,
+            { immediately: true, packs_closed: n },
+          )
+          return json({
+            ok: true,
+            message: n > 0
+              ? 'Abonnement résilié et accès clôturés immédiatement.'
+              : 'Abonnement résilié immédiatement.',
+          })
         }
         const updated = await stripe.subscriptions.update(subId, {
           cancel_at_period_end: true,
         })
+        const endLabel = periodEndLabel(updated)
+        await logAction(
+          'subscription_cancelled',
+          `Résiliation programmée par le studio${endLabel ? ` au ${endLabel}` : ' en fin de période'}`,
+        )
         return json({
           ok: true,
-          message: `Résiliation programmée au ${new Date(updated.current_period_end * 1000).toLocaleDateString('fr-BE')}. Les droits sont conservés jusque-là.`,
+          message: endLabel
+            ? `Résiliation programmée au ${endLabel}. Les droits sont conservés jusque-là.`
+            : 'Résiliation programmée en fin de période. Les droits sont conservés jusque-là.',
         })
       }
 

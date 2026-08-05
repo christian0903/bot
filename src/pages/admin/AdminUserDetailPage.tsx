@@ -7,7 +7,7 @@ import { adminUpdatePassword } from '@/lib/admin-update-password'
 import { adminUpdateEmail } from '@/lib/admin-update-email'
 import { sendEmail } from '@/lib/send-email'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory } from '@/types'
+import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory, Subscription, SubscriptionDiscount } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X, RefreshCw, PauseCircle, PlayCircle, AlertTriangle, RotateCcw } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
@@ -90,10 +90,30 @@ export function AdminUserDetailPage() {
   const [editProfileForm, setEditProfileForm] = useState({ display_name: '', first_name: '', last_name: '' })
   const [editProfileSaving, setEditProfileSaving] = useState(false)
 
+  // ---- Abonnement ------------------------------------------------------
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [subDiscounts, setSubDiscounts] = useState<SubscriptionDiscount[]>([])
+  /** Action en cours d'exécution — bloque les boutons le temps de l'aller-retour Stripe. */
+  const [subActionRunning, setSubActionRunning] = useState<string | null>(null)
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false)
+  const [discountMode, setDiscountMode] = useState<'amount' | 'percent'>('amount')
+  const [discountValue, setDiscountValue] = useState('')
+  const [discountReason, setDiscountReason] = useState('')
+  const [postponeDialogOpen, setPostponeDialogOpen] = useState(false)
+  const [postponeDate, setPostponeDate] = useState('')
+  const [cancelSubDialogOpen, setCancelSubDialogOpen] = useState(false)
+  const [cancelImmediately, setCancelImmediately] = useState(false)
+
+  // ---- Remise à zéro (mode test uniquement) ----------------------------
+  const [stripeTestMode, setStripeTestMode] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [resetConfirmText, setResetConfirmText] = useState('')
+  const [resetRunning, setResetRunning] = useState(false)
+
   const fetchData = async () => {
     if (!id) return
 
-    const [profileRes, packsRes, bookingsRes, regFeeRes, catRes, alertRes] = await Promise.all([
+    const [profileRes, packsRes, bookingsRes, regFeeRes, catRes, alertRes, modeRes, subRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', id).single(),
       supabase
         .from('pack_purchases')
@@ -108,7 +128,35 @@ export function AdminUserDetailPage() {
       supabase.from('registration_fees').select('id').eq('user_id', id).limit(1),
       supabase.from('member_categories').select('*').order('name'),
       supabase.from('app_settings').select('value').eq('key', 'cancellation_alert').maybeSingle(),
+      supabase.from('app_settings').select('value').eq('key', 'stripe_mode').maybeSingle(),
+      // Abonnement le plus récent, même résilié : le studio doit pouvoir
+      // constater qu'une résiliation a bien été enregistrée.
+      supabase
+        .from('subscriptions')
+        .select('*, pack_type:pack_types(*)')
+        .eq('user_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ])
+
+    // Le bouton de remise à zéro n'existe qu'en mode test : en live, aucun
+    // moyen de détruire des achats réels par mégarde.
+    const modeVal = modeRes.data?.value as { mode?: string } | undefined
+    setStripeTestMode((modeVal?.mode ?? 'test') !== 'live')
+
+    const sub = (subRes.data as Subscription) ?? null
+    setSubscription(sub)
+    if (sub) {
+      const { data: discounts } = await supabase
+        .from('subscription_discounts')
+        .select('*')
+        .eq('subscription_id', sub.id)
+        .order('applied_at', { ascending: false })
+      setSubDiscounts((discounts as SubscriptionDiscount[]) ?? [])
+    } else {
+      setSubDiscounts([])
+    }
 
     setProfile(profileRes.data as Profile)
     const alertVal = alertRes.data?.value as { threshold_per_cycle?: number } | undefined
@@ -135,6 +183,143 @@ export function AdminUserDetailPage() {
   }
 
   const isFr = i18n.language === 'fr'
+
+  /**
+   * Appelle manage-subscription. Rien n'est écrit en base ici : Stripe émet
+   * customer.subscription.updated, le webhook met la table à jour, et on
+   * relit ensuite. C'est la seule source de vérité.
+   */
+  const runSubscriptionAction = async (
+    action: 'discount' | 'postpone' | 'pause' | 'resume' | 'cancel',
+    payload: Record<string, unknown> = {},
+  ) => {
+    if (!subscription) return
+    setSubActionRunning(action)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { toast.error(t('common.error')); return }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-subscription`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action, subscription_id: subscription.id, ...payload }),
+        },
+      )
+      const data = await response.json()
+
+      if (data.ok) {
+        toast.success(data.message ?? (isFr ? 'Action effectuée' : 'Done'))
+        // Le webhook Stripe met la table à jour en asynchrone : on laisse un
+        // court délai avant de relire, sinon on réaffiche l'état d'avant.
+        await new Promise(r => setTimeout(r, 1200))
+        await fetchData()
+        return true
+      }
+      toast.error(data.error ?? t('common.error'))
+      return false
+    } catch {
+      toast.error(t('common.error'))
+      return false
+    } finally {
+      setSubActionRunning(null)
+    }
+  }
+
+  const handleApplyDiscount = async () => {
+    const value = parseFloat(discountValue.replace(',', '.'))
+    if (!value || value <= 0) {
+      toast.error(isFr ? 'Indiquez un montant valide' : 'Enter a valid amount')
+      return
+    }
+    if (discountMode === 'percent' && value > 100) {
+      toast.error(isFr ? 'Le pourcentage ne peut pas dépasser 100' : 'Percentage cannot exceed 100')
+      return
+    }
+    const payload = discountMode === 'percent'
+      ? { percent_off: Math.round(value) }
+      : { amount_off_cents: Math.round(value * 100) }
+
+    const ok = await runSubscriptionAction('discount', {
+      ...payload,
+      reason: discountReason || null,
+    })
+    if (ok) {
+      setDiscountDialogOpen(false)
+      setDiscountValue('')
+      setDiscountReason('')
+    }
+  }
+
+  /**
+   * Ouvre le report avec une date déjà posée : l'échéance actuelle + 7 jours.
+   * Sans valeur initiale, le calendrier s'ouvrait sur le mois courant et
+   * l'admin devait naviguer jusqu'à la bonne période. La proposition reste
+   * modifiable — c'est un point de départ, pas un choix imposé.
+   */
+  const openPostponeDialog = () => {
+    const base = subscription?.current_period_end
+      ? new Date(subscription.current_period_end)
+      : new Date()
+    const floor = base > new Date() ? base : new Date()
+    const suggested = new Date(floor.getTime() + 7 * 86400000)
+    setPostponeDate(suggested.toISOString().split('T')[0])
+    setPostponeDialogOpen(true)
+  }
+
+  const handlePostpone = async () => {
+    if (!postponeDate) {
+      toast.error(isFr ? 'Choisissez une date' : 'Pick a date')
+      return
+    }
+    // Le bouton est déjà bloqué en cas d'erreur : ceci couvre un état incohérent.
+    if (postponeError) {
+      toast.error(postponeError)
+      return
+    }
+    // Midi, pour qu'un décalage de fuseau ne fasse pas basculer la veille.
+    const ok = await runSubscriptionAction('postpone', {
+      new_date: new Date(`${postponeDate}T12:00:00`).toISOString(),
+    })
+    if (ok) {
+      setPostponeDialogOpen(false)
+      setPostponeDate('')
+    }
+  }
+
+  const handleCancelSubscription = async () => {
+    const ok = await runSubscriptionAction('cancel', { immediately: cancelImmediately })
+    if (ok) {
+      setCancelSubDialogOpen(false)
+      setCancelImmediately(false)
+    }
+  }
+
+  const handleResetPurchases = async () => {
+    if (!id) return
+    setResetRunning(true)
+    try {
+      const { data, error } = await supabase.rpc('reset_member_purchases', { p_user_id: id })
+      if (error) {
+        toast.error(error.message)
+        return
+      }
+      const r = data as Record<string, number>
+      toast.success(
+        isFr
+          ? `Remise à zéro : ${r.packs} pack(s), ${r.subscriptions} abonnement(s), ${r.bookings} réservation(s)`
+          : `Reset: ${r.packs} pack(s), ${r.subscriptions} subscription(s), ${r.bookings} booking(s)`,
+      )
+      setResetDialogOpen(false)
+      setResetConfirmText('')
+      await fetchData()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setResetRunning(false)
+    }
+  }
 
   const handleToggleRegFee = async () => {
     if (!id) return
@@ -465,6 +650,56 @@ export function AdminUserDetailPage() {
   /** Nombre de cycles (packs) ayant donne lieu a au moins une reservation. */
   const cyclesWithActivity = new Set(bookings.map(b => b.pack_purchase_id).filter(Boolean)).size
 
+  // Montant réel de la prochaine échéance : une réduction en attente n'est
+  // visible nulle part ailleurs tant que la facture n'est pas émise.
+  const pendingSubDiscount = subDiscounts.find(d => !d.consumed_at) ?? null
+  const subFullPriceCents = subscription?.pack_type?.price_cents ?? null
+  const eurLabel = (cents: number) => `${(cents / 100).toFixed(2).replace('.', ',')} €`
+  const fullPriceLabel = subFullPriceCents !== null ? eurLabel(subFullPriceCents) : null
+  let nextAmountLabel: string | null = null
+  if (pendingSubDiscount && subFullPriceCents !== null) {
+    const reduced = pendingSubDiscount.percent_off
+      ? Math.round(subFullPriceCents * (1 - pendingSubDiscount.percent_off / 100))
+      : Math.max(0, subFullPriceCents - (pendingSubDiscount.amount_off_cents ?? 0))
+    nextAmountLabel = eurLabel(reduced)
+  }
+
+  // ---- Report d'échéance : bornes et contrôle de saisie ----
+  // Un report ne peut que repousser. Une date antérieure avancerait le
+  // prélèvement et raccourcirait l'accès du membre.
+  const currentPeriodEnd = subscription?.current_period_end
+    ? new Date(subscription.current_period_end)
+    : null
+
+  const postponeMinDate = (() => {
+    const floor = currentPeriodEnd && currentPeriodEnd > now ? currentPeriodEnd : now
+    return new Date(floor.getTime() + 86400000).toISOString().split('T')[0]
+  })()
+
+  const postponeTarget = postponeDate ? new Date(`${postponeDate}T12:00:00`) : null
+
+  const postponeShiftDays = postponeTarget && currentPeriodEnd
+    ? Math.round((postponeTarget.getTime() - currentPeriodEnd.getTime()) / 86400000)
+    : null
+
+  const postponeError = (() => {
+    if (!postponeTarget) return null
+    if (postponeTarget <= now) {
+      return isFr ? 'La date doit être dans le futur.' : 'The date must be in the future.'
+    }
+    if (currentPeriodEnd && postponeTarget <= currentPeriodEnd) {
+      return isFr
+        ? `La date doit être postérieure à l'échéance actuelle (${format(currentPeriodEnd, 'dd/MM/yyyy')}).`
+        : `The date must be after the current payment date (${format(currentPeriodEnd, 'dd/MM/yyyy')}).`
+    }
+    if (postponeShiftDays !== null && postponeShiftDays > 365) {
+      return isFr
+        ? `Report de ${postponeShiftDays} jours : le maximum est de 365 jours.`
+        : `Postponing by ${postponeShiftDays} days: the maximum is 365 days.`
+    }
+    return null
+  })()
+
   // For booking dialog: filter packs compatible with selected class
   const selectedClass = availableClasses.find(c => c.id === selectedClassId)
   const compatiblePacks = selectedClass
@@ -588,6 +823,19 @@ export function AdminUserDetailPage() {
             {isFr ? 'Changer mot de passe' : 'Change password'}
           </Button>
         )}
+
+        {/* Outil de test : absent dès que Stripe passe en live. */}
+        {stripeTestMode && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+            onClick={() => { setResetConfirmText(''); setResetDialogOpen(true) }}
+          >
+            <RotateCcw className="h-3 w-3 mr-1" />
+            {isFr ? 'Remise à zéro (test)' : 'Reset (test)'}
+          </Button>
+        )}
       </div>
 
       {/* Stats cards */}
@@ -630,6 +878,12 @@ export function AdminUserDetailPage() {
             <X className="h-4 w-4 mr-1.5" />
             {isFr ? 'Annulations' : 'Cancellations'} ({cancelledBookings.length})
           </TabsTrigger>
+          {subscription && (
+            <TabsTrigger value="subscription">
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+              {isFr ? 'Abonnement' : 'Subscription'}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* PACKS TAB */}
@@ -913,7 +1167,433 @@ export function AdminUserDetailPage() {
             />
           )}
         </TabsContent>
+
+        {/* SUBSCRIPTION TAB */}
+        {subscription && (
+          <TabsContent value="subscription" className="mt-4 space-y-4">
+            {/* État courant */}
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <p className="font-semibold">
+                      {subscription.pack_type?.name ?? (isFr ? 'Abonnement' : 'Subscription')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {(subscription.pack_type?.price_cents ?? 0) / 100} €
+                      {subscription.pack_type?.recurring_interval_count && subscription.pack_type?.recurring_interval && (
+                        <> · {isFr ? 'tous les' : 'every'} {subscription.pack_type.recurring_interval_count}{' '}
+                        {subscription.pack_type.recurring_interval === 'week'
+                          ? (isFr ? 'semaines' : 'weeks')
+                          : subscription.pack_type.recurring_interval === 'month'
+                            ? (isFr ? 'mois' : 'months')
+                            : (isFr ? 'jours' : 'days')}</>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {subscription.stripe_mode === 'test' && (
+                      <Badge variant="outline" className="border-amber-500 text-amber-600">test</Badge>
+                    )}
+                    {subscription.status === 'active' && !subscription.cancel_at_period_end && (
+                      <Badge variant="outline" className="border-green-500 text-green-600">
+                        {isFr ? 'Actif' : 'Active'}
+                      </Badge>
+                    )}
+                    {subscription.status === 'past_due' && (
+                      <Badge variant="destructive">{isFr ? 'Paiement en échec' : 'Past due'}</Badge>
+                    )}
+                    {subscription.status === 'paused' && (
+                      <Badge variant="secondary">{isFr ? 'Suspendu' : 'Paused'}</Badge>
+                    )}
+                    {subscription.status === 'canceled' && (
+                      <Badge variant="secondary">{isFr ? 'Résilié' : 'Canceled'}</Badge>
+                    )}
+                    {subscription.cancel_at_period_end && subscription.status !== 'canceled' && (
+                      <Badge variant="secondary">
+                        {isFr ? 'Résiliation programmée' : 'Cancellation scheduled'}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {subscription.current_period_end && subscription.status !== 'canceled' && (
+                  <p className="text-sm">
+                    {subscription.cancel_at_period_end
+                      ? (isFr ? 'Fin des droits le ' : 'Access ends on ')
+                      : (isFr ? 'Prochaine échéance le ' : 'Next payment on ')}
+                    <span className="font-medium">
+                      {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale })}
+                    </span>
+                    {!subscription.cancel_at_period_end && nextAmountLabel && (
+                      <>
+                        {' · '}
+                        <span className="font-medium text-green-600">{nextAmountLabel}</span>
+                        <span className="text-muted-foreground line-through ml-1">{fullPriceLabel}</span>
+                      </>
+                    )}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Actions du studio */}
+            {subscription.status !== 'canceled' && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDiscountDialogOpen(true)}
+                  disabled={!!subActionRunning}
+                >
+                  <Receipt className="h-4 w-4 mr-1.5" />
+                  {isFr ? 'Réduction ponctuelle' : 'One-off discount'}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openPostponeDialog}
+                  disabled={!!subActionRunning}
+                >
+                  <Clock className="h-4 w-4 mr-1.5" />
+                  {isFr ? 'Décaler l\'échéance' : 'Postpone payment'}
+                </Button>
+
+                {subscription.status === 'paused' ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => runSubscriptionAction('resume')}
+                    disabled={!!subActionRunning}
+                  >
+                    <PlayCircle className="h-4 w-4 mr-1.5" />
+                    {subActionRunning === 'resume'
+                      ? (isFr ? 'Reprise…' : 'Resuming…')
+                      : (isFr ? 'Reprendre' : 'Resume')}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => runSubscriptionAction('pause')}
+                    disabled={!!subActionRunning}
+                  >
+                    <PauseCircle className="h-4 w-4 mr-1.5" />
+                    {subActionRunning === 'pause'
+                      ? (isFr ? 'Suspension…' : 'Pausing…')
+                      : (isFr ? 'Suspendre' : 'Pause')}
+                  </Button>
+                )}
+
+                {!subscription.cancel_at_period_end && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setCancelSubDialogOpen(true)}
+                    disabled={!!subActionRunning}
+                  >
+                    <X className="h-4 w-4 mr-1.5" />
+                    {isFr ? 'Résilier' : 'Cancel'}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Historique des remises accordées */}
+            {subDiscounts.length > 0 && (
+              <Card>
+                <CardContent className="p-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {isFr ? 'Réductions accordées' : 'Discounts granted'}
+                  </p>
+                  {subDiscounts.map(d => (
+                    <div key={d.id} className="flex items-center justify-between gap-2 text-sm border-b last:border-0 pb-2 last:pb-0">
+                      <div>
+                        <span className="font-medium">
+                          {d.percent_off ? `-${d.percent_off} %` : `-${((d.amount_off_cents ?? 0) / 100).toFixed(2).replace('.', ',')} €`}
+                        </span>
+                        {d.reason && <span className="text-muted-foreground"> · {d.reason}</span>}
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {d.consumed_at
+                          ? (isFr ? 'Appliquée' : 'Applied')
+                          : (isFr ? 'En attente' : 'Pending')}
+                        {' · '}
+                        {format(new Date(d.applied_at), 'dd/MM/yyyy')}
+                      </span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
+
+      {/* Réduction ponctuelle — s'applique à la prochaine échéance seulement */}
+      <Dialog open={discountDialogOpen} onOpenChange={setDiscountDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Réduction ponctuelle' : 'One-off discount'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {isFr
+                ? 'La réduction s\'applique à la prochaine échéance uniquement. Les suivantes repartent au tarif plein, sans intervention.'
+                : 'The discount applies to the next payment only. Later payments return to full price automatically.'}
+            </p>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={discountMode === 'amount' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDiscountMode('amount')}
+              >
+                {isFr ? 'Montant (€)' : 'Amount (€)'}
+              </Button>
+              <Button
+                type="button"
+                variant={discountMode === 'percent' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDiscountMode('percent')}
+              >
+                {isFr ? 'Pourcentage (%)' : 'Percentage (%)'}
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{discountMode === 'amount' ? (isFr ? 'Montant en euros' : 'Amount in euros') : (isFr ? 'Pourcentage' : 'Percentage')}</Label>
+              <Input
+                type="number"
+                min="1"
+                step={discountMode === 'amount' ? '0.01' : '1'}
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+                placeholder={discountMode === 'amount' ? '25' : '20'}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{isFr ? 'Motif (facultatif)' : 'Reason (optional)'}</Label>
+              <Input
+                value={discountReason}
+                onChange={(e) => setDiscountReason(e.target.value)}
+                placeholder={isFr ? 'Geste commercial, blessure…' : 'Goodwill, injury…'}
+                maxLength={40}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDiscountDialogOpen(false)} disabled={!!subActionRunning}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleApplyDiscount} disabled={!!subActionRunning}>
+              {subActionRunning === 'discount'
+                ? (isFr ? 'Application…' : 'Applying…')
+                : (isFr ? 'Appliquer' : 'Apply')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Décaler l'échéance — congés, blessure */}
+      <Dialog open={postponeDialogOpen} onOpenChange={setPostponeDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Décaler l\'échéance' : 'Postpone payment'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {isFr
+                ? 'La période offerte n\'est pas facturée, et l\'accès du membre est prolongé d\'autant. Les échéances suivantes se recalent sur la nouvelle date et reprennent leur rythme normal.'
+                : 'The skipped period is not charged, and the member\'s access is extended accordingly. Later payments follow the new date and resume their normal rhythm.'}
+            </p>
+
+            {subscription?.current_period_end && (
+              <p className="text-sm">
+                {isFr ? 'Échéance actuelle : ' : 'Current date: '}
+                <span className="font-medium">
+                  {format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale })}
+                </span>
+              </p>
+            )}
+
+            {/* Raccourcis en durée : un coach pense « deux semaines de congés »,
+                pas « le 16 septembre ». La date reste modifiable à la main. */}
+            {currentPeriodEnd && (
+              <div className="flex flex-wrap gap-1.5">
+                {[7, 14, 21, 28].map(days => {
+                  const target = new Date(currentPeriodEnd.getTime() + days * 86400000)
+                  const iso = target.toISOString().split('T')[0]
+                  return (
+                    <Button
+                      key={days}
+                      type="button"
+                      variant={postponeDate === iso ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setPostponeDate(iso)}
+                    >
+                      +{days} {isFr ? 'j' : 'd'}
+                    </Button>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>{isFr ? 'Nouvelle date d\'échéance' : 'New payment date'}</Label>
+              <Input
+                type="date"
+                value={postponeDate}
+                // Un report ne peut que repousser : le calendrier commence au
+                // lendemain de l'échéance actuelle.
+                min={postponeMinDate}
+                onChange={(e) => setPostponeDate(e.target.value)}
+              />
+              {postponeError ? (
+                <p className="text-xs text-destructive">{postponeError}</p>
+              ) : postponeShiftDays !== null && (
+                <p className="text-xs text-muted-foreground">
+                  {isFr
+                    ? `Report de ${postponeShiftDays} jour${postponeShiftDays > 1 ? 's' : ''}. L'accès du membre est prolongé d'autant.`
+                    : `Postponed by ${postponeShiftDays} day${postponeShiftDays > 1 ? 's' : ''}. The member's access is extended accordingly.`}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPostponeDialogOpen(false)} disabled={!!subActionRunning}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handlePostpone} disabled={!!subActionRunning || !postponeDate || !!postponeError}>
+              {subActionRunning === 'postpone'
+                ? (isFr ? 'Décalage…' : 'Postponing…')
+                : (isFr ? 'Décaler' : 'Postpone')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Résiliation par le studio */}
+      <Dialog open={cancelSubDialogOpen} onOpenChange={setCancelSubDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Résilier l\'abonnement' : 'Cancel subscription'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="cancel-now"
+                checked={cancelImmediately}
+                onChange={(e) => setCancelImmediately(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 mt-0.5"
+              />
+              <label htmlFor="cancel-now" className="text-sm cursor-pointer">
+                {isFr ? 'Résilier immédiatement' : 'Cancel immediately'}
+                <span className="block text-xs text-muted-foreground">
+                  {isFr
+                    ? 'Sans cette option, le membre garde ses droits jusqu\'à la fin de la période déjà payée.'
+                    : 'Without this, the member keeps access until the end of the period already paid.'}
+                </span>
+              </label>
+            </div>
+
+            {cancelImmediately && (
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-500/40 p-3 text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-amber-900 dark:text-amber-200">
+                  {isFr
+                    ? 'Le membre perd immédiatement l\'accès, y compris pour la période qu\'il a payée. Aucun remboursement n\'est effectué automatiquement.'
+                    : 'The member loses access at once, including the period already paid. No refund is issued automatically.'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setCancelSubDialogOpen(false)} disabled={!!subActionRunning}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleCancelSubscription} disabled={!!subActionRunning}>
+              {subActionRunning === 'cancel'
+                ? (isFr ? 'Résiliation…' : 'Cancelling…')
+                : (isFr ? 'Confirmer' : 'Confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remise à zéro — outil de test.
+          La saisie du nom évite le clic réflexe : cette action est irréversible
+          et détruit des lignes, contrairement aux autres boutons de la page. */}
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Remise à zéro des achats' : 'Reset purchases'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-500/40 p-3 text-sm">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-amber-900 dark:text-amber-200">
+                <p className="font-medium">
+                  {isFr ? 'Action irréversible, réservée aux tests.' : 'Irreversible, for testing only.'}
+                </p>
+                <p className="text-xs mt-1">
+                  {isFr
+                    ? 'Seront supprimés : packs, abonnements, réservations, liste d\'attente, frais d\'inscription et essai gratuit. Le compte et son profil sont conservés.'
+                    : 'Will be deleted: packs, subscriptions, bookings, waitlist, registration fee and free trial. The account and profile are kept.'}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? 'Les abonnements encore actifs chez Stripe ne sont pas résiliés par cette action : résiliez-les avant, sinon un prélèvement pourrait survenir sans contrepartie en base.'
+                : 'Subscriptions still active at Stripe are not cancelled by this action: cancel them first, otherwise a charge could occur with no matching record.'}
+            </p>
+
+            <div className="space-y-2">
+              <Label>
+                {isFr
+                  ? <>Tapez <span className="font-mono font-semibold">{profile.display_name}</span> pour confirmer</>
+                  : <>Type <span className="font-mono font-semibold">{profile.display_name}</span> to confirm</>}
+              </Label>
+              <Input
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                placeholder={profile.display_name ?? ''}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setResetDialogOpen(false)} disabled={resetRunning}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleResetPurchases}
+              disabled={resetRunning || resetConfirmText.trim() !== (profile.display_name ?? '').trim()}
+            >
+              {resetRunning
+                ? (isFr ? 'Suppression…' : 'Deleting…')
+                : (isFr ? 'Tout effacer' : 'Delete all')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Book Class Dialog */}
       <Dialog open={bookDialogOpen} onOpenChange={setBookDialogOpen}>
