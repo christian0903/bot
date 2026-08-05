@@ -52,14 +52,22 @@ serve(async (req) => {
 
     // L'abonnement est déduit de l'utilisateur authentifié, jamais du corps de
     // la requête : impossible de viser celui de quelqu'un d'autre.
-    const { data: sub } = await admin
+    // `limit(1)` avant `maybeSingle()` : sans lui, un membre ayant plusieurs
+    // abonnements (souscriptions successives, données de test) fait échouer la
+    // requête, et l'erreur se présentait comme « aucun abonnement en cours ».
+    const { data: sub, error: subError } = await admin
       .from('subscriptions')
       .select('*')
       .eq('user_id', user.id)
       .in('status', ['active', 'past_due', 'paused'])
       .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
+    if (subError) {
+      console.error('Lecture de l\'abonnement', subError)
+      return json({ error: 'Impossible de lire votre abonnement' }, 500)
+    }
     if (!sub) return json({ error: 'Aucun abonnement en cours' }, 404)
 
     if (sub.cancel_at_period_end) {
