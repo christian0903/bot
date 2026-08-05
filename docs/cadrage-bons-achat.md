@@ -88,6 +88,12 @@ Le pont à faire, dans les deux sens :
 
 **Un bon utilisé sur un abonnement** emprunte ce chemin : au lieu d'une réduction au checkout, on crée un coupon Stripe `duration: once` sur l'abonnement en cours. Le code existe, il suffit de l'appeler depuis la consommation d'un bon.
 
+> **Le prix récurrent n'est jamais modifié.** Un bon de 30 € sur un abonnement à 100 € donne une première échéance à 70 €, puis **toutes les suivantes à 100 €**. C'est le rôle de `duration: 'once'` : Stripe applique la réduction à une facture, puis retire le coupon de lui-même. Le **Price** de l'abonnement n'est pas touché.
+>
+> **À ne jamais faire** : créer un Price réduit ou modifier le montant de l'abonnement pour appliquer un bon — la réduction deviendrait permanente. Rappel du journal de projet : *« Un Price Stripe est immuable »*, le modifier crée un nouveau prix et casse les abonnements existants.
+>
+> Les variantes `duration: 'repeating'` (N échéances) et `duration: 'forever'` ne conviennent pas ici.
+
 **Une réduction accordée par l'admin devient un bon** quand le membre n'a pas d'abonnement. Aujourd'hui, un coach ne peut rien offrir à quelqu'un qui achète des packs : l'action `discount` exige un abonnement. Avec les bons, le geste devient possible pour tout le monde.
 
 À terme, `subscription_discounts` pourrait fusionner dans la table des bons — même objet, même trace, même origine. À évaluer au moment de coder.
