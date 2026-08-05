@@ -24,6 +24,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
 import type { ScheduledClass, Booking } from '@/types'
 
+/** Une façon de payer une séance : abonnement ou pack, telle que renvoyée par get_available_credits. */
+type CreditSource = {
+  pack_purchase_id: string
+  credits_remaining: number
+  expires_at: string
+  is_unlimited: boolean
+  pack_name: string
+  subscription_id: string | null
+  is_subscription: boolean
+}
+
 type ViewMode = 'day' | 'week' | 'list'
 
 interface BookingRules {
@@ -81,6 +92,9 @@ export function SchedulePage() {
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [bookingInProgress, setBookingInProgress] = useState<string | null>(null)
+  /** Réservation en attente de confirmation dans la pop-up. */
+  const [bookingConfirm, setBookingConfirm] = useState<{ sc: ScheduledClass; sources: CreditSource[] } | null>(null)
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('')
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
@@ -165,14 +179,20 @@ export function SchedulePage() {
     if (user) {
       const { data: packRows } = await supabase
         .from('pack_purchases')
-        .select('credits_remaining, pack_type:pack_types(is_unlimited)')
+        .select('id, credits_remaining, expires_at, subscription_id, pack_type:pack_types(name, is_unlimited, credit_type_id)')
         .eq('user_id', user.id)
         .gt('expires_at', new Date().toISOString())
+
+      const rows = (packRows ?? []) as unknown as {
+        id: string
+        credits_remaining: number
+        expires_at: string
+        subscription_id: string | null
+        pack_type: { name: string; is_unlimited: boolean; credit_type_id: string } | null
+      }[]
+
       setHasUsablePack(
-        (packRows ?? []).some((p) => {
-          const pt = p.pack_type as unknown as { is_unlimited?: boolean } | null
-          return pt?.is_unlimited || p.credits_remaining > 0
-        })
+        rows.some(p => p.pack_type?.is_unlimited || p.credits_remaining > 0),
       )
     } else {
       setHasUsablePack(false)
@@ -261,9 +281,68 @@ export function SchedulePage() {
     const { data: credits } = await supabase.rpc('get_available_credits', {
       p_user_id: user.id, p_credit_type_id: scheduledClass.class_type.credit_type_id,
     })
-    if (!credits || credits.length === 0) { toast.error(t('schedule.noCredits')); setBookingInProgress(null); return }
 
-    const packPurchaseId = credits[0].pack_purchase_id
+    if (!credits || credits.length === 0) {
+      // « Aucun crédit » est trompeur quand le membre en a, mais d'un autre
+      // type : un pack Personal Training ne paie pas un cours semi-privé. On
+      // regarde ce qu'il possède pour lui dire précisément ce qui bloque.
+      const { data: others } = await supabase
+        .from('pack_purchases')
+        .select('credits_remaining, pack_type:pack_types(name, is_unlimited, credit_type_id)')
+        .eq('user_id', user.id)
+        .gt('expires_at', new Date().toISOString())
+
+      const rows = (others ?? []) as unknown as {
+        credits_remaining: number
+        pack_type: { name: string; is_unlimited: boolean; credit_type_id: string } | null
+      }[]
+
+      const requiredType = scheduledClass.class_type.credit_type_id
+      const sameTypeExhausted = rows.some(
+        p => p.pack_type?.credit_type_id === requiredType
+          && !p.pack_type.is_unlimited
+          && p.credits_remaining <= 0,
+      )
+      const otherTypeAvailable = rows.filter(
+        p => p.pack_type?.credit_type_id !== requiredType
+          && (p.pack_type?.is_unlimited || p.credits_remaining > 0),
+      )
+
+      const typeLabel = isFr
+        ? scheduledClass.class_type.credit_type?.label_fr
+        : scheduledClass.class_type.credit_type?.label_en
+
+      if (sameTypeExhausted) {
+        toast.error(isFr
+          ? `Tes crédits « ${typeLabel} » sont épuisés pour cette période.`
+          : `Your "${typeLabel}" credits are used up for this period.`)
+      } else if (otherTypeAvailable.length > 0) {
+        toast.error(isFr
+          ? `Ce cours demande un crédit « ${typeLabel} ». Tes packs en cours ne couvrent pas ce type de séance.`
+          : `This class needs a "${typeLabel}" credit. Your current packs don't cover this type of session.`)
+      } else {
+        toast.error(t('schedule.noCredits'))
+      }
+      setBookingInProgress(null)
+      return
+    }
+
+    // Le clic ouvre toujours la pop-up : elle confirme la réservation et, quand
+    // le membre a plusieurs sources, lui laisse choisir laquelle consommer.
+    // Un abonné qui invite quelqu'un doit pouvoir prendre un crédit de pack
+    // plutôt que son abonnement.
+    const sources = credits as CreditSource[]
+    setBookingConfirm({ sc: scheduledClass, sources })
+    setSelectedSourceId(sources[0].pack_purchase_id)
+    setBookingInProgress(null)
+  }
+
+  /** Réservation effective, une fois la source connue. */
+  const confirmBooking = async (classId: string, packPurchaseId: string) => {
+    if (!user) return
+    setBookingInProgress(classId)
+    const scheduledClass = classes.find((c) => c.id === classId)
+    if (!scheduledClass?.class_type) { setBookingInProgress(null); return }
 
     // Reactivate cancelled booking if one exists, else insert new
     const { data: reactivated } = await supabase
@@ -296,6 +375,10 @@ export function SchedulePage() {
 
     toast.success(t('schedule.bookingConfirmed'))
     setBookingInProgress(null)
+    setBookingConfirm(null)
+    // Les compteurs ont bougé : on relit pour que la prochaine réservation
+    // propose l'état réel des sources.
+    fetchData()
   }
 
   const handleJoinWaitlist = async (classId: string) => {
@@ -1545,6 +1628,116 @@ export function SchedulePage() {
                 </div>
               )}
             </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation de réservation.
+          Ouverte à chaque clic sur Réserver : elle rappelle le cours, et quand
+          le membre dispose de plusieurs sources, lui laisse choisir laquelle
+          consommer (un abonné qui invite quelqu'un prend un crédit de pack). */}
+      <Dialog
+        open={!!bookingConfirm}
+        onOpenChange={(open) => { if (!open) setBookingConfirm(null) }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Confirmer la réservation' : 'Confirm booking'}</DialogTitle>
+          </DialogHeader>
+
+          {bookingConfirm && (
+            <div className="space-y-4">
+              {/* Rappel du cours */}
+              <div className="rounded-lg border p-3">
+                <p className="font-semibold">
+                  {bookingConfirm.sc.title || bookingConfirm.sc.class_type?.name}
+                </p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {format(new Date(bookingConfirm.sc.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}
+                  {' · '}{bookingConfirm.sc.duration_minutes} min
+                </p>
+                {bookingConfirm.sc.coach?.display_name && (
+                  <p className="text-sm text-muted-foreground">
+                    {isFr ? 'avec ' : 'with '}{bookingConfirm.sc.coach.display_name}
+                  </p>
+                )}
+              </div>
+
+              {/* Source de paiement */}
+              {bookingConfirm.sources.length === 1 ? (
+                <p className="text-sm text-muted-foreground">
+                  {isFr ? 'Séance décomptée de ' : 'Session taken from '}
+                  <span className="font-medium text-foreground">
+                    {bookingConfirm.sources[0].pack_name}
+                  </span>
+                  {bookingConfirm.sources[0].is_unlimited
+                    ? (isFr ? ' (illimité)' : ' (unlimited)')
+                    : (isFr
+                        ? ` — il te restera ${bookingConfirm.sources[0].credits_remaining - 1} crédit${bookingConfirm.sources[0].credits_remaining - 1 > 1 ? 's' : ''}`
+                        : ` — ${bookingConfirm.sources[0].credits_remaining - 1} credit(s) left`)}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">
+                    {isFr ? 'Réserver avec' : 'Book using'}
+                  </p>
+                  {bookingConfirm.sources.map((c) => {
+                    const selected = selectedSourceId === c.pack_purchase_id
+                    return (
+                      <button
+                        key={c.pack_purchase_id}
+                        type="button"
+                        onClick={() => setSelectedSourceId(c.pack_purchase_id)}
+                        className={cn(
+                          'w-full text-left rounded-lg border p-3 transition',
+                          selected
+                            ? 'border-primary ring-1 ring-primary/30 bg-primary/5'
+                            : 'hover:border-muted-foreground/40',
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">
+                              {c.pack_name}
+                              {c.is_subscription && (
+                                <Badge variant="secondary" className="ml-2 text-[10px]">
+                                  {isFr ? 'Abonnement' : 'Subscription'}
+                                </Badge>
+                              )}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {c.is_unlimited
+                                ? (isFr ? 'Illimité' : 'Unlimited')
+                                : (isFr
+                                    ? `${c.credits_remaining} crédit${c.credits_remaining > 1 ? 's' : ''} restant${c.credits_remaining > 1 ? 's' : ''}`
+                                    : `${c.credits_remaining} credit${c.credits_remaining > 1 ? 's' : ''} left`)}
+                              {' · '}
+                              {isFr ? "jusqu'au " : 'until '}
+                              {format(new Date(c.expires_at), 'dd/MM/yyyy')}
+                            </p>
+                          </div>
+                          {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" onClick={() => setBookingConfirm(null)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  disabled={!selectedSourceId || bookingInProgress === bookingConfirm.sc.id}
+                  onClick={() => confirmBooking(bookingConfirm.sc.id, selectedSourceId)}
+                >
+                  {bookingInProgress === bookingConfirm.sc.id
+                    ? (isFr ? 'Réservation…' : 'Booking…')
+                    : (isFr ? 'Je réserve' : 'Book')}
+                </Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

@@ -169,12 +169,30 @@ export function PacksPage() {
 
   // Les abonnements passent devant : c'est la formule que le studio met en
   // avant. Les packs ponctuels restent disponibles, en second rideau.
-  const subscriptionPacks = packTypes.filter(p => p.is_recurring)
-  const oneOffPacks = packTypes.filter(p => !p.is_recurring)
-
-  // « Populaire » ne se calcule que sur les packs ponctuels : un abonnement
-  // porte déjà son propre badge.
-  const popularIndex = oneOffPacks.length >= 2 ? Math.floor(oneOffPacks.length / 2) : -1
+  // Le type de crédit commande tout : un crédit Personal Training ne paie pas
+  // un cours semi-privé. Acheté sans le voir, le pack devient inutilisable —
+  // c'est arrivé en test. Il devient donc le premier niveau de lecture, et les
+  // formules se rangent dessous.
+  const creditTypeGroups = (() => {
+    const map = new Map<string, { label: string; subscriptions: PackType[]; oneOff: PackType[] }>()
+    for (const p of packTypes) {
+      const key = p.credit_type_id
+      const label = (isFr ? p.credit_type?.label_fr : p.credit_type?.label_en)
+        ?? p.credit_type?.name
+        ?? (isFr ? 'Autres' : 'Other')
+      if (!map.has(key)) map.set(key, { label, subscriptions: [], oneOff: [] })
+      const g = map.get(key)!
+      if (p.is_recurring) g.subscriptions.push(p)
+      else g.oneOff.push(p)
+    }
+    // Les types proposant un abonnement d'abord : c'est ce que le studio vend.
+    return [...map.values()].sort((a, b) => {
+      const aSub = a.subscriptions.length > 0 ? 0 : 1
+      const bSub = b.subscriptions.length > 0 ? 0 : 1
+      if (aSub !== bSub) return aSub - bSub
+      return a.label.localeCompare(b.label)
+    })
+  })()
 
   const gridClass = (count: number) => cn(
     'grid gap-5 w-full max-w-5xl',
@@ -228,8 +246,13 @@ export function PacksPage() {
         )}>
           {/* Name + description */}
           <h3 className="text-lg font-bold">{pack.name}</h3>
+          {/* Type de crédit rappelé sur la carte : le titre de section disparaît
+              au défilement, et c'est lui qui détermine les cours accessibles. */}
+          <span className="inline-flex self-start mt-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {creditLabel}
+          </span>
           {pack.description && (
-            <p className="text-sm text-muted-foreground mt-0.5">{pack.description}</p>
+            <p className="text-sm text-muted-foreground mt-1.5">{pack.description}</p>
           )}
 
           {/* Price */}
@@ -261,10 +284,6 @@ export function PacksPage() {
             <li className="flex items-center gap-2 text-sm">
               <Check className="h-4 w-4 text-primary shrink-0" />
               {isFr ? 'Valable' : 'Valid'} {validityLabel}
-            </li>
-            <li className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-primary shrink-0" />
-              {creditLabel}
             </li>
             {pack.is_recurring && (
               <li className="flex items-start gap-2 text-sm">
@@ -374,47 +393,59 @@ export function PacksPage() {
             </Card>
           )}
 
-          {/* Abonnements — mis en avant */}
-          {!activeSubscription && subscriptionPacks.length > 0 && (
-            <div className="space-y-4">
+          {/* Un bloc par type de crédit. Chaque type ouvre sur ce qu'il donne
+              droit à faire : sans cette lecture, on achète un pack qui ne paie
+              pas les cours qu'on visait. */}
+          {creditTypeGroups.map((group) => (
+            <div key={group.label} className="space-y-5">
               <div className="text-center">
-                <h2 className="text-xl font-bold">
-                  {isFr ? 'Abonnements' : 'Subscriptions'}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isFr
-                    ? 'Renouvellement automatique, sans avoir à y penser. Résiliable à tout moment.'
-                    : 'Renews automatically, nothing to think about. Cancel any time.'}
-                </p>
+                <h2 className="text-2xl font-bold">{group.label}</h2>
+                <div className="mx-auto mt-2 h-px w-16 bg-border" />
               </div>
-              <div className="flex justify-center">
-                <div className={gridClass(subscriptionPacks.length)}>
-                  {subscriptionPacks.map((pack, index) => renderPack(pack, index, false))}
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* Packs ponctuels */}
-          {oneOffPacks.length > 0 && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <h2 className="text-xl font-bold">
-                  {isFr ? 'Packs à l\'unité' : 'One-off packs'}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isFr
-                    ? 'Sans engagement : tu achètes tes crédits quand tu en as besoin.'
-                    : 'No commitment: buy credits whenever you need them.'}
-                </p>
-              </div>
-              <div className="flex justify-center">
-                <div className={gridClass(oneOffPacks.length)}>
-                  {oneOffPacks.map((pack, index) => renderPack(pack, index, index === popularIndex))}
+              {/* Abonnements du type */}
+              {!activeSubscription && group.subscriptions.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-center">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      {isFr ? 'Abonnements' : 'Subscriptions'}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {isFr
+                        ? 'Renouvellement automatique. Résiliable à tout moment.'
+                        : 'Renews automatically. Cancel any time.'}
+                    </p>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className={gridClass(group.subscriptions.length)}>
+                      {group.subscriptions.map((pack, index) => renderPack(pack, index, false))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Packs ponctuels du type */}
+              {group.oneOff.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-center">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      {isFr ? "Packs à l'unité" : 'One-off packs'}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {isFr
+                        ? 'Sans engagement : tu achètes tes crédits quand tu en as besoin.'
+                        : 'No commitment: buy credits whenever you need them.'}
+                    </p>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className={gridClass(group.oneOff.length)}>
+                      {group.oneOff.map((pack, index) => renderPack(pack, index, false))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          ))}
         </div>
       )}
 

@@ -220,23 +220,40 @@ export function AdminPackTypesPage() {
   // client, pour que l'admin voie son catalogue tel que le membre le verra.
   // Les en-têtes sont des lignes du tableau : pas de sous-tableaux, pas de
   // colonnes qui se désalignent.
+  // Type de crédit en premier niveau : c'est lui qui détermine quels cours un
+  // pack permet de réserver. Un pack créé sur le mauvais type devient
+  // inutilisable sans que rien ne le signale.
   type Row =
+    | { kind: 'creditType'; key: string; label: string; count: number }
     | { kind: 'header'; key: string; recurring: boolean; count: number }
     | { kind: 'pack'; pt: PackType }
 
-  const recurringPacks = packTypes.filter(p => p.is_recurring)
-  const oneOffPacks = packTypes.filter(p => !p.is_recurring)
+  const groupedPackTypes: Row[] = (() => {
+    const byType = new Map<string, { label: string; packs: PackType[] }>()
+    for (const pt of packTypes) {
+      const key = pt.credit_type_id
+      const label = (isFr ? pt.credit_type?.label_fr : pt.credit_type?.label_en)
+        ?? pt.credit_type?.name ?? (isFr ? 'Sans type' : 'No type')
+      if (!byType.has(key)) byType.set(key, { label, packs: [] })
+      byType.get(key)!.packs.push(pt)
+    }
 
-  const groupedPackTypes: Row[] = [
-    ...(recurringPacks.length > 0
-      ? [{ kind: 'header', key: 'h-sub', recurring: true, count: recurringPacks.length } as Row,
-         ...recurringPacks.map(pt => ({ kind: 'pack', pt } as Row))]
-      : []),
-    ...(oneOffPacks.length > 0
-      ? [{ kind: 'header', key: 'h-oneoff', recurring: false, count: oneOffPacks.length } as Row,
-         ...oneOffPacks.map(pt => ({ kind: 'pack', pt } as Row))]
-      : []),
-  ]
+    const rows: Row[] = []
+    for (const [key, group] of [...byType.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label))) {
+      rows.push({ kind: 'creditType', key: `ct-${key}`, label: group.label, count: group.packs.length })
+      const recurring = group.packs.filter(p => p.is_recurring)
+      const oneOff = group.packs.filter(p => !p.is_recurring)
+      if (recurring.length > 0) {
+        rows.push({ kind: 'header', key: `h-sub-${key}`, recurring: true, count: recurring.length })
+        rows.push(...recurring.map(pt => ({ kind: 'pack', pt } as Row)))
+      }
+      if (oneOff.length > 0) {
+        rows.push({ kind: 'header', key: `h-one-${key}`, recurring: false, count: oneOff.length })
+        rows.push(...oneOff.map(pt => ({ kind: 'pack', pt } as Row)))
+      }
+    }
+    return rows
+  })()
 
   return (
     <div className="space-y-4">
@@ -266,7 +283,18 @@ export function AdminPackTypesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {groupedPackTypes.map((entry) => entry.kind === 'header' ? (
+              {groupedPackTypes.map((entry) => entry.kind === 'creditType' ? (
+                <TableRow key={entry.key} className="bg-primary/5 hover:bg-primary/5 border-t-2">
+                  <TableCell colSpan={8} className="py-2.5">
+                    <span className="flex items-center gap-2 text-sm font-bold">
+                      {entry.label}
+                      <span className="font-normal text-xs text-muted-foreground">
+                        ({entry.count})
+                      </span>
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : entry.kind === 'header' ? (
                 <TableRow key={entry.key} className="bg-muted/50 hover:bg-muted/50">
                   <TableCell colSpan={8} className="py-2">
                     <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

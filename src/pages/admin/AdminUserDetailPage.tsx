@@ -701,10 +701,18 @@ export function AdminUserDetailPage() {
   })()
 
   // For booking dialog: filter packs compatible with selected class
+  // Abonnement en tête : c'est la source par défaut (il est déjà facturé, les
+  // crédits achetés à côté restent au membre).
   const selectedClass = availableClasses.find(c => c.id === selectedClassId)
-  const compatiblePacks = selectedClass
+  const compatiblePacks = (selectedClass
     ? activePacks.filter(p => p.pack_type?.credit_type_id === selectedClass.class_type?.credit_type_id)
     : activePacks
+  ).slice().sort((a, b) => {
+    const aSub = a.subscription_id ? 0 : 1
+    const bSub = b.subscription_id ? 0 : 1
+    if (aSub !== bSub) return aSub - bSub
+    return new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime()
+  })
 
   return (
     <div className="space-y-6">
@@ -1655,16 +1663,28 @@ export function AdminUserDetailPage() {
                         {selectedPackId
                           ? (() => {
                               const p = compatiblePacks.find(p => p.id === selectedPackId)
-                              return p ? `${p.pack_type?.name} (${p.credits_remaining} crédits)` : ''
+                              if (!p) return ''
+                              // « X crédits » sur un illimité serait trompeur :
+                              // son compteur ne bouge jamais.
+                              const detail = p.pack_type?.is_unlimited
+                                ? (isFr ? 'illimité' : 'unlimited')
+                                : `${p.credits_remaining} ${isFr ? 'crédits' : 'credits'}`
+                              return `${p.pack_type?.name} (${detail})`
                             })()
-                          : i18n.language === 'fr' ? 'Choisir un pack' : 'Choose a pack'
+                          : i18n.language === 'fr' ? 'Choisir la source' : 'Choose the source'
                         }
                       </span>
                     </SelectTrigger>
                     <SelectContent>
                       {compatiblePacks.map(p => (
                         <SelectItem key={p.id} value={p.id}>
-                          {p.pack_type?.name} — {p.credits_remaining} crédits — exp. {format(new Date(p.expires_at), 'dd/MM', { locale })}
+                          {p.pack_type?.name}
+                          {p.subscription_id ? (isFr ? ' (abonnement)' : ' (subscription)') : ''}
+                          {' — '}
+                          {p.pack_type?.is_unlimited
+                            ? (isFr ? 'illimité' : 'unlimited')
+                            : `${p.credits_remaining} ${isFr ? 'crédits' : 'credits'}`}
+                          {' — exp. '}{format(new Date(p.expires_at), 'dd/MM', { locale })}
                         </SelectItem>
                       ))}
                     </SelectContent>
