@@ -98,6 +98,8 @@ Le pont à faire, dans les deux sens :
 
 Reprendre `referral_rewards` en la généralisant. La table existe, elle est vide, rien ne la consomme : la migration est triviale aujourd'hui.
 
+**La règle du tout-ou-rien épargne toute modification du cœur de la table.** `amount_cents` reste le montant accordé, `is_used` dit s'il a été consommé — pas de solde à suivre, pas de champ « montant restant ». Les colonnes existantes (`id`, `user_id`, `amount_cents`, `is_used`, `used_at`, `expires_at`, `created_at`) sont conservées telles quelles ; `referral_id` devient simplement nullable. Le reste n'est **que de l'ajout** : `code`, `origin`, `granted_by`, `reason`, qui servent à la traçabilité et aux gestes des coaches, jamais au calcul.
+
 ```
 credit_notes  (ex-referral_rewards)
   id
