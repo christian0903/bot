@@ -50,9 +50,13 @@ Pas de champ « montant consommé » : la table existante (`amount_cents` + `is_
 
 ### Le bon du parrain est proposé, puis confirmé
 
-Au moment du paiement, l'application détecte que le membre a un bon utilisable et l'affiche : *« Tu as un bon de 30 € — l'utiliser ? »*. Le code existe et reste saisissable, mais personne ne l'oublie.
+Au moment du paiement, l'application détecte que le membre a un bon utilisable et l'affiche : *« Tu as un bon de 30 € — l'utiliser ? »*. Il coche, la remise s'applique.
+
+**Le parrain n'a donc aucun code à saisir dans le parcours normal.** Le code du bon (`BON-4F8A`, court et lisible au téléphone) existe comme filet de sécurité : affiché sur la page Parrainage, saisissable dans le champ manuel, utile au studio pour retrouver un bon précis en cas de réclamation. Il est généré par le système, propre à chaque bon — un parrain en accumule un par filleul qualifié.
 
 **Justification** : le défaut documenté du système actuel est qu'un avoir affiché comme promesse n'est jamais consommé. Un code purement manuel déplacerait le problème au lieu de le résoudre.
+
+> **Plusieurs bons disponibles** : proposer celui dont l'expiration est la plus proche — c'est celui qu'on risque de perdre.
 
 ### Un seul code par achat
 
