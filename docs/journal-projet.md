@@ -1,19 +1,87 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-04**
+> Dernière mise à jour : **2026-08-05**
 
 ---
 
 ## Où en est le projet
 
-**Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.16.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, parrainage, notifications, e-mails.
+**Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.16.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
 
 **Phase 11** (admin avancé) : non entamée.
-**Phase 12** (abonnements récurrents) : **socle complet, pont Stripe à brancher**.
+**Phase 12** (abonnements récurrents) : **livrée et éprouvée en test**. Pont Stripe opérationnel, écrans client et studio en place.
+**Parrainage & bons d'achat** : **livré, non testé**. La qualification n'avait jamais existé.
 **Phase 13** (RGPD & sécurité) : non entamée.
 
 L'application tourne sur **Stripe** — la migration vers Mollie prévue au plan a été abandonnée le 2026-08-03.
+
+---
+
+## Session du 2026-08-05
+
+13 commits (`45c54f1` → `537a0f7`), tous poussés. Deux chantiers : les abonnements branchés de bout en bout, puis le parrainage.
+
+### 1. Le pont Stripe — enfin opérationnel
+
+Bac à sable **`bot2`** créé sur le compte Stripe existant, isolé de l'autre application en production. Cinq Edge Functions déployées, destination webhook configurée, `stripe_mode = test`.
+
+> **Le webhook n'avait jamais été déployé.** C'était le « maillon manquant » noté le 4 août : un paiement réussi ne créditait rien. Il crédite désormais réellement.
+
+**Validé en test réel** : frais d'inscription, achat de pack, souscription d'abonnement, réduction ponctuelle, report d'échéance, résiliation immédiate.
+
+### 2. Trois bugs préexistants, trouvés en testant
+
+| Bug | Conséquence |
+|---|---|
+| **API Stripe récente** (`2026-07-29.dahlia`) : `current_period_*` a migré vers `items.data[0]`, `invoice.subscription` sous `invoice.parent` | Erreur 500 `"Invalid time value"`, aucun crédit. Le code lisait la racine des objets, vide depuis. |
+| **Ordre de livraison non garanti** : `invoice.paid` est arrivé **une seconde avant** `checkout.session.completed` | L'abonnement n'existait pas encore, le webhook est sorti en 200 sans rien créditer. Même piège que le `saveSetting()` du 4 août : un `UPDATE` sans ligne ne renvoie pas d'erreur. |
+| **Facture à 0 €** émise par `trial_end` lors d'un report d'échéance | Comptée comme un cycle payé → **un second pack** créé pour un seul paiement. |
+
+### 3. Écrans d'abonnement
+
+- **Page Packs** regroupée par **type de crédit** (semi-privé, personal training…), abonnements puis packs à l'intérieur. Le type est rappelé sur chaque carte : Christian avait lui-même acheté un pack PT là où il fallait du semi-privé, sans que rien ne le signale.
+- **Mes packs** : carte d'abonnement avec les crédits du cycle **intégrés dedans** — affichés à côté, ils passaient pour un doublon.
+- **Résiliation en libre-service**, un seul abonnement à la fois (refus serveur en 409).
+- **Fiche membre admin**, onglet Abonnement : réduction ponctuelle, report d'échéance, suspension/reprise, résiliation.
+
+Deux décisions de fond :
+- **Le report d'échéance prolonge le pack d'autant.** Une maladie déclarée en milieu de cycle ne se met pas en pause, elle se compense — couper l'accès ne protège rien, la personne empêchée ne vient pas.
+- **La résiliation immédiate clôture aussi les accès.** L'avertissement affiché à l'admin (« le membre perd immédiatement l'accès ») était jusque-là mensonger.
+
+### 4. Réservation : choix de la source
+
+Le code prenait `credits[0]` sans que personne ne choisisse. Une **pop-up de confirmation** s'ouvre désormais à chaque réservation ; quand plusieurs sources du même type existent, le membre choisit laquelle consommer — un abonné qui invite quelqu'un prend un crédit de pack.
+
+Le message de refus est explicite : « tes crédits X sont épuisés » ou « ce cours demande un crédit X », au lieu d'un « aucun crédit » trompeur.
+
+`get_available_credits` place maintenant **l'abonnement en tête** : l'ancien tri épuisait les packs payés en plus alors que l'abonnement couvrait déjà.
+
+### 5. Parrainage — la qualification n'existait pas
+
+Vérification faite dans le webhook, le code applicatif et les triggers : **rien ne faisait jamais passer un parrainage de `pending` à `qualified`**, et rien n'écrivait dans `referral_rewards`. Les écrans affichaient des compteurs voués à rester à zéro. `regles-coupons-parrainage.md` décrivait une intention, pas le code.
+
+Même constat pour les **coupons** : l'admin peut en créer, le serveur sait les traiter, mais **aucun écran ne permet d'en saisir un**. Ils sont inutilisables depuis toujours.
+
+La fonction `check_referral_qualification()` existait pourtant, complète, dans `supabase/_archive/phase6.sql` — écrite puis archivée et jamais appelée. Reprise avec la règle retenue : **qualification au premier achat payé** (l'ancienne exigeait un pack d'au moins 10 séances).
+
+**Deux trous de sécurité fermés.** La phase 6 laissait `rewards_insert` et `referrals_insert` en `WITH CHECK (true)` : n'importe quel membre authentifié pouvait **se créer un bon d'achat du montant de son choix**, ou s'attribuer un parrain arbitraire.
+
+### 6. Bons d'achat — le modèle unifié
+
+Cadrage complet dans **`docs/cadrage-bons-achat.md`**. Le parrainage devient un producteur de bons parmi d'autres.
+
+Trois objets distincts : le **coupon collectif** (`RENTREE2026`, quota global), le **code de parrainage** (permanent, réutilisable), le **bon d'achat** (nominatif, consommé en une fois).
+
+Règles : tout ou rien (pas de solde partiel), un seul bon par achat, bon **proposé et non imposé**, avec un avertissement chiffré s'il vaut plus que l'achat — le membre choisit de perdre la différence ou de reporter.
+
+Le cas nominal fonctionne : **30 € de bon sur 30 € de frais d'inscription** → rien à payer, et l'enregistrement se fait sans Stripe, qui refuse les sessions à 0 €.
+
+Sur un abonnement, c'est Stripe qui soustrait via un coupon `duration: 'once'` : **le prix récurrent n'est jamais modifié**.
+
+Le filleul peut saisir le code à trois moments : à l'inscription, **au moment de payer** (nouveau — beaucoup l'oublient à l'inscription), ou par le studio après coup.
+
+Nouvel onglet **Bons** sur la fiche membre : état du parrainage, rattachement d'un parrain, et **attribution d'un bon à la main**. Un coach ne pouvait rien offrir à quelqu'un sans abonnement — l'action `discount` en exigeait un.
 
 ---
 
@@ -89,57 +157,62 @@ Ces bugs préexistaient et n'ont été trouvés qu'en travaillant sur autre chos
 
 ---
 
-## État de la Phase 12 — abonnements
+## État de la Phase 12 — abonnements : LIVRÉE
 
-### Fait
+Tout est en place et poussé. Ce qui a été validé en test réel le 2026-08-05 :
+frais d'inscription, achat de pack, souscription d'abonnement, réduction
+ponctuelle, report d'échéance, résiliation immédiate.
 
-**Base de données** (migrations appliquées) :
-- `pack_types` : `is_recurring`, `recurring_interval`, `recurring_interval_count`, `stripe_price_id_test`, `stripe_price_id_live`
-- `subscriptions` : lien membre ↔ abonnement Stripe, avec le mode (test/live) et le statut
-- `subscription_discounts` : trace des réductions ponctuelles accordées
-- `pack_purchases` : `subscription_id`, `stripe_invoice_id` (**index unique** → webhook idempotent)
+### Reste à tester
 
-**Edge Functions écrites** (dans le dépôt, **pas encore déployées**) :
-- `create-checkout-session` — réécrite : frais d'inscription, pack ponctuel, abonnement
-- `stripe-webhook` — 5 événements, idempotent de bout en bout
-- `manage-subscription` — réduction ponctuelle, décalage d'échéance, suspension, reprise, résiliation
+- **Renouvellement automatique** (scénario 4) via *test clock* Stripe — jamais éprouvé
+- **Suspension / reprise** d'abonnement
+- **Bouton de remise à zéro** : la fonction `reset_member_purchases` n'a pas encore été créée en base (SQL dans `supabase/migrations/20260805_reset_member_test_data.sql`)
 
-**Interface** :
-- Formulaire de pack : interrupteur « Abonnement » + périodicité, avec deux garde-fous (rappel des 13 prélèvements par an, alerte si la validité ne colle pas au cycle)
-
-**Un pack de test est prêt** : « Abo illimité Gold », 250 €, illimité, cycle de 4 semaines, validité 28 jours.
-
-### Reste à faire — le pont Stripe
-
-> **C'est ici qu'on s'est arrêté.** Rien de ce qui suit n'est commencé.
-> Procédure détaillée : **`docs/stripe-deploiement.md`**
-
-**1. Déploiement** (~15 min, à faire une fois)
-```bash
-supabase login
-supabase link --project-ref aojguoqxbzqcganxgqem
-supabase secrets set STRIPE_SECRET_KEY_TEST=sk_test_...
-supabase functions deploy create-checkout-session
-supabase functions deploy manage-subscription
-supabase functions deploy stripe-webhook --no-verify-jwt   # ← indispensable
-```
-
-**2. Webhook côté Stripe** (mode Test)
-URL : `https://aojguoqxbzqcganxgqem.supabase.co/functions/v1/stripe-webhook`
-Cinq événements : `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`
-Puis `supabase secrets set STRIPE_WEBHOOK_SECRET_TEST=whsec_...` et redéployer le webhook.
-
-**3. Tests** — carte `4242 4242 4242 4242`
-Quatre scénarios avec leurs requêtes SQL de vérification dans la procédure : frais d'inscription, pack ponctuel, souscription d'abonnement, renouvellement (via *test clock*, sans attendre 28 jours).
-
-### Reste à faire — écrans, après le pont
+### Non fait, à décider
 
 - **Configuration Stripe pour super admin** : état de la connexion, mode test/live, bouton « tester la connexion ». Les clés restent des secrets Supabase, jamais affichées.
-- **Fiche membre admin** : trois boutons sur un abonnement — accorder une réduction ponctuelle, décaler l'échéance, suspendre / résilier. Les Edge Functions existent déjà, il manque l'interface.
-- **Page « Mes packs » côté client** : afficher l'abonnement en cours, sa prochaine échéance, et un bouton de résiliation.
-- **Page Packs** : mention explicite du renouvellement automatique. Point commercial autant que technique — « il faut que le client comprenne que ça se renouvelle ».
 
 ---
+
+## État du parrainage & des bons d'achat : LIVRÉ, NON TESTÉ
+
+Migration appliquée en base, fonctions déployées, écrans en place. **Rien n'a
+encore été testé** — c'est le premier travail de la prochaine session.
+
+### Le scénario complet à jouer
+
+1. Récupérer un code : `SELECT display_name, referral_code FROM profiles LIMIT 5;`
+2. Inscrire un nouveau compte **avec ce code**
+3. Payer les frais d'inscription (carte `4242 4242 4242 4242`)
+4. Vérifier la qualification :
+
+```sql
+SELECT status, qualified_at FROM referrals ORDER BY created_at DESC LIMIT 1;
+SELECT code, user_id, amount_cents, origin, is_used, expires_at
+FROM referral_rewards ORDER BY created_at DESC LIMIT 2;
+```
+
+Attendu : statut `qualified`, et **deux bons** de 3000 centimes (parrain + filleul).
+
+5. **Utiliser un bon** sur un achat de pack : il doit être proposé avec le détail du calcul
+6. **Cas nominal du parrainage** : un bon de 30 € sur des frais d'inscription à 30 € → aucun paiement, tout se règle sans Stripe
+7. **Cas de la perte** : un bon de 30 € sur la carte séance unique à 25 € → l'avertissement doit annoncer les 5 € perdus
+8. **Bon sur abonnement** : première échéance réduite, **les suivantes au tarif plein** (c'est le point le plus important à vérifier)
+9. **Saisie du code au paiement** par un membre sans parrain
+10. **Outils admin** : rattacher un parrain, accorder un bon d'achat
+
+### Points de vigilance pour ces tests
+
+- Un bon ne doit être consommé **qu'après paiement confirmé** : abandonner la page de paiement Stripe ne doit pas le faire disparaître
+- Le rejeu d'un événement Stripe ne doit pas créer de bons en double ni consommer deux fois (les fonctions sont idempotentes, à vérifier)
+- Un membre ne peut avoir qu'un seul parrain
+
+### Non fait
+
+- **Champ de saisie d'un coupon collectif** — les coupons restent inutilisables : l'admin peut en créer, le serveur sait les traiter, mais aucun écran ne permet d'en saisir un. À décider avec les coachs (cf. `docs/cadrage-bons-achat.md`).
+- **Affichage des bons sur la page Parrainage client** : l'écran lit `referral_rewards` mais ignore les nouveaux champs (`code`, `origin`).
+- **Mise à jour de `regles-coupons-parrainage.md`**, qui décrit encore l'ancienne règle (pack ≥ 10 séances) et une qualification qui n'existait pas.
 
 ## Décisions à trancher avant la mise en production
 
