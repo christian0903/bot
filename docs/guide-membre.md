@@ -1,249 +1,134 @@
-# Back On Track — Guide Membre (Client)
+# Guide du membre
 
-## 1. Inscription (`/auth`)
+Réserver, payer, suivre tes entraînements.
 
-### Étape 1 — Informations personnelles
-- Prénom, nom (obligatoire)
-- Téléphone (obligatoire)
-- Date de naissance (obligatoire)
-- Adresse (obligatoire)
-- Code de parrainage (optionnel) — si un ami vous a donné un code, entrez-le ici
+---
 
-### Étape 2 — Compte et mentions légales
-- Email et mot de passe (minimum 12 caractères)
-- Question de vérification anti-spam
-- Acceptation CGV (obligatoire)
-- Acceptation politique RGPD (obligatoire, case séparée)
+## Pour commencer
 
-Un email de confirmation est envoyé. Cliquez sur le lien pour activer votre compte.
+### Créer ton compte
 
-### Lien de parrainage
-Si vous arrivez via un lien de parrainage (`/auth?ref=CODE`), le code est automatiquement pré-rempli.
+1. Clique sur **Connexion**, puis sur l'onglet **Inscription**
+2. Remplis le formulaire : nom, e-mail, mot de passe (8 caractères minimum), coordonnées
+3. **Si quelqu'un t'a parrainé, saisis son code de parrainage** — vous recevrez chacun un bon d'achat dès ton premier paiement
+4. Accepte les conditions générales
+5. Clique sur **S'inscrire**
+6. **Va voir ta boîte mail** : ton compte n'est actif qu'après avoir cliqué sur le lien de confirmation
 
-## 2. Connexion (`/auth`)
+> Pas d'e-mail reçu ? Regarde dans les indésirables.
 
-- Email + mot de passe
-- Mot de passe oublié : un lien de réinitialisation est envoyé par email
+> **Code de parrainage oublié ?** Ce n'est pas perdu : tu pourras le saisir au moment de ton premier paiement, ou demander au studio de le rattacher après coup.
 
-## 3. Page d'accueil (`/dashboard`)
+### Mot de passe oublié
 
-Après connexion, vous voyez :
-- **Mes prochains cours** : liste compacte de vos réservations à venir avec labels intelligents :
-  - "Dans 45min" (si le cours est imminent, surligné)
-  - "Aujourd'hui" (bloc date coloré)
-  - "Demain"
-  - Date (jours suivants)
-- **Actions rapides** : boutons "Voir le planning" et "Acheter un pack"
-- **Mes crédits** : barre de progression pour chaque pack actif, crédits restants, jours avant expiration
+Sur la page de connexion, onglet **Mot de passe oublié** : tu reçois un lien pour en choisir un nouveau.
 
-## 4. Frais d'inscription
+---
 
-Avant de pouvoir acheter un pack de cours, vous devez payer les **frais d'inscription** (30€, configurable). Un bandeau jaune s'affiche sur la page des packs si les frais ne sont pas encore payés.
+## Au quotidien
 
-La **séance d'essai gratuite** est accessible sans payer les frais — un bouton vert "Essai gratuit" apparaît sur le planning si vous n'avez pas encore utilisé votre essai.
+### Réserver un cours
 
-## 5. Acheter un pack (`/packs`)
+1. Ouvre **Planning**
+2. Choisis ton cours, clique sur **Réserver**
+3. Une fenêtre s'ouvre : elle rappelle le cours, le jour, l'heure et le coach
+4. Clique sur **Je réserve**
 
-- Liste des packs disponibles avec prix, crédits, validité
-- Prix par crédit affiché
-- Pack "Populaire" mis en avant
-- Paiement sécurisé via Stripe (Bancontact, carte, Apple Pay, Google Pay)
-- Les crédits sont activés immédiatement après le paiement
+**Si tu as plusieurs façons de payer la séance** — par exemple un abonnement et un pack à côté — la fenêtre te demande laquelle utiliser. Ton abonnement est proposé en premier. Tu peux choisir le pack si tu préfères, par exemple pour inviter quelqu'un.
 
-### Types de crédits
-- **Semi-privé** : pour les cours collectifs (CrossTraining, Boxing, Posture, etc.)
-- **Personal Training** : pour les séances individuelles
-- Les crédits d'un type ne peuvent pas être utilisés pour l'autre
+Avec une seule source, rien à choisir : la fenêtre indique ce qui sera décompté et ce qu'il te restera.
 
-## 6. Planning des cours (`/schedule`)
+> **Le type de crédit compte.** Un crédit « personal training » ne paie pas un cours semi-privé, et inversement — ce sont des prestations différentes. Si un cours refuse ta réservation en demandant un autre type de crédit, c'est que ton pack ne couvre pas ce cours-là.
 
-### 3 vues
-- **Jour** (par défaut) : onglets par jour de la semaine avec compteur de cours
-- **Semaine** : grille compacte 7 colonnes, clic pour aller au jour
-- **Liste** : liste chronologique avec en-tête par jour
+### Annuler une réservation
 
-### Filtres
-- Par type de cours (avec pastille couleur)
-- Par coach
+Va dans **Mes cours**, ouvre la réservation, clique sur **Annuler**.
 
-### Chaque cours affiche
-- Nom du cours, coach, salle (nom complet), heure, durée
-- Barre de progression des places (x/max)
-- Bordure colorée selon le type de cours
+- **À temps** : ton crédit revient, la place est libérée
+- **Trop tard** : la séance est décomptée — la place n'a plus le temps d'être reprise
 
-### Réserver
-- Cliquer sur "Réserver" consomme 1 crédit du bon type
-- Si pas de crédits : message d'erreur
-- Si cours complet : bouton "Liste d'attente"
-- Si réservations fermées : cadenas "Fermé"
+Le délai est indiqué dans l'application. Préviens dès que tu sais : c'est ce qui permet à quelqu'un d'autre de venir.
 
-### Règles de fermeture
-- **Cours du matin** (avant 12h) : réservation fermée la veille à 20h
-- **Cours après-midi/soir** : fermé 3h avant s'il n'y a aucun inscrit, ou 30 min avant s'il y a déjà des inscrits
+### Voir mes cours et mes crédits
 
-### Séance d'essai
-Si vous n'avez pas encore de pack et n'avez jamais fait d'essai, un bouton vert **"Essai gratuit"** apparaît. Une seule séance d'essai par personne, sans consommer de crédit.
+**Mes cours** — tes réservations à venir et passées.
 
-## 7. Liste d'attente
+**Mes packs** — ton abonnement s'il y en a un, avec sa prochaine échéance, et tes packs avec leurs crédits restants et leur date d'expiration.
 
-- Si un cours est complet, cliquez sur "Liste d'attente" pour vous inscrire
-- Vous voyez votre position (ex: "En attente (2)")
-- Si une place se libère, vous recevez une notification
-- Vous avez 2 heures pour confirmer (bouton orange "Confirmer ma place")
-- Vous pouvez quitter la liste d'attente à tout moment
+### Liste d'attente
 
-## 8. Mes réservations (`/my-bookings`)
+Cours complet ? Clique sur **Liste d'attente**. Si une place se libère, tu es prévenu et tu as un délai pour confirmer. Passé ce délai, elle passe au suivant.
 
-### À venir
-- Liste des cours réservés avec date, heure, coach
-- Bouton "Annuler" sur chaque réservation :
-  - **Plus de 12h avant** : annulation gratuite, crédit restitué
-  - **Moins de 12h avant** : avertissement orange "Crédit non restitué", l'annulation est quand même possible mais le crédit est perdu
+---
 
-### Passées
-- Historique de toutes les réservations (confirmées et annulées)
+## De temps en temps
 
-## 9. Mes packs (`/my-packs`)
+### Payer mes frais d'inscription
 
-- Liste des packs actifs avec barre de progression
-- Crédits restants / total
-- Date d'expiration (rouge si < 14 jours)
+Ils se règlent une fois et débloquent l'achat de packs. Va dans **Packs** → **Payer les frais d'inscription**.
 
-## 10. Profil (`/profile`)
+Si tu as un code de parrainage, c'est le bon moment : tes frais peuvent être entièrement couverts.
 
-### Informations affichées
-- Photo, nom, badge de statut (Visiteur, Membre potentiel, Actif, Inactif, Ancien)
+### Acheter un pack ou m'abonner
 
-### QR code check-in
-- QR code unique affiché dans le profil
-- Le coach le scanne avec son téléphone pour pointer votre présence
+Va dans **Packs**. Les formules sont classées **par type de crédit** (semi-privé, personal training…), et dans chaque type tu trouves d'abord les abonnements, puis les packs à l'unité.
 
-### Code de parrainage
-- Code unique auto-généré (ex: INGRID4827)
-- Boutons copier et partager (via WhatsApp, SMS, email ou lien)
+> **Vérifie le type de crédit avant d'acheter** : c'est lui qui détermine les cours que tu pourras réserver. Il est rappelé sur chaque carte.
+
+**Un abonnement** se renouvelle tout seul, à échéance fixe. Le prix et la périodicité sont affichés, et une fenêtre te le rappelle avant de valider. Résiliable à tout moment.
+
+**Un pack à l'unité** s'achète quand tu en as besoin, sans engagement. Nombre de séances et date d'expiration.
+
+**Une formule illimitée** ne décompte rien : tu réserves autant de cours que tu veux pendant sa durée de validité. Le compteur ne bouge pas, c'est normal. En contrepartie, annuler ne « rend » rien — il n'y a rien à rendre.
+
+### Utiliser un bon d'achat
+
+Un bon — parrainage ou geste du studio — t'est **proposé automatiquement** au moment de payer. Tu coches, le montant est déduit. Rien à retenir, rien à taper.
+
+- **Un bon s'utilise en une fois, en entier.** Si ton achat coûte moins que le bon, l'application te dit ce que tu perdrais : à toi de voir si tu préfères le garder pour un achat plus important.
+- **Un seul bon par achat.**
+- **Sur un abonnement**, le bon réduit la première échéance seulement ; les suivantes reviennent au tarif normal.
+
+### Parrainer quelqu'un
+
+Va dans **Parrainage** : ton code personnel s'y trouve, à copier ou à partager.
+
+Ton filleul saisit ton code, à son inscription ou à son premier paiement. **Dès son premier achat, vous recevez chacun un bon.** Pour lui, c'est souvent l'inscription qui devient gratuite ; pour toi, une réduction sur ton prochain achat.
+
+Tu peux parrainer autant de personnes que tu veux — un bon par filleul, utilisables sur des achats différents.
+
+### Gérer mon abonnement
+
+Dans **Mes packs**, ton abonnement affiche son état et sa prochaine échéance.
+
+**Résilier** : le renouvellement s'arrête, mais **tu gardes tes droits jusqu'à la fin de la période déjà payée**. Tu peux te réabonner quand tu veux.
+
+**Paiement échoué ?** L'application te le signale. Contacte le studio — ton abonnement n'est pas résilié pour autant.
+
+**Besoin d'une pause** (vacances, blessure) ? Parles-en au studio : il peut décaler ton échéance, et ton accès est prolongé d'autant.
 
 ### Demander une facture
-- Bouton "Demander une facture" → formulaire avec nom/raison sociale, adresse, n° entreprise
-- Sélection du paiement concerné
-- Historique des demandes avec statut (en attente / traitée)
 
-### Informations modifiables
-- Nom d'affichage, prénom, nom
-- **Email** (avec confirmation, voir ci-dessous)
-- Téléphone, date de naissance, adresse
-- Contact d'urgence (nom + téléphone)
-- Objectifs, niveau (débutant/intermédiaire/avancé), conditions médicales
-- Bio
-- Catégorie de membre
+**Demande de facture** : indique tes coordonnées de facturation et l'achat concerné. Le studio s'en occupe.
 
-### Changer l'adresse email
-1. Modifier le champ "Email" dans le profil et cliquer "Enregistrer"
-2. Un email avec un lien de confirmation est envoyé à la **nouvelle** adresse
-3. Un avertissement (sans lien d'action) est envoyé à l'**ancienne** adresse pour information / sécurité
-4. Cliquer sur le lien dans la nouvelle adresse → page "Adresse email mise à jour"
-5. Tant que le clic n'est pas fait, un bandeau jaune "Changement d'email en attente" reste visible sur le profil
+### Mon profil, mes performances
 
-Le nouvel email devient l'identifiant de connexion immédiatement après la confirmation.
+**Profil** — coordonnées, photo, langue, thème de l'application, et le choix de recevoir ou non un e-mail à chaque réservation.
 
-## 11. Parrainage (`/referral`)
+**Performances** — tes mesures et leur évolution, si le studio les suit.
 
-### Mon code
-- Code unique affiché en grand, avec boutons copier et partager
-- Lien de parrainage : `backontrack.../auth?ref=MONCODE`
+**Stats** — nombre de séances, régularité, types de cours.
 
-### Comment ça marche
-1. Partagez votre code à un ami
-2. Il s'inscrit avec votre code
-3. Il paie ses frais d'inscription + achète un pack de 10 séances minimum
-4. Vous recevez chacun 30€ de réduction sur votre prochain achat
+---
 
-### Suivi
-- Nombre de filleuls, qualifiés, montant gagné
-- Liste des filleuls avec statut (en attente / qualifié / récompensé)
-- Récompenses actives avec date d'expiration
+## Où trouver quoi
 
-## 12. Mes statistiques (`/stats`)
+**Sur mobile**, la barre du bas : Accueil · Planning · Mes cours · Mes packs. Le reste est dans le menu, en haut.
 
-### Compteurs
-- **Séances total** : nombre de séances depuis le début
-- **Ce mois** : nombre de séances ce mois-ci
-- **Cette semaine** : nombre de séances cette semaine
-- **Streak** : nombre de semaines consécutives avec au moins 1 séance (icône flamme si >= 4 semaines)
+**Sur ordinateur**, tout est dans le menu du haut.
 
-### Objectif hebdomadaire
-- Objectif modifiable de 1 à 7 séances par semaine (défaut : 3)
-- Barre de progression : ex. 2/3 = 66%
-- "Objectif atteint !" s'affiche en vert quand l'objectif est complété
+---
 
-### Graphiques
-- **Répartition par type de cours** : graphique camembert avec les couleurs de chaque type
-- **Évolution mensuelle** : graphique barres sur les 12 derniers mois
+## Une question ?
 
-### Calendrier d'entraînement
-- Vue des 3 derniers mois
-- Les jours où vous avez eu un cours sont colorés
-- Aujourd'hui est bordé
-
-### Badges
-Badges automatiquement débloqués quand vous atteignez un palier :
-
-| Badge | Condition |
-|-------|-----------|
-| 🥉 10 séances | 10 séances effectuées |
-| 🥈 25 séances | 25 séances effectuées |
-| 🥇 50 séances | 50 séances effectuées |
-| 💎 100 séances | 100 séances effectuées |
-| 🔥 4 semaines | 4 semaines consécutives |
-| ⚡ 8 semaines | 8 semaines consécutives |
-| 🌟 12 semaines | 12 semaines consécutives |
-
-Les badges non encore débloqués apparaissent en grisé.
-
-## 13. Notifications (`/notifications`)
-
-- Liste de toutes les notifications reçues
-- Types : confirmation réservation, annulation, place disponible (liste d'attente), parrainage, messages de l'équipe
-- Bouton "Tout marquer comme lu"
-- Cloche avec compteur dans le header
-
-## 14. Performances (`/performances`)
-
-Encodez et suivez vos performances (rameur, ski erg, soulevés de terre, etc.).
-
-### Encoder une performance
-- Bouton "Nouvelle performance" (ou icône `+` sur mobile)
-- **Type** : choisir parmi le catalogue défini par les coaches (Rameur 500m, Squat, etc.)
-- **Date** : par défaut aujourd'hui
-- **Valeur** : texte libre — ex. `13 kg`, `250 kg`, `1:47`, `1500m`. Le format reste libre, vous écrivez ce qui a du sens pour vous
-- **Notes** (optionnel) : commentaire libre (ex. "5x5 facile", "PR ! ")
-
-### Voir mes performances
-- Liste chronologique (plus récent en haut)
-- **Filtres par type** : boutons colorés en haut de la page, "Tous" pour ne pas filtrer
-- Bouton crayon : éditer une perf existante
-- Bouton corbeille : supprimer une perf (sans limite de temps)
-
-### Graphique de progression
-Quand un **type est sélectionné** dans le filtre, une carte chart apparaît :
-- **3 vues** : Jour / Semaine / Mois
-- **Navigation** : flèches `<` `>` pour se déplacer dans le temps
-- **Barres** : valeur numérique extraite (ex. `13 kg` → 13). Les valeurs non numériques sont affichées dans la liste mais pas dans le chart
-- **Durées** : `1:47` est interprété comme 1.7 minute pour le chart
-- **Résumé** : nombre d'entrées + meilleur score sur la période
-
-### Limites actuelles
-- Pas encore de comparaison multi-types sur un même graphe
-- Pas de marquage automatique des records personnels (PR)
-- La vue "Mois" affiche jusqu'à 31 barres, c'est dense sur petit écran
-
-## 15. Statuts membre
-
-Votre statut évolue automatiquement :
-
-| Statut | Signification |
-|--------|---------------|
-| **Visiteur** | Pas encore inscrit |
-| **Membre potentiel** | Inscrit, frais non payés |
-| **Membre actif** | A un pack ou abonnement en cours |
-| **Membre inactif** | Pack expiré depuis moins de 3 mois |
-| **Ancien membre** | Inactif depuis plus de 3 mois — doit repayer les frais d'inscription |
+Le studio répond à tout ce qui touche à ton compte, tes paiements et tes réservations. Pour les cas particuliers — un bon bloqué, un parrain oublié, une échéance à décaler — c'est à lui qu'il faut s'adresser : il a les outils pour corriger.

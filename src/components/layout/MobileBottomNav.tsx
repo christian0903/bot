@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
-import { Home, CalendarDays, CreditCard, BarChart3 } from 'lucide-react'
+import { Home, CalendarDays, CreditCard, ClipboardList } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function MobileBottomNav() {
@@ -11,11 +11,16 @@ export function MobileBottomNav() {
 
   if (!user) return null
 
+  // Quatre entrées : au-delà, les libellés se coupent sur un petit écran.
+  // « Mes réservations » remplace les stats — le planning signale les cours
+  // réservés mais ne les regroupe pas, et « quand est-ce que je m'entraîne
+  // cette semaine ? » est la question la plus fréquente. Les statistiques
+  // restent accessibles depuis le menu du haut.
   const items = [
     { path: '/', icon: Home, label: t('nav.home') },
     { path: '/schedule', icon: CalendarDays, label: t('nav.schedule') },
+    { path: '/my-bookings', icon: ClipboardList, label: isFr ? 'Mes cours' : 'My classes' },
     { path: '/my-packs', icon: CreditCard, label: t('packs.myPacks') },
-    { path: '/stats', icon: BarChart3, label: isFr ? 'Stats' : 'Stats' },
   ]
 
   return (
