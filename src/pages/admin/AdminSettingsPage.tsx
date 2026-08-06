@@ -81,6 +81,13 @@ export function AdminSettingsPage() {
   const [regFeeAmount, setRegFeeAmount] = useState(30)
   const [regFeeEnabled, setRegFeeEnabled] = useState(true)
   /** Coût moyen d'une séance sur un pack illimité (€), pour le calcul du CA. */
+  /** Achat minimum pour qu'un filleul puisse activer son bon de parrainage. */
+  const [referralMinPurchase, setReferralMinPurchase] = useState(30)
+  const [referrerReward, setReferrerReward] = useState(30)
+  const [refereeReward, setRefereeReward] = useState(30)
+  const [referralValidity, setReferralValidity] = useState(180)
+  /** Reste de la clé referral_rules (montants, validité) : à préserver au save. */
+  const [referralRules, setReferralRules] = useState<Record<string, unknown> | null>(null)
   const [unlimitedCost, setUnlimitedCost] = useState(0)
   /** Seuil d'alerte : nombre d'annulations par cycle au-delà duquel signaler. */
   const [cancelAlert, setCancelAlert] = useState(4)
@@ -92,7 +99,7 @@ export function AdminSettingsPage() {
       const { data } = await supabase
         .from('app_settings')
         .select('*')
-        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert', 'class_given_rule'])
+        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert', 'class_given_rule', 'referral_rules'])
 
       for (const setting of data ?? []) {
         if (setting.key === 'stripe_mode') {
@@ -115,6 +122,19 @@ export function AdminSettingsPage() {
         if (setting.key === 'unlimited_session_cost') {
           const val = setting.value as { amount_cents?: number }
           setUnlimitedCost((val.amount_cents ?? 0) / 100)
+        }
+        if (setting.key === 'referral_rules') {
+          const val = setting.value as {
+            min_purchase_cents?: number
+            referrer_reward_cents?: number
+            referee_reward_cents?: number
+            reward_validity_days?: number
+          }
+          setReferralRules(setting.value as Record<string, unknown>)
+          setReferralMinPurchase((val.min_purchase_cents ?? 3000) / 100)
+          setReferrerReward((val.referrer_reward_cents ?? 3000) / 100)
+          setRefereeReward((val.referee_reward_cents ?? 3000) / 100)
+          setReferralValidity(val.reward_validity_days ?? 180)
         }
         if (setting.key === 'cancellation_alert') {
           const val = setting.value as { threshold_per_cycle?: number }
@@ -256,52 +276,165 @@ export function AdminSettingsPage() {
             {isFr ? 'Règles de réservation' : 'Booking rules'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="space-y-1">
-            <p className="text-sm font-medium">{isFr ? 'Cours du matin' : 'Morning classes'}</p>
-            <p className="text-xs text-muted-foreground mb-2">
-              {isFr ? 'Cours commençant avant l\'heure ci-dessous' : 'Classes starting before the hour below'}
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs">{isFr ? 'Cours "matin" si avant (h)' : 'Morning if before (h)'}</Label>
-                <Input type="number" min={0} max={23} className="w-24" value={rules.morning_class_before_hour} onChange={e => setRules(r => ({ ...r, morning_class_before_hour: parseInt(e.target.value) || 12 }))} />
+        <CardContent className="space-y-6">
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? "Ces règles déterminent jusqu'à quand un membre peut réserver un cours, et jusqu'à quand il peut annuler sans perdre son crédit."
+              : 'These rules set how late a member can book a class, and how late they can cancel without losing their credit.'}
+          </p>
+
+          {/* ---- Fermeture des réservations ---- */}
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold">
+                {isFr ? 'Fermeture des réservations' : 'Booking cut-off'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? "Les cours du matin ferment la veille au soir : le coach doit savoir s'il se lève. Les cours de l'après-midi ferment le jour même, plus ou moins tard selon qu'il y a déjà du monde inscrit."
+                  : 'Morning classes close the evening before, so the coach knows whether to get up. Afternoon classes close on the day, earlier or later depending on whether anyone has booked.'}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">
+                {isFr ? 'Un cours est « du matin » s\'il commence avant' : 'A class counts as "morning" if it starts before'}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={0} max={23} className="w-20"
+                  value={rules.morning_class_before_hour}
+                  onChange={e => setRules(r => ({ ...r, morning_class_before_hour: parseInt(e.target.value) || 12 }))} />
+                <span className="text-sm text-muted-foreground">{isFr ? 'h' : 'h'}</span>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{isFr ? 'Fermeture résa la veille à (h)' : 'Booking closes day before at (h)'}</Label>
-                <Input type="number" min={0} max={23} className="w-24" value={rules.morning_cutoff_hour} onChange={e => setRules(r => ({ ...r, morning_cutoff_hour: parseInt(e.target.value) || 20 }))} />
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? `Sépare les deux régimes ci-dessous. À ${rules.morning_class_before_hour} h : un cours de 9 h suit la règle du matin, un cours de 14 h celle de l'après-midi.`
+                  : `Separates the two rules below. At ${rules.morning_class_before_hour}h: a 9am class follows the morning rule, a 2pm class the afternoon one.`}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">
+                {isFr ? 'Cours du matin : réservations fermées la veille à' : 'Morning classes: bookings close the day before at'}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={0} max={23} className="w-20"
+                  value={rules.morning_cutoff_hour}
+                  onChange={e => setRules(r => ({ ...r, morning_cutoff_hour: parseInt(e.target.value) || 20 }))} />
+                <span className="text-sm text-muted-foreground">h</span>
               </div>
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? `Personne ne peut plus s'inscrire à un cours du matin après ${rules.morning_cutoff_hour} h la veille.`
+                  : `Nobody can book a morning class after ${rules.morning_cutoff_hour}h the previous day.`}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">
+                {isFr ? 'Cours de l\'après-midi, si personne n\'est encore inscrit : fermeture' : 'Afternoon classes, if nobody has booked yet: closes'}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={0} className="w-20"
+                  value={rules.afternoon_hours_before_no_bookings}
+                  onChange={e => setRules(r => ({ ...r, afternoon_hours_before_no_bookings: parseInt(e.target.value) || 3 }))} />
+                <span className="text-sm text-muted-foreground">{isFr ? 'h avant le cours' : 'h before the class'}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? `Un cours vide se ferme tôt : passé ce délai, le coach sait qu'il n'aura personne. Plus le délai est long, plus il est prévenu tôt.`
+                  : `An empty class closes early: past this point the coach knows nobody is coming. The longer the delay, the earlier they know.`}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">
+                {isFr ? 'Cours de l\'après-midi, si au moins une personne est inscrite : fermeture' : 'Afternoon classes, if at least one person booked: closes'}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={0} className="w-20"
+                  value={rules.afternoon_minutes_before_with_bookings}
+                  onChange={e => setRules(r => ({ ...r, afternoon_minutes_before_with_bookings: parseInt(e.target.value) || 30 }))} />
+                <span className="text-sm text-muted-foreground">{isFr ? 'min avant le cours' : 'min before the class'}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? `Le cours a lieu de toute façon : on laisse les retardataires s'inscrire jusqu'à ${rules.afternoon_minutes_before_with_bookings} minutes avant.`
+                  : `The class runs anyway: latecomers can still book up to ${rules.afternoon_minutes_before_with_bookings} minutes before.`}
+              </p>
             </div>
           </div>
 
-          <div className="space-y-1">
-            <p className="text-sm font-medium">{isFr ? 'Cours après-midi / soir' : 'Afternoon / evening classes'}</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs">{isFr ? 'Fermeture si 0 inscrit (h avant)' : 'Close if 0 booked (h before)'}</Label>
-                <Input type="number" min={0} className="w-24" value={rules.afternoon_hours_before_no_bookings} onChange={e => setRules(r => ({ ...r, afternoon_hours_before_no_bookings: parseInt(e.target.value) || 3 }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{isFr ? 'Fermeture si inscrits (min avant)' : 'Close if booked (min before)'}</Label>
-                <Input type="number" min={0} className="w-24" value={rules.afternoon_minutes_before_with_bookings} onChange={e => setRules(r => ({ ...r, afternoon_minutes_before_with_bookings: parseInt(e.target.value) || 30 }))} />
-              </div>
+          {/* ---- Annulation ---- */}
+          <div className="space-y-4 pt-2 border-t">
+            <div>
+              <p className="text-sm font-semibold">{isFr ? 'Annulation par le membre' : 'Cancellation by the member'}</p>
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? "Annuler à temps rend le crédit et libère la place. Annuler trop tard consomme la séance : la place n'a plus le temps d'être reprise."
+                  : 'Cancelling in time returns the credit and frees the spot. Cancelling too late uses up the session: the spot can no longer be filled.'}
+              </p>
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <p className="text-sm font-medium">{isFr ? 'Annulation' : 'Cancellation'}</p>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs">{isFr ? 'Annulation gratuite (h avant)' : 'Free cancel (h before)'}</Label>
-                <Input type="number" min={0} className="w-24" value={rules.cancellation_free_hours} onChange={e => setRules(r => ({ ...r, cancellation_free_hours: parseInt(e.target.value) || 12 }))} />
+            <div className="space-y-1.5">
+              <Label className="text-sm">
+                {isFr ? 'Annulation sans perdre son crédit : jusqu\'à' : 'Cancel without losing the credit: up to'}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={0} className="w-20"
+                  value={rules.cancellation_free_hours}
+                  onChange={e => setRules(r => ({ ...r, cancellation_free_hours: parseInt(e.target.value) || 12 }))} />
+                <span className="text-sm text-muted-foreground">{isFr ? 'h avant le cours' : 'h before the class'}</span>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{isFr ? 'Annulation PT (h avant)' : 'PT cancel (h before)'}</Label>
-                <Input type="number" min={0} className="w-24" value={rules.pt_cancellation_free_hours} onChange={e => setRules(r => ({ ...r, pt_cancellation_free_hours: parseInt(e.target.value) || 24 }))} />
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? `Au-delà de ${rules.cancellation_free_hours} h avant le début, le crédit revient au membre. En deçà, la séance est décomptée. Sur un abonnement illimité, rien ne se décompte, mais l'annulation tardive est comptabilisée.`
+                  : `More than ${rules.cancellation_free_hours}h before the start, the credit goes back to the member. Less than that, the session is used up. On an unlimited pack nothing is deducted, but the late cancellation is recorded.`}
+              </p>
+            </div>
+
+            {/* Ces deux réglages sont enregistrés mais aucun code ne les lit
+                aujourd'hui : le signaler évite de croire qu'on agit sur quelque
+                chose. À implémenter ou à retirer. */}
+            <div className="rounded-lg border border-dashed p-3 space-y-4">
+              <p className="text-xs text-amber-600 dark:text-amber-500 font-medium">
+                {isFr
+                  ? '⚠ Réglages sans effet aujourd\'hui — la logique correspondante n\'est pas encore implémentée.'
+                  : '⚠ These settings have no effect yet — the matching logic is not implemented.'}
+              </p>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm">
+                  {isFr ? 'Personal training : annulation sans frais jusqu\'à' : 'Personal training: free cancellation up to'}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input type="number" min={0} className="w-20"
+                    value={rules.pt_cancellation_free_hours}
+                    onChange={e => setRules(r => ({ ...r, pt_cancellation_free_hours: parseInt(e.target.value) || 24 }))} />
+                  <span className="text-sm text-muted-foreground">{isFr ? 'h avant la séance' : 'h before the session'}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {isFr
+                    ? 'Prévu pour un délai plus strict qu\'en cours collectif : un créneau de coaching individuel ne se remplit pas au dernier moment.'
+                    : 'Intended to be stricter than group classes: a one-to-one slot cannot be filled at the last minute.'}
+                </p>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{isFr ? 'No-show auto (min après début)' : 'Auto no-show (min after start)'}</Label>
-                <Input type="number" min={0} className="w-24" value={rules.no_show_auto_minutes} onChange={e => setRules(r => ({ ...r, no_show_auto_minutes: parseInt(e.target.value) || 15 }))} />
+
+              <div className="space-y-1.5">
+                <Label className="text-sm">
+                  {isFr ? 'Absence constatée automatiquement après' : 'Automatic no-show after'}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input type="number" min={0} className="w-20"
+                    value={rules.no_show_auto_minutes}
+                    onChange={e => setRules(r => ({ ...r, no_show_auto_minutes: parseInt(e.target.value) || 15 }))} />
+                  <span className="text-sm text-muted-foreground">{isFr ? 'min après le début' : 'min after the start'}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {isFr
+                    ? 'Prévu pour marquer en absence un inscrit qui n\'a pas pointé passé ce délai. Aujourd\'hui, l\'absence se marque à la main.'
+                    : 'Intended to flag as absent a member who has not checked in past this delay. Today, absences are marked by hand.'}
+                </p>
               </div>
             </div>
           </div>
@@ -372,6 +505,94 @@ export function AdminSettingsPage() {
           >
             {saving === 'unlimited_session_cost' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Parrainage — montants, seuil et validité */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4 text-primary" />
+            {isFr ? 'Parrainage' : 'Referral'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? "Quand un filleul effectue son premier achat, le parrain et le filleul reçoivent chacun un bon. Un bon s'utilise en une fois, en entier."
+              : 'When a referee makes their first purchase, both the referrer and the referee receive a credit note. A note is used once, in full.'}
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{isFr ? 'Bon du parrain (€)' : 'Referrer note (€)'}</Label>
+              <Input
+                type="number" min={0} step="5"
+                value={referrerReward}
+                onChange={e => setReferrerReward(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{isFr ? 'Bon du filleul (€)' : 'Referee note (€)'}</Label>
+              <Input
+                type="number" min={0} step="5"
+                value={refereeReward}
+                onChange={e => setRefereeReward(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{isFr ? 'Achat minimum pour le filleul (€)' : 'Minimum purchase for the referee (€)'}</Label>
+            <Input
+              type="number" min={30} max={100} step="5"
+              className="w-32"
+              value={referralMinPurchase}
+              onChange={e => setReferralMinPurchase(parseFloat(e.target.value) || 30)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? "Entre 30 € et 100 €. Sans ce seuil, un filleul peut liquider son bon sur une petite série de séances sans vraiment s'engager. Ne s'applique qu'au filleul : le parrain est déjà client, et un dédommagement du studio reste utilisable sans condition."
+                : 'Between 30 € and 100 €. Without this threshold, a referee could spend their note on a small pack without really committing. Applies to the referee only: the referrer is already a customer, and studio compensation stays usable without conditions.'}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{isFr ? 'Validité d\'un bon (jours)' : 'Note validity (days)'}</Label>
+            <Input
+              type="number" min={1} step="30"
+              className="w-32"
+              value={referralValidity}
+              onChange={e => setReferralValidity(parseInt(e.target.value) || 180)}
+            />
+          </div>
+
+          <Button
+            size="sm"
+            disabled={saving === 'referral_rules'}
+            onClick={() => {
+              // Le seuil est borné ici aussi : la saisie peut sortir des bornes
+              // du champ selon le navigateur.
+              const clamped = Math.min(100, Math.max(30, referralMinPurchase))
+              setReferralMinPurchase(clamped)
+              // Les clés inconnues de cet écran sont préservées.
+              saveSetting('referral_rules', {
+                ...(referralRules ?? {}),
+                referrer_reward_cents: Math.round(referrerReward * 100),
+                referee_reward_cents: Math.round(refereeReward * 100),
+                min_purchase_cents: Math.round(clamped * 100),
+                reward_validity_days: referralValidity,
+              })
+            }}
+          >
+            {saving === 'referral_rules' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+          </Button>
+
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? 'Ces montants s\'appliquent aux futurs parrainages. Les bons déjà créés gardent leur valeur.'
+              : 'These amounts apply to future referrals. Notes already created keep their value.'}
+          </p>
         </CardContent>
       </Card>
 

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
-import { ShoppingBag, Check, Zap, Flame, AlertTriangle, RefreshCw } from 'lucide-react'
+import { ShoppingBag, Check, Zap, Flame, AlertTriangle, RefreshCw, TicketPercent } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn, formatPackCredits, formatValidity } from '@/lib/utils'
 import type { PackType, Subscription, CreditNote } from '@/types'
@@ -104,8 +104,31 @@ export function PacksPage() {
 
   const [regFeeLoading, setRegFeeLoading] = useState(false)
 
+  /**
+   * Bons activables pour l'achat en cours.
+   *
+   * Le filtrage se fait côté base : `get_usable_credit_notes` connaît le seuil
+   * minimum d'achat et ne renvoie que ce qui s'applique. L'interface n'a donc
+   * aucune règle à dupliquer — elle demande, elle affiche.
+   */
+  const [applicableNotes, setApplicableNotes] = useState<CreditNote[]>([])
+
+  const loadApplicableNotes = async (purchaseCents: number) => {
+    if (!user) return []
+    const { data } = await supabase.rpc('get_usable_credit_notes', {
+      p_user_id: user.id,
+      p_purchase_cents: purchaseCents,
+    })
+    const list = (data as CreditNote[]) ?? []
+    setApplicableNotes(list)
+    return list
+  }
+
   /** Le bon qu'on proposera : celui qui expire le plus tôt. */
-  const bestNote = creditNotes[0] ?? null
+  const bestNote = applicableNotes[0] ?? null
+  /** Seuil affiché quand un bon existe mais que l'achat est trop petit. */
+  const minPurchaseCents = creditNotes[0]?.min_purchase_cents ?? 3000
+  const hasBlockedNote = applicableNotes.length === 0 && creditNotes.length > 0
 
   /**
    * Enregistre le code du parrain saisi au moment de payer.
@@ -145,11 +168,12 @@ export function PacksPage() {
     }
   }
 
-  const handlePayRegistrationFee = () => {
-    // On ouvre le dialogue s'il y a un bon à proposer, ou si le membre peut
-    // encore déclarer un parrain — c'est le dernier moment utile pour le faire.
-    if (bestNote || !hasReferrer) {
-      setUseCreditNote(!!bestNote)
+  const handlePayRegistrationFee = async () => {
+    // La base décide quels bons s'appliquent à ce montant : on interroge avant
+    // d'ouvrir la fenêtre, et on affiche ce qu'elle renvoie.
+    const notes = await loadApplicableNotes(3000)
+    if (notes.length > 0 || creditNotes.length > 0 || !hasReferrer) {
+      setUseCreditNote(notes.length > 0)
       setPendingPurchase({ pack: null, isFee: true })
       return
     }
@@ -222,14 +246,16 @@ export function PacksPage() {
           : 'You already have an active subscription.')
         return
       }
-      setUseCreditNote(!!bestNote)
+      const subNotes = await loadApplicableNotes(packType.price_cents)
+      setUseCreditNote(subNotes.length > 0)
       setPendingSubscription(packType)
       return
     }
-    // Pack ponctuel : confirmation s'il y a un bon à proposer, ou si le membre
-    // peut encore déclarer un parrain.
-    if (bestNote || !hasReferrer) {
-      setUseCreditNote(!!bestNote)
+    // Pack ponctuel : confirmation s'il y a un bon (applicable ou bloqué par le
+    // seuil, qu'on explique), ou si le membre peut encore déclarer un parrain.
+    const notes = await loadApplicableNotes(packType.price_cents)
+    if (notes.length > 0 || creditNotes.length > 0 || !hasReferrer) {
+      setUseCreditNote(notes.length > 0)
       setPendingPurchase({ pack: packType, isFee: false })
       return
     }
@@ -624,6 +650,20 @@ export function PacksPage() {
                         )}
                       </span>
                     </label>
+                  )}
+
+                  {/* Le membre a un bon, mais cet achat est trop petit pour
+                      l'activer. On le dit plutôt que de masquer le bon : sinon
+                      il croirait l'avoir perdu. */}
+                  {hasBlockedNote && (
+                    <div className="flex items-start gap-2 rounded-lg bg-muted p-3">
+                      <TicketPercent className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                      <p className="text-muted-foreground">
+                        {isFr
+                          ? `Tu as un bon de ${eur(creditNotes[0].amount_cents)}, utilisable à partir de ${eur(minPurchaseCents)} d'achat. Il reste disponible pour un pack plus important.`
+                          : `You have a ${eur(creditNotes[0].amount_cents)} credit note, usable from ${eur(minPurchaseCents)} of purchase. It stays available for a bigger pack.`}
+                      </p>
+                    </div>
                   )}
 
                   {/* Dernier moment utile pour déclarer un parrain : le membre

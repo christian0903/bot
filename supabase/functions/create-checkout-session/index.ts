@@ -91,6 +91,32 @@ serve(async (req) => {
       creditNote = { id: note.id, amount_cents: note.amount_cents, code: note.code }
     }
 
+    /**
+     * Vérifie le montant minimum d'achat avant d'accepter un bon.
+     *
+     * Le front masque déjà les bons non activables, mais cette fonction est
+     * appelable directement : le seuil se contrôle là où il engage de l'argent.
+     * Il porte sur le prix AVANT déduction — c'est l'engagement qu'on mesure.
+     */
+    const checkNoteMinimum = async (purchaseCents: number) => {
+      if (!creditNote) return null
+      const { data } = await admin.rpc('credit_note_applicable', {
+        p_note_id: creditNote.id,
+        p_user_id: user.id,
+        p_purchase_cents: purchaseCents,
+      })
+      const res = data as { ok: boolean; error?: string; min_purchase_cents?: number } | null
+      if (res?.ok) return null
+
+      if (res?.error === 'below_minimum') {
+        const min = ((res.min_purchase_cents ?? 3000) / 100).toFixed(2).replace('.', ',')
+        return json({
+          error: `Ce bon s'utilise à partir de ${min} € d'achat. Garde-le pour un pack plus important.`,
+        }, 400)
+      }
+      return json({ error: 'Ce bon n\'est pas utilisable sur cet achat' }, 400)
+    }
+
     // ========================================================================
     // CAS 1 — Frais d'inscription
     // ========================================================================
@@ -111,6 +137,9 @@ serve(async (req) => {
       const amountCents = fee?.amount_cents ?? 3000
       // Achat ponctuel : c'est l'application qui soustrait, pas Stripe. Il n'y
       // a pas de récurrence à protéger (cf. docs/cadrage-bons-achat.md).
+      const feeBlock = await checkNoteMinimum(amountCents)
+      if (feeBlock) return feeBlock
+
       const dueCents = Math.max(0, amountCents - (creditNote?.amount_cents ?? 0))
 
       // Bon supérieur ou égal au montant dû : Stripe refuse une session à 0 €.
@@ -327,6 +356,9 @@ serve(async (req) => {
       // `duration: 'once'` applique la remise à la PREMIÈRE facture puis retire
       // le coupon de lui-même : le prix récurrent reste intact. Baisser le
       // Price rendrait la réduction permanente.
+      const subBlock = await checkNoteMinimum(packType.price_cents)
+      if (subBlock) return subBlock
+
       let noteCouponId: string | null = null
       if (creditNote) {
         if (stripeCouponId) {
@@ -363,6 +395,9 @@ serve(async (req) => {
     // CAS 2 — Pack ponctuel
     // ========================================================================
     // Achat ponctuel : l'application soustrait le bon avant l'envoi à Stripe.
+    const packBlock = await checkNoteMinimum(priceCents)
+    if (packBlock) return packBlock
+
     const dueCents = Math.max(0, priceCents - (creditNote?.amount_cents ?? 0))
 
     // Bon couvrant la totalité : Stripe refuse une session à 0 €, on crédite

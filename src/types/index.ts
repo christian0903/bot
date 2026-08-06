@@ -282,9 +282,15 @@ export interface CreditNote {
   /** Code lisible (BON-4F8A) — référence et saisie de secours. */
   code: string
   amount_cents: number
-  origin: 'parrainage' | 'geste_commercial' | 'dedommagement' | 'autre'
+  origin: 'parrainage' | 'parrainage_filleul' | 'geste_commercial' | 'dedommagement' | 'autre'
   reason: string | null
   expires_at: string | null
+  /**
+   * Montant d'achat minimum pour activer ce bon (paramètre du studio).
+   * Ne s'applique qu'aux bons de parrainage : un dédommagement reste
+   * utilisable sans condition.
+   */
+  min_purchase_cents: number
 }
 
 export interface ReferralReward {
@@ -298,7 +304,7 @@ export interface ReferralReward {
   expires_at: string | null
   created_at: string
   code: string
-  origin: 'parrainage' | 'geste_commercial' | 'dedommagement' | 'autre'
+  origin: 'parrainage' | 'parrainage_filleul' | 'geste_commercial' | 'dedommagement' | 'autre'
   reason: string | null
   granted_by: string | null
   /** Sur quoi le bon a servi — utile pour retracer une réclamation. */

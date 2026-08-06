@@ -41,9 +41,21 @@ export function HelpPage() {
 
   if (loading) return <LoadingState />
 
+  // Les classes `prose` de Tailwind ne produisaient rien : le plugin
+  // @tailwindcss/typography n'est pas installé. Le rendu passe désormais par
+  // la classe `.md-doc` définie dans index.css.
   const MarkdownContent = ({ content }: { content: string }) => (
-    <div className="max-w-3xl mx-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-a:text-primary prose-strong:text-foreground prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-table:text-sm">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{content}</ReactMarkdown>
+    <div className="md-doc max-w-3xl mx-auto pb-12">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          a: MarkdownLink,
+          // Un tableau large doit défiler dans son cadre, sans pousser la page.
+          table: ({ children }) => (
+            <div className="md-table-wrap"><table>{children}</table></div>
+          ),
+        }}
+      >{content}</ReactMarkdown>
     </div>
   )
 

@@ -1490,7 +1490,9 @@ export function AdminUserDetailPage() {
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {note.origin === 'parrainage'
-                              ? (isFr ? 'Parrainage' : 'Referral')
+                              ? (isFr ? 'Parrainage (parrain)' : 'Referral (referrer)')
+                              : note.origin === 'parrainage_filleul'
+                              ? (isFr ? 'Parrainage (filleul)' : 'Referral (referee)')
                               : note.origin === 'dedommagement'
                                 ? (isFr ? 'Dédommagement' : 'Compensation')
                                 : note.origin === 'geste_commercial'
