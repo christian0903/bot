@@ -368,15 +368,28 @@ export function CoachClassDetailPage() {
     if (!member) return
     setAddMemberLoading(true)
 
-    const { error } = await supabase.from('bookings').insert({
-      scheduled_class_id: scheduledClass.id,
-      user_id: member.user_id,
-      pack_purchase_id: member.pack_purchase_id,
+    const { data: res, error } = await supabase.rpc('book_member_by_staff', {
+      p_class_id: scheduledClass.id,
+      p_user_id: member.user_id,
+      p_pack_purchase_id: member.pack_purchase_id,
     })
 
     if (error) { toast.error(error.message); setAddMemberLoading(false); return }
 
-    await supabase.rpc('consume_credit', { p_pack_purchase_id: member.pack_purchase_id })
+    const result = res as { ok: boolean; error?: string }
+    if (!result?.ok) {
+      const messages: Record<string, { fr: string; en: string }> = {
+        not_your_class: { fr: 'Ce cours n\'est pas le tien.', en: 'This is not your class.' },
+        class_full: { fr: 'La salle est complète.', en: 'The class is full.' },
+        class_cancelled: { fr: 'Ce cours est annulé.', en: 'This class is cancelled.' },
+        already_booked: { fr: 'Ce membre est déjà inscrit.', en: 'Already booked.' },
+        no_credit: { fr: 'Ce membre n\'a pas de crédit du bon type.', en: 'No credit of the right type.' },
+      }
+      const m = messages[result?.error ?? '']
+      toast.error(m ? (isFr ? m.fr : m.en) : t('common.error'))
+      setAddMemberLoading(false)
+      return
+    }
 
     await logActivity({
       action: 'booking_assigned',
@@ -580,12 +593,11 @@ export function CoachClassDetailPage() {
             </div>
           )}
 
-          {/* Add member — réservé aux admins.
-              Inscrire quelqu'un consomme un crédit, et seul un admin peut
-              écrire dans pack_purchases. Proposer l'action à un coach le
-              menait à un échec silencieux : « aucun membre avec des crédits »
-              alors que la requête était simplement refusée. */}
-          {isFuture && spotsLeft > 0 && hasRole('admin') && (
+          {/* Ajouter un membre. Passe par book_member_by_staff, qui ignore le
+              délai de fermeture : quelqu'un se présente à la dernière minute,
+              il reste de la place, le coach décide. La capacité de la salle
+              reste, elle, bloquante. */}
+          {spotsLeft > 0 && (
             <div className="pt-3 border-t">
               {!addMemberOpen ? (
                 <Button variant="outline" className="w-full" onClick={openAddMember}>
