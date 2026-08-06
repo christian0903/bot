@@ -1,12 +1,25 @@
 -- ============================================
--- Back On Track - Fitness Studio v2
+-- Back On Track — Fitness Studio v2
 -- Installation complète de la base de données
--- À exécuter dans le SQL Editor de Supabase
--- sur un projet NEUF (base vide)
+--
+-- À exécuter dans le SQL Editor de Supabase, sur un projet NEUF (base vide).
 --
 -- IMPORTANT : exécuter en DEUX FOIS
---   1) SECTION A (enum avec super_admin)
+--   1) SECTION A (les types énumérés)
 --   2) SECTION B (tout le reste)
+-- PostgreSQL refuse d'utiliser une valeur d'enum créée dans la même
+-- transaction : d'où la coupure.
+--
+-- Dernière mise à jour : 2026-08-06 — remise à niveau complète.
+-- Ce fichier avait pris du retard sur les migrations : il lui manquait les
+-- abonnements, le parrainage, les bons d'achat, les badges et une douzaine
+-- de fonctions. Il contenait aussi deux policies trop permissives, retirées
+-- ici (voir la section 5).
+--
+-- Ordre des sections : types → tables → fonctions → triggers → RLS →
+-- policies → vues → realtime → données initiales. Les tables suivent leurs
+-- dépendances : `subscriptions` avant `pack_purchases` qui la référence,
+-- `referrals` avant `referral_rewards`.
 -- ============================================
 
 
@@ -164,6 +177,58 @@ CREATE TABLE pack_type_categories (
   PRIMARY KEY (pack_type_id, member_category_id)
 );
 
+-- Abonnements Stripe.
+-- Les crédits eux-mêmes vivent dans pack_purchases : une ligne par cycle payé.
+-- Un abonnement n'est pas une entité nouvelle, c'est un pack court qui se
+-- renouvelle tout seul.
+CREATE TABLE subscriptions (
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id                 UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  pack_type_id            UUID NOT NULL REFERENCES pack_types(id),
+
+  stripe_subscription_id  TEXT NOT NULL UNIQUE,
+  stripe_customer_id      TEXT NOT NULL,
+  stripe_price_id         TEXT NOT NULL,
+  -- Un abonnement créé en test ne doit jamais être piloté avec la clé live.
+  stripe_mode             TEXT NOT NULL DEFAULT 'test' CHECK (stripe_mode IN ('test', 'live')),
+
+  -- 'paused' = suspension décidée par le studio.
+  status                  TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active', 'past_due', 'paused', 'canceled', 'incomplete')),
+
+  current_period_start    TIMESTAMPTZ,
+  current_period_end      TIMESTAMPTZ,
+  cancel_at_period_end    BOOLEAN NOT NULL DEFAULT FALSE,
+  canceled_at             TIMESTAMPTZ,
+  paused_at               TIMESTAMPTZ,
+
+  created_at              TIMESTAMPTZ DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX subscriptions_user_idx   ON subscriptions(user_id);
+CREATE INDEX subscriptions_status_idx ON subscriptions(status);
+
+-- Réductions ponctuelles accordées par le studio sur une échéance.
+CREATE TABLE subscription_discounts (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subscription_id   UUID NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+  stripe_coupon_id  TEXT NOT NULL,
+  amount_off_cents  INTEGER CHECK (amount_off_cents IS NULL OR amount_off_cents > 0),
+  percent_off       INTEGER CHECK (percent_off IS NULL OR (percent_off BETWEEN 1 AND 100)),
+  reason            TEXT,
+  applied_by        UUID REFERENCES auth.users(id),
+  applied_at        TIMESTAMPTZ DEFAULT NOW(),
+  -- Renseigné par le webhook quand la facture réduite a été payée.
+  consumed_at       TIMESTAMPTZ,
+  CONSTRAINT one_discount_kind CHECK (
+    (amount_off_cents IS NOT NULL AND percent_off IS NULL) OR
+    (amount_off_cents IS NULL AND percent_off IS NOT NULL)
+  )
+);
+
+CREATE INDEX subscription_discounts_sub_idx ON subscription_discounts(subscription_id);
+
 -- Achats de packs
 CREATE TABLE pack_purchases (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -175,8 +240,16 @@ CREATE TABLE pack_purchases (
   expires_at TIMESTAMPTZ NOT NULL,
   stripe_payment_intent_id TEXT,
   coupon_id UUID REFERENCES coupons(id),
+  -- Rempli quand la ligne provient d'une échéance d'abonnement.
+  subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+  -- Facture Stripe à l'origine du cycle. L'index unique ci-dessous garantit
+  -- qu'un même événement rejoué ne crédite pas deux fois.
+  stripe_invoice_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX pack_purchases_stripe_invoice_uniq
+  ON pack_purchases(stripe_invoice_id) WHERE stripe_invoice_id IS NOT NULL;
 
 -- Types de cours
 CREATE TABLE class_types (
@@ -333,6 +406,65 @@ CREATE INDEX idx_performances_user_date ON performances(user_id, date DESC);
 CREATE INDEX idx_performances_type ON performances(performance_type_id);
 
 -- ============================================
+-- Parrainage et bons d'achat
+-- ============================================
+
+-- Qui a parrainé qui. Un membre ne peut avoir qu'un seul parrain.
+CREATE TABLE referrals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  referrer_id UUID NOT NULL REFERENCES auth.users(id),
+  referee_id UUID NOT NULL REFERENCES auth.users(id),
+  referral_code TEXT NOT NULL,
+  -- 'pending' tant que le filleul n'a rien payé.
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'qualified', 'rewarded')),
+  referrer_reward_cents INTEGER DEFAULT 3000,
+  referee_reward_cents INTEGER DEFAULT 3000,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  qualified_at TIMESTAMPTZ,
+  rewarded_at TIMESTAMPTZ,
+  UNIQUE(referee_id)
+);
+
+-- Bons d'achat, quelle que soit leur origine : parrainage ou geste du studio.
+-- Un bon se consomme EN ENTIER — pas de solde partiel, donc pas de champ de
+-- montant consommé.
+CREATE TABLE referral_rewards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id),
+  -- Nul quand le bon vient d'un geste du studio et non d'un parrainage.
+  referral_id UUID REFERENCES referrals(id),
+  amount_cents INTEGER NOT NULL,
+  is_used BOOLEAN DEFAULT FALSE,
+  used_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Code lisible au téléphone (BON-4F8A), posé par trigger.
+  code TEXT,
+  -- 'parrainage_filleul' est distingué : seul ce bon subit le montant
+  -- d'achat minimum. Le parrain est déjà client.
+  origin TEXT NOT NULL DEFAULT 'parrainage',
+  granted_by UUID REFERENCES auth.users(id),
+  reason TEXT,
+  used_on TEXT CHECK (used_on IS NULL OR used_on IN ('pack', 'subscription', 'registration_fee')),
+  CONSTRAINT referral_rewards_origin_check CHECK (
+    origin IN ('parrainage', 'parrainage_filleul', 'geste_commercial', 'dedommagement', 'autre')
+  )
+);
+
+CREATE UNIQUE INDEX idx_referral_rewards_code ON referral_rewards(code);
+CREATE INDEX idx_referral_rewards_user_usable
+  ON referral_rewards(user_id) WHERE is_used = FALSE;
+
+-- Badges de progression du membre.
+CREATE TABLE member_badges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id),
+  badge_type TEXT NOT NULL,
+  earned_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, badge_type)
+);
+
+-- ============================================
 -- 2. FONCTIONS
 -- ============================================
 
@@ -351,15 +483,32 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 -- Ordre : packs à crédits d'abord (ils expirent et se perdent),
 -- illimité en filet.
 CREATE OR REPLACE FUNCTION get_available_credits(p_user_id UUID, p_credit_type_id UUID)
-RETURNS TABLE(pack_purchase_id UUID, credits_remaining INTEGER, expires_at TIMESTAMPTZ, is_unlimited BOOLEAN) AS $$
-  SELECT pp.id, pp.credits_remaining, pp.expires_at, pt.is_unlimited
+RETURNS TABLE(
+  pack_purchase_id UUID,
+  credits_remaining INTEGER,
+  expires_at TIMESTAMPTZ,
+  is_unlimited BOOLEAN,
+  pack_name TEXT,
+  subscription_id UUID,
+  is_subscription BOOLEAN
+) AS $$
+  SELECT
+    pp.id,
+    pp.credits_remaining,
+    pp.expires_at,
+    pt.is_unlimited,
+    pt.name,
+    pp.subscription_id,
+    (pp.subscription_id IS NOT NULL) AS is_subscription
   FROM pack_purchases pp
   JOIN pack_types pt ON pp.pack_type_id = pt.id
   WHERE pp.user_id = p_user_id
     AND pt.credit_type_id = p_credit_type_id
     AND (pt.is_unlimited OR pp.credits_remaining > 0)
     AND pp.expires_at > NOW()
-  ORDER BY pt.is_unlimited ASC, pp.expires_at ASC;
+  -- Abonnement d'abord : il est déjà facturé, les crédits achetés à côté
+  -- restent au membre. Entre deux packs, celui qui expire le plus tôt.
+  ORDER BY (pp.subscription_id IS NOT NULL) DESC, pp.expires_at ASC;
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- Décrémenter un crédit (réservation). Sans effet sur un pack illimité.
@@ -645,6 +794,617 @@ BEGIN
 END;
 ';
 
+-- ---- Annulation par le studio : le crédit revient toujours ----
+
+CREATE OR REPLACE FUNCTION cancel_booking_by_studio(p_booking_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_booking RECORD;
+BEGIN
+  IF NOT (has_role(auth.uid(), 'coach')
+          OR has_role(auth.uid(), 'admin')
+          OR has_role(auth.uid(), 'super_admin')) THEN
+    RAISE EXCEPTION 'Reserve au staff du studio';
+  END IF;
+
+  SELECT * INTO v_booking FROM bookings
+    WHERE id = p_booking_id AND status = 'confirmed';
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('error', 'booking_not_found');
+  END IF;
+
+  UPDATE bookings
+     SET status = 'cancelled', cancelled_at = NOW()
+   WHERE id = p_booking_id;
+
+  -- Toujours restituer : le membre n'est pas à l'origine de l'annulation.
+  -- refund_credit est sans effet sur un pack illimité, où rien n'est décompté.
+  PERFORM refund_credit(v_booking.pack_purchase_id);
+
+  -- Libérer la place profite à la liste d'attente.
+  PERFORM promote_from_waitlist(v_booking.scheduled_class_id);
+
+  RETURN jsonb_build_object('refunded', true);
+END;
+$fn$;
+
+
+-- ---- Bons d'achat et parrainage ----
+
+CREATE OR REPLACE FUNCTION generate_credit_note_code()
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_alphabet TEXT := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  v_code TEXT;
+  v_exists BOOLEAN;
+  v_i INTEGER;
+BEGIN
+  LOOP
+    v_code := 'BON-';
+    FOR v_i IN 1..4 LOOP
+      v_code := v_code || substr(v_alphabet, floor(random() * length(v_alphabet) + 1)::INTEGER, 1);
+    END LOOP;
+    SELECT EXISTS(SELECT 1 FROM referral_rewards WHERE code = v_code) INTO v_exists;
+    EXIT WHEN NOT v_exists;
+  END LOOP;
+  RETURN v_code;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION set_credit_note_code()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  IF NEW.code IS NULL THEN
+    NEW.code := generate_credit_note_code();
+  END IF;
+  RETURN NEW;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION check_referral_qualification(p_referee_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_referral RECORD;
+  v_rules JSONB;
+  v_validity_days INTEGER;
+  v_referrer_cents INTEGER;
+  v_referee_cents INTEGER;
+  v_expires TIMESTAMPTZ;
+BEGIN
+  SELECT * INTO v_referral
+  FROM referrals
+  WHERE referee_id = p_referee_id AND status = 'pending';
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('qualified', false, 'reason', 'no_pending_referral');
+  END IF;
+
+  SELECT value INTO v_rules FROM app_settings WHERE key = 'referral_rules';
+  v_validity_days := COALESCE((v_rules->>'reward_validity_days')::INTEGER, 180);
+  -- Les réglages priment sur les colonnes de `referrals`, qui portent un
+  -- DEFAULT 3000 figé à la création du parrainage : sans cette inversion,
+  -- changer le montant dans les Réglages n'aurait aucun effet.
+  v_referrer_cents := COALESCE(
+    (v_rules->>'referrer_reward_cents')::INTEGER,
+    v_referral.referrer_reward_cents, 3000);
+  v_referee_cents := COALESCE(
+    (v_rules->>'referee_reward_cents')::INTEGER,
+    v_referral.referee_reward_cents, 3000);
+  v_expires := NOW() + (v_validity_days || ' days')::INTERVAL;
+
+  UPDATE referrals
+  SET status = 'qualified', qualified_at = NOW()
+  WHERE id = v_referral.id;
+
+  INSERT INTO referral_rewards (user_id, referral_id, amount_cents, expires_at, origin) VALUES
+    (v_referral.referrer_id, v_referral.id, v_referrer_cents, v_expires, 'parrainage'),
+    (v_referral.referee_id,  v_referral.id, v_referee_cents,  v_expires, 'parrainage_filleul');
+
+  INSERT INTO notifications (user_id, title, message, type, link) VALUES
+    (v_referral.referrer_id, 'Parrainage validé',
+     format('Ton filleul a effectué son premier achat. Tu as un bon de %s € sur ton prochain achat.',
+            round(v_referrer_cents / 100.0, 2)),
+     'success', '/referral'),
+    (v_referral.referee_id, 'Bienvenue — bon de parrainage',
+     format('Tu as un bon de %s € à utiliser sur ton prochain achat.',
+            round(v_referee_cents / 100.0, 2)),
+     'success', '/packs');
+
+  RETURN jsonb_build_object(
+    'qualified', true,
+    'referral_id', v_referral.id,
+    'referrer_cents', v_referrer_cents,
+    'referee_cents', v_referee_cents
+  );
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION get_usable_credit_notes(
+  p_user_id UUID,
+  p_purchase_cents INTEGER DEFAULT NULL
+)
+RETURNS TABLE(
+  id UUID,
+  code TEXT,
+  amount_cents INTEGER,
+  origin TEXT,
+  reason TEXT,
+  expires_at TIMESTAMPTZ,
+  min_purchase_cents INTEGER
+) AS $$
+  SELECT
+    r.id, r.code, r.amount_cents, r.origin, r.reason, r.expires_at,
+    COALESCE(
+      (SELECT (value->>'min_purchase_cents')::INTEGER
+       FROM app_settings WHERE key = 'referral_rules'),
+      3000)
+  FROM referral_rewards r
+  WHERE r.user_id = p_user_id
+    AND r.is_used = FALSE
+    AND (r.expires_at IS NULL OR r.expires_at > NOW())
+    -- Le seuil ne vise que le bon du FILLEUL : le parrain est déjà client,
+    -- et un dédommagement doit rester utilisable sans condition.
+    AND (
+      p_purchase_cents IS NULL
+      OR r.origin <> 'parrainage_filleul'
+      OR p_purchase_cents >= COALESCE(
+           (SELECT (value->>'min_purchase_cents')::INTEGER
+            FROM app_settings WHERE key = 'referral_rules'),
+           3000)
+    )
+  ORDER BY r.expires_at ASC NULLS LAST, r.created_at ASC;
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+CREATE OR REPLACE FUNCTION credit_note_applicable(
+  p_note_id UUID,
+  p_user_id UUID,
+  p_purchase_cents INTEGER
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER STABLE
+AS $fn$
+DECLARE
+  v_note RECORD;
+  v_min INTEGER;
+BEGIN
+  SELECT * INTO v_note
+  FROM referral_rewards
+  WHERE id = p_note_id AND user_id = p_user_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_found');
+  END IF;
+  IF v_note.is_used THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'already_used');
+  END IF;
+  IF v_note.expires_at IS NOT NULL AND v_note.expires_at < NOW() THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'expired');
+  END IF;
+
+  v_min := COALESCE(
+    (SELECT (value->>'min_purchase_cents')::INTEGER
+     FROM app_settings WHERE key = 'referral_rules'),
+    3000);
+
+  IF v_note.origin = 'parrainage_filleul' AND p_purchase_cents < v_min THEN
+    RETURN jsonb_build_object(
+      'ok', false,
+      'error', 'below_minimum',
+      'min_purchase_cents', v_min
+    );
+  END IF;
+
+  RETURN jsonb_build_object('ok', true, 'amount_cents', v_note.amount_cents);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION consume_credit_note(
+  p_note_id UUID,
+  p_user_id UUID,
+  p_used_on TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_updated INTEGER;
+BEGIN
+  UPDATE referral_rewards
+  SET is_used = TRUE, used_at = NOW(), used_on = p_used_on
+  WHERE id = p_note_id
+    AND user_id = p_user_id      -- on ne consomme que le bon de son propriétaire
+    AND is_used = FALSE;
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN v_updated > 0;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION attach_referrer(p_referee_id UUID, p_referral_code TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_referrer_id UUID;
+BEGIN
+  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+    RAISE EXCEPTION 'Reserve aux administrateurs';
+  END IF;
+
+  IF EXISTS(SELECT 1 FROM referrals WHERE referee_id = p_referee_id) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Ce membre a deja un parrain');
+  END IF;
+
+  SELECT id INTO v_referrer_id
+  FROM profiles WHERE referral_code = upper(trim(p_referral_code));
+
+  IF v_referrer_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Code de parrainage inconnu');
+  END IF;
+
+  IF v_referrer_id = p_referee_id THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'On ne peut pas se parrainer soi-meme');
+  END IF;
+
+  INSERT INTO referrals (referrer_id, referee_id, referral_code)
+  VALUES (v_referrer_id, p_referee_id, upper(trim(p_referral_code)));
+
+  RETURN jsonb_build_object('ok', true, 'referrer_id', v_referrer_id);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION claim_referral_code(p_referral_code TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_me UUID := auth.uid();
+  v_referrer_id UUID;
+  v_code TEXT := upper(trim(p_referral_code));
+BEGIN
+  IF v_me IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_authenticated');
+  END IF;
+
+  IF EXISTS(SELECT 1 FROM referrals WHERE referee_id = v_me) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'already_referred');
+  END IF;
+
+  SELECT id INTO v_referrer_id FROM profiles WHERE referral_code = v_code;
+
+  IF v_referrer_id IS NULL THEN
+    -- Le code est saisi à l'inscription, mais traité à la première connexion :
+    -- il n'y a plus d'écran pour afficher l'erreur. On notifie, sans quoi le
+    -- filleul croirait son parrainage enregistré et le réclamerait plus tard.
+    INSERT INTO notifications (user_id, title, message, type, link)
+    VALUES (v_me, 'Code de parrainage non reconnu',
+            format('Le code « %s » saisi à l''inscription n''existe pas. Contacte le studio pour le corriger.', v_code),
+            'warning', '/referral');
+    RETURN jsonb_build_object('ok', false, 'error', 'unknown_code');
+  END IF;
+
+  IF v_referrer_id = v_me THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'self_referral');
+  END IF;
+
+  INSERT INTO referrals (referrer_id, referee_id, referral_code)
+  VALUES (v_referrer_id, v_me, v_code);
+
+  RETURN jsonb_build_object('ok', true);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION grant_credit_note(
+  p_user_id UUID,
+  p_amount_cents INTEGER,
+  p_origin TEXT DEFAULT 'geste_commercial',
+  p_reason TEXT DEFAULT NULL,
+  p_validity_days INTEGER DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_id UUID;
+  v_code TEXT;
+  v_days INTEGER;
+BEGIN
+  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+    RAISE EXCEPTION 'Reserve aux administrateurs';
+  END IF;
+
+  IF p_amount_cents IS NULL OR p_amount_cents <= 0 THEN
+    RAISE EXCEPTION 'Montant invalide';
+  END IF;
+
+  v_days := COALESCE(
+    p_validity_days,
+    (SELECT (value->>'reward_validity_days')::INTEGER FROM app_settings WHERE key = 'referral_rules'),
+    180);
+
+  INSERT INTO referral_rewards (user_id, amount_cents, origin, reason, granted_by, expires_at)
+  VALUES (p_user_id, p_amount_cents, p_origin, p_reason, auth.uid(),
+          NOW() + (v_days || ' days')::INTERVAL)
+  RETURNING id, code INTO v_id, v_code;
+
+  INSERT INTO notifications (user_id, title, message, type, link)
+  VALUES (p_user_id, 'Bon d''achat',
+          format('Le studio t''offre un bon de %s €%s',
+                 round(p_amount_cents / 100.0, 2),
+                 CASE WHEN p_reason IS NOT NULL THEN ' — ' || p_reason ELSE '' END),
+          'success', '/packs');
+
+  RETURN jsonb_build_object('ok', true, 'id', v_id, 'code', v_code);
+END;
+$fn$;
+
+
+-- ---- Rôles ----
+
+CREATE OR REPLACE FUNCTION grant_user_role(p_user_id UUID, p_role TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_is_admin BOOLEAN := has_role(auth.uid(), 'admin');
+  v_is_super BOOLEAN := has_role(auth.uid(), 'super_admin');
+  v_name TEXT;
+BEGIN
+  IF NOT (v_is_admin OR v_is_super) THEN
+    RAISE EXCEPTION 'Reserve aux administrateurs';
+  END IF;
+
+  IF p_role NOT IN ('coach', 'admin', 'super_admin', 'client') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'role_inconnu');
+  END IF;
+
+  -- Un admin ne peut pas se créer un pair : seul un super admin promeut
+  -- au rang d'admin ou de super admin.
+  IF p_role IN ('admin', 'super_admin') AND NOT v_is_super THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'super_admin_requis');
+  END IF;
+
+  SELECT display_name INTO v_name FROM profiles WHERE id = p_user_id;
+  IF v_name IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'membre_introuvable');
+  END IF;
+
+  INSERT INTO user_roles (user_id, role)
+  VALUES (p_user_id, p_role::user_role)
+  ON CONFLICT (user_id, role) DO NOTHING;
+
+  INSERT INTO activity_log (action, actor_id, target_user_id, entity_type, entity_id, details, description)
+  VALUES ('role_changed', auth.uid(), p_user_id, 'user_role', p_user_id,
+          jsonb_build_object('granted', p_role),
+          format('Rôle « %s » accordé à %s', p_role, v_name));
+
+  INSERT INTO notifications (user_id, title, message, type, link)
+  VALUES (p_user_id,
+          CASE p_role
+            WHEN 'coach' THEN 'Tu es désormais coach'
+            ELSE 'Tes droits ont changé'
+          END,
+          CASE p_role
+            WHEN 'coach' THEN 'Tu as accès à tes cours et aux participants.'
+            ELSE format('Le rôle « %s » t''a été accordé.', p_role)
+          END,
+          'info', '/');
+
+  RETURN jsonb_build_object('ok', true, 'role', p_role);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION revoke_user_role(p_user_id UUID, p_role TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_is_admin BOOLEAN := has_role(auth.uid(), 'admin');
+  v_is_super BOOLEAN := has_role(auth.uid(), 'super_admin');
+  v_name TEXT;
+  v_remaining INTEGER;
+BEGIN
+  IF NOT (v_is_admin OR v_is_super) THEN
+    RAISE EXCEPTION 'Reserve aux administrateurs';
+  END IF;
+
+  IF p_role IN ('admin', 'super_admin') AND NOT v_is_super THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'super_admin_requis');
+  END IF;
+
+  -- On ne se retire pas ses propres droits : un studio sans admin serait
+  -- verrouillé, et il faudrait repasser par la base pour en sortir.
+  IF p_user_id = auth.uid() AND p_role IN ('admin', 'super_admin') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'auto_retrait_interdit');
+  END IF;
+
+  -- Ni le dernier super admin : même raison.
+  IF p_role = 'super_admin' THEN
+    SELECT COUNT(*) INTO v_remaining
+    FROM user_roles WHERE role = 'super_admin' AND user_id <> p_user_id;
+    IF v_remaining = 0 THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'dernier_super_admin');
+    END IF;
+  END IF;
+
+  SELECT display_name INTO v_name FROM profiles WHERE id = p_user_id;
+
+  DELETE FROM user_roles WHERE user_id = p_user_id AND role = p_role::user_role;
+
+  INSERT INTO activity_log (action, actor_id, target_user_id, entity_type, entity_id, details, description)
+  VALUES ('role_changed', auth.uid(), p_user_id, 'user_role', p_user_id,
+          jsonb_build_object('revoked', p_role),
+          format('Rôle « %s » retiré à %s', p_role, COALESCE(v_name, '?')));
+
+  RETURN jsonb_build_object('ok', true);
+END;
+$fn$;
+
+
+-- ---- Outil de test ----
+
+CREATE OR REPLACE FUNCTION reset_member_purchases(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $reset_fn$
+DECLARE
+  v_mode TEXT;
+  v_live INTEGER;
+  v_bookings INTEGER;
+  v_waitlist INTEGER;
+  v_invoices INTEGER;
+  v_packs INTEGER;
+  v_subs INTEGER;
+  v_fees INTEGER;
+BEGIN
+  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+    RAISE EXCEPTION 'Reserve aux administrateurs';
+  END IF;
+
+  SELECT value->>'mode' INTO v_mode FROM app_settings WHERE key = 'stripe_mode';
+  IF v_mode = 'live' THEN
+    RAISE EXCEPTION 'Interdit en mode live';
+  END IF;
+
+  SELECT COUNT(*) INTO v_live
+  FROM subscriptions WHERE user_id = p_user_id AND stripe_mode = 'live';
+  IF v_live > 0 THEN
+    RAISE EXCEPTION 'Ce membre a des abonnements live : suppression refusee';
+  END IF;
+
+  SELECT COUNT(*) INTO v_bookings FROM bookings WHERE user_id = p_user_id;
+  SELECT COUNT(*) INTO v_waitlist FROM waitlist WHERE user_id = p_user_id;
+  SELECT COUNT(*) INTO v_invoices FROM invoice_requests WHERE user_id = p_user_id;
+  SELECT COUNT(*) INTO v_packs FROM pack_purchases WHERE user_id = p_user_id;
+  SELECT COUNT(*) INTO v_subs FROM subscriptions WHERE user_id = p_user_id;
+  SELECT COUNT(*) INTO v_fees FROM registration_fees WHERE user_id = p_user_id;
+
+  DELETE FROM bookings WHERE user_id = p_user_id;
+  DELETE FROM waitlist WHERE user_id = p_user_id;
+  DELETE FROM invoice_requests WHERE user_id = p_user_id;
+  DELETE FROM pack_purchases WHERE user_id = p_user_id;
+  DELETE FROM subscriptions WHERE user_id = p_user_id;
+  DELETE FROM registration_fees WHERE user_id = p_user_id;
+  DELETE FROM trial_sessions WHERE user_id = p_user_id;
+
+  PERFORM update_member_status(p_user_id);
+
+  RETURN jsonb_build_object(
+    'bookings', v_bookings,
+    'waitlist', v_waitlist,
+    'invoice_requests', v_invoices,
+    'packs', v_packs,
+    'subscriptions', v_subs,
+    'registration_fees', v_fees
+  );
+END;
+$reset_fn$;
+
+-- ---- Statistiques du membre (page Stats) ----
+
+CREATE OR REPLACE FUNCTION member_sessions_count(p_user_id UUID, p_from DATE, p_to DATE)
+RETURNS INTEGER
+LANGUAGE sql SECURITY DEFINER STABLE
+AS $$
+  SELECT COUNT(*)::INTEGER FROM bookings b
+  JOIN scheduled_classes sc ON b.scheduled_class_id = sc.id
+  WHERE b.user_id = p_user_id
+    AND b.status = 'confirmed'
+    AND (b.checked_in_at IS NOT NULL OR sc.starts_at > NOW())
+    AND sc.starts_at::DATE BETWEEN p_from AND p_to;
+$$;
+
+-- 2. Répartition par type de cours
+CREATE OR REPLACE FUNCTION member_sessions_by_type(p_user_id UUID)
+RETURNS TABLE(class_type_name TEXT, class_type_color TEXT, count BIGINT)
+LANGUAGE sql SECURITY DEFINER STABLE
+AS $$
+  SELECT ct.name, ct.color, COUNT(*)
+  FROM bookings b
+  JOIN scheduled_classes sc ON b.scheduled_class_id = sc.id
+  JOIN class_types ct ON sc.class_type_id = ct.id
+  WHERE b.user_id = p_user_id
+    AND b.status = 'confirmed'
+    AND (b.checked_in_at IS NOT NULL OR sc.starts_at > NOW())
+  GROUP BY ct.name, ct.color
+  ORDER BY count DESC;
+$$;
+
+-- 3. Séances par mois (12 derniers mois)
+CREATE OR REPLACE FUNCTION member_sessions_by_month(p_user_id UUID)
+RETURNS TABLE(month TEXT, count BIGINT)
+LANGUAGE sql SECURITY DEFINER STABLE
+AS $$
+  SELECT TO_CHAR(sc.starts_at, 'YYYY-MM') AS month, COUNT(*)
+  FROM bookings b
+  JOIN scheduled_classes sc ON b.scheduled_class_id = sc.id
+  WHERE b.user_id = p_user_id
+    AND b.status = 'confirmed'
+    AND (b.checked_in_at IS NOT NULL OR sc.starts_at > NOW())
+    AND sc.starts_at > NOW() - INTERVAL '12 months'
+  GROUP BY month
+  ORDER BY month;
+$$;
+
+-- 4. Streak (semaines consécutives avec au moins 1 séance)
+CREATE OR REPLACE FUNCTION member_streak(p_user_id UUID)
+RETURNS INTEGER
+LANGUAGE plpgsql SECURITY DEFINER STABLE
+AS '
+DECLARE
+  v_streak INTEGER := 0;
+  v_week_start DATE;
+  v_has_session BOOLEAN;
+BEGIN
+  v_week_start := date_trunc(''week'', NOW())::DATE;
+  LOOP
+    SELECT EXISTS(
+      SELECT 1 FROM bookings b
+      JOIN scheduled_classes sc ON b.scheduled_class_id = sc.id
+      WHERE b.user_id = p_user_id
+        AND b.status = ''confirmed''
+        AND (b.checked_in_at IS NOT NULL OR sc.starts_at > NOW())
+        AND sc.starts_at::DATE BETWEEN v_week_start AND v_week_start + 6
+    ) INTO v_has_session;
+
+    IF v_has_session THEN
+      v_streak := v_streak + 1;
+      v_week_start := v_week_start - 7;
+    ELSE
+      EXIT;
+    END IF;
+  END LOOP;
+  RETURN v_streak;
+END;
+';
+
+-- 5. Jours d'entraînement (pour calendrier coloré, 3 derniers mois)
+CREATE OR REPLACE FUNCTION member_training_days(p_user_id UUID)
+RETURNS TABLE(training_date DATE)
+LANGUAGE sql SECURITY DEFINER STABLE
+AS $$
+  SELECT DISTINCT sc.starts_at::DATE AS training_date
+  FROM bookings b
+  JOIN scheduled_classes sc ON b.scheduled_class_id = sc.id
+  WHERE b.user_id = p_user_id
+    AND b.status = 'confirmed'
+    AND (b.checked_in_at IS NOT NULL OR sc.starts_at > NOW())
+    AND sc.starts_at > NOW() - INTERVAL '3 months'
+  ORDER BY training_date;
+$$;
+
+-- 6. Objectif hebdo + badges
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS weekly_goal INTEGER DEFAULT 3;
+
 -- ============================================
 -- 3. TRIGGERS
 -- ============================================
@@ -729,6 +1489,15 @@ GRANT INSERT ON public.profiles TO supabase_auth_admin;
 GRANT INSERT ON public.user_roles TO supabase_auth_admin;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO supabase_auth_admin;
 
+-- Code de bon d'achat, posé à la création.
+CREATE TRIGGER set_credit_note_code_trigger
+  BEFORE INSERT ON referral_rewards
+  FOR EACH ROW EXECUTE FUNCTION set_credit_note_code();
+
+CREATE TRIGGER subscriptions_updated_at
+  BEFORE UPDATE ON subscriptions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ============================================
 -- 4. ROW LEVEL SECURITY
 -- ============================================
@@ -751,6 +1520,12 @@ ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registration_fees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trial_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_requests ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE subscriptions          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscription_discounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE referrals              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE referral_rewards       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE member_badges          ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- 5. RLS POLICIES
@@ -885,6 +1660,61 @@ CREATE POLICY "Perf: update" ON performances FOR UPDATE
 CREATE POLICY "Perf: delete" ON performances FOR DELETE
   USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
 
+-- ---- Abonnements ----
+CREATE POLICY "Subscriptions: own read" ON subscriptions
+  FOR SELECT USING (
+    auth.uid() = user_id
+    OR has_role(auth.uid(), 'coach')
+    OR has_role(auth.uid(), 'admin')
+  );
+CREATE POLICY "Subscriptions: admin all" ON subscriptions
+  FOR ALL
+  USING (has_role(auth.uid(), 'admin'))
+  WITH CHECK (has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Sub discounts: own read" ON subscription_discounts
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM subscriptions s
+             WHERE s.id = subscription_discounts.subscription_id
+               AND s.user_id = auth.uid())
+    OR has_role(auth.uid(), 'admin')
+  );
+CREATE POLICY "Sub discounts: admin all" ON subscription_discounts
+  FOR ALL
+  USING (has_role(auth.uid(), 'admin'))
+  WITH CHECK (has_role(auth.uid(), 'admin'));
+
+-- ---- Parrainage et bons d'achat ----
+-- Aucune policy d'ÉCRITURE ouverte, volontairement : les créations passent
+-- par les fonctions SECURITY DEFINER (claim_referral_code, attach_referrer,
+-- grant_credit_note, check_referral_qualification) et par le webhook en
+-- service_role. Une version antérieure laissait ces tables en
+-- `WITH CHECK (true)` : n'importe quel membre authentifié pouvait s'attribuer
+-- un parrain ou se créer un bon d'achat du montant de son choix.
+CREATE POLICY "referrals_own_read" ON referrals
+  FOR SELECT USING (
+    auth.uid() = referrer_id
+    OR auth.uid() = referee_id
+    OR has_role(auth.uid(), 'admin')
+  );
+CREATE POLICY "referrals_admin_all" ON referrals
+  FOR ALL USING (has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "rewards_own_read" ON referral_rewards
+  FOR SELECT USING (
+    auth.uid() = user_id
+    OR has_role(auth.uid(), 'admin')
+    OR has_role(auth.uid(), 'super_admin')
+  );
+CREATE POLICY "rewards_admin_all" ON referral_rewards
+  FOR ALL USING (has_role(auth.uid(), 'admin'));
+
+-- ---- Badges ----
+CREATE POLICY "badges_own_read" ON member_badges
+  FOR SELECT USING (auth.uid() = user_id OR has_role(auth.uid(), 'admin'));
+CREATE POLICY "badges_insert" ON member_badges
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
 -- ============================================
 -- 6. VUE : profils des coachs
 -- ============================================
@@ -922,6 +1752,12 @@ INSERT INTO app_settings (key, value) VALUES
   ('announcement', '{"content": "", "published": false}'::jsonb),
   ('stripe_mode', '{"mode": "test"}'::jsonb),
   ('payment_provider', '{"provider": "stripe", "mode": "test"}'::jsonb),
+  ('referral_rules', '{
+    "referrer_reward_cents": 3000,
+    "referee_reward_cents": 3000,
+    "reward_validity_days": 180,
+    "min_purchase_cents": 3000
+  }'::jsonb),
   ('booking_rules', '{
     "morning_cutoff_hour": 20,
     "morning_cutoff_is_day_before": true,
@@ -965,6 +1801,26 @@ CREATE POLICY "Allow public read" ON storage.objects
 -- 2. Promouvoir en super_admin :
 --    INSERT INTO user_roles (user_id, role)
 --    SELECT id, 'super_admin' FROM auth.users WHERE email = 'votre@email.com';
--- 3. Configurer les types de crédits, packs, cours via l'interface admin
--- 4. Configurer les paramètres dans /admin/settings
--- 5. Importer les données : npx tsx scripts/import-demo.ts
+-- 3. Configurer, dans cet ordre, depuis l'interface admin :
+--      a. les types de crédits (semi-privé, personal training…)
+--         — c'est la brique de base : un crédit ne paie que les cours de
+--           son type
+--      b. les types de cours, rattachés à un type de crédit
+--      c. les packs et abonnements, rattachés eux aussi à un type de crédit
+--      d. les catégories de membres, si l'accès à certains packs doit être
+--         restreint
+-- 4. Régler /admin/settings : règles de réservation, frais d'inscription,
+--    parrainage, informations du studio
+-- 5. Stripe : poser les secrets et déployer les Edge Functions
+--      supabase secrets set STRIPE_SECRET_KEY_TEST=sk_test_...
+--      supabase functions deploy create-checkout-session
+--      supabase functions deploy manage-subscription
+--      supabase functions deploy cancel-my-subscription
+--      supabase functions deploy stripe-webhook --no-verify-jwt
+--    Le drapeau --no-verify-jwt est INDISPENSABLE sur le webhook : Stripe
+--    n'envoie pas de jeton Supabase, et sans lui tous ses appels sont
+--    rejetés en 401 — donc plus rien n'est jamais crédité.
+-- 6. Créer la destination webhook côté Stripe avec ses cinq événements
+--    (voir docs/documentation-technique.md), puis poser le secret whsec_
+--    et redéployer le webhook.
+-- 7. Données de démonstration, si besoin : npx tsx scripts/import-demo.ts
