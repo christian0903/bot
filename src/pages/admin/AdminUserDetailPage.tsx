@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X, RefreshCw, PauseCircle, PlayCircle, AlertTriangle, RotateCcw, TicketPercent, UserPlus } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X, RefreshCw, PauseCircle, PlayCircle, AlertTriangle, RotateCcw, TicketPercent, UserPlus, UserCog, Shield } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
@@ -65,6 +65,9 @@ export function AdminUserDetailPage() {
 
   // Registration fee
   const [hasRegFee, setHasRegFee] = useState(false)
+  /** Rôles du membre affiché — un admin les accorde, un super admin seul promeut admin. */
+  const [memberRoles, setMemberRoles] = useState<string[]>([])
+  const [roleSaving, setRoleSaving] = useState<string | null>(null)
   const [regFeeSaving, setRegFeeSaving] = useState(false)
 
   // Book class dialog
@@ -157,11 +160,13 @@ export function AdminUserDetailPage() {
     const modeVal = modeRes.data?.value as { mode?: string } | undefined
     setStripeTestMode((modeVal?.mode ?? 'test') !== 'live')
 
-    // Parrainage du membre (en tant que filleul) et bons d'achat détenus.
-    const [refRes, notesRes] = await Promise.all([
+    // Parrainage du membre (en tant que filleul), bons d'achat, et rôles.
+    const [refRes, notesRes, rolesRes] = await Promise.all([
       supabase.from('referrals').select('referral_code, status').eq('referee_id', id).maybeSingle(),
       supabase.from('referral_rewards').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+      supabase.from('user_roles').select('role').eq('user_id', id),
     ])
+    setMemberRoles(((rolesRes.data ?? []) as { role: string }[]).map(r => r.role))
     setMemberReferral(refRes.data as { referral_code: string; status: string } | null)
     setCreditNotes((notesRes.data as ReferralReward[]) ?? [])
 
@@ -376,6 +381,45 @@ export function AdminUserDetailPage() {
       }
     } finally {
       setGranting(false)
+    }
+  }
+
+  /**
+   * Accorde ou retire un rôle.
+   *
+   * La hiérarchie est appliquée côté base : un admin gère les coachs, seul un
+   * super admin promeut au rang d'admin. L'interface masque simplement ce qui
+   * n'est pas permis.
+   */
+  const toggleRole = async (role: 'coach' | 'admin' | 'super_admin', grant: boolean) => {
+    if (!id) return
+    setRoleSaving(role)
+    try {
+      const { data, error } = await supabase.rpc(
+        grant ? 'grant_user_role' : 'revoke_user_role',
+        { p_user_id: id, p_role: role },
+      )
+      if (error) { toast.error(error.message); return }
+
+      const res = data as { ok: boolean; error?: string }
+      if (res?.ok) {
+        toast.success(grant
+          ? (isFr ? `Rôle « ${role} » accordé` : `Role "${role}" granted`)
+          : (isFr ? `Rôle « ${role} » retiré` : `Role "${role}" removed`))
+        await fetchData()
+        return
+      }
+
+      const messages: Record<string, { fr: string; en: string }> = {
+        super_admin_requis: { fr: 'Seul un super admin peut accorder ce rôle.', en: 'Only a super admin can grant this role.' },
+        auto_retrait_interdit: { fr: 'Tu ne peux pas retirer tes propres droits.', en: 'You cannot remove your own rights.' },
+        dernier_super_admin: { fr: 'Impossible : c\'est le dernier super admin.', en: 'Cannot remove the last super admin.' },
+        membre_introuvable: { fr: 'Membre introuvable.', en: 'Member not found.' },
+      }
+      const m = messages[res?.error ?? '']
+      toast.error(m ? (isFr ? m.fr : m.en) : t('common.error'))
+    } finally {
+      setRoleSaving(null)
     }
   }
 
@@ -901,6 +945,62 @@ export function AdminUserDetailPage() {
               ? (isFr ? 'Retirer' : 'Remove')
               : (isFr ? 'Valider' : 'Confirm')}
           </Button>
+        </div>
+
+        {/* Rôles. Un admin gère les coachs ; seul un super admin promeut
+            au rang d'admin ou de super admin. La base applique la règle,
+            l'interface masque ce qui n'est pas permis. */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {memberRoles.filter(r => r !== 'client').map(r => (
+            <Badge key={r} variant="outline" className="border-primary text-primary">
+              {r === 'coach' ? (isFr ? 'Coach' : 'Coach')
+                : r === 'admin' ? 'Admin'
+                : r === 'super_admin' ? 'Super admin' : r}
+            </Badge>
+          ))}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            disabled={roleSaving === 'coach'}
+            onClick={() => toggleRole('coach', !memberRoles.includes('coach'))}
+          >
+            <UserCog className="h-3 w-3 mr-1" />
+            {roleSaving === 'coach' ? '...' : memberRoles.includes('coach')
+              ? (isFr ? 'Retirer coach' : 'Remove coach')
+              : (isFr ? 'Désigner coach' : 'Make coach')}
+          </Button>
+
+          {hasRole('super_admin') && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={roleSaving === 'admin'}
+              onClick={() => toggleRole('admin', !memberRoles.includes('admin'))}
+            >
+              <Shield className="h-3 w-3 mr-1" />
+              {roleSaving === 'admin' ? '...' : memberRoles.includes('admin')
+                ? (isFr ? 'Retirer admin' : 'Remove admin')
+                : (isFr ? 'Désigner admin' : 'Make admin')}
+            </Button>
+          )}
+
+          {hasRole('super_admin') && memberRoles.includes('admin') && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={roleSaving === 'super_admin'}
+              onClick={() => toggleRole('super_admin', !memberRoles.includes('super_admin'))}
+            >
+              <Shield className="h-3 w-3 mr-1" />
+              {roleSaving === 'super_admin' ? '...' : memberRoles.includes('super_admin')
+                ? (isFr ? 'Retirer super admin' : 'Remove super admin')
+                : (isFr ? 'Désigner super admin' : 'Make super admin')}
+            </Button>
+          )}
         </div>
 
         {hasRole('super_admin') && (
