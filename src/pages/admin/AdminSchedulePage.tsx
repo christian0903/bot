@@ -27,7 +27,7 @@ import { useNavigate } from 'react-router-dom'
 import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { cn } from '@/lib/utils'
+import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
 
 interface ScheduleForm {
   class_type_id: string
@@ -67,6 +67,11 @@ export function AdminSchedulePage() {
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
   const [classes, setClasses] = useState<ScheduledClass[]>([])
+  /** Places occupées par cours : confirmées, plus les désistements tardifs
+      dont le crédit a été consommé. */
+  const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
+  /** Minimum d'inscrits pour qu'un cours compte comme donné (Réglages). */
+  const [minParticipants, setMinParticipants] = useState(1)
   const [classTypes, setClassTypes] = useState<ClassType[]>([])
   const [coaches, setCoaches] = useState<Profile[]>([])
   const [floorNames, setFloorNames] = useState<Record<string, string>>(DEFAULT_FLOOR_NAMES)
@@ -91,7 +96,7 @@ export function AdminSchedulePage() {
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const fetchData = async () => {
-    const [classRes, typeRes, coachRes, roomRes] = await Promise.all([
+    const [classRes, typeRes, coachRes, roomRes, givenRuleRes] = await Promise.all([
       supabase
         .from('scheduled_classes')
         .select('*, class_type:class_types(*)')
@@ -100,6 +105,7 @@ export function AdminSchedulePage() {
       // Vue SQL qui bypass les RLS circulaires sur user_roles
       supabase.from('coach_profiles').select('*').order('display_name'),
       supabase.from('app_settings').select('value').eq('key', 'room_names').single(),
+      supabase.from('app_settings').select('value').eq('key', 'class_given_rule').maybeSingle(),
     ])
 
     const rawClasses = (classRes.data as ScheduledClass[]) ?? []
@@ -122,7 +128,25 @@ export function AdminSchedulePage() {
       for (const sc of rawClasses) {
         if (sc.coach_id) sc.coach = coachMap.get(sc.coach_id) as Profile
       }
+
+      // Places occupées, en une requête pour tout le planning. Une annulation
+      // tardive compte : le crédit a été consommé, la place était prise.
+      const { data: bookingRows } = await supabase
+        .from('bookings')
+        .select('scheduled_class_id, status, is_no_show')
+        .in('scheduled_class_id', rawClasses.map(c => c.id))
+
+      const counts = new Map<string, number>()
+      for (const b of (bookingRows ?? []) as { scheduled_class_id: string; status: string; is_no_show: boolean }[]) {
+        if (b.status !== 'confirmed' && !b.is_no_show) continue
+        counts.set(b.scheduled_class_id, (counts.get(b.scheduled_class_id) ?? 0) + 1)
+      }
+      setBookingCounts(counts)
     }
+
+    setMinParticipants(
+      (givenRuleRes.data?.value as { min_participants?: number } | undefined)?.min_participants ?? 1,
+    )
 
     setClasses(rawClasses)
     setSelectedIds(new Set())
@@ -599,7 +623,9 @@ export function AdminSchedulePage() {
                 <TableHead className="hidden md:table-cell">{isFr ? 'Salle' : 'Room'}</TableHead>
                 <TableHead>{t('admin.schedule.classType')}</TableHead>
                 <TableHead className="hidden sm:table-cell">{t('admin.schedule.coach')}</TableHead>
-                <TableHead className="hidden lg:table-cell text-center">Max</TableHead>
+                <TableHead className="hidden lg:table-cell text-center whitespace-nowrap">
+                  {i18n.language === 'fr' ? 'Inscrits' : 'Booked'}
+                </TableHead>
                 <TableHead className="w-[80px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -611,6 +637,8 @@ export function AdminSchedulePage() {
                   <TableRow key={sc.id} className={cn(
                     isSelected && 'bg-primary/5',
                     sc.is_cancelled && 'bg-destructive/5',
+                    !sc.is_cancelled && new Date(sc.starts_at) < new Date()
+                      && (bookingCounts.get(sc.id) ?? 0) === 0 && 'bg-muted/40',
                   )}>
                     <TableCell>
                       <input
@@ -634,18 +662,36 @@ export function AdminSchedulePage() {
                           {sc.title || sc.class_type?.name || '-'}
                         </span>
                         {sc.title && <span className="text-xs text-muted-foreground">({sc.class_type?.name})</span>}
-                        {/* Un cours annulé reste visible ici — il a existé et
-                            l'admin doit pouvoir le retrouver — mais il ne doit
-                            pas se confondre avec un cours qui aura lieu. */}
-                        {sc.is_cancelled && (
-                          <Badge variant="destructive" className="text-[10px]">
-                            {i18n.language === 'fr' ? 'Annulé' : 'Cancelled'}
-                          </Badge>
-                        )}
+                        {/* Statut réel du cours. « Annulé » et « Sans inscrit »
+                            aboutissent au même résultat — le cours n'a pas eu
+                            lieu — mais l'un est une décision, l'autre un
+                            constat. Les distinguer évite de chercher une
+                            annulation qui n'a jamais existé. */}
+                        {(() => {
+                          const st = getClassStatus({
+                            starts_at: sc.starts_at,
+                            is_cancelled: sc.is_cancelled,
+                            bookings: bookingCounts.get(sc.id) ?? 0,
+                            minParticipants,
+                          })
+                          if (st === 'scheduled') return null
+                          const badge = classStatusLabel(st, i18n.language === 'fr')
+                          return (
+                            <Badge variant={badge.variant} className={cn('text-[10px]', badge.className)}>
+                              {badge.label}
+                            </Badge>
+                          )
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">{sc.coach?.display_name ?? '—'}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-center">{sc.max_participants}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-center whitespace-nowrap">
+                      <span className={cn(
+                        (bookingCounts.get(sc.id) ?? 0) >= sc.max_participants && 'text-primary font-medium',
+                      )}>
+                        {bookingCounts.get(sc.id) ?? 0}/{sc.max_participants}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" title={i18n.language === 'fr' ? 'Détail / inscrits' : 'Detail / participants'} onClick={() => navigate(`/coach/class/${sc.id}`)}>
