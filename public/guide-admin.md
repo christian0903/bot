@@ -1,387 +1,229 @@
-# Guide Coach & Administrateur — Back on Track
+# Guide coach & administrateur
 
-Ce guide couvre les fonctionnalités réservées aux coachs et administrateurs.
-
----
-
-## Rôles et permissions
-
-| Fonction | Client | Coach | Admin |
-|---|:---:|:---:|:---:|
-| Voir le planning et réserver | ✅ | ✅ | ✅ |
-| Acheter un pack | ✅ | ✅ | ✅ |
-| Voir ses propres cours (coach) | — | ✅ | ✅ |
-| Modifier le nombre de places de ses cours | — | ✅ | ✅ |
-| Voir la liste des participants de ses cours | — | ✅ | ✅ |
-| Accéder à l'administration | — | — | ✅ |
-| Gérer les utilisateurs | — | — | ✅ |
-| Configurer packs, cours, planning | — | — | ✅ |
-| Attribuer des packs | — | — | ✅ |
-| Modifier les packs des clients | — | — | ✅ |
-| Inscrire un client à un cours | — | — | ✅ |
-| Voir le tableau de bord financier | — | — | ✅ |
-| Consulter le journal d'activité | — | ✅ | ✅ |
-| Gérer les annonces | — | — | ✅ |
+Administration du studio. Pour l'usage courant de l'application — réserver, acheter un pack, gérer son profil — voir le **guide du membre**.
 
 ---
 
-## Espace Coach
+## Qui peut faire quoi
 
-### Mes cours
-**Menu : Espace coach**
+| | Coach | Admin |
+|---|:---:|:---:|
+| Voir ses cours, les participants, faire le check-in | ✅ | ✅ |
+| Modifier le nombre de places de ses cours | ✅ | ✅ |
+| Suivre les performances des membres | ✅ | ✅ |
+| Accéder à l'espace Administration | — | ✅ |
+| Gérer les membres, leurs packs, leurs abonnements | — | ✅ |
+| Créer cours, packs, abonnements, réglages | — | ✅ |
+| Tableau de bord financier et exports | — | ✅ |
+| Gestes commerciaux (remises, bons, reports) | — | ✅ |
 
-Liste de tous vos cours à venir avec :
-- Nom du cours et date/heure
-- Nombre de places
+Un coach qui n'est pas admin ne voit pas le menu Administration. S'il tente d'y accéder, il est renvoyé à l'accueil.
 
-Cliquez sur un cours pour voir le détail.
-
-### Détail d'un cours
-- **Liste des participants** numérotée avec nom, email et téléphone
-- **Badge de statut** pour chaque inscription (Confirmée / Annulée)
-- **Nombre de places** : affiché avec un indicateur visuel
-  - Badge "X place(s) restante(s)" quand presque complet
-  - Badge rouge "Complet" quand plein
-
-### Modifier le nombre de places
-1. Sur la page de détail d'un cours, cliquez sur **Modifier places**
-2. Un champ de saisie apparaît avec le nombre actuel
-3. Modifiez le nombre (ne peut pas être inférieur au nombre de participants déjà inscrits)
-4. Validez avec ✓ ou annulez avec ✕
-
-> Cas d'usage : réduire les places un jour où la salle est plus petite, ou augmenter pour une séance spéciale.
+Le **super admin** a tous les droits d'un admin, plus la configuration technique (mode Stripe, changement de mot de passe d'un membre).
 
 ---
 
-## Administration
+## Au quotidien
 
-L'administration est accessible via le menu **Administration** dans le header (ou l'icône bouclier dans le menu utilisateur). Une **sidebar de navigation** à gauche donne accès à toutes les sections.
+### Le planning — Administration → Planning
 
----
+C'est l'écran le plus utilisé. Chaque cours peut être ouvert pour :
 
-### Gestion des utilisateurs
+- **assigner ou changer le coach**
+- **modifier l'horaire, la durée, la salle** (haut ou bas)
+- **changer le nombre de places**
+- **voir et gérer les inscrits**
 
-**Admin → Utilisateurs**
+**Créer une série de cours.** Le formulaire propose de **répéter pour X semaines** : le cours est dupliqué à l'identique. Pour dupliquer autrement, le bouton **Dupliquer…** permet de choisir un décalage en jours.
 
-#### Liste des utilisateurs
-- **Filtres par rôle** : boutons Client / Coach / Admin / Tout (Client par défaut), chacun avec un compteur
-- Colonnes : Nom (cliquable), Crédits restants, Dernière connexion, Actions
-- **Icône cadeau** 🎁 : attribuer un pack
-- **Icône corbeille** 🗑️ : supprimer l'utilisateur
+**Modifier une série.** Quand un cours fait partie d'une série, l'application demande si le changement vaut pour **ce cours uniquement** ou pour toute la suite. Vérifiez ce choix : c'est l'erreur la plus fréquente.
 
-#### Page détail d'un utilisateur
-Cliquez sur le nom d'un utilisateur pour voir sa fiche complète :
+**Annuler un cours.** Utilisez toujours l'annulation depuis l'écran plutôt que la suppression : les inscrits sont prévenus et **leurs crédits leur sont rendus quoi qu'il arrive**, même en dessous du délai normal — ce n'est pas eux qui annulent.
 
-**En-tête** : avatar, nom, email (lien mailto:), téléphone (lien tel:)
+**Cours sous le seuil.** Un bandeau signale les cours qui n'atteignent pas le minimum de participants. Le studio décide : annuler et rembourser, ou maintenir. Rien n'est automatique.
 
-**3 cartes statistiques** :
-- Crédits restants
-- Packs actifs
-- Réservations à venir
+### Inscrire ou désinscrire quelqu'un
 
-**Onglet Packs** :
-- Historique complet de tous les packs (actifs et expirés)
-- Barre de progression pour chaque pack
-- Badge "Offert" pour les packs gratuits, "Expiré" ou "Épuisé" le cas échéant
-- **Cliquez sur un pack** pour le modifier :
-  - Changer le nombre de **crédits restants** (ex : rajouter des crédits en compensation)
-  - Changer la **date de fin de validité** (ex : prolonger pour un client fidèle)
-  - Les modifications sont enregistrées dans le journal d'activité
+Depuis le planning, ouvrez le cours et ajoutez le membre. L'application demande **quelle source de crédit utiliser** : abonnement ou pack. Elle affiche pour chacun ce qu'il reste et sa date d'expiration.
 
-**Onglet Réservations** :
-- Réservations à venir et passées
-- Bouton **Inscrire à un cours** :
-  1. Choisissez un cours futur dans la liste
-  2. Choisissez le pack à débiter (filtré par type de crédit compatible)
-  3. Confirmez — le crédit est consommé automatiquement
+> **Le type de crédit doit correspondre.** Un crédit personal training ne paie pas un cours semi-privé. Seules les sources compatibles apparaissent dans la liste.
 
-#### Attribuer un pack
-1. Dans la liste des utilisateurs, cliquez sur l'icône **🎁** du client
-2. Sélectionnez le type de pack
-3. Les détails s'affichent : type de crédit, nombre de crédits, durée de validité
-4. Choisissez le prix :
-   - **Cadeau / offert** : 0€ (pack gratuit)
-   - **Paiement manuel** : prix normal (le client a payé en espèces ou virement)
-   - Ou saisissez un montant personnalisé
-5. Confirmez — le client reçoit une notification automatique
+### Check-in et absences
 
-#### Exporter la liste des utilisateurs
-Bouton **Exporter CSV** en haut à droite. Le fichier contient : nom, email, rôle, crédits, date d'inscription.
+Dans **Mes cours** (coach) ou depuis le planning, pointez les présents. Un membre qui n'est pas venu se marque en **absent** — à la main : il n'y a pas de marquage automatique aujourd'hui.
+
+Ces données alimentent le taux de présence et les statistiques d'annulation.
 
 ---
 
-### Configuration métier
+## Les membres — Administration → Membres
 
-#### Catégories de membres
-**Admin → Catégories**
+La fiche d'un membre regroupe tout ce qui le concerne, en plusieurs onglets.
 
-Les catégories permettent de segmenter les membres (ex : Adulte, Étudiant, Senior) et de restreindre l'accès à certains packs.
-- Ajouter, modifier ou supprimer des catégories
-- Chaque catégorie a un nom et une description optionnelle
+### Ce qu'on voit en tête
 
-#### Types de crédits
-**Admin → Types de crédits**
+Statut, catégorie, frais d'inscription, et trois compteurs : crédits restants, packs actifs, réservations.
 
-Les types de crédits définissent les différentes "monnaies" du studio.
-- **Identifiant** : nom technique unique (ex : `semi_prive`)
-- **Libellé FR** : nom affiché en français (ex : "Semi-privé")
-- **Libellé EN** : nom affiché en anglais (ex : "Semi-private")
+**La catégorie** détermine les packs auxquels le membre a droit. Un membre a une seule catégorie.
 
-> Exemples : Semi-privé, Personal Training. Vous pouvez en créer d'autres selon vos besoins.
+**Les frais d'inscription** se valident ou se retirent à la main — utile quand quelqu'un a payé autrement que par l'application.
 
-#### Types de packs
-**Admin → Types de packs**
+### Onglet Packs
 
-Configurez les offres de packs vendus aux membres :
-- **Nom** : nom commercial (ex : "Pack 10 séances Semi-privé")
-- **Type de crédit** : quel crédit est fourni
-- **Nombre de crédits** : combien de séances le pack offre
-- **Prix** : en euros (saisissez 250 pour 250€, la conversion en centimes est automatique)
-- **Validité** : durée en jours après l'achat
-- **Catégories éligibles** : cliquez sur les badges des catégories pour les activer/désactiver
-- **Actif** : désactiver un pack le retire du catalogue sans le supprimer
+Tous ses packs, actifs et expirés. Chacun peut être **modifié** : nombre de crédits restants, date d'expiration. Sert à corriger une erreur ou à faire un geste.
 
-#### Types de cours
-**Admin → Types de cours**
+**Attribuer un pack** sans paiement : le bouton est là. À utiliser pour un paiement reçu en espèces, par virement, ou pour offrir des séances.
 
-Définissez les types de cours proposés :
-- **Nom** : nom du cours (ex : Posture, Ladies, Cross Training)
-- **Description** : description détaillée
-- **Type de crédit** : quel crédit est consommé pour réserver
-- **Participants max par défaut** : nombre de places pré-rempli lors de la création d'un cours au planning
-- **Actif** : désactiver un type de cours
+### Onglet Réservations et onglet Annulations
 
----
+L'historique du membre. Les annulations sont comptées **par cycle**, pas sur tout l'historique : sur un abonnement reconduit treize fois par an, un cumul ne dirait rien d'utile.
 
-### Gestion du planning
+Un seuil d'alerte (réglable) signale les membres qui annulent beaucoup. C'est une information, pas une sanction : la décision reste humaine.
 
-**Admin → Gestion du planning**
+### Onglet Abonnement
 
-#### Filtres
-Barre de filtres en haut :
-- **Date du / au** : filtrer par plage de dates
-- **Coach** : filtrer par coach
-- **Type de cours** : filtrer par type
-- Bouton **Réinitialiser**
-- Compteur en bas : nombre de cours affichés / total
+Visible quand le membre a un abonnement. Il affiche son état, la prochaine échéance, et quatre actions.
 
-#### Ajouter un cours
-1. Cliquez sur **Ajouter un cours**
-2. Remplissez le formulaire :
-   - **Type de cours** : sélectionnez dans la liste (le nombre max de participants est pré-rempli)
-   - **Titre** (optionnel) : pour les événements spéciaux (conférences, ateliers). Si rempli, le champ description apparaît
-   - **Description** (optionnel) : détails de l'événement
-   - **Coach** (optionnel) : sélectionnez un coach ou "Aucun coach" pour les événements
-   - **Date et heure**
-   - **Places max** et **Durée**
-3. Enregistrez
+**Réduction ponctuelle** — en euros ou en pourcentage, avec un motif. Elle s'applique à **la prochaine échéance seulement** ; les suivantes reviennent au tarif plein automatiquement. Le montant réel de la prochaine échéance s'affiche ensuite, l'ancien prix barré.
 
-#### Actions en lot (bulk)
-1. **Cochez** les cours souhaités (checkbox sur chaque ligne, ou "tout sélectionner" dans l'en-tête)
-2. Une barre d'actions apparaît avec le nombre de cours sélectionnés
-3. Deux actions disponibles :
-   - **Assigner coach** : choisissez un coach dans le menu déroulant → **Assigner**
-   - **Changer max participants** : saisissez le nombre → **Appliquer**
+**Décaler l'échéance** — pour des congés, une blessure. Des raccourcis proposent +7, +14, +21 ou +28 jours. La période offerte n'est pas facturée, **et l'accès du membre est prolongé d'autant** : une maladie se compense, elle ne se met pas en pause. Une date antérieure à l'échéance actuelle est refusée.
 
-> Toutes les actions en lot sont enregistrées dans le journal d'activité avec le détail des cours concernés.
+**Suspendre / Reprendre** — arrête les prélèvements sans résilier.
 
-#### Modifier / Supprimer un cours
-- Icône ✏️ pour modifier
-- Icône 🗑️ pour supprimer (confirmation demandée)
+**Résilier** — en fin de période par défaut : le membre garde ses droits jusqu'au terme qu'il a payé. L'option **immédiate** coupe tout sur-le-champ, accès compris, sans remboursement automatique.
+
+Un historique des réductions accordées figure en bas de l'onglet.
+
+### Onglet Bons
+
+**L'état du parrainage** du membre : parrainé par qui, et si le parrainage est qualifié ou en attente du premier paiement.
+
+**Rattacher un parrain** — pour les codes oubliés à l'inscription, réclamés après coup. Le parrainage est enregistré comme s'il avait été saisi au départ ; les bons seront créés au prochain paiement du membre.
+
+**Accorder un bon d'achat** — montant libre, avec un motif (geste commercial, dédommagement, autre). Le bon est proposé au membre à son prochain achat. Il s'utilise **en une fois, en entier**.
+
+La liste montre tous ses bons, leur origine, leur état et leur expiration.
+
+### Autres actions sur la fiche
+
+Corriger le nom, l'adresse e-mail (avec confirmation du membre), réinitialiser le mot de passe (super admin), inscrire le membre à un cours.
+
+En mode test uniquement, un bouton de **remise à zéro** efface tous les achats d'un membre pour rejouer un scénario. Il disparaît dès que Stripe passe en production.
 
 ---
 
-### Réservations
+## Vendre — ce qu'il faut régler
 
-**Admin → Réservations**
+### Types de crédit — Administration → Types de crédits
 
-Vue en lecture seule de toutes les réservations :
-- Nom du cours et date
-- Client
-- Pack utilisé
-- Statut (Confirmée / Annulée)
-- Revenu calculé (prix du pack ÷ nombre de crédits)
+C'est la brique de base : « semi-privé », « personal training »… **Un crédit d'un type ne paie que les cours du même type.** Tout part de là.
 
----
+### Types de packs — Administration → Types de packs
 
-### Coupons de réduction
+L'écran est regroupé par type de crédit, abonnements d'abord, packs à l'unité ensuite — comme le voit le membre.
 
-**Admin → Coupons**
+Pour chaque pack :
 
-Gérez les codes de réduction pour les achats de packs :
-- **Code** : code unique (automatiquement en majuscules)
-- **Type de réduction** : pourcentage OU montant fixe en euros (l'un ou l'autre)
-- **Utilisations max** : limite d'utilisation (optionnel)
-- **Validité** : dates de début et fin
-- **Actif** : activer/désactiver
-
----
-
-### Annonces
-
-**Admin → Annonces**
-
-Publiez une annonce visible sur la page d'accueil pour tous les visiteurs :
-1. Rédigez le contenu en **Markdown** (titres, listes, gras, liens supportés)
-2. Utilisez l'onglet **Aperçu** pour visualiser le rendu
-3. Activez le toggle **Publier** pour rendre l'annonce visible
-4. Désactivez pour la masquer
-
----
-
-### Journal d'activité
-
-**Admin → Journal d'activité**
-
-Historique chronologique de toutes les opérations importantes :
-
-| Type | Icône | Description |
-|---|---|---|
-| Achat pack | 🛍️ | Achat d'un pack via Stripe |
-| Pack attribué | 🎁 | Attribution manuelle par admin |
-| Pack modifié | ✏️ | Modification des crédits ou de la date d'expiration |
-| Réservation | 📅 | Réservation d'un cours par un client |
-| Annulation | ❌ | Annulation d'une réservation |
-| Inscription admin | 👤 | Inscription d'un client par l'admin |
-| Coach assigné | 🔄 | Changement de coach sur un ou plusieurs cours |
-| Liste d'attente | ⏳ | Inscription en liste d'attente |
-| Promu (attente) | ✅ | Promotion depuis la liste d'attente |
-
-Chaque entrée affiche :
-- Le type d'opération (badge coloré)
-- La date et l'heure
-- La description détaillée (ex : cours concernés avec type, jour et heure)
-- **Qui** a fait l'action → **pour qui**
-
-**Filtres** : par type d'opération et par plage de dates.
-
----
-
-### Tableau de bord
-
-**Admin → Tableau de bord**
-
-#### Sélection de la période
-5 options : **Cette semaine** | **Ce mois** | **Ce trimestre** | **Cette année** | **Personnalisé** (dates libres)
-
-#### Indicateurs clés (KPI)
-
-3 cartes cliquables :
-
-| KPI | Détail au clic |
+| Réglage | Effet |
 |---|---|
-| **Recettes encaissées** (€) : total des ventes de packs + nombre de packs vendus | Tableau : date, client, pack, crédits, montant (packs offerts = badge "Offert") avec ligne de total |
-| **Crédits consommés** : nombre de réservations + valeur en € | Tableau : date, cours, client, pack utilisé, valeur du crédit avec ligne de total |
-| **Cours donnés** : nombre total + nombre de coachs | — |
+| **Type de crédit** | Détermine les cours réservables. **Le vérifier en premier** : un pack mal rattaché est inutilisable. |
+| **Nombre de séances** | Le compteur. Sans objet si illimité. |
+| **Illimité** | Aucun décompte à la réservation, donc aucun recrédit à l'annulation. |
+| **Prix** | En euros. |
+| **Validité** | Durée pendant laquelle les crédits restent utilisables. |
+| **Abonnement** | Renouvellement automatique. Demande une périodicité. |
+| **Catégories éligibles** | Restreint la vente à certaines catégories. Vide = ouvert à tous. |
 
-#### Cours par coach
-Tableau récapitulatif par coach :
-- Nombre de cours
-- Nombre de réservations
-- Valeur totale des crédits consommés
+> **Sur un abonnement, la validité doit correspondre au cycle.** Un cycle de 4 semaines va avec une validité de 28 jours. L'application vous alerte si les deux divergent.
 
-Cliquez sur un coach pour voir le **détail de chaque cours** : date, type, nombre de réservations et valeur.
+> **Attention aux 13 échéances.** Un cycle de 4 semaines revient **13 fois par an**, pas 12. À prendre en compte dans vos prix.
 
-#### Exports CSV
-Deux boutons d'export sous le sélecteur de période :
-- **Export ventes packs** : date, client, pack, crédits, montant
-- **Export cours-réservations** : date, heure, type de cours, titre événement, coach, client, pack utilisé, valeur crédit
+> **Un prix est figé une fois vendu.** Modifier le prix ou la périodicité d'un abonnement crée un nouveau tarif côté Stripe ; les abonnés existants gardent l'ancien. Pour changer le prix de tout le monde, il faut les faire résilier et se réabonner.
 
-Les fichiers sont au format CSV avec séparateur `;` et encodage UTF-8 (compatible Excel). Le nom du fichier inclut la période sélectionnée.
+### Types de cours — Administration → Types de cours
 
-> Les données exportées permettent de créer des tableaux croisés dynamiques dans Excel pour des analyses personnalisées.
+Nom, description, couleur, nombre de places par défaut, image, et **type de crédit exigé**. La description longue accepte le Markdown et s'affiche aux membres.
 
----
+### Catégories de membres — Administration → Catégories
 
-### Paramètres
+Servent à réserver certains packs à certains publics.
 
-**Admin → Paramètres**
+### Coupons — Administration → Coupons
 
-- **Mode Stripe** : basculer entre mode test et mode production
-  - Mode test : utilise les clés Stripe de test (pas de vrai paiement)
-  - Mode production : utilise les clés Stripe live (vrais paiements)
+Codes de réduction collectifs, avec quota et période de validité.
+
+> **En l'état, un coupon créé ici n'est pas utilisable** : aucun écran ne permet au membre d'en saisir un. À traiter avant d'en créer.
 
 ---
 
-## Sécurité
+## Réglages — Administration → Réglages
 
-### Clés et secrets
-- Les clés Stripe sont stockées dans les **Supabase Secrets**, jamais dans le code client
-- Le fichier `.env` ne contient que l'URL Supabase et la clé anon (publique par design)
-- Les Edge Functions utilisent la clé `SUPABASE_SERVICE_ROLE_KEY` côté serveur uniquement
+### Règles de réservation
 
-### Row Level Security (RLS)
-- Toutes les tables ont RLS activé
-- Les policies utilisent `has_role(auth.uid(), 'admin')` pour les opérations admin
-- Aucune table n'est accessible sans policy
-- La vue `coach_profiles` contourne la dépendance circulaire RLS pour l'affichage des coachs
+Chaque paramètre est décrit dans l'écran, avec sa valeur en clair. En résumé :
 
-### Protection anti-bot à l'inscription
-- Champ honeypot invisible (détecte les bots)
-- Question de vérification mathématique
-- Validation du nom d'affichage (pas de chiffres seuls, URLs, caractères spéciaux)
-- Confirmation email obligatoire
+- **Fermeture des réservations** : les cours du matin ferment la veille au soir (le coach doit savoir s'il se lève) ; ceux de l'après-midi ferment le jour même, plus tôt si personne n'est inscrit, plus tard s'il y a du monde.
+- **Annulation** : au-delà du délai, le crédit revient ; en deçà, la séance est décomptée.
 
----
+Deux réglages — annulation personal training et absence automatique — sont **signalés comme sans effet** : la logique correspondante n'est pas encore écrite.
 
-## Edge Functions Supabase
+### Parrainage
 
-Trois fonctions serveur :
+Montant du bon du parrain, du bon du filleul, **achat minimum** pour que le filleul puisse utiliser le sien (entre 30 et 100 €), et durée de validité.
 
-| Fonction | Rôle |
-|---|---|
-| `create-checkout-session` | Crée une session Stripe Checkout pour l'achat d'un pack |
-| `stripe-webhook` | Reçoit les événements Stripe et crée le pack_purchase après paiement |
-| `send-notification` | Envoie des notifications in-app |
+Le seuil ne vise que le filleul : le parrain est déjà client, et un dédommagement du studio reste utilisable sans condition.
 
-### Configuration des secrets Supabase
-```bash
-supabase secrets set STRIPE_SECRET_KEY_TEST=sk_test_...
-supabase secrets set STRIPE_SECRET_KEY_LIVE=sk_live_...
-supabase secrets set STRIPE_WEBHOOK_SECRET_TEST=whsec_...
-supabase secrets set STRIPE_WEBHOOK_SECRET_LIVE=whsec_...
-```
+Ces montants s'appliquent aux futurs parrainages ; les bons déjà créés gardent leur valeur.
+
+### Autres réglages
+
+- **Frais d'inscription** : montant, activation
+- **Coût moyen d'une séance illimitée** : sert à valoriser les statistiques, puisqu'un illimité ne décompte rien
+- **Seuil d'alerte annulations** : à partir de combien d'annulations par cycle un membre est signalé
+- **Minimum de participants** : en dessous, un cours est signalé pour revue
+- **Informations du studio**, **noms des salles**
+- **Mode Stripe** (super admin) : test ou production. Bascule le paiement **et** le webhook d'un coup
 
 ---
 
-## Installation à blanc
+## Suivre l'activité
 
-Pour installer l'application sur un nouveau projet Supabase :
+### Tableau de bord — Administration → Tableau de bord
 
-1. Créer un projet Supabase
-2. Exécuter **`supabase/install.sql`** dans le SQL Editor (fichier unique, 581 lignes)
-3. Configurer le `.env` avec l'URL et la clé anon
-4. Créer un compte via l'application
-5. Promouvoir en admin :
-```sql
-UPDATE user_roles SET role = 'admin'
-WHERE user_id = (SELECT id FROM auth.users WHERE email = 'votre@email.com');
-```
-6. Configurer les types de crédits, packs et cours via l'interface admin
+Sur une période au choix (semaine, mois, trimestre, année, ou dates libres) :
 
----
+- **Recettes encaissées** et nombre de packs vendus
+- **Crédits consommés** et leur valeur
+- **Cours donnés / planifiés**
+- **Cours par coach** — seuls les cours **déjà donnés** sont comptés
+- **Exports CSV** : ventes de packs, et cours avec leurs réservations
 
-## PWA
+> Sur un pack illimité, aucun crédit n'est décompté : la valeur d'une séance vient du réglage « coût moyen d'une séance illimitée ».
 
-L'application est installable en tant que Progressive Web App :
-- `manifest.json` configure le nom, l'icône et les couleurs
-- `sw.js` utilise une stratégie network-first avec cache fallback
-- Les requêtes vers Supabase ne sont pas interceptées par le service worker
+### Parrainages — Administration → Parrainages
 
----
+Qui a parrainé qui, et où en est chaque parrainage.
 
-## Analytics (Umami)
+### Demandes de facture — Administration → Demandes de facture
 
-Analytics open source, sans cookies, conforme RGPD :
-- Aucun bandeau de consentement nécessaire
-- Pour activer : décommenter la ligne dans `index.html` et remplacer l'URL et l'ID du site
+Les demandes des membres, à traiter et à marquer comme traitées.
+
+### Journal d'activité — Administration → Journal
+
+Tout ce qui a été fait : achats, réservations, annulations, gestes commerciaux, changements de rôle. Utile pour retrouver qui a fait quoi, et quand.
+
+### Annonces — Administration → Annonces
+
+Le message affiché en haut de la page d'accueil des membres.
 
 ---
 
-## Déploiement
+## Points de vigilance
 
-Le projet est déployé sur un VPS OVH avec Nginx :
-```bash
-git pull && npm install && npm run build
-```
-Nginx sert les fichiers statiques du dossier `dist/` avec `try_files $uri $uri/ /index.html` pour le routing SPA. HTTPS via Let's Encrypt / Certbot.
+**Le paiement fait foi.** Un pack n'est crédité qu'après confirmation du paiement par Stripe. Si un membre dit avoir payé sans que rien n'apparaisse, vérifiez d'abord côté Stripe avant d'attribuer à la main.
+
+**Les gestes commerciaux sont tracés.** Réductions, bons, reports d'échéance : tout est enregistré au journal, avec l'auteur. C'est une protection, pas une surveillance — elle permet de répondre à un membre qui conteste.
+
+**Le mode test et le mode production sont étanches.** Un abonnement créé en test ne sera jamais facturé réellement. Vérifiez le mode avant de vendre.
+
+**En cas de doute sur un paiement**, le tableau de bord Stripe montre l'historique complet : ce qui a été payé, refusé, remboursé.

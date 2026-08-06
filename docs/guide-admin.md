@@ -1,222 +1,229 @@
-# Back On Track — Guide Administrateur & Super Admin
+# Guide coach & administrateur
 
-## Rôles
-
-| Rôle | Qui | Accès |
-|------|-----|-------|
-| **Super Admin** | Christian | Tout ce que fait l'admin + mode paiement (test/live), ID technique des cours |
-| **Admin** | Les 3 associés | Gestion membres, planning, finances, paramètres, parrainages, factures |
+Administration du studio. Pour l'usage courant de l'application — réserver, acheter un pack, gérer son profil — voir le **guide du membre**.
 
 ---
 
-## 1. Tableau de bord (`/admin/dashboard`)
+## Qui peut faire quoi
 
-- Ventes de packs par période (semaine, mois, trimestre, année)
-- Recettes totales
-- Cours par coach (nombre de cours, réservations)
-- Filtres par période personnalisée
+| | Coach | Admin |
+|---|:---:|:---:|
+| Voir ses cours, les participants, faire le check-in | ✅ | ✅ |
+| Modifier le nombre de places de ses cours | ✅ | ✅ |
+| Suivre les performances des membres | ✅ | ✅ |
+| Accéder à l'espace Administration | — | ✅ |
+| Gérer les membres, leurs packs, leurs abonnements | — | ✅ |
+| Créer cours, packs, abonnements, réglages | — | ✅ |
+| Tableau de bord financier et exports | — | ✅ |
+| Gestes commerciaux (remises, bons, reports) | — | ✅ |
 
-## 2. Coaches & Admins (`/admin/coaches`)
+Un coach qui n'est pas admin ne voit pas le menu Administration. S'il tente d'y accéder, il est renvoyé à l'accueil.
 
-### Liste des coaches
-- Grille de cartes : photo, nom, email, badges rôles, nombre de cours à venir
-- Clic → fiche coach détaillée
+Le **super admin** a tous les droits d'un admin, plus la configuration technique (mode Stripe, changement de mot de passe d'un membre).
 
-### Fiche coach (`/admin/coaches/:id`)
-- **Header** : photo, nom, email, téléphone, badges rôles, bouton modifier (crayon)
-- **Liens sociaux** : Instagram, Facebook, LinkedIn
-- **Filtre période** : date de début et fin — toutes les stats se mettent à jour
-- **4 compteurs** : cours à venir, cours donnés, inscriptions, revenu de la période
-- **Description** : rendu markdown (spécialités, parcours)
-- **Liste des cours** : nom, date, heure, salle, inscrits/max, revenu par cours
-- Clic sur un cours → page détail (check-in, ajouter/retirer membre)
+---
 
-### Modifier le profil coach
-- Bouton crayon à côté du nom → dialog avec :
-  - Upload photo (Supabase Storage)
-  - Description (markdown)
-  - Instagram, Facebook, LinkedIn URLs
+## Au quotidien
 
-### Différences avec les membres
-- Les coaches ne sont **jamais** affichés dans la page "Membres"
-- Les coaches n'ont pas de packs, crédits, réservations client
-- Les coaches n'ont pas de frais d'inscription
+### Le planning — Administration → Planning
 
-## 3. Gestion des membres (`/admin/users`)
+C'est l'écran le plus utilisé. Chaque cours peut être ouvert pour :
 
-### Liste des membres
-- Recherche par nom, prénom, email
-- Filtres par rôle : Client, Coach, Admin (inclut Super Admin)
-- Colonnes : nom, rôle, crédits restants, dernière connexion, actions
-- Export CSV
+- **assigner ou changer le coach**
+- **modifier l'horaire, la durée, la salle** (haut ou bas)
+- **changer le nombre de places**
+- **voir et gérer les inscrits**
 
-### Créer un utilisateur
-- Bouton "Créer un utilisateur"
-- Champs : email, mot de passe, nom d'affichage, prénom, nom, téléphone, rôle
-- Le compte est actif immédiatement (pas de confirmation email)
+**Créer une série de cours.** Le formulaire propose de **répéter pour X semaines** : le cours est dupliqué à l'identique. Pour dupliquer autrement, le bouton **Dupliquer…** permet de choisir un décalage en jours.
 
-### Fiche membre détaillée (`/admin/users/:id`)
-- Informations personnelles, photo, statut membre
-- **Modifier le nom** : crayon à côté du display_name → dialog avec display_name, prénom, nom (admin + super_admin)
-- **Changer le mot de passe** (super_admin uniquement) : bouton à côté de "Frais d'inscription" → dialog avec mot de passe + confirmation (min 12 caractères). Le membre reçoit automatiquement un email l'informant que son mot de passe a été réinitialisé
-- L'email du membre n'est pas modifiable par l'admin — c'est le membre qui le change lui-même via son profil
-- **Onglet Packs** : liste des packs achetés avec barre de progression des crédits. Cliquer sur un pack affiche :
-  - Crédits restants (modifiable)
-  - Date d'expiration (modifiable)
-  - Liste des réservations faites avec ce pack
-- **Onglet Réservations** : à venir et passées, avec bouton "Inscrire à un cours"
-- **Attribuer un pack** : sélection du type de pack, prix modifiable (cadeau possible à 0€)
+**Modifier une série.** Quand un cours fait partie d'une série, l'application demande si le changement vaut pour **ce cours uniquement** ou pour toute la suite. Vérifiez ce choix : c'est l'erreur la plus fréquente.
 
-## 3. Gestion du planning (`/admin/schedule`)
+**Annuler un cours.** Utilisez toujours l'annulation depuis l'écran plutôt que la suppression : les inscrits sont prévenus et **leurs crédits leur sont rendus quoi qu'il arrive**, même en dessous du délai normal — ce n'est pas eux qui annulent.
 
-### Vue tableau
-- Colonnes : date, heure, salle (slug `bas`/`haut`), type de cours, coach, places max, actions
-- Filtres : période (du/au), coach, type de cours
-- Tri par date
+**Cours sous le seuil.** Un bandeau signale les cours qui n'atteignent pas le minimum de participants. Le studio décide : annuler et rembourser, ou maintenir. Rien n'est automatique.
 
-### Ajouter un cours
-- Type de cours, coach, salle (`bas` ou `haut`), date (défaut: aujourd'hui), heure (défaut: 10h00)
-- Places max, durée en minutes
-- **Répéter pour X semaines** (0 à 10) : crée automatiquement le même cours chaque semaine
-- Contrôle de doublon : si un cours existe déjà au même créneau + même salle, il est ignoré avec avertissement
+### Inscrire ou désinscrire quelqu'un
 
-### Modifier un cours
-- Mêmes champs que la création
-- Le champ "Répéter" n'apparaît pas en mode édition
+Depuis le planning, ouvrez le cours et ajoutez le membre. L'application demande **quelle source de crédit utiliser** : abonnement ou pack. Elle affiche pour chacun ce qu'il reste et sa date d'expiration.
 
-### Supprimer un cours
-- Confirmation avec nom du cours, date/heure et salle
+> **Le type de crédit doit correspondre.** Un crédit personal training ne paie pas un cours semi-privé. Seules les sources compatibles apparaissent dans la liste.
 
-### Actions en masse (cocher plusieurs cours)
-- **Assigner coach** : change le coach pour tous les cours sélectionnés
-- **Max participants** : change le nombre de places
-- **Dupliquer semaine suivante** : copie les cours sélectionnés à J+7, mêmes conditions. Contrôle de doublon automatique (même créneau + même salle = ignoré)
+### Check-in et absences
 
-### Détail d'un cours (icône œil)
-- Ouvre la page `/coach/class/:id` avec :
-  - Liste des inscrits (nom, téléphone/email)
-  - Check-in : cases à cocher + scanner QR
-  - Ajouter un membre : dropdown des membres ayant des crédits du bon type
-  - Retirer un membre : annule la réservation, restitue le crédit, notifie le membre
-  - Marquer absent (no-show)
-  - Annuler le cours entier : annule toutes les réservations, restitue tous les crédits, notifie tous les membres
+Dans **Mes cours** (coach) ou depuis le planning, pointez les présents. Un membre qui n'est pas venu se marque en **absent** — à la main : il n'y a pas de marquage automatique aujourd'hui.
 
-## 4. Types de cours (`/admin/class-types`)
+Ces données alimentent le taux de présence et les statistiques d'annulation.
 
-- Créer, modifier, désactiver des types de cours
-- Chaque type est lié à un type de crédit (semi-privé ou PT)
-- Nombre max de participants par défaut
-- Couleur du cours (affichée dans le planning)
-- **Photo** : upload d'image via Supabase Storage
-- **Description détaillée** (markdown) : visible via l'icône (i) dans le planning client
+---
 
-## 5. Types de packs (`/admin/pack-types`)
+## Les membres — Administration → Membres
 
-- Créer, modifier, activer/désactiver des packs
-- Nom, description, type de crédit, nombre de crédits, prix, validité en jours
-- Catégories éligibles (quels membres peuvent acheter)
-- Modifier un pack n'affecte pas les achats existants
+La fiche d'un membre regroupe tout ce qui le concerne, en plusieurs onglets.
 
-## 6. Types de crédits (`/admin/credit-types`)
+### Ce qu'on voit en tête
 
-- Semi-privé et Personal Training par défaut
-- Ajouter de nouveaux types si besoin
-- Labels FR et EN
+Statut, catégorie, frais d'inscription, et trois compteurs : crédits restants, packs actifs, réservations.
 
-## 7. Catégories de membres (`/admin/categories`)
+**La catégorie** détermine les packs auxquels le membre a droit. Un membre a une seule catégorie.
 
-- Créer des catégories pour segmenter les membres
-- Utilisé pour restreindre l'accès à certains packs
+**Les frais d'inscription** se valident ou se retirent à la main — utile quand quelqu'un a payé autrement que par l'application.
 
-## 8. Coupons (`/admin/coupons`)
+### Onglet Packs
 
-- Créer des codes promo : code, réduction (% ou montant fixe), dates de validité, max utilisations
-- Activer/désactiver
+Tous ses packs, actifs et expirés. Chacun peut être **modifié** : nombre de crédits restants, date d'expiration. Sert à corriger une erreur ou à faire un geste.
 
-## 9. Annonces (`/admin/announcements`)
+**Attribuer un pack** sans paiement : le bouton est là. À utiliser pour un paiement reçu en espèces, par virement, ou pour offrir des séances.
 
-- Publier des annonces en markdown
-- Affichées sur la page d'accueil publique
+### Onglet Réservations et onglet Annulations
 
-## 10. Journal d'activité (`/admin/activity-log`)
+L'historique du membre. Les annulations sont comptées **par cycle**, pas sur tout l'historique : sur un abonnement reconduit treize fois par an, un cumul ne dirait rien d'utile.
 
-- Toutes les actions enregistrées :
-  - Nouveau membre, connexion, séance d'essai
-  - Achat de pack, attribution manuelle, modification
-  - Réservation, annulation (avec info crédit restitué ou non)
-  - Check-in, no-show
-  - Changement de rôle
-  - Liste d'attente (inscription, promotion)
-- Filtres par type d'action et période
+Un seuil d'alerte (réglable) signale les membres qui annulent beaucoup. C'est une information, pas une sanction : la décision reste humaine.
 
-## 11. Demandes de factures (`/admin/invoice-requests`)
+### Onglet Abonnement
 
-- Liste des demandes avec filtres (en attente / traitées / toutes)
-- Détail : nom/raison sociale, adresse, n° entreprise, paiement concerné, membre
-- Bouton "Marquer comme traitée" (la facture est créée dans Odoo)
+Visible quand le membre a un abonnement. Il affiche son état, la prochaine échéance, et quatre actions.
 
-## 12. Parrainages (`/admin/referrals`)
+**Réduction ponctuelle** — en euros ou en pourcentage, avec un motif. Elle s'applique à **la prochaine échéance seulement** ; les suivantes reviennent au tarif plein automatiquement. Le montant réel de la prochaine échéance s'affiche ensuite, l'ancien prix barré.
 
-- Vue de tous les parrainages : parrain → filleul, code utilisé, date, statut
-- Stats : total, en attente, qualifiés, montant des récompenses
-- Le parrainage est qualifié automatiquement quand le filleul paie les frais d'inscription ET achète un pack de 10+ séances
-- Les récompenses (30€ chacun) sont créées automatiquement et valables 180 jours
+**Décaler l'échéance** — pour des congés, une blessure. Des raccourcis proposent +7, +14, +21 ou +28 jours. La période offerte n'est pas facturée, **et l'accès du membre est prolongé d'autant** : une maladie se compense, elle ne se met pas en pause. Une date antérieure à l'échéance actuelle est refusée.
 
-### Paramètres de parrainage (dans `/admin/settings` via `referral_rules`)
-- Montant récompense parrain (défaut 30€)
-- Montant récompense filleul (défaut 30€)
-- Minimum séances dans le pack du filleul (défaut 10)
-- Plafond de parrainages par membre (défaut illimité)
-- Durée de validité des récompenses (défaut 180 jours)
+**Suspendre / Reprendre** — arrête les prélèvements sans résilier.
 
-## 13. Paramètres (`/admin/settings`)
+**Résilier** — en fin de période par défaut : le membre garde ses droits jusqu'au terme qu'il a payé. L'option **immédiate** coupe tout sur-le-champ, accès compris, sans remboursement automatique.
 
-### Informations du studio
-- Nom, adresse, téléphone, email, n° TVA
+Un historique des réductions accordées figure en bas de l'onglet.
 
-### Noms des salles
-- `bas` → nom complet (ex: "Back On Track Studio")
-- `haut` → nom complet (ex: "Back On Track Upstairs")
-- Les clients voient le nom complet, l'admin voit le slug
+### Onglet Bons
+
+**L'état du parrainage** du membre : parrainé par qui, et si le parrainage est qualifié ou en attente du premier paiement.
+
+**Rattacher un parrain** — pour les codes oubliés à l'inscription, réclamés après coup. Le parrainage est enregistré comme s'il avait été saisi au départ ; les bons seront créés au prochain paiement du membre.
+
+**Accorder un bon d'achat** — montant libre, avec un motif (geste commercial, dédommagement, autre). Le bon est proposé au membre à son prochain achat. Il s'utilise **en une fois, en entier**.
+
+La liste montre tous ses bons, leur origine, leur état et leur expiration.
+
+### Autres actions sur la fiche
+
+Corriger le nom, l'adresse e-mail (avec confirmation du membre), réinitialiser le mot de passe (super admin), inscrire le membre à un cours.
+
+En mode test uniquement, un bouton de **remise à zéro** efface tous les achats d'un membre pour rejouer un scénario. Il disparaît dès que Stripe passe en production.
+
+---
+
+## Vendre — ce qu'il faut régler
+
+### Types de crédit — Administration → Types de crédits
+
+C'est la brique de base : « semi-privé », « personal training »… **Un crédit d'un type ne paie que les cours du même type.** Tout part de là.
+
+### Types de packs — Administration → Types de packs
+
+L'écran est regroupé par type de crédit, abonnements d'abord, packs à l'unité ensuite — comme le voit le membre.
+
+Pour chaque pack :
+
+| Réglage | Effet |
+|---|---|
+| **Type de crédit** | Détermine les cours réservables. **Le vérifier en premier** : un pack mal rattaché est inutilisable. |
+| **Nombre de séances** | Le compteur. Sans objet si illimité. |
+| **Illimité** | Aucun décompte à la réservation, donc aucun recrédit à l'annulation. |
+| **Prix** | En euros. |
+| **Validité** | Durée pendant laquelle les crédits restent utilisables. |
+| **Abonnement** | Renouvellement automatique. Demande une périodicité. |
+| **Catégories éligibles** | Restreint la vente à certaines catégories. Vide = ouvert à tous. |
+
+> **Sur un abonnement, la validité doit correspondre au cycle.** Un cycle de 4 semaines va avec une validité de 28 jours. L'application vous alerte si les deux divergent.
+
+> **Attention aux 13 échéances.** Un cycle de 4 semaines revient **13 fois par an**, pas 12. À prendre en compte dans vos prix.
+
+> **Un prix est figé une fois vendu.** Modifier le prix ou la périodicité d'un abonnement crée un nouveau tarif côté Stripe ; les abonnés existants gardent l'ancien. Pour changer le prix de tout le monde, il faut les faire résilier et se réabonner.
+
+### Types de cours — Administration → Types de cours
+
+Nom, description, couleur, nombre de places par défaut, image, et **type de crédit exigé**. La description longue accepte le Markdown et s'affiche aux membres.
+
+### Catégories de membres — Administration → Catégories
+
+Servent à réserver certains packs à certains publics.
+
+### Coupons — Administration → Coupons
+
+Codes de réduction collectifs, avec quota et période de validité.
+
+> **En l'état, un coupon créé ici n'est pas utilisable** : aucun écran ne permet au membre d'en saisir un. À traiter avant d'en créer.
+
+---
+
+## Réglages — Administration → Réglages
 
 ### Règles de réservation
-- **Cours du matin** : heure seuil (défaut 12h), fermeture la veille à (défaut 20h)
-- **Cours après-midi** : fermeture si 0 inscrit (défaut 3h avant), fermeture si inscrits (défaut 30 min avant)
-- **Annulation** : gratuite si > X heures (défaut 12h), PT séparément (défaut 24h)
-- **No-show auto** : minutes après début du cours (défaut 15 min)
 
-### Frais d'inscription
-- Activer/désactiver
-- Montant (défaut 30€)
+Chaque paramètre est décrit dans l'écran, avec sa valeur en clair. En résumé :
 
-### Mode paiement (Super Admin uniquement)
-- Toggle test/production (Stripe)
+- **Fermeture des réservations** : les cours du matin ferment la veille au soir (le coach doit savoir s'il se lève) ; ceux de l'après-midi ferment le jour même, plus tôt si personne n'est inscrit, plus tard s'il y a du monde.
+- **Annulation** : au-delà du délai, le crédit revient ; en deçà, la séance est décomptée.
 
-## 14. Types de performances (`/performance-types`)
+Deux réglages — annulation personal training et absence automatique — sont **signalés comme sans effet** : la logique correspondante n'est pas encore écrite.
 
-Catalogue partagé des types de performances (rameur, ski erg, squat, etc.). Accessible **coach + admin**.
+### Parrainage
 
-### Créer un type
-- Nom (ex. "Rameur 500m", "Squat")
-- **Unité indicative** (optionnel) : `kg`, `min`, `m`, `s`… affichée comme indication sur la page membre
-- **Couleur** (hex) : utilisée pour la pastille et le chart (ex. `#ef4444`)
-- **Ordre d'affichage** : entier, plus bas = en premier
-- **Archivé** : masqué dans les listes mais l'historique reste accessible
+Montant du bon du parrain, du bon du filleul, **achat minimum** pour que le filleul puisse utiliser le sien (entre 30 et 100 €), et durée de validité.
 
-### Modifier / Supprimer
-- Crayon pour éditer
-- Corbeille pour supprimer. **Si des performances utilisent ce type**, la suppression échoue (FK RESTRICT). Préférer "Archivé" dans ce cas.
+Le seuil ne vise que le filleul : le parrain est déjà client, et un dédommagement du studio reste utilisable sans condition.
 
-### Encodage pour un membre
-Les coaches et admins peuvent encoder une performance pour n'importe quel membre (RLS le permet). L'UI dédiée dans la fiche utilisateur est prévue dans un prochain commit ; en attendant, l'API REST Supabase ou le membre lui-même peuvent l'encoder.
+Ces montants s'appliquent aux futurs parrainages ; les bons déjà créés gardent leur valeur.
 
-## 15. Stats des membres
+### Autres réglages
 
-Les membres ont accès à leur page `/stats` avec :
-- Compteurs : séances total, ce mois, cette semaine, streak
-- Objectif hebdomadaire personnalisable (1-7 séances)
-- Graphiques : répartition par type de cours, évolution mensuelle
-- Calendrier d'entraînement (3 mois)
-- 7 badges automatiques (10/25/50/100 séances, 4/8/12 semaines streak)
+- **Frais d'inscription** : montant, activation
+- **Coût moyen d'une séance illimitée** : sert à valoriser les statistiques, puisqu'un illimité ne décompte rien
+- **Seuil d'alerte annulations** : à partir de combien d'annulations par cycle un membre est signalé
+- **Minimum de participants** : en dessous, un cours est signalé pour revue
+- **Informations du studio**, **noms des salles**
+- **Mode Stripe** (super admin) : test ou production. Bascule le paiement **et** le webhook d'un coup
 
-Les admins peuvent voir les stats d'un membre via sa fiche utilisateur (historique réservations, packs, no-shows).
+---
+
+## Suivre l'activité
+
+### Tableau de bord — Administration → Tableau de bord
+
+Sur une période au choix (semaine, mois, trimestre, année, ou dates libres) :
+
+- **Recettes encaissées** et nombre de packs vendus
+- **Crédits consommés** et leur valeur
+- **Cours donnés / planifiés**
+- **Cours par coach** — seuls les cours **déjà donnés** sont comptés
+- **Exports CSV** : ventes de packs, et cours avec leurs réservations
+
+> Sur un pack illimité, aucun crédit n'est décompté : la valeur d'une séance vient du réglage « coût moyen d'une séance illimitée ».
+
+### Parrainages — Administration → Parrainages
+
+Qui a parrainé qui, et où en est chaque parrainage.
+
+### Demandes de facture — Administration → Demandes de facture
+
+Les demandes des membres, à traiter et à marquer comme traitées.
+
+### Journal d'activité — Administration → Journal
+
+Tout ce qui a été fait : achats, réservations, annulations, gestes commerciaux, changements de rôle. Utile pour retrouver qui a fait quoi, et quand.
+
+### Annonces — Administration → Annonces
+
+Le message affiché en haut de la page d'accueil des membres.
+
+---
+
+## Points de vigilance
+
+**Le paiement fait foi.** Un pack n'est crédité qu'après confirmation du paiement par Stripe. Si un membre dit avoir payé sans que rien n'apparaisse, vérifiez d'abord côté Stripe avant d'attribuer à la main.
+
+**Les gestes commerciaux sont tracés.** Réductions, bons, reports d'échéance : tout est enregistré au journal, avec l'auteur. C'est une protection, pas une surveillance — elle permet de répondre à un membre qui conteste.
+
+**Le mode test et le mode production sont étanches.** Un abonnement créé en test ne sera jamais facturé réellement. Vérifiez le mode avant de vendre.
+
+**En cas de doute sur un paiement**, le tableau de bord Stripe montre l'historique complet : ce qui a été payé, refusé, remboursé.
