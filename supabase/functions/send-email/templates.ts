@@ -14,6 +14,7 @@ export interface TemplateVars {
   class_name?: string
   class_date?: string        // ex: "mardi 22 avril 2026 à 10:00"
   old_class_date?: string    // pour class_modified
+  changes?: string[]         // ce qui a changé, en clair (class_modified)
   coach_name?: string
   room_name?: string
   duration_minutes?: number
@@ -135,9 +136,15 @@ export function buildTemplate(template: TemplateKey, v: TemplateVars): { subject
       const oldRow = v.old_class_date
         ? `<p style="color:#a16207;"><strong>Ancien horaire :</strong> ${v.old_class_date}</p>`
         : ''
+      // Nommer ce qui a changé : sans cela, le membre reçoit un bloc
+      // d'informations et doit deviner ce qui n'est plus comme avant.
+      const changeRow = (v.changes?.length ?? 0) > 0
+        ? `<p><strong>Ce qui change :</strong> ${v.changes!.join(', ')}.</p>`
+        : ''
       const body = `
         <p>${hello}</p>
         <p>Un cours auquel vous êtes inscrit(e) a été <strong>modifié</strong>.</p>
+        ${changeRow}
         ${oldRow}
         <p><strong>Nouvelles informations :</strong></p>
         ${detailsBlock(v)}

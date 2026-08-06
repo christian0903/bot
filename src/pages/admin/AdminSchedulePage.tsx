@@ -301,6 +301,28 @@ export function AdminSchedulePage() {
           const newRoomName = basePayload.floor ? (floorNames[basePayload.floor] || basePayload.floor) : undefined
           const className = basePayload.title || classTypes.find(c => c.id === basePayload.class_type_id)?.name
 
+          // Nommer ce qui a changé. Le code le sait déjà — il ne le disait
+          // simplement pas, et le membre recevait un bloc d'informations sans
+          // savoir ce qui n'était plus comme avant.
+          const isFr = i18n.language === 'fr'
+          const changes: string[] = []
+          if (startsChanged) changes.push(isFr ? 'nouvel horaire' : 'new time')
+          if (coachChanged) {
+            changes.push(newCoachName
+              ? (isFr ? `changement de coach (${newCoachName})` : `coach changed (${newCoachName})`)
+              : (isFr ? 'coach retiré' : 'coach removed'))
+          }
+          if (floorChanged) {
+            changes.push(newRoomName
+              ? (isFr ? `changement de salle (${newRoomName})` : `room changed (${newRoomName})`)
+              : (isFr ? 'changement de salle' : 'room changed'))
+          }
+          if (durationChanged) {
+            changes.push(isFr
+              ? `durée : ${basePayload.duration_minutes} min`
+              : `duration: ${basePayload.duration_minutes} min`)
+          }
+
           for (const p of memberProfiles ?? []) {
             if (!p.email) continue
             sendEmail('class_modified', p.email, {
@@ -311,8 +333,23 @@ export function AdminSchedulePage() {
               coach_name: newCoachName,
               room_name: newRoomName,
               duration_minutes: basePayload.duration_minutes,
+              changes,
             })
           }
+
+          // Notification dans l'application : elle n'existait pas, seul
+          // l'e-mail partait. Un membre qui ne lit pas ses mails ne savait rien.
+          await supabase.from('notifications').insert(
+            userIds.map(uid => ({
+              user_id: uid,
+              title: isFr ? 'Cours modifié' : 'Class modified',
+              message: isFr
+                ? `${className} du ${format(newStarts, 'EEEE dd/MM à HH:mm', { locale })} — ${changes.join(', ')}.`
+                : `${className} on ${format(newStarts, 'EEEE dd/MM HH:mm', { locale })} — ${changes.join(', ')}.`,
+              type: 'info',
+              link: '/my-bookings',
+            })),
+          )
         }
       }
     } else {

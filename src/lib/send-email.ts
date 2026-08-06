@@ -16,6 +16,8 @@ export interface EmailVars {
   class_name?: string
   class_date?: string
   old_class_date?: string
+  /** Ce qui a changé, en clair : « changement de coach », « nouvelle salle »… */
+  changes?: string[]
   coach_name?: string
   room_name?: string
   duration_minutes?: number
