@@ -94,15 +94,22 @@ export function CoachClassesPage() {
 
       // Inscrits ET présents pointés, en une seule requête pour toute la liste.
       if (upcoming.length > 0) {
+        // Une place occupée compte, même si la personne s'est désistée trop
+        // tard : son crédit a été consommé. `is_no_show` marque ces cas, et
+        // les no-show classiques.
         const { data: bookingRows } = await supabase
           .from('bookings')
-          .select('scheduled_class_id, checked_in_at')
+          .select('scheduled_class_id, checked_in_at, status, is_no_show')
           .in('scheduled_class_id', upcoming.map(c => c.id))
-          .eq('status', 'confirmed')
 
         const counts = new Map<string, number>()
         const attended = new Map<string, number>()
-        for (const b of (bookingRows ?? []) as { scheduled_class_id: string; checked_in_at: string | null }[]) {
+        for (const b of (bookingRows ?? []) as {
+          scheduled_class_id: string; checked_in_at: string | null
+          status: string; is_no_show: boolean
+        }[]) {
+          const seatTaken = b.status === 'confirmed' || b.is_no_show
+          if (!seatTaken) continue
           counts.set(b.scheduled_class_id, (counts.get(b.scheduled_class_id) ?? 0) + 1)
           if (b.checked_in_at) {
             attended.set(b.scheduled_class_id, (attended.get(b.scheduled_class_id) ?? 0) + 1)
@@ -127,10 +134,14 @@ export function CoachClassesPage() {
       if (ids.length > 0) {
         const { data: bookings } = await supabase
           .from('bookings')
-          .select('scheduled_class_id, checked_in_at')
+          .select('scheduled_class_id, checked_in_at, status, is_no_show')
           .in('scheduled_class_id', ids)
-          .eq('status', 'confirmed')
-        for (const b of (bookings ?? []) as { scheduled_class_id: string; checked_in_at: string | null }[]) {
+        for (const b of (bookings ?? []) as {
+          scheduled_class_id: string; checked_in_at: string | null
+          status: string; is_no_show: boolean
+        }[]) {
+          const seatTaken = b.status === 'confirmed' || b.is_no_show
+          if (!seatTaken) continue
           countByClass.set(b.scheduled_class_id, (countByClass.get(b.scheduled_class_id) ?? 0) + 1)
           if (b.checked_in_at) {
             attendedByClass.set(b.scheduled_class_id, (attendedByClass.get(b.scheduled_class_id) ?? 0) + 1)
