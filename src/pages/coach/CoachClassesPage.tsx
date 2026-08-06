@@ -49,7 +49,7 @@ export function CoachClassesPage() {
   /** Période affichée. « upcoming » par défaut : c'est ce qu'on regarde le matin. */
   const [period, setPeriod] = useState<'upcoming' | 'week' | 'month'>('upcoming')
   /** Filtre de statut, utile surtout sur les cours passés. */
-  const [statusFilter, setStatusFilter] = useState<'all' | 'given' | 'not_given' | 'empty' | 'cancelled'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'given' | 'pending_checkin' | 'not_given' | 'empty' | 'cancelled'>('all')
   const [minParticipants, setMinParticipants] = useState(1)
   const [stats, setStats] = useState<CoachStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -197,6 +197,7 @@ export function CoachClassesPage() {
     starts_at: sc.starts_at,
     is_cancelled: sc.is_cancelled,
     bookings: bookingCounts.get(sc.id) ?? 0,
+    attended: attendedCounts.get(sc.id) ?? 0,
     minParticipants,
   })
 
@@ -304,7 +305,8 @@ export function CoachClassesPage() {
           <div className="flex gap-1.5 flex-wrap">
             {([
               ['all', isFr ? 'Tous' : 'All'],
-              ['given', isFr ? 'Donnés' : 'Given'],
+              ['given', isFr ? 'Exécutés' : 'Given'],
+              ['pending_checkin', isFr ? 'Présences à valider' : 'Check-in pending'],
               ['not_given', isFr ? 'Non donnés' : 'Not given'],
               ['empty', isFr ? 'Sans inscrit' : 'No bookings'],
               ['cancelled', isFr ? 'Annulés' : 'Cancelled'],

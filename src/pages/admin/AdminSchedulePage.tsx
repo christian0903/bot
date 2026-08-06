@@ -70,6 +70,8 @@ export function AdminSchedulePage() {
   /** Places occupées par cours : confirmées, plus les désistements tardifs
       dont le crédit a été consommé. */
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
+  /** Présences pointées par cours : distingue un cours établi d'un cours supposé. */
+  const [attendedCounts, setAttendedCounts] = useState<Map<string, number>>(new Map())
   /** Minimum d'inscrits pour qu'un cours compte comme donné (Réglages). */
   const [minParticipants, setMinParticipants] = useState(1)
   const [classTypes, setClassTypes] = useState<ClassType[]>([])
@@ -133,15 +135,22 @@ export function AdminSchedulePage() {
       // tardive compte : le crédit a été consommé, la place était prise.
       const { data: bookingRows } = await supabase
         .from('bookings')
-        .select('scheduled_class_id, status, is_no_show')
+        .select('scheduled_class_id, status, is_no_show, checked_in_at')
         .in('scheduled_class_id', rawClasses.map(c => c.id))
 
       const counts = new Map<string, number>()
-      for (const b of (bookingRows ?? []) as { scheduled_class_id: string; status: string; is_no_show: boolean }[]) {
+      const attended = new Map<string, number>()
+      for (const b of (bookingRows ?? []) as {
+        scheduled_class_id: string; status: string; is_no_show: boolean; checked_in_at: string | null
+      }[]) {
+        if (b.checked_in_at) {
+          attended.set(b.scheduled_class_id, (attended.get(b.scheduled_class_id) ?? 0) + 1)
+        }
         if (b.status !== 'confirmed' && !b.is_no_show) continue
         counts.set(b.scheduled_class_id, (counts.get(b.scheduled_class_id) ?? 0) + 1)
       }
       setBookingCounts(counts)
+      setAttendedCounts(attended)
     }
 
     setMinParticipants(
@@ -672,6 +681,7 @@ export function AdminSchedulePage() {
                             starts_at: sc.starts_at,
                             is_cancelled: sc.is_cancelled,
                             bookings: bookingCounts.get(sc.id) ?? 0,
+                            attended: attendedCounts.get(sc.id) ?? 0,
                             minParticipants,
                           })
                           if (st === 'scheduled') return null

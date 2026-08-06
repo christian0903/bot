@@ -52,7 +52,7 @@ export function creditValueCents(
 // "exécuté" par le simple écoulement du temps).
 // ---------------------------------------------------------------------------
 
-export type ClassStatus = 'scheduled' | 'at_risk' | 'given' | 'not_given' | 'empty' | 'cancelled'
+export type ClassStatus = 'scheduled' | 'at_risk' | 'given' | 'pending_checkin' | 'not_given' | 'empty' | 'cancelled'
 
 export interface ClassStatusInput {
   starts_at: string
@@ -63,6 +63,12 @@ export interface ClassStatusInput {
   minParticipants: number
   /** À combien d'heures du cours on alerte sur un effectif insuffisant. */
   atRiskHours?: number
+  /**
+   * Présences réellement pointées.
+   * Distingue un cours dont on SAIT qu'il a eu lieu (le coach a pointé) d'un
+   * cours qu'on suppose donné parce que l'effectif était suffisant.
+   */
+  attended?: number
 }
 
 export function getClassStatus(c: ClassStatusInput, now = new Date()): ClassStatus {
@@ -79,8 +85,13 @@ export function getClassStatus(c: ClassStatusInput, now = new Date()): ClassStat
   //     pour un cours qui n'a peut-être pas eu lieu. C'est ce cas qu'il faut
   //     pouvoir repérer et traiter.
   if (hoursUntil <= 0) {
-    if (hasQuorum) return 'given'
-    return c.bookings === 0 ? 'empty' : 'not_given'
+    if (c.bookings === 0) return 'empty'
+    // « Exécuté » exige des présences pointées : sans elles, personne ne sait
+    // si le cours a eu lieu. Le déduire de l'effectif donnerait une fausse
+    // certitude — et masquerait le fait que le coach n'a pas pointé.
+    if ((c.attended ?? 0) > 0) return 'given'
+    if (hasQuorum) return 'pending_checkin'
+    return 'not_given'
   }
 
   // Cours à venir : "à risque" quand l'échéance approche sans quorum.
@@ -96,7 +107,20 @@ export function classStatusLabel(status: ClassStatus, isFr = true): { label: str
     case 'empty':
       return { label: isFr ? 'Sans inscrit' : 'No bookings', variant: 'outline', className: 'text-muted-foreground' }
     case 'given':
-      return { label: isFr ? 'Exécuté' : 'Given', variant: 'default' }
+      // Présences pointées : le cours a bien eu lieu, c'est établi.
+      return {
+        label: isFr ? 'Exécuté' : 'Given',
+        variant: 'default',
+        className: 'bg-green-600 hover:bg-green-600 text-white',
+      }
+    case 'pending_checkin':
+      // Effectif suffisant mais aucune présence pointée : on ne sait pas si le
+      // cours a eu lieu. C'est au coach de le dire.
+      return {
+        label: isFr ? 'Présences à valider' : 'Check-in pending',
+        variant: 'outline',
+        className: 'border-amber-500 text-amber-600',
+      }
     case 'not_given':
       return { label: isFr ? 'Non donné' : 'Not given', variant: 'secondary' }
     case 'at_risk':
