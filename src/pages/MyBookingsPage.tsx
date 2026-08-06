@@ -98,7 +98,7 @@ export function MyBookingsPage() {
             refunded,
             hours_before: hoursBefore,
           },
-          description: `Annulation${refunded ? '' : ' tardive'}: ${booking.scheduled_class?.class_type?.name}`,
+          description: `Annulation${refunded ? '' : ' tardive'}: ${booking.scheduled_class?.class_type?.name} du ${booking.scheduled_class ? format(new Date(booking.scheduled_class.starts_at), 'dd/MM/yyyy HH:mm') : '?'}`,
         })
       }
 

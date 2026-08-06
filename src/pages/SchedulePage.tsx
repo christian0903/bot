@@ -601,7 +601,7 @@ export function SchedulePage() {
       entity_type: 'booking',
       entity_id: booking.id,
       details: { class_name: detailClass.class_type?.name, removed_by_admin: true, refunded: result?.refunded },
-      description: `Désinscription par ${roles.includes('admin') ? 'admin' : 'coach'}: ${booking.user?.display_name} du cours ${detailClass.class_type?.name}`,
+      description: `Désinscription par ${roles.includes('admin') ? 'admin' : 'coach'}: ${booking.user?.display_name} du cours ${detailClass.class_type?.name} du ${format(new Date(detailClass.starts_at), 'dd/MM/yyyy HH:mm')}`,
     })
 
     // In-app notification

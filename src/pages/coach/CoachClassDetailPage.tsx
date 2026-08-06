@@ -140,7 +140,7 @@ export function CoachClassDetailPage() {
       entity_type: 'booking',
       entity_id: booking.id,
       details: { class_name: scheduledClass?.class_type?.name },
-      description: `Check-in: ${booking.user?.display_name} — ${scheduledClass?.class_type?.name}`,
+      description: `Check-in: ${booking.user?.display_name} — ${scheduledClass?.class_type?.name} du ${scheduledClass ? format(new Date(scheduledClass.starts_at), 'dd/MM/yyyy HH:mm') : '?'}`,
     })
 
     setBookings(prev => prev.map(b =>
@@ -174,7 +174,7 @@ export function CoachClassDetailPage() {
       entity_type: 'booking',
       entity_id: booking.id,
       details: { class_name: scheduledClass?.class_type?.name },
-      description: `No-show: ${booking.user?.display_name} — ${scheduledClass?.class_type?.name}`,
+      description: `No-show: ${booking.user?.display_name} — ${scheduledClass?.class_type?.name} du ${scheduledClass ? format(new Date(scheduledClass.starts_at), 'dd/MM/yyyy HH:mm') : '?'}`,
     })
 
     setBookings(prev => prev.map(b =>
@@ -273,7 +273,7 @@ export function CoachClassDetailPage() {
       entity_type: 'booking',
       entity_id: booking.id,
       details: { class_name: scheduledClass.class_type?.name, removed_by_staff: true, refunded: result?.refunded },
-      description: `Désinscription: ${booking.user?.display_name} du cours ${scheduledClass.class_type?.name}`,
+      description: `Désinscription: ${booking.user?.display_name} du cours ${scheduledClass.class_type?.name} du ${format(new Date(scheduledClass.starts_at), 'dd/MM/yyyy HH:mm')}`,
     })
 
     await supabase.from('notifications').insert({
