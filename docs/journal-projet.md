@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-05**
+> Dernière mise à jour : **2026-08-06**
 
 ---
 
@@ -9,12 +9,86 @@
 
 **Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.16.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
 
-**Phase 11** (admin avancé) : non entamée.
+**Phase 11** (admin avancé) : **largement livrée** — rôles, statuts de cours, espace coach autonome.
 **Phase 12** (abonnements récurrents) : **livrée et éprouvée en test**. Pont Stripe opérationnel, écrans client et studio en place.
-**Parrainage & bons d'achat** : **livré, non testé**. La qualification n'avait jamais existé.
+**Parrainage & bons d'achat** : **livré, non testé de bout en bout**.
 **Phase 13** (RGPD & sécurité) : non entamée.
+**Rémunération des coachs** : reportée — module à part, la gestion se fait hors application (décision du 2026-08-06).
 
 L'application tourne sur **Stripe** — la migration vers Mollie prévue au plan a été abandonnée le 2026-08-03.
+
+---
+
+## Session du 2026-08-06
+
+33 commits. Journée d'usage réel : Christian teste, signale, on corrige. La plupart des trouvailles viennent de là.
+
+### Le fil rouge — trois bugs, une seule cause
+
+Trois écrans cassés dans la journée, tous pour la même raison : **une policy décrite dans `install.sql` mais jamais appliquée à la base**.
+
+| Symptôme | Policy manquante |
+|---|---|
+| « Aucun membre avec des crédits » alors qu'ils en ont | `Purchases: coach read all` |
+| Un coach annule son cours, rien ne se passe | `Classes: coach update own` |
+| — | `Subscriptions: coach read` |
+
+Le mécanisme est toujours le même : la requête est refusée, **le code n'écoute pas l'erreur**, l'écran conclut « aucun résultat ». Dans le cas de l'annulation, c'était pire — le journal s'écrivait et les crédits partaient pendant que le cours restait planifié.
+
+Deux enseignements consignés dans la documentation technique : **toujours tester `error` après une écriture**, et l'outil `supabase/check-policies.sql` qui compare l'attendu au réel.
+
+### Les rôles
+
+Impossible jusqu'ici de désigner un coach depuis l'application : il fallait écrire en base. Un studio ne pouvait pas recruter sans développeur.
+
+Un admin désigne les coachs, seul un super admin promeut un admin. La hiérarchie est appliquée **côté base** — les anciennes policies laissaient tout admin se créer un pair. Deux garde-fous : on ne retire pas ses propres droits, et le dernier super admin est intouchable.
+
+### L'espace coach devient autonome
+
+- **Inscrire un membre** dans ses cours, via `book_member_by_staff` qui **ignore le délai de fermeture** : quelqu'un se présente, il reste de la place, le coach décide
+- **Annuler un de ses cours**, avec confirmation qui nomme les inscrits
+- **Périodes calendaires** — cette semaine (du lundi), ce mois-ci — avec flèches de navigation
+- **Filtres par statut** et chiffres `présents/inscrits/capacité`
+
+### Les statuts de cours
+
+Sept états, recalculés à chaque affichage, jamais stockés :
+
+> planifié · effectif à surveiller · **exécuté** · présences à valider · **décision attendue** · sans inscrit · annulé
+
+Deux décisions de Christian ont façonné cette liste :
+
+**« Exécuté » exige le pointage.** Sans présence pointée, personne ne sait si le cours a eu lieu — le badge reste orange. L'absence de confirmation devient l'information utile.
+
+**« Décision attendue » n'est pas un statut, c'est une anomalie.** Un cours passé avec des inscrits sous le seuil, sans pointage ni annulation : des gens ont consommé un crédit sans qu'on sache s'ils ont eu leur cours. Seul badge rouge, et un bandeau dans le planning force le choix — pointer ou annuler.
+
+### Ce que les places payées révèlent
+
+Question de Christian : *« une personne qui s'est désinscrite trop tard mais n'est pas venue, on la compte où ? »*
+
+Elle disparaissait de tous les comptages, qui ne retenaient que `confirmed`. Résultat : remplissage sous-estimé, cours pouvant basculer « non donné » alors qu'il avait eu lieu, désistements invisibles.
+
+Règle retenue : **une place occupée et payée compte comme inscrite, seule la présence réelle compte comme venue**. `cancel_booking_v2` marque désormais `is_no_show` quand le crédit n'est pas restitué.
+
+### Modifier un cours qui a des inscrits
+
+Le membre recevait « un cours a été modifié » sans savoir quoi. Le code détectait pourtant précisément le changement — il ne le disait pas.
+
+L'e-mail nomme désormais ce qui change. Et pour un changement **d'horaire ou de type** — la prestation n'est plus la même — l'admin est averti avant de sauver, et le membre reçoit une proposition explicite de renoncer **avec restitution quel que soit le délai** (`decline_modified_booking`). Sans cette fonction dédiée, la promesse aurait été fausse : l'annulation ordinaire aurait appliqué le délai de prévenance.
+
+### Performance
+
+Le planning admin chargeait **tous les cours de la base** sans borne de date, puis toutes leurs réservations, avant de filtrer côté navigateur. Il ne charge plus que la période affichée, avec un mois de marge.
+
+### Documentation
+
+Les trois documents sont à jour : guide du membre, guide coach & admin (fortement remanié), documentation technique. `install.sql` a été remis à niveau deux fois — une reconstruction complète, puis un rattrapage des migrations du jour.
+
+### Reporté
+
+**Rémunération des coachs.** Prix par cours donné, distinct selon le type de crédit, avec historique pour produire un rapport de facturation. Recommandation retenue : **figer le montant sur chaque cours** plutôt que gérer des périodes tarifaires — le rapport devient une somme, l'historique ne bouge plus, et les cas particuliers se corrigent au cas par cas. Deux questions restent ouvertes : le tarif varie-t-il d'un coach à l'autre, et le montant se fige-t-il à la création du cours ou quand il est donné ?
+
+Module à part, sans urgence : la gestion se fait hors application aujourd'hui.
 
 ---
 
