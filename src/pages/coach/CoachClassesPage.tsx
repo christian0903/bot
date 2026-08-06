@@ -10,6 +10,7 @@ import { CalendarDays, Users } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import type { ScheduledClass } from '@/types'
+import { cn } from '@/lib/utils'
 
 /** Chiffres personnels du coach sur les 30 derniers jours. */
 interface CoachStats {
@@ -27,6 +28,8 @@ export function CoachClassesPage() {
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
   const [classes, setClasses] = useState<ScheduledClass[]>([])
+  /** Inscrits confirmés par cours, pour l'affichage « 2/5 ». */
+  const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
   const [stats, setStats] = useState<CoachStats | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -56,7 +59,23 @@ export function CoachClassesPage() {
         supabase.from('app_settings').select('value').eq('key', 'class_given_rule').maybeSingle(),
       ])
 
-      setClasses((upcomingRes.data as ScheduledClass[]) ?? [])
+      const upcoming = (upcomingRes.data as ScheduledClass[]) ?? []
+      setClasses(upcoming)
+
+      // Inscrits par cours, en une seule requête plutôt qu'une par ligne.
+      if (upcoming.length > 0) {
+        const { data: bookingRows } = await supabase
+          .from('bookings')
+          .select('scheduled_class_id')
+          .in('scheduled_class_id', upcoming.map(c => c.id))
+          .eq('status', 'confirmed')
+
+        const counts = new Map<string, number>()
+        for (const b of (bookingRows ?? []) as { scheduled_class_id: string }[]) {
+          counts.set(b.scheduled_class_id, (counts.get(b.scheduled_class_id) ?? 0) + 1)
+        }
+        setBookingCounts(counts)
+      }
 
       const minParticipants =
         (ruleRes.data?.value as { min_participants?: number } | undefined)?.min_participants ?? 1
@@ -168,10 +187,19 @@ export function CoachClassesPage() {
                     {format(new Date(sc.starts_at), 'EEEE dd MMMM, HH:mm', { locale })}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span className="text-sm">{sc.max_participants}</span>
-                </div>
+                {(() => {
+                  const booked = bookingCounts.get(sc.id) ?? 0
+                  const full = booked >= (sc.max_participants ?? 0)
+                  return (
+                    <div className={cn(
+                      'flex items-center gap-1',
+                      full ? 'text-primary font-medium' : 'text-muted-foreground',
+                    )}>
+                      <Users className="h-4 w-4" />
+                      <span className="text-sm">{booked}/{sc.max_participants}</span>
+                    </div>
+                  )
+                })()}
               </CardContent>
             </Card>
           ))}
