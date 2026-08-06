@@ -17,6 +17,7 @@ import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import type { ScheduledClass, Booking } from '@/types'
+import { sendEmail } from '@/lib/send-email'
 
 export function CoachClassDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -212,6 +213,12 @@ export function CoachClassDetailPage() {
       link: '/my-bookings',
     })
 
+    const { data: removedProfile } = await supabase
+      .from('profiles').select('email').eq('id', booking.user_id).maybeSingle()
+    if (removedProfile?.email) {
+      sendEmail('booking_cancelled_by_staff', removedProfile.email, classEmailVars(booking.user?.display_name))
+    }
+
     setBookings(prev => prev.filter(b => b.id !== booking.id))
     toast.success(isFr
       ? `${booking.user?.display_name} désinscrit(e) — crédit ${result?.refunded ? 'restitué' : 'non restitué'}`
@@ -268,6 +275,18 @@ export function CoachClassDetailPage() {
       await handleMarkNoShow(b)
     }
   }
+
+
+  /** Variables des modèles d'e-mail, pour ce cours. */
+  const classEmailVars = (userName?: string) => ({
+    user_name: userName,
+    class_name: scheduledClass?.title || scheduledClass?.class_type?.name,
+    class_date: scheduledClass
+      ? format(new Date(scheduledClass.starts_at), "EEEE dd MMMM 'à' HH:mm", { locale: fr })
+      : undefined,
+    coach_name: scheduledClass?.coach?.display_name,
+    duration_minutes: scheduledClass?.duration_minutes,
+  })
 
   // ---- Add member ----
   const openAddMember = async () => {
@@ -409,6 +428,14 @@ export function CoachClassDetailPage() {
       type: 'success',
       link: '/my-bookings',
     })
+
+    // Même e-mail que depuis le planning admin : le membre doit savoir qu'on
+    // l'a inscrit, il n'a rien demandé lui-même.
+    const { data: addedProfile } = await supabase
+      .from('profiles').select('email').eq('id', member.user_id).maybeSingle()
+    if (addedProfile?.email) {
+      sendEmail('booking_created_by_staff', addedProfile.email, classEmailVars(member.display_name))
+    }
 
     toast.success(isFr ? `${member.display_name} inscrit(e) !` : `${member.display_name} booked!`)
     setAddMemberOpen(false)
