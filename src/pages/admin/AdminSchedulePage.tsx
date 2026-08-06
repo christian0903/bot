@@ -23,8 +23,8 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { sendEmail } from '@/lib/send-email'
-import { useNavigate } from 'react-router-dom'
-import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy, ChevronLeft, ChevronRight} from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
@@ -84,8 +84,47 @@ export function AdminSchedulePage() {
   const [form, setForm] = useState<ScheduleForm>(emptyForm)
 
   // Filters
-  const [filterDateFrom, setFilterDateFrom] = useState(() => format(new Date(), 'yyyy-MM-dd'))
-  const [filterDateTo, setFilterDateTo] = useState('')
+  /**
+   * Période affichée, conservée dans l'URL.
+   *
+   * Sans cela, ouvrir un cours puis revenir ramenait à la semaine courante :
+   * le composant se recrée et perd son état. Dans l'URL, la période survit à
+   * l'aller-retour — et le bouton « précédent » du navigateur fonctionne.
+   */
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filterDateFrom = searchParams.get('from') ?? format(new Date(), 'yyyy-MM-dd')
+  const filterDateTo = searchParams.get('to') ?? ''
+
+  const setPeriod = (from: string, to: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (from) next.set('from', from); else next.delete('from')
+    if (to) next.set('to', to); else next.delete('to')
+    setSearchParams(next, { replace: true })
+  }
+
+  const setFilterDateFrom = (v: string) => setPeriod(v, filterDateTo)
+  const setFilterDateTo = (v: string) => setPeriod(filterDateFrom, v)
+
+  /**
+   * Décale la période d'une longueur équivalente.
+   * Sans date de fin, on se déplace d'une semaine — c'est la maille de
+   * lecture habituelle d'un planning.
+   */
+  const shiftPeriod = (direction: -1 | 1) => {
+    const from = new Date(filterDateFrom + 'T12:00:00')
+    if (!filterDateTo) {
+      const moved = new Date(from.getTime() + direction * 7 * 86400000)
+      setPeriod(format(moved, 'yyyy-MM-dd'), '')
+      return
+    }
+    const to = new Date(filterDateTo + 'T12:00:00')
+    // +1 jour : du 1er au 7 fait 7 jours, pas 6.
+    const span = to.getTime() - from.getTime() + 86400000
+    setPeriod(
+      format(new Date(from.getTime() + direction * span), 'yyyy-MM-dd'),
+      format(new Date(to.getTime() + direction * span), 'yyyy-MM-dd'),
+    )
+  }
   const [filterCoach, setFilterCoach] = useState('all')
   const [filterClassType, setFilterClassType] = useState('all')
 
@@ -480,6 +519,18 @@ export function AdminSchedulePage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg border bg-muted/30">
+        {/* Flèches : décalent la période d'une longueur équivalente. Sans date
+            de fin, on avance d'une semaine. */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => shiftPeriod(-1)}
+          title={i18n.language === 'fr' ? 'Période précédente' : 'Previous period'}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+
         <div>
           <Label className="text-xs">{i18n.language === 'fr' ? 'Du' : 'From'}</Label>
           <Input type="date" className="h-8 text-xs w-36" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
@@ -488,6 +539,25 @@ export function AdminSchedulePage() {
           <Label className="text-xs">{i18n.language === 'fr' ? 'Au' : 'To'}</Label>
           <Input type="date" className="h-8 text-xs w-36" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
         </div>
+
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => shiftPeriod(1)}
+          title={i18n.language === 'fr' ? 'Période suivante' : 'Next period'}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => setPeriod(format(new Date(), 'yyyy-MM-dd'), '')}
+        >
+          {i18n.language === 'fr' ? "Aujourd'hui" : 'Today'}
+        </Button>
         <div>
           <Label className="text-xs">{t('admin.schedule.coach')}</Label>
           <Select value={filterCoach} onValueChange={(v) => setFilterCoach(v ?? 'all')}>
