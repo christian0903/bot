@@ -33,8 +33,11 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const handleLogout = async () => {
+    // Quitter la page protégée AVANT de fermer la session : sinon AuthGuard et
+    // RoleGuard se déclenchent sur l'écran courant et mémorisent un `from`,
+    // qui renverrait ensuite vers l'espace client à la reconnexion.
+    navigate('/', { replace: true })
     await signOut()
-    navigate('/')
   }
 
   const navItems = [

@@ -74,20 +74,24 @@ export function AuthPage() {
       toast.success(t('auth.loginSuccess'))
       // Les rôles arrivent de façon asynchrone : on les lit directement plutôt
       // que d'attendre le contexte, sinon un admin partirait vers /dashboard.
-      if (from) {
-        navigate(from, { replace: true })
-      } else {
-        const { data: { user: signed } } = await supabase.auth.getUser()
-        let target = '/dashboard'
-        if (signed) {
-          const { data: roleRows } = await supabase
-            .from('user_roles').select('role').eq('user_id', signed.id)
-          target = landingRouteFor(
-            (roleRows ?? []).map((r: { role: string }) => r.role as UserRole),
-          )
-        }
-        navigate(target, { replace: true })
+      const { data: { user: signed } } = await supabase.auth.getUser()
+      let byRole = '/dashboard'
+      if (signed) {
+        const { data: roleRows } = await supabase
+          .from('user_roles').select('role').eq('user_id', signed.id)
+        byRole = landingRouteFor(
+          (roleRows ?? []).map((r: { role: string }) => r.role as UserRole),
+        )
       }
+
+      // `from` sert à revenir à la page qu'on voulait ouvrir. Mais une
+      // déconnexion depuis un écran protégé laisse aussi un `from`, souvent
+      // '/' ou '/dashboard' après le passage des gardes : le respecter
+      // renverrait un admin vers l'espace client. Ces destinations « par
+      // défaut » cèdent donc le pas au rôle.
+      const neutral = ['/', '/dashboard', '/auth']
+      const target = from && !neutral.includes(from) ? from : byRole
+      navigate(target, { replace: true })
     }
   }
 
