@@ -5,7 +5,10 @@ export function LoadingState() {
   const { t } = useTranslation()
 
   return (
-    <div className="flex items-center justify-center py-16">
+    // Centré verticalement plutôt que collé en haut : sur un grand écran,
+    // py-16 laissait une vaste zone vide en dessous, et la page paraissait
+    // blanche le temps du chargement.
+    <div className="flex items-center justify-center min-h-[50vh] py-16">
       <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
       <p className="text-muted-foreground">{t('common.loading')}</p>
     </div>

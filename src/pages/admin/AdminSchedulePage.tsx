@@ -137,10 +137,23 @@ export function AdminSchedulePage() {
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const fetchData = async () => {
+    // On ne charge que la période affichée. La page tirait auparavant TOUS les
+    // cours de la base, puis toutes leurs réservations, avant de filtrer côté
+    // navigateur : le temps d'attente grandissait avec l'historique.
+    //
+    // Marge d'un mois de part et d'autre : les flèches de navigation restent
+    // fluides sans recharger à chaque clic.
+    const rangeFrom = new Date((filterDateFrom || format(new Date(), 'yyyy-MM-dd')) + 'T00:00:00')
+    rangeFrom.setMonth(rangeFrom.getMonth() - 1)
+    const rangeTo = new Date((filterDateTo || filterDateFrom || format(new Date(), 'yyyy-MM-dd')) + 'T23:59:59')
+    rangeTo.setMonth(rangeTo.getMonth() + 2)
+
     const [classRes, typeRes, coachRes, roomRes, givenRuleRes] = await Promise.all([
       supabase
         .from('scheduled_classes')
         .select('*, class_type:class_types(*)')
+        .gte('starts_at', rangeFrom.toISOString())
+        .lte('starts_at', rangeTo.toISOString())
         .order('starts_at', { ascending: true }),
       supabase.from('class_types').select('*').eq('is_active', true).order('name'),
       // Vue SQL qui bypass les RLS circulaires sur user_roles
@@ -201,7 +214,9 @@ export function AdminSchedulePage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  // Recharge quand la période change : la marge d'un mois absorbe les clics
+  // de flèche, mais un saut plus lointain sort de la fenêtre chargée.
+  useEffect(() => { fetchData() }, [filterDateFrom, filterDateTo])
 
   // Filtered classes
   const filteredClasses = useMemo(() => {
