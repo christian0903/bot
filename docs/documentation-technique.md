@@ -148,6 +148,12 @@ C'est ce qui a évité d'écrire un moteur de quota, une table de formules et un
 
 **Les fonctions idempotentes.** `consume_credit_note` ne consomme que si le bon est encore libre ; `check_referral_qualification` ne qualifie que si le parrainage est en attente.
 
+### Le statut d'un cours n'est jamais stocké
+
+`getClassStatus()` le recalcule à chaque affichage, à partir de la date, des inscrits, des présences pointées et du minimum réglé. Une colonne entretenue par une tâche planifiée finirait par diverger du réel — c'était une décision explicite du 3 août.
+
+Sept états : planifié, effectif à surveiller, exécuté, présences à valider, décision attendue, sans inscrit, annulé. **« Exécuté » exige des présences pointées** : sans elles, personne ne sait si le cours a eu lieu.
+
 ### Les fonctions SQL notables
 
 - `get_available_credits(user, credit_type)` — les sources de paiement d'un membre, **abonnement en tête**
@@ -156,7 +162,9 @@ C'est ce qui a évité d'écrire un moteur de quota, une table de formules et un
 - `cancel_booking_by_studio(booking)` — annulation par le studio : **restitue toujours**
 - `check_referral_qualification(referee)` — crée les deux bons au premier paiement
 - `get_usable_credit_notes(user, montant)` — les bons applicables, seuil compris
-- `grant_user_role` / `revoke_user_role` — hiérarchie des rôles
+- `grant_user_role` / `revoke_user_role` — hiérarchie des rôles : un admin gère les coachs, seul un super admin promeut un admin
+- `book_member_by_staff(class, user, pack)` — inscription par le staff. **Ignore le délai de fermeture**, respecte la capacité. Un coach n'agit que sur ses cours
+- `decline_modified_booking(booking)` — le membre renonce à un cours modifié après sa réservation : **restitue toujours**, sans délai
 - `reset_member_purchases(user)` — remise à zéro, **refuse de s'exécuter en mode live**
 
 ---
@@ -168,6 +176,10 @@ C'est ce qui a évité d'écrire un moteur de quota, une table de formules et un
 **Les écritures sensibles passent par des fonctions `SECURITY DEFINER`** plutôt que par des policies ouvertes. Motif : une policy en `WITH CHECK (true)` laisse n'importe quel membre authentifié écrire ce qu'il veut. Deux trous de ce type ont été trouvés et fermés le 5 août — n'importe qui pouvait se créer un bon d'achat du montant de son choix, ou s'attribuer un parrain.
 
 **La règle générale** : si une opération engage de l'argent ou des droits, elle se contrôle côté serveur. Masquer un bouton ne protège de rien — les fonctions sont appelables directement.
+
+**Le motif employé partout** : plutôt que d'élargir les droits d'un rôle, on ouvre une porte étroite et gardée. Un coach ne peut pas écrire dans `pack_purchases` ; il appelle `book_member_by_staff`, qui vérifie qu'il est bien coach **de ce cours-là** avant d'agir. Ajouter une policy `coach update` aurait laissé n'importe quel coach modifier n'importe quel pack, y compris s'ajouter des crédits.
+
+> **Toute fonction `SECURITY DEFINER` doit vérifier le rôle de l'appelant.** Elle contourne RLS par construction : sans ce contrôle, elle devient une porte ouverte. Deux fonctions ont été trouvées sans vérification et corrigées le 6 août.
 
 **Les clés secrètes** ne sont jamais dans le front. Le navigateur ne connaît que l'URL Supabase et la clé publique, dont les droits sont bornés par RLS.
 
@@ -237,6 +249,12 @@ npm run cap:android    # application Android
 **Un cycle de 4 semaines produit 13 échéances par an**, pas 12.
 
 **La même règle métier est parfois réécrite à plusieurs endroits.** Corriger la fonction SQL centrale ne suffit pas toujours : certains écrans font leur propre requête. À consolider.
+
+**`install.sql` peut décrire des policies absentes de la base.** Trois bugs du 6 août avaient cette cause : une règle d'accès écrite dans le fichier d'installation, jamais appliquée. Le symptôme est toujours le même — une requête refusée en silence, un écran qui conclut « aucun résultat » alors que les données existent.
+
+> **`supabase/check-policies.sql`** compare les policies attendues à celles réellement présentes. À exécuter après toute migration, et dès qu'un écran affiche une liste vide sans raison.
+
+**Un refus d'écriture ne lève pas d'exception.** Supabase renvoie une erreur dans l'objet de réponse, que le code peut ignorer sans rien remarquer. Un coach annulait son cours, le journal s'écrivait, les crédits partaient — et le cours restait planifié. **Toujours tester `error` après une écriture.**
 
 ---
 

@@ -49,11 +49,19 @@ Va dans **Mes cours**, ouvre la réservation, clique sur **Annuler**.
 
 Le délai est indiqué dans l'application. Préviens dès que tu sais : c'est ce qui permet à quelqu'un d'autre de venir.
 
+> **Le cours a été déplacé ou changé après ta réservation ?** Tu peux annuler sans rien perdre, même à la dernière minute : ton crédit t'est rendu. Tu ne t'étais pas inscrit à ce cours-là.
+
 ### Voir mes cours et mes crédits
 
 **Mes cours** — tes réservations à venir et passées.
 
 **Mes packs** — ton abonnement s'il y en a un, avec sa prochaine échéance, et tes packs avec leurs crédits restants et leur date d'expiration.
+
+### Quand le studio modifie un cours
+
+Tu reçois un message qui **dit ce qui change** : nouveau coach, nouvelle salle, nouvel horaire, durée différente.
+
+Si c'est l'horaire ou le type de cours qui change, le message te propose explicitement d'annuler avec restitution de ton crédit — libre à toi de rester ou de réserver autre chose.
 
 ### Liste d'attente
 

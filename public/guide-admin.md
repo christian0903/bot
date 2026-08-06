@@ -8,14 +8,21 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 
 | | Coach | Admin |
 |---|:---:|:---:|
-| Voir ses cours, les participants, faire le check-in | ✅ | ✅ |
+| Voir ses cours, les participants, pointer les présences | ✅ | ✅ |
+| **Inscrire un membre à un de ses cours** | ✅ | ✅ |
+| Retirer un membre d'un cours | ✅ | ✅ |
+| **Annuler un de ses cours** | ✅ | ✅ |
 | Modifier le nombre de places de ses cours | ✅ | ✅ |
 | Suivre les performances des membres | ✅ | ✅ |
 | Accéder à l'espace Administration | — | ✅ |
 | Gérer les membres, leurs packs, leurs abonnements | — | ✅ |
 | Créer cours, packs, abonnements, réglages | — | ✅ |
+| **Désigner un coach** | — | ✅ |
+| **Désigner un admin ou un super admin** | — | super admin |
 | Tableau de bord financier et exports | — | ✅ |
 | Gestes commerciaux (remises, bons, reports) | — | ✅ |
+
+Un coach n'agit que sur **ses propres cours** : il ne peut ni inscrire ni annuler dans le cours d'un collègue.
 
 Un coach qui n'est pas admin ne voit pas le menu Administration. S'il tente d'y accéder, il est renvoyé à l'accueil.
 
@@ -38,21 +45,76 @@ C'est l'écran le plus utilisé. Chaque cours peut être ouvert pour :
 
 **Modifier une série.** Quand un cours fait partie d'une série, l'application demande si le changement vaut pour **ce cours uniquement** ou pour toute la suite. Vérifiez ce choix : c'est l'erreur la plus fréquente.
 
+**Modifier un cours qui a des inscrits.** Les membres sont prévenus, et le message **nomme ce qui change** : coach, salle, horaire, durée.
+
+Si vous changez **l'horaire ou le type de cours**, un avertissement s'affiche avant d'enregistrer : ces personnes s'étaient inscrites à autre chose. Elles reçoivent alors une proposition explicite d'annuler **avec restitution de leur crédit**, quel que soit le délai — elles subissent votre décision, elles ne l'ont pas prise.
+
+Changer le coach ou la salle ne déclenche pas cette proposition : le cours a lieu au même moment.
+
 **Annuler un cours.** Utilisez toujours l'annulation depuis l'écran plutôt que la suppression : les inscrits sont prévenus et **leurs crédits leur sont rendus quoi qu'il arrive**, même en dessous du délai normal — ce n'est pas eux qui annulent.
 
 **Cours sous le seuil.** Un bandeau signale les cours qui n'atteignent pas le minimum de participants. Le studio décide : annuler et rembourser, ou maintenir. Rien n'est automatique.
 
+**Cours passés sans décision.** Un second bandeau signale les cours passés où des gens étaient inscrits sans que personne ait dit si le cours avait eu lieu. Deux issues, pas d'autre : pointer les présences, ou annuler pour rendre les crédits. Ne pas trancher laisse des membres avec un crédit consommé pour rien.
+
+**Naviguer dans le temps.** Les flèches de part et d'autre des dates décalent la période d'une longueur équivalente. Un bouton « Aujourd'hui » ramène au présent. La période reste en mémoire quand vous ouvrez un cours puis revenez.
+
+### Lire le statut d'un cours
+
+Chaque cours porte un badge qui dit où il en est :
+
+| Badge | Signification |
+|---|---|
+| *(rien)* | Cours à venir, rien à signaler |
+| **Effectif à surveiller** | À venir, effectif faible, échéance proche |
+| **Exécuté** *(vert)* | Passé, **présences pointées** — c'est établi |
+| **Présences à valider** *(orange)* | Passé, effectif suffisant, mais rien de pointé |
+| **Décision attendue** *(rouge)* | Passé, des inscrits sous le seuil, rien de pointé — **à traiter** |
+| **Sans inscrit** *(gris)* | Passé, personne inscrit — rien à faire |
+| **Annulé** | Décision du studio |
+
+> **« Exécuté » exige le pointage.** Sans lui, personne ne sait si le cours a eu lieu : le badge reste orange. C'est ce qui permet de repérer les coachs qui ne pointent pas.
+
+> **« Décision attendue » est le seul badge rouge.** Des membres ont consommé un crédit sans qu'on sache s'ils ont eu leur cours. C'est la seule situation qui exige une intervention.
+
 ### Inscrire ou désinscrire quelqu'un
 
-Depuis le planning, ouvrez le cours et ajoutez le membre. L'application demande **quelle source de crédit utiliser** : abonnement ou pack. Elle affiche pour chacun ce qu'il reste et sa date d'expiration.
+Depuis le planning (admin) ou depuis la fiche du cours (coach), ouvrez le cours et ajoutez le membre. L'application demande **quelle source de crédit utiliser** : abonnement ou pack. Elle affiche pour chacun ce qu'il reste et sa date d'expiration.
 
 > **Le type de crédit doit correspondre.** Un crédit personal training ne paie pas un cours semi-privé. Seules les sources compatibles apparaissent dans la liste.
+
+**L'inscription par le staff ignore le délai de fermeture.** C'est son intérêt : quelqu'un se présente à la dernière minute, il reste de la place, vous décidez. Seule la capacité de la salle fait barrage. Vous pouvez aussi inscrire quelqu'un **après** le cours, pour régulariser une personne venue sans être inscrite.
+
+Le membre est prévenu par notification et par e-mail, à l'inscription comme au retrait.
+
+**Retirer quelqu'un rend toujours son crédit** — le retrait vient du studio, pas de lui, donc le délai de prévenance ne s'applique pas.
 
 ### Check-in et absences
 
 Dans **Mes cours** (coach) ou depuis le planning, pointez les présents. Un membre qui n'est pas venu se marque en **absent** — à la main : il n'y a pas de marquage automatique aujourd'hui.
 
 Ces données alimentent le taux de présence et les statistiques d'annulation.
+
+---
+
+## L'espace coach
+
+Un coach y trouve ses cours et ses chiffres. Un admin y accède aussi.
+
+**Ses chiffres, sur 30 jours** : cours donnés sur planifiés (avec le détail des cours sans inscrit et annulés), participants venus, et deux taux distincts — **remplissage** (inscrits sur places) et, entre parenthèses, **présence** (venus sur inscrits). Le second tourne autour de 100 % en temps normal ; s'en écarter signale des absences répétées.
+
+Ces chiffres portent toujours sur 30 jours, quelle que soit la période affichée dans la liste en dessous.
+
+**Sa liste de cours**, filtrable :
+
+- **Période** : à venir, cette semaine (du lundi), ce mois-ci. Des flèches reculent ou avancent d'une semaine ou d'un mois selon la vue.
+- **Statut**, sur les périodes passées : exécutés, présences à valider, décision attendue, sans inscrit, annulés.
+
+Chaque ligne affiche `2/5` pour un cours à venir, `3/4/5` pour un cours passé — présents, inscrits, capacité.
+
+**Sur la fiche d'un cours**, le coach pointe les présences, ajoute ou retire un membre, et peut annuler le cours entier. L'annulation demande confirmation et **nomme les inscrits concernés** avant de valider.
+
+> **Le pointage se fait à la main.** Le lecteur de code QR est une option à côté, ignorable : avec peu de participants qu'on connaît, cocher une liste va plus vite.
 
 ---
 
@@ -103,6 +165,17 @@ Un historique des réductions accordées figure en bas de l'onglet.
 **Accorder un bon d'achat** — montant libre, avec un motif (geste commercial, dédommagement, autre). Le bon est proposé au membre à son prochain achat. Il s'utilise **en une fois, en entier**.
 
 La liste montre tous ses bons, leur origine, leur état et leur expiration.
+
+### Désigner un coach ou un admin
+
+Les boutons sont sur la fiche membre, sous le statut. Les rôles actuels s'affichent en badges à côté.
+
+- Un **admin** désigne ou retire un **coach**
+- Seul un **super admin** désigne ou retire un **admin**, et promeut au rang de **super admin**
+
+Le membre reçoit une notification quand il devient coach, et chaque changement est tracé au journal.
+
+> **Plusieurs super admins sont possibles**, et c'est prudent : si l'un perd l'accès à son compte, l'autre peut le rétablir. Deux garde-fous : on ne retire pas ses propres droits d'admin, et le dernier super admin ne peut pas être retiré — sinon le studio se verrouillerait.
 
 ### Autres actions sur la fiche
 
