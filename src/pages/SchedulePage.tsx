@@ -90,6 +90,8 @@ export function SchedulePage() {
   const [userBookings, setUserBookings] = useState<Set<string>>(new Set())
   const [userWaitlist, setUserWaitlist] = useState<Map<string, { id: string; position: number; status: string }>>(new Map())
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
+  /** Présences pointées : distingue un cours établi d'un cours supposé. */
+  const [attendedCounts, setAttendedCounts] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [bookingInProgress, setBookingInProgress] = useState<string | null>(null)
   /** Réservation en attente de confirmation dans la pop-up. */
@@ -227,10 +229,25 @@ export function SchedulePage() {
     // Booking counts
     const classIds = rawClasses.map(c => c.id)
     if (classIds.length > 0) {
-      const { data: countData } = await supabase.from('bookings').select('scheduled_class_id').in('scheduled_class_id', classIds).eq('status', 'confirmed')
+      // Une annulation tardive compte comme une place occupée : le crédit a
+      // été consommé. Les présences servent à savoir si le cours a eu lieu.
+      const { data: countData } = await supabase
+        .from('bookings')
+        .select('scheduled_class_id, status, is_no_show, checked_in_at')
+        .in('scheduled_class_id', classIds)
       const counts = new Map<string, number>()
-      for (const row of countData ?? []) counts.set(row.scheduled_class_id, (counts.get(row.scheduled_class_id) ?? 0) + 1)
+      const attended = new Map<string, number>()
+      for (const row of (countData ?? []) as {
+        scheduled_class_id: string; status: string; is_no_show: boolean; checked_in_at: string | null
+      }[]) {
+        if (row.checked_in_at) {
+          attended.set(row.scheduled_class_id, (attended.get(row.scheduled_class_id) ?? 0) + 1)
+        }
+        if (row.status !== 'confirmed' && !row.is_no_show) continue
+        counts.set(row.scheduled_class_id, (counts.get(row.scheduled_class_id) ?? 0) + 1)
+      }
       setBookingCounts(counts)
+      setAttendedCounts(attended)
     }
 
     // Waitlist
@@ -497,6 +514,27 @@ export function SchedulePage() {
         if (startsAt <= new Date()) return false
         const count = bookingCounts.get(sc.id) ?? 0
         return count < minParticipants && isBookingClosed(sc, count, bookingRules)
+      })
+    : []
+
+  /**
+   * Cours passés restés sans décision.
+   *
+   * Des gens étaient inscrits, leur crédit a été consommé, et personne n'a dit
+   * si le cours avait eu lieu : ni présence pointée, ni annulation. Cet état ne
+   * doit pas durer — soit le cours a eu lieu et il faut pointer, soit il n'a
+   * pas eu lieu et il faut rendre les crédits.
+   *
+   * Ne concerne que les cours sous le seuil : au-dessus, l'absence de pointage
+   * est un oubli du coach, pas une décision en suspens.
+   */
+  const classesPendingDecision = isStaff
+    ? classes.filter(sc => {
+        if (sc.is_cancelled) return false
+        if (new Date(sc.starts_at) > new Date()) return false
+        const count = bookingCounts.get(sc.id) ?? 0
+        if (count === 0 || count >= minParticipants) return false
+        return (attendedCounts.get(sc.id) ?? 0) === 0
       })
     : []
 
@@ -1107,6 +1145,61 @@ export function SchedulePage() {
           {isFr ? 'Réserve ta place et viens transpirer' : 'Book your spot and come sweat'}
         </p>
       </div>
+
+      {/* Cours passés restés sans décision. Des gens ont consommé un crédit et
+          personne n'a dit si le cours avait eu lieu. Deux issues, pas d'autre :
+          pointer les présences, ou annuler et rendre les crédits. */}
+      {classesPendingDecision.length > 0 && (
+        <div className="rounded-xl border-2 border-orange-500 bg-orange-50 dark:bg-orange-950/30 p-3 space-y-2">
+          <div>
+            <p className="text-sm font-semibold text-orange-700 dark:text-orange-400">
+              {isFr
+                ? `${classesPendingDecision.length} cours passé(s) sans décision`
+                : `${classesPendingDecision.length} past class(es) awaiting a decision`}
+            </p>
+            <p className="text-xs text-orange-700/80 dark:text-orange-400/80 mt-0.5">
+              {isFr
+                ? 'Des membres ont consommé un crédit sans qu\'on sache si le cours a eu lieu. Pointe les présences, ou annule pour leur rendre leur crédit.'
+                : 'Members used a credit and nobody said whether the class took place. Check them in, or cancel to refund their credit.'}
+            </p>
+          </div>
+          {classesPendingDecision.map(sc => {
+            const count = bookingCounts.get(sc.id) ?? 0
+            return (
+              <div key={sc.id} className="flex items-center justify-between gap-2 rounded-lg bg-background p-2.5 flex-wrap">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {sc.title || sc.class_type?.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(sc.starts_at), 'EEEE dd/MM à HH:mm', { locale })}
+                    {' · '}
+                    {isFr ? `${count} inscrit(s)` : `${count} booked`}
+                  </p>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => navigate(`/coach/class/${sc.id}`)}
+                  >
+                    {isFr ? 'Pointer les présences' : 'Check in'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs text-destructive hover:text-destructive"
+                    onClick={() => openClassDetail(sc)}
+                  >
+                    {isFr ? 'Annuler' : 'Cancel'}
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Cours sous le seuil, réservations fermées — proposés à l'annulation.
           Rien n'est annulé d'office : le coach peut vouloir maintenir. */}

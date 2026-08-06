@@ -128,12 +128,13 @@ export function classStatusLabel(status: ClassStatus, isFr = true): { label: str
         className: 'border-amber-500 text-amber-600',
       }
     case 'not_given':
-      // Des inscrits, mais sous le seuil : leur crédit a été consommé pour un
-      // cours qui n'a probablement pas eu lieu. C'est le cas à traiter.
+      // Des inscrits sous le seuil, sans présence pointée : leur crédit a été
+      // consommé et personne n'a dit si le cours avait eu lieu. Ce n'est pas un
+      // état stable — il faut pointer ou annuler.
       return {
-        label: isFr ? 'Effectif insuffisant' : 'Below minimum',
+        label: isFr ? 'Décision attendue' : 'Decision needed',
         variant: 'outline',
-        className: 'border-orange-500 text-orange-600 dark:text-orange-400',
+        className: 'border-orange-500 text-orange-600 dark:text-orange-400 font-medium',
       }
     case 'at_risk':
       // Cours à venir dont l'effectif ne suffit pas encore : une alerte, pas
