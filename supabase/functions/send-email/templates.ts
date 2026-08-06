@@ -15,6 +15,7 @@ export interface TemplateVars {
   class_date?: string        // ex: "mardi 22 avril 2026 à 10:00"
   old_class_date?: string    // pour class_modified
   changes?: string[]         // ce qui a changé, en clair (class_modified)
+  heavy_change?: boolean     // horaire ou type modifié : la prestation change
   coach_name?: string
   room_name?: string
   duration_minutes?: number
@@ -141,6 +142,17 @@ export function buildTemplate(template: TemplateKey, v: TemplateVars): { subject
       const changeRow = (v.changes?.length ?? 0) > 0
         ? `<p><strong>Ce qui change :</strong> ${v.changes!.join(', ')}.</p>`
         : ''
+      // Horaire ou type modifié : ce n'est plus le cours pour lequel le
+      // membre s'était inscrit. On lui dit explicitement qu'il peut renoncer
+      // sans y perdre — sinon il subit un changement qu'il n'a pas choisi.
+      const heavyRow = v.heavy_change
+        ? `<p style="background:#fef3c7;border-left:3px solid #f59e0b;padding:10px 12px;margin:12px 0;">
+             Ce cours n'est plus celui pour lequel vous vous étiez inscrit(e).
+             <strong>Si ce nouveau créneau ne vous convient pas, annulez votre
+             réservation : votre crédit vous sera restitué</strong>, et vous
+             pourrez réserver un autre cours quand vous le souhaitez.
+           </p>`
+        : ''
       const body = `
         <p>${hello}</p>
         <p>Un cours auquel vous êtes inscrit(e) a été <strong>modifié</strong>.</p>
@@ -148,7 +160,8 @@ export function buildTemplate(template: TemplateKey, v: TemplateVars): { subject
         ${oldRow}
         <p><strong>Nouvelles informations :</strong></p>
         ${detailsBlock(v)}
-        ${cta(`${appUrl}/my-bookings`, 'Voir mes réservations')}
+        ${heavyRow}
+        ${cta(`${appUrl}/my-bookings`, v.heavy_change ? 'Gérer ma réservation' : 'Voir mes réservations')}
       `
       return { subject, html: shell('Cours modifié', body) }
     }

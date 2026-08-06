@@ -24,7 +24,7 @@ import {
 import { toast } from 'sonner'
 import { sendEmail } from '@/lib/send-email'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy, ChevronLeft, ChevronRight} from 'lucide-react'
+import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy, ChevronLeft, ChevronRight, AlertTriangle} from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
@@ -254,6 +254,25 @@ export function AdminSchedulePage() {
     setDialogOpen(true)
   }
 
+  /**
+   * Changements « lourds » : ils transforment la prestation, pas seulement
+   * ses modalités. Quelqu'un inscrit à un Pilates du mardi matin n'a pas
+   * demandé un autre cours ni un autre créneau.
+   */
+  const pendingHeavyChange = (() => {
+    if (!editing || !form.date || !form.time) return null
+    const newStarts = new Date(`${form.date}T${form.time}`)
+    const oldStarts = new Date(editing.starts_at)
+    const timeChanged = oldStarts.getTime() !== newStarts.getTime()
+    const typeChanged = editing.class_type_id !== form.class_type_id
+    if (!timeChanged && !typeChanged) return null
+    return {
+      timeChanged,
+      typeChanged,
+      booked: bookingCounts.get(editing.id) ?? 0,
+    }
+  })()
+
   const handleSave = async () => {
     const baseDate = new Date(`${form.date}T${form.time}`)
     const basePayload = {
@@ -305,6 +324,7 @@ export function AdminSchedulePage() {
           // simplement pas, et le membre recevait un bloc d'informations sans
           // savoir ce qui n'était plus comme avant.
           const isFr = i18n.language === 'fr'
+          const heavyChange = startsChanged || editing.class_type_id !== basePayload.class_type_id
           const changes: string[] = []
           if (startsChanged) changes.push(isFr ? 'nouvel horaire' : 'new time')
           if (coachChanged) {
@@ -334,6 +354,9 @@ export function AdminSchedulePage() {
               room_name: newRoomName,
               duration_minutes: basePayload.duration_minutes,
               changes,
+              // Horaire ou type modifié : la prestation change, l'e-mail
+              // propose alors explicitement de renoncer avec restitution.
+              heavy_change: startsChanged || editing.class_type_id !== basePayload.class_type_id,
             })
           }
 
@@ -344,8 +367,8 @@ export function AdminSchedulePage() {
               user_id: uid,
               title: isFr ? 'Cours modifié' : 'Class modified',
               message: isFr
-                ? `${className} du ${format(newStarts, 'EEEE dd/MM à HH:mm', { locale })} — ${changes.join(', ')}.`
-                : `${className} on ${format(newStarts, 'EEEE dd/MM HH:mm', { locale })} — ${changes.join(', ')}.`,
+                ? `${className} du ${format(newStarts, 'EEEE dd/MM à HH:mm', { locale })} — ${changes.join(', ')}.${heavyChange ? ' Si ce créneau ne te convient plus, tu peux annuler : ton crédit te sera rendu.' : ''}`
+                : `${className} on ${format(newStarts, 'EEEE dd/MM HH:mm', { locale })} — ${changes.join(', ')}.${heavyChange ? ' If this no longer suits you, you can cancel: your credit will be refunded.' : ''}`,
               type: 'info',
               link: '/my-bookings',
             })),
@@ -954,6 +977,31 @@ export function AdminSchedulePage() {
               </div>
             )}
           </div>
+
+          {/* Changement lourd sur un cours qui a des inscrits : l'admin doit
+              savoir ce qu'il déclenche avant de valider. */}
+          {pendingHeavyChange && pendingHeavyChange.booked > 0 && (
+            <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-500/40 p-3 text-sm">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-amber-900 dark:text-amber-200">
+                <p className="font-medium">
+                  {isFr
+                    ? `${pendingHeavyChange.booked} personne(s) déjà inscrite(s)`
+                    : `${pendingHeavyChange.booked} member(s) already booked`}
+                </p>
+                <p className="text-xs mt-1">
+                  {isFr
+                    ? `Tu changes ${pendingHeavyChange.timeChanged && pendingHeavyChange.typeChanged
+                        ? 'l\'horaire et le type de cours'
+                        : pendingHeavyChange.timeChanged ? 'l\'horaire' : 'le type de cours'}. Ces personnes s'étaient inscrites à autre chose : elles seront prévenues et invitées à se désinscrire avec restitution de leur crédit si le nouveau créneau ne leur convient pas.`
+                    : `You are changing ${pendingHeavyChange.timeChanged && pendingHeavyChange.typeChanged
+                        ? 'the time and the class type'
+                        : pendingHeavyChange.timeChanged ? 'the time' : 'the class type'}. These members booked something else: they will be notified and invited to cancel with a refund if the new slot does not suit them.`}
+                </p>
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button onClick={handleSave} disabled={!form.class_type_id || !form.date || !form.time}>

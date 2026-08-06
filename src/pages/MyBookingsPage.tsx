@@ -73,6 +73,22 @@ export function MyBookingsPage() {
     if (!user) return
     const booking = bookings.find(b => b.id === bookingId)
 
+    // Si le cours a été modifié après la réservation, le membre renonce à
+    // une prestation qu'il n'avait pas choisie : son crédit lui revient quel
+    // que soit le délai. La fonction refuse d'elle-même si le cours n'a pas
+    // été modifié, on retombe alors sur l'annulation ordinaire.
+    const { data: declined } = await supabase.rpc('decline_modified_booking', {
+      p_booking_id: bookingId,
+    })
+
+    if ((declined as { ok?: boolean } | null)?.ok) {
+      toast.success(isFr
+        ? 'Réservation annulée — ton crédit t\'a été restitué.'
+        : 'Booking cancelled — your credit has been refunded.')
+      setBookings(prev => prev.filter(b => b.id !== bookingId))
+      return
+    }
+
     // Use server-side cancel with conditional refund
     const { data: result, error } = await supabase.rpc('cancel_booking_v2', {
       p_booking_id: bookingId,
