@@ -10,7 +10,9 @@
 -- PostgreSQL refuse d'utiliser une valeur d'enum créée dans la même
 -- transaction : d'où la coupure.
 --
--- Dernière mise à jour : 2026-08-06 — remise à niveau complète.
+-- Dernière mise à jour : 2026-08-06 (soir) — remise à niveau complète, puis
+-- rattrapage des migrations du jour : rôles, bons d'achat, inscription par le
+-- staff, renoncement après modification, et les policies coach qui manquaient.
 -- Ce fichier avait pris du retard sur les migrations : il lui manquait les
 -- abonnements, le parrainage, les bons d'achat, les badges et une douzaine
 -- de fonctions. Il contenait aussi deux policies trop permissives, retirées
@@ -737,7 +739,7 @@ END;
 CREATE OR REPLACE FUNCTION cancel_booking_v2(p_booking_id UUID, p_user_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
-AS '
+AS $fn$
 DECLARE
   v_booking RECORD;
   v_class RECORD;
@@ -746,30 +748,38 @@ DECLARE
   v_free_hours NUMERIC;
   v_refund BOOLEAN;
 BEGIN
-  SELECT * INTO v_booking FROM bookings WHERE id = p_booking_id AND user_id = p_user_id AND status = ''confirmed'';
+  SELECT * INTO v_booking FROM bookings
+   WHERE id = p_booking_id AND user_id = p_user_id AND status = 'confirmed';
   IF NOT FOUND THEN
-    RETURN jsonb_build_object(''error'', ''booking_not_found'');
+    RETURN jsonb_build_object('error', 'booking_not_found');
   END IF;
 
   SELECT * INTO v_class FROM scheduled_classes WHERE id = v_booking.scheduled_class_id;
-  SELECT value INTO v_rules FROM app_settings WHERE key = ''booking_rules'';
+  SELECT value INTO v_rules FROM app_settings WHERE key = 'booking_rules';
 
   v_hours_before := EXTRACT(EPOCH FROM (v_class.starts_at - NOW())) / 3600;
-  v_free_hours := COALESCE((v_rules->>''cancellation_free_hours'')::NUMERIC, 12);
+  v_free_hours := COALESCE((v_rules->>'cancellation_free_hours')::NUMERIC, 12);
   v_refund := v_hours_before >= v_free_hours;
 
-  UPDATE bookings SET status = ''cancelled'', cancelled_at = NOW() WHERE id = p_booking_id;
+  -- Hors délai : le crédit reste consommé, donc la place a été occupée.
+  -- `is_no_show` en garde la trace pour les statistiques et pour repérer
+  -- les désistements répétés.
+  UPDATE bookings
+     SET status = 'cancelled',
+         cancelled_at = NOW(),
+         is_no_show = NOT v_refund
+   WHERE id = p_booking_id;
 
-  -- Sans effet si le pack est illimité (cf. refund_credit)
+  -- Sans effet si le pack est illimité (cf. refund_credit).
   IF v_refund THEN
     PERFORM refund_credit(v_booking.pack_purchase_id);
   END IF;
 
   PERFORM promote_from_waitlist(v_booking.scheduled_class_id);
 
-  RETURN jsonb_build_object(''refunded'', v_refund, ''hours_before'', ROUND(v_hours_before, 1));
+  RETURN jsonb_build_object('refunded', v_refund, 'hours_before', ROUND(v_hours_before, 1));
 END;
-';
+$fn$;
 
 -- Phase 1 : Auto-génération code parrainage
 CREATE OR REPLACE FUNCTION generate_referral_code()
@@ -1405,6 +1415,167 @@ $$;
 -- 6. Objectif hebdo + badges
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS weekly_goal INTEGER DEFAULT 3;
 
+
+
+-- ---- Inscription et renoncement pilotes par le staff ----
+
+CREATE OR REPLACE FUNCTION book_member_by_staff(
+  p_class_id UUID,
+  p_user_id UUID,
+  p_pack_purchase_id UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_is_admin BOOLEAN := has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin');
+  v_is_coach BOOLEAN := has_role(auth.uid(), 'coach');
+  v_class RECORD;
+  v_count INTEGER;
+  v_pack RECORD;
+  v_booking_id UUID;
+  v_member TEXT;
+BEGIN
+  IF NOT (v_is_admin OR v_is_coach) THEN
+    RAISE EXCEPTION 'Reserve au staff du studio';
+  END IF;
+
+  SELECT * INTO v_class FROM scheduled_classes WHERE id = p_class_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'class_not_found');
+  END IF;
+
+  -- Un coach n'agit que sur ses propres cours : il est responsable de sa
+  -- salle, pas de celle d'un collègue.
+  IF NOT v_is_admin AND v_class.coach_id IS DISTINCT FROM auth.uid() THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_your_class');
+  END IF;
+
+  IF v_class.is_cancelled THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'class_cancelled');
+  END IF;
+
+  -- Le cours passé reste inscriptible : un coach peut régulariser après coup
+  -- quelqu'un qui est venu. Seule la capacité fait barrage.
+  SELECT COUNT(*) INTO v_count
+  FROM bookings WHERE scheduled_class_id = p_class_id AND status = 'confirmed';
+
+  IF v_count >= v_class.max_participants THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'class_full');
+  END IF;
+
+  IF EXISTS(SELECT 1 FROM bookings
+             WHERE scheduled_class_id = p_class_id
+               AND user_id = p_user_id
+               AND status = 'confirmed') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'already_booked');
+  END IF;
+
+  -- Source de paiement : celle qu'on nous donne, sinon la première utilisable
+  -- (abonnement d'abord, cf. get_available_credits).
+  IF p_pack_purchase_id IS NOT NULL THEN
+    SELECT pp.id, pp.credits_remaining, pt.is_unlimited
+      INTO v_pack
+    FROM pack_purchases pp
+    JOIN pack_types pt ON pt.id = pp.pack_type_id
+    WHERE pp.id = p_pack_purchase_id
+      AND pp.user_id = p_user_id
+      AND pp.expires_at > NOW()
+      AND (pt.is_unlimited OR pp.credits_remaining > 0);
+  ELSE
+    SELECT c.pack_purchase_id, c.credits_remaining, c.is_unlimited
+      INTO v_pack
+    FROM get_available_credits(
+           p_user_id,
+           (SELECT credit_type_id FROM class_types WHERE id = v_class.class_type_id)
+         ) c
+    LIMIT 1;
+  END IF;
+
+  IF v_pack IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'no_credit');
+  END IF;
+
+  -- Réactiver une annulation plutôt que d'en créer une seconde : la
+  -- contrainte d'unicité (cours, membre) l'interdirait.
+  UPDATE bookings
+     SET status = 'confirmed',
+         pack_purchase_id = v_pack.id,
+         cancelled_at = NULL,
+         is_no_show = FALSE
+   WHERE scheduled_class_id = p_class_id
+     AND user_id = p_user_id
+     AND status = 'cancelled'
+  RETURNING id INTO v_booking_id;
+
+  IF v_booking_id IS NULL THEN
+    INSERT INTO bookings (scheduled_class_id, user_id, pack_purchase_id)
+    VALUES (p_class_id, p_user_id, v_pack.id)
+    RETURNING id INTO v_booking_id;
+  END IF;
+
+  PERFORM consume_credit(v_pack.id);
+
+  SELECT display_name INTO v_member FROM profiles WHERE id = p_user_id;
+
+  INSERT INTO activity_log (action, actor_id, target_user_id, entity_type, entity_id, details, description)
+  VALUES ('booking_assigned', auth.uid(), p_user_id, 'booking', v_booking_id,
+          jsonb_build_object('by_staff', true, 'scheduled_class_id', p_class_id),
+          format('%s inscrit(e) par le staff au cours du %s',
+                 COALESCE(v_member, '?'),
+                 to_char(v_class.starts_at AT TIME ZONE 'Europe/Brussels', 'DD/MM/YYYY HH24:MI')));
+
+  RETURN jsonb_build_object('ok', true, 'booking_id', v_booking_id);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION decline_modified_booking(p_booking_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_booking RECORD;
+  v_class RECORD;
+BEGIN
+  SELECT * INTO v_booking FROM bookings
+   WHERE id = p_booking_id
+     AND user_id = auth.uid()          -- on ne renonce que pour soi
+     AND status = 'confirmed';
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'booking_not_found');
+  END IF;
+
+  SELECT * INTO v_class FROM scheduled_classes WHERE id = v_booking.scheduled_class_id;
+
+  IF v_class.starts_at < NOW() THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'class_past');
+  END IF;
+
+  -- Le cours doit avoir été modifié APRÈS la réservation : c'est ce qui
+  -- justifie la restitution hors délai.
+  IF v_class.updated_at IS NULL OR v_class.updated_at <= v_booking.created_at THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_modified');
+  END IF;
+
+  UPDATE bookings
+     SET status = 'cancelled', cancelled_at = NOW(), is_no_show = FALSE
+   WHERE id = p_booking_id;
+
+  -- Restitution systématique : sans effet sur un pack illimité.
+  PERFORM refund_credit(v_booking.pack_purchase_id);
+  PERFORM promote_from_waitlist(v_booking.scheduled_class_id);
+
+  INSERT INTO activity_log (action, actor_id, target_user_id, entity_type, entity_id, details, description)
+  VALUES ('booking_cancelled', auth.uid(), auth.uid(), 'booking', p_booking_id,
+          jsonb_build_object('reason', 'class_modified', 'refunded', true),
+          format('Renoncement après modification du cours du %s — crédit restitué',
+                 to_char(v_class.starts_at AT TIME ZONE 'Europe/Brussels', 'DD/MM/YYYY HH24:MI')));
+
+  RETURN jsonb_build_object('ok', true, 'refunded', true);
+END;
+$fn$;
+
 -- ============================================
 -- 3. TRIGGERS
 -- ============================================
@@ -1667,6 +1838,8 @@ CREATE POLICY "Subscriptions: own read" ON subscriptions
     OR has_role(auth.uid(), 'coach')
     OR has_role(auth.uid(), 'admin')
   );
+CREATE POLICY "Subscriptions: coach read" ON subscriptions
+  FOR SELECT USING (has_role(auth.uid(), 'coach'));
 CREATE POLICY "Subscriptions: admin all" ON subscriptions
   FOR ALL
   USING (has_role(auth.uid(), 'admin'))
