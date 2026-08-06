@@ -103,7 +103,13 @@ export function getClassStatus(c: ClassStatusInput, now = new Date()): ClassStat
 export function classStatusLabel(status: ClassStatus, isFr = true): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string } {
   switch (status) {
     case 'cancelled':
-      return { label: isFr ? 'Annulé' : 'Cancelled', variant: 'destructive' }
+      // Le rouge plein est réservé à « Décision attendue », seul statut qui
+      // exige une action. Une annulation est un fait acquis : contour suffit.
+      return {
+        label: isFr ? 'Annulé' : 'Cancelled',
+        variant: 'outline',
+        className: 'border-destructive text-destructive',
+      }
     case 'empty':
       // Personne ne s'était inscrit : rien à traiter, personne n'a été lésé.
       // Volontairement discret.
@@ -131,10 +137,13 @@ export function classStatusLabel(status: ClassStatus, isFr = true): { label: str
       // Des inscrits sous le seuil, sans présence pointée : leur crédit a été
       // consommé et personne n'a dit si le cours avait eu lieu. Ce n'est pas un
       // état stable — il faut pointer ou annuler.
+      // Fond plein, texte blanc : c'est le seul statut qui exige une action
+      // du studio. Un rouge orangé, distinct du rouge d'« Annulé » — les deux
+      // ne veulent pas dire la même chose et ne doivent pas se confondre.
       return {
         label: isFr ? 'Décision attendue' : 'Decision needed',
-        variant: 'outline',
-        className: 'border-orange-500 text-orange-600 dark:text-orange-400 font-medium',
+        variant: 'default',
+        className: 'bg-red-600 hover:bg-red-600 text-white font-semibold',
       }
     case 'at_risk':
       // Cours à venir dont l'effectif ne suffit pas encore : une alerte, pas
