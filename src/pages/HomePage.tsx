@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown'
 import { MarkdownLink } from '@/components/common/MarkdownLink'
 import remarkGfm from 'remark-gfm'
 import { motion } from 'framer-motion'
+import { landingRouteFor } from '@/lib/landing-route'
 
 export function HomePage() {
   const { t } = useTranslation()
@@ -26,16 +27,7 @@ export function HomePage() {
   // étant déjà faite, l'arrivée des rôles ne la corrigeait plus.
   useEffect(() => {
     if (loading || !user) return
-    if (roles.includes('admin') || roles.includes('super_admin')) {
-      navigate('/admin/dashboard', { replace: true })
-    } else if (roles.includes('coach')) {
-      // Un coach SANS le rôle admin ne peut pas entrer dans /admin (RoleGuard
-      // le renverrait ici, et la boucle serait sans fin) : son espace, c'est
-      // la liste de ses cours.
-      navigate('/coach/my-classes', { replace: true })
-    } else {
-      navigate('/dashboard', { replace: true })
-    }
+    navigate(landingRouteFor(roles), { replace: true })
   }, [user, roles, loading, navigate])
 
   useEffect(() => {

@@ -1,27 +1,61 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
-import { Home, CalendarDays, CreditCard, ClipboardList } from 'lucide-react'
+import {
+  Home, CalendarDays, CreditCard, ClipboardList,
+  LayoutDashboard, Users, Dumbbell, Settings,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+/**
+ * Barre de navigation mobile, adaptée au rôle.
+ *
+ * Quatre entrées au maximum : au-delà, les libellés se coupent sur un petit
+ * écran. Chaque rôle voit les quatre écrans qu'il ouvre le plus souvent, le
+ * reste passant par le menu du haut.
+ *
+ * Un admin ou un coach reste membre du studio : le planning figure dans toutes
+ * les barres, et l'espace membre reste joignable par le menu.
+ */
 export function MobileBottomNav() {
   const { t, i18n } = useTranslation()
   const isFr = i18n.language === 'fr'
-  const { user } = useAuth()
+  const { user, hasRole } = useAuth()
 
   if (!user) return null
 
-  // Quatre entrées : au-delà, les libellés se coupent sur un petit écran.
-  // « Mes réservations » remplace les stats — le planning signale les cours
-  // réservés mais ne les regroupe pas, et « quand est-ce que je m'entraîne
-  // cette semaine ? » est la question la plus fréquente. Les statistiques
-  // restent accessibles depuis le menu du haut.
-  const items = [
+  const isAdmin = hasRole('admin') || hasRole('super_admin')
+  const isCoach = hasRole('coach')
+
+  // Admin : piloter le studio. Le tableau de bord, les membres, le planning
+  // d'ensemble, et les réglages qu'on ajuste souvent en début de cycle.
+  const adminItems = [
+    { path: '/admin/dashboard', icon: LayoutDashboard, label: isFr ? 'Tableau' : 'Dashboard' },
+    { path: '/admin/users', icon: Users, label: isFr ? 'Membres' : 'Members' },
+    { path: '/admin/schedule', icon: CalendarDays, label: isFr ? 'Planning' : 'Schedule' },
+    { path: '/admin/settings', icon: Settings, label: isFr ? 'Réglages' : 'Settings' },
+  ]
+
+  // Coach non admin : ses cours et le planning. Il n'a pas accès aux écrans
+  // d'administration, inutile de les lui proposer.
+  const coachItems = [
+    { path: '/coach/my-classes', icon: Dumbbell, label: isFr ? 'Mes cours' : 'My classes' },
+    { path: '/schedule', icon: CalendarDays, label: t('nav.schedule') },
+    { path: '/my-bookings', icon: ClipboardList, label: isFr ? 'Mes résas' : 'My bookings' },
+    { path: '/', icon: Home, label: t('nav.home') },
+  ]
+
+  // Membre : « Mes cours » plutôt que les stats — le planning signale les cours
+  // réservés mais ne les regroupe pas, et savoir quand on s'entraîne est la
+  // question la plus fréquente.
+  const memberItems = [
     { path: '/', icon: Home, label: t('nav.home') },
     { path: '/schedule', icon: CalendarDays, label: t('nav.schedule') },
     { path: '/my-bookings', icon: ClipboardList, label: isFr ? 'Mes cours' : 'My classes' },
     { path: '/my-packs', icon: CreditCard, label: t('packs.myPacks') },
   ]
+
+  const items = isAdmin ? adminItems : isCoach ? coachItems : memberItems
 
   return (
     <nav

@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { Dumbbell, ChevronRight, ChevronLeft, Check } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { landingRouteFor } from '@/lib/landing-route'
+import type { UserRole } from '@/types'
 
 const NAME_REGEX = /^[a-zA-ZÀ-ÿ\s-]+$/
 const VERIFICATION_ANSWER = '7'
@@ -19,7 +22,9 @@ export function AuthPage() {
   const { signIn, signUp, resetPassword } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: string })?.from ?? '/dashboard'
+  // `null` quand l'utilisateur n'a pas été renvoyé ici depuis une page
+  // protégée : on choisira alors sa destination selon son rôle.
+  const from = (location.state as { from?: string })?.from ?? null
 
   const [tab, setTab] = useState<string>('login')
   const [loading, setLoading] = useState(false)
@@ -67,7 +72,22 @@ export function AuthPage() {
       toast.error(msg)
     } else {
       toast.success(t('auth.loginSuccess'))
-      navigate(from, { replace: true })
+      // Les rôles arrivent de façon asynchrone : on les lit directement plutôt
+      // que d'attendre le contexte, sinon un admin partirait vers /dashboard.
+      if (from) {
+        navigate(from, { replace: true })
+      } else {
+        const { data: { user: signed } } = await supabase.auth.getUser()
+        let target = '/dashboard'
+        if (signed) {
+          const { data: roleRows } = await supabase
+            .from('user_roles').select('role').eq('user_id', signed.id)
+          target = landingRouteFor(
+            (roleRows ?? []).map((r: { role: string }) => r.role as UserRole),
+          )
+        }
+        navigate(target, { replace: true })
+      }
     }
   }
 
