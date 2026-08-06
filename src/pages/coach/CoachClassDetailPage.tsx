@@ -39,7 +39,7 @@ export function CoachClassDetailPage() {
 
   // Add member
   const [addMemberOpen, setAddMemberOpen] = useState(false)
-  const [eligibleMembers, setEligibleMembers] = useState<{ user_id: string; display_name: string; credits: number; pack_purchase_id: string }[]>([])
+  const [eligibleMembers, setEligibleMembers] = useState<{ user_id: string; display_name: string; credits: number; pack_purchase_id: string; unlimited: boolean }[]>([])
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [addMemberLoading, setAddMemberLoading] = useState(false)
 
@@ -277,28 +277,53 @@ export function CoachClassDetailPage() {
     const creditTypeId = scheduledClass.class_type?.credit_type_id
     if (!creditTypeId) { setAddMemberLoading(false); return }
 
+    // Le filtre `credits_remaining > 0` excluait les packs et abonnements
+    // ILLIMITÉS, dont le compteur ne bouge jamais : un membre en illimité
+    // n'apparaissait pas dans la liste. On charge donc aussi is_unlimited, et
+    // l'abonnement passe devant — il est déjà facturé, les crédits achetés à
+    // côté restent au membre.
     const { data: packs } = await supabase
       .from('pack_purchases')
-      .select('user_id, credits_remaining, expires_at, id, pack_type:pack_types(credit_type_id)')
-      .gt('credits_remaining', 0)
+      .select('user_id, credits_remaining, expires_at, id, subscription_id, pack_type:pack_types(credit_type_id, is_unlimited)')
       .gt('expires_at', new Date().toISOString())
       .order('expires_at', { ascending: true })
 
     if (!packs) { setAddMemberLoading(false); return }
 
-    // Sum total credits per user, keep pack expiring soonest for booking
     const bookedUserIds = new Set(bookings.map(b => b.user_id))
-    const memberMap = new Map<string, { user_id: string; credits: number; pack_purchase_id: string }>()
+    const memberMap = new Map<string, { user_id: string; credits: number; pack_purchase_id: string; unlimited: boolean; fromSub: boolean }>()
 
     for (const p of packs) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((p.pack_type as any)?.credit_type_id !== creditTypeId) continue
+      const pt = p.pack_type as any
+      if (pt?.credit_type_id !== creditTypeId) continue
       if (bookedUserIds.has(p.user_id)) continue
+
+      const unlimited = !!pt?.is_unlimited
+      // Un illimité reste utilisable quel que soit son compteur ; un pack à
+      // crédits ne compte que s'il lui en reste.
+      if (!unlimited && p.credits_remaining <= 0) continue
+
+      const fromSub = !!p.subscription_id
       const existing = memberMap.get(p.user_id)
+
       if (!existing) {
-        memberMap.set(p.user_id, { user_id: p.user_id, credits: p.credits_remaining, pack_purchase_id: p.id })
-      } else {
-        existing.credits += p.credits_remaining
+        memberMap.set(p.user_id, {
+          user_id: p.user_id,
+          credits: unlimited ? 0 : p.credits_remaining,
+          pack_purchase_id: p.id,
+          unlimited,
+          fromSub,
+        })
+        continue
+      }
+
+      if (!unlimited) existing.credits += p.credits_remaining
+      if (unlimited) existing.unlimited = true
+      // Priorité à l'abonnement pour la source réellement consommée.
+      if (fromSub && !existing.fromSub) {
+        existing.pack_purchase_id = p.id
+        existing.fromSub = true
       }
     }
 
@@ -310,6 +335,7 @@ export function CoachClassDetailPage() {
         display_name: p.display_name,
         credits: memberMap.get(p.id)!.credits,
         pack_purchase_id: memberMap.get(p.id)!.pack_purchase_id,
+        unlimited: memberMap.get(p.id)!.unlimited,
       }))
       result.sort((a, b) => a.display_name.localeCompare(b.display_name))
       setEligibleMembers(result)
@@ -564,7 +590,7 @@ export function CoachClassDetailPage() {
                             {selectedMemberId
                               ? (() => {
                                   const m = eligibleMembers.find(m => m.user_id === selectedMemberId)
-                                  return m ? `${m.display_name} (${m.credits} crédits)` : ''
+                                  return m ? `${m.display_name} (${m.unlimited ? (isFr ? 'illimité' : 'unlimited') : `${m.credits} ${isFr ? 'crédits' : 'credits'}`})` : ''
                                 })()
                               : (isFr ? 'Choisir un membre...' : 'Choose a member...')}
                           </span>
@@ -572,7 +598,7 @@ export function CoachClassDetailPage() {
                         <SelectContent className="min-w-[350px] max-h-60" sideOffset={4}>
                           {eligibleMembers.map(m => (
                             <SelectItem key={m.user_id} value={m.user_id}>
-                              {m.display_name} — {m.credits} {isFr ? 'crédit(s)' : 'credit(s)'}
+                              {m.display_name} — {m.unlimited ? (isFr ? 'illimité' : 'unlimited') : `${m.credits} ${isFr ? 'crédit(s)' : 'credit(s)'}`}
                             </SelectItem>
                           ))}
                         </SelectContent>
