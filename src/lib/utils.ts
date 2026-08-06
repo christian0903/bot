@@ -52,7 +52,7 @@ export function creditValueCents(
 // "exécuté" par le simple écoulement du temps).
 // ---------------------------------------------------------------------------
 
-export type ClassStatus = 'scheduled' | 'at_risk' | 'given' | 'not_given' | 'cancelled'
+export type ClassStatus = 'scheduled' | 'at_risk' | 'given' | 'not_given' | 'empty' | 'cancelled'
 
 export interface ClassStatusInput {
   starts_at: string
@@ -72,8 +72,16 @@ export function getClassStatus(c: ClassStatusInput, now = new Date()): ClassStat
   const hoursUntil = (startsAt.getTime() - now.getTime()) / 3600000
   const hasQuorum = c.bookings >= c.minParticipants
 
-  // Cours passé : il a eu lieu ou non, selon l'effectif atteint.
-  if (hoursUntil <= 0) return hasQuorum ? 'given' : 'not_given'
+  // Cours passé. Trois cas, et la distinction compte :
+  //   - quorum atteint : le cours a eu lieu
+  //   - personne inscrit : rien ne s'est passé, personne n'a été lésé
+  //   - sous le seuil avec des inscrits : ceux-là ont consommé un crédit
+  //     pour un cours qui n'a peut-être pas eu lieu. C'est ce cas qu'il faut
+  //     pouvoir repérer et traiter.
+  if (hoursUntil <= 0) {
+    if (hasQuorum) return 'given'
+    return c.bookings === 0 ? 'empty' : 'not_given'
+  }
 
   // Cours à venir : "à risque" quand l'échéance approche sans quorum.
   if (!hasQuorum && hoursUntil <= (c.atRiskHours ?? 24)) return 'at_risk'
@@ -85,6 +93,8 @@ export function classStatusLabel(status: ClassStatus, isFr = true): { label: str
   switch (status) {
     case 'cancelled':
       return { label: isFr ? 'Annulé' : 'Cancelled', variant: 'destructive' }
+    case 'empty':
+      return { label: isFr ? 'Sans inscrit' : 'No bookings', variant: 'outline', className: 'text-muted-foreground' }
     case 'given':
       return { label: isFr ? 'Exécuté' : 'Given', variant: 'default' }
     case 'not_given':

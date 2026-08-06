@@ -16,10 +16,22 @@ import { Badge } from '@/components/ui/badge'
 
 /** Chiffres personnels du coach sur les 30 derniers jours. */
 interface CoachStats {
+  /** Cours qui ont eu lieu : au moins le minimum de participants. */
   given: number
+  /** Tous les cours passés, annulations comprises. */
   scheduled: number
+  /** Cours passés sans aucun inscrit. */
+  emptyCount: number
+  /** Cours annulés par le studio. */
+  cancelledCount: number
+  /** Personnes réellement venues (pointées), sur les cours donnés. */
   attendees: number
+  /** Personnes inscrites sur les cours donnés. */
+  booked: number
+  /** Inscrits / capacité, sur les cours donnés. */
   fillRate: number
+  /** Venus / inscrits. Proche de 100 % en temps normal. */
+  showUpRate: number
   upcoming: number
 }
 
@@ -37,7 +49,7 @@ export function CoachClassesPage() {
   /** Période affichée. « upcoming » par défaut : c'est ce qu'on regarde le matin. */
   const [period, setPeriod] = useState<'upcoming' | 'week' | 'month'>('upcoming')
   /** Filtre de statut, utile surtout sur les cours passés. */
-  const [statusFilter, setStatusFilter] = useState<'all' | 'given' | 'not_given' | 'cancelled'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'given' | 'not_given' | 'empty' | 'cancelled'>('all')
   const [minParticipants, setMinParticipants] = useState(1)
   const [stats, setStats] = useState<CoachStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -111,32 +123,55 @@ export function CoachClassesPage() {
       // Participants par cours, en une seule requête
       const ids = pastClasses.map(c => c.id)
       const countByClass = new Map<string, number>()
+      const attendedByClass = new Map<string, number>()
       if (ids.length > 0) {
         const { data: bookings } = await supabase
           .from('bookings')
-          .select('scheduled_class_id')
+          .select('scheduled_class_id, checked_in_at')
           .in('scheduled_class_id', ids)
           .eq('status', 'confirmed')
-        for (const b of bookings ?? []) {
+        for (const b of (bookings ?? []) as { scheduled_class_id: string; checked_in_at: string | null }[]) {
           countByClass.set(b.scheduled_class_id, (countByClass.get(b.scheduled_class_id) ?? 0) + 1)
+          if (b.checked_in_at) {
+            attendedByClass.set(b.scheduled_class_id, (attendedByClass.get(b.scheduled_class_id) ?? 0) + 1)
+          }
         }
       }
 
-      let given = 0, attendees = 0, capacity = 0
+      // Trois familles, à ne pas mélanger :
+      //   - donnés : le cours a eu lieu, c'est sur eux qu'on mesure
+      //   - sans inscrit : personne ne s'était inscrit, aucun préjudice
+      //   - annulés : décision du studio, crédits rendus
+      // Le remplissage ne se calcule que sur les cours donnés : inclure un
+      // cours vide ferait chuter le taux sans rien dire du travail du coach.
+      let given = 0, emptyCount = 0, cancelledCount = 0
+      let booked = 0, attended = 0, capacity = 0
+
       for (const c of pastClasses) {
         const n = countByClass.get(c.id) ?? 0
-        attendees += n
-        if (!c.is_cancelled && n >= minParticipants) {
-          given++
-          capacity += c.max_participants ?? 0
-        }
+
+        if (c.is_cancelled) { cancelledCount++; continue }
+        if (n === 0) { emptyCount++; continue }
+        if (n < minParticipants) continue   // sous le seuil : ni donné, ni vide
+
+        given++
+        booked += n
+        attended += attendedByClass.get(c.id) ?? 0
+        capacity += c.max_participants ?? 0
       }
 
       setStats({
         given,
         scheduled: pastClasses.length,
-        attendees,
-        fillRate: capacity > 0 ? Math.round((attendees / capacity) * 100) : 0,
+        emptyCount,
+        cancelledCount,
+        attendees: attended,
+        booked,
+        // Remplissage : inscrits sur capacité, sur les seuls cours donnés.
+        fillRate: capacity > 0 ? Math.round((booked / capacity) * 100) : 0,
+        // Présence : venus sur inscrits. Proche de 100 % en temps normal ;
+        // s'en écarter signale des absences répétées.
+        showUpRate: booked > 0 ? Math.round((attended / booked) * 100) : 0,
         upcoming: (upcomingRes.data ?? []).length,
       })
       setLoading(false)
@@ -182,7 +217,17 @@ export function CoachClassesPage() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {isFr ? 'Cours donnés / planifiés' : 'Classes given / scheduled'}
-                  <span className="block">{isFr ? 'sur 30 jours' : 'over 30 days'}</span>
+                  {(stats.emptyCount > 0 || stats.cancelledCount > 0) && (
+                    <span className="block">
+                      {stats.emptyCount > 0 && (isFr
+                        ? `${stats.emptyCount} sans inscrit`
+                        : `${stats.emptyCount} with no bookings`)}
+                      {stats.emptyCount > 0 && stats.cancelledCount > 0 && ' · '}
+                      {stats.cancelledCount > 0 && (isFr
+                        ? `${stats.cancelledCount} annulé(s)`
+                        : `${stats.cancelledCount} cancelled`)}
+                    </span>
+                  )}
                 </p>
               </CardContent>
             </Card>
@@ -190,17 +235,22 @@ export function CoachClassesPage() {
               <CardContent className="p-3">
                 <p className="text-2xl font-bold">{stats.attendees}</p>
                 <p className="text-xs text-muted-foreground">
-                  {isFr ? 'Participants' : 'Attendees'}
-                  <span className="block">{isFr ? 'sur 30 jours' : 'over 30 days'}</span>
+                  {isFr ? 'Participants venus' : 'Members attended'}
+                  <span className="block">{isFr ? 'sur les cours donnés' : 'on classes given'}</span>
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-3">
-                <p className="text-2xl font-bold">{stats.fillRate} %</p>
+                <p className="text-2xl font-bold">
+                  {stats.fillRate} %
+                  <span className="text-sm text-muted-foreground font-normal"> ({stats.showUpRate} %)</span>
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  {isFr ? 'Taux de remplissage' : 'Fill rate'}
-                  <span className="block">{isFr ? 'sur 30 jours' : 'over 30 days'}</span>
+                  {isFr ? 'Remplissage (présence)' : 'Fill rate (attendance)'}
+                  <span className="block">
+                    {isFr ? 'inscrits/places (venus/inscrits)' : 'booked/seats (attended/booked)'}
+                  </span>
                 </p>
               </CardContent>
             </Card>
@@ -245,6 +295,7 @@ export function CoachClassesPage() {
               ['all', isFr ? 'Tous' : 'All'],
               ['given', isFr ? 'Donnés' : 'Given'],
               ['not_given', isFr ? 'Non donnés' : 'Not given'],
+              ['empty', isFr ? 'Sans inscrit' : 'No bookings'],
               ['cancelled', isFr ? 'Annulés' : 'Cancelled'],
             ] as const).map(([key, label]) => (
               <Button

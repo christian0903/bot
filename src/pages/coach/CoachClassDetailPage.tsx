@@ -11,13 +11,14 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
-import { Users, ArrowLeft, Pencil, Check, X, ScanLine, UserCheck, AlertTriangle, MapPin, UserPlus, UserMinus } from 'lucide-react'
+import { Users, ArrowLeft, Pencil, Check, X, ScanLine, UserCheck, AlertTriangle, MapPin, UserPlus, UserMinus, Ban} from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import type { ScheduledClass, Booking } from '@/types'
 import { sendEmail } from '@/lib/send-email'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export function CoachClassDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -43,6 +44,8 @@ export function CoachClassDetailPage() {
   const [eligibleMembers, setEligibleMembers] = useState<{ user_id: string; display_name: string; credits: number; pack_purchase_id: string; unlimited: boolean }[]>([])
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [addMemberLoading, setAddMemberLoading] = useState(false)
+  const [cancelClassOpen, setCancelClassOpen] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   const fetchData = async () => {
     if (!id) return
@@ -181,6 +184,68 @@ export function CoachClassDetailPage() {
   }
 
   // ---- Remove booking ----
+  /**
+   * Annule le cours entier.
+   *
+   * Geste lourd : les inscrits sont désinscrits, prévenus, et leurs crédits
+   * restitués quoi qu'il arrive — l'annulation vient du studio, pas d'eux.
+   * D'où la confirmation qui rappelle combien de personnes sont concernées.
+   */
+  const handleCancelClass = async () => {
+    if (!scheduledClass || !user) return
+    setCancelling(true)
+    try {
+      await supabase
+        .from('scheduled_classes')
+        .update({ is_cancelled: true })
+        .eq('id', scheduledClass.id)
+
+      const active = bookings.filter(b => b.status === 'confirmed')
+      const ids = active.map(b => b.user_id)
+      const { data: memberProfiles } = await supabase
+        .from('profiles').select('id, display_name, email')
+        .in('id', ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000000'])
+      const profileMap = new Map((memberProfiles ?? []).map(m => [m.id, m]))
+
+      for (const booking of active) {
+        await supabase.rpc('cancel_booking_by_studio', { p_booking_id: booking.id })
+
+        const when = format(new Date(scheduledClass.starts_at), 'EEEE dd/MM à HH:mm', { locale })
+        await supabase.from('notifications').insert({
+          user_id: booking.user_id,
+          title: isFr ? 'Cours annulé' : 'Class cancelled',
+          message: isFr
+            ? `Le cours ${scheduledClass.class_type?.name} du ${when} a été annulé. Votre crédit a été restitué.`
+            : `The class ${scheduledClass.class_type?.name} on ${when} has been cancelled. Your credit has been refunded.`,
+          type: 'error',
+          link: '/schedule',
+        })
+
+        const m = profileMap.get(booking.user_id)
+        if (m?.email) {
+          sendEmail('class_cancelled', m.email, classEmailVars(m.display_name))
+        }
+      }
+
+      await logActivity({
+        action: 'booking_cancelled',
+        actor_id: user.id,
+        target_user_id: user.id,
+        entity_type: 'scheduled_class',
+        details: { class_name: scheduledClass.class_type?.name, starts_at: scheduledClass.starts_at, affected: active.length },
+        description: `Cours ${scheduledClass.class_type?.name} du ${format(new Date(scheduledClass.starts_at), 'dd/MM/yyyy HH:mm')} annulé par le coach (${active.length} inscrit(s))`,
+      })
+
+      toast.success(isFr
+        ? `Cours annulé — ${active.length} inscrit(s) prévenu(s), crédits restitués`
+        : `Class cancelled — ${active.length} member(s) notified, credits refunded`)
+      setCancelClassOpen(false)
+      fetchData()
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   const handleRemoveBooking = async (booking: Booking) => {
     if (!user || !scheduledClass) return
 
@@ -447,6 +512,7 @@ export function CoachClassDetailPage() {
   if (!scheduledClass) return <p>{t('common.noResults')}</p>
 
   const spotsLeft = scheduledClass.max_participants - bookings.length
+  const activeBookings = bookings.filter(b => b.status === 'confirmed')
   const checkedInCount = bookings.filter(b => b.checked_in_at).length
   const noShowCount = bookings.filter(b => b.is_no_show).length
   const startsAt = new Date(scheduledClass.starts_at)
@@ -680,6 +746,77 @@ export function CoachClassDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Annuler le cours — geste lourd, réservé aux cours à venir non annulés */}
+      {isFuture && !scheduledClass.is_cancelled && (
+        <Button
+          variant="outline"
+          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={() => setCancelClassOpen(true)}
+        >
+          <Ban className="h-4 w-4 mr-2" />
+          {isFr ? 'Annuler ce cours' : 'Cancel this class'}
+        </Button>
+      )}
+
+      {/* Confirmation renforcée : le coach doit voir qui est concerné avant
+          de valider. Les crédits sont rendus, les membres prévenus. */}
+      <Dialog open={cancelClassOpen} onOpenChange={setCancelClassOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Annuler ce cours ?' : 'Cancel this class?'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg border p-3">
+              <p className="font-semibold">{scheduledClass.title || scheduledClass.class_type?.name}</p>
+              <p className="text-muted-foreground mt-0.5">
+                {format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}
+              </p>
+            </div>
+
+            {activeBookings.length > 0 ? (
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-500/40 p-3">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-amber-900 dark:text-amber-200">
+                  <p className="font-medium">
+                    {isFr
+                      ? `${activeBookings.length} personne(s) inscrite(s)`
+                      : `${activeBookings.length} member(s) booked`}
+                  </p>
+                  <p className="text-xs mt-1">
+                    {isFr
+                      ? 'Elles seront désinscrites et prévenues par e-mail. Leur crédit leur est restitué, même en dessous du délai habituel.'
+                      : 'They will be removed and notified by e-mail. Their credit is refunded, even past the usual deadline.'}
+                  </p>
+                  <ul className="text-xs mt-2 space-y-0.5">
+                    {activeBookings.map(b => (
+                      <li key={b.id}>· {b.user?.display_name}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                {isFr
+                  ? 'Personne n\'est inscrit : personne ne sera prévenu.'
+                  : 'Nobody is booked: no one will be notified.'}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setCancelClassOpen(false)} disabled={cancelling}>
+              {isFr ? 'Garder le cours' : 'Keep the class'}
+            </Button>
+            <Button variant="destructive" onClick={handleCancelClass} disabled={cancelling}>
+              {cancelling
+                ? (isFr ? 'Annulation…' : 'Cancelling…')
+                : (isFr ? 'Annuler le cours' : 'Cancel the class')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
