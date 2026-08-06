@@ -605,10 +605,18 @@ export function SchedulePage() {
   const cancelClass = async (sc: ScheduledClass, bookingsOfClass: Booking[], reason?: 'below_minimum') => {
     if (!user) return
 
-    await supabase
+    const { error: cancelError } = await supabase
       .from('scheduled_classes')
       .update({ is_cancelled: true })
       .eq('id', sc.id)
+
+    // Sans ce contrôle, un refus d'écriture passait inaperçu : le cours
+    // restait planifié alors que les crédits avaient déjà été rendus.
+    if (cancelError) {
+      console.error('cancelClass', cancelError)
+      toast.error(cancelError.message)
+      return
+    }
 
     const userIds = bookingsOfClass.map(b => b.user_id)
     const { data: memberProfiles } = await supabase
@@ -673,10 +681,16 @@ export function SchedulePage() {
     if (!detailClass || !user) return
 
     // Mark class as cancelled
-    await supabase
+    const { error: cancelError } = await supabase
       .from('scheduled_classes')
       .update({ is_cancelled: true })
       .eq('id', detailClass.id)
+
+    if (cancelError) {
+      console.error('handleCancelClass', cancelError)
+      toast.error(cancelError.message)
+      return
+    }
 
     // Cancel all bookings and refund credits
     const userIds = detailBookings.map(b => b.user_id)

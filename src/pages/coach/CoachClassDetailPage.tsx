@@ -195,10 +195,18 @@ export function CoachClassDetailPage() {
     if (!scheduledClass || !user) return
     setCancelling(true)
     try {
-      await supabase
+      // L'echec etait muet : le journal s'ecrivait, les credits partaient,
+      // mais le cours restait planifie. On s'arrete si l'ecriture est refusee.
+      const { error: cancelError } = await supabase
         .from('scheduled_classes')
         .update({ is_cancelled: true })
         .eq('id', scheduledClass.id)
+
+      if (cancelError) {
+        console.error('handleCancelClass', cancelError)
+        toast.error(cancelError.message)
+        return
+      }
 
       const active = bookings.filter(b => b.status === 'confirmed')
       const ids = active.map(b => b.user_id)

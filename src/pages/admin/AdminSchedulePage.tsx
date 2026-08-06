@@ -608,7 +608,10 @@ export function AdminSchedulePage() {
                 const dt = new Date(sc.starts_at)
                 const isSelected = selectedIds.has(sc.id)
                 return (
-                  <TableRow key={sc.id} className={cn(isSelected && 'bg-primary/5')}>
+                  <TableRow key={sc.id} className={cn(
+                    isSelected && 'bg-primary/5',
+                    sc.is_cancelled && 'bg-destructive/5',
+                  )}>
                     <TableCell>
                       <input
                         type="checkbox"
@@ -623,9 +626,22 @@ export function AdminSchedulePage() {
                       {sc.floor || '—'}
                     </TableCell>
                     <TableCell>
-                      <div>
-                        <span className="font-medium">{sc.title || sc.class_type?.name || '-'}</span>
-                        {sc.title && <span className="text-xs text-muted-foreground ml-1.5">({sc.class_type?.name})</span>}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={cn(
+                          'font-medium',
+                          sc.is_cancelled && 'line-through text-muted-foreground',
+                        )}>
+                          {sc.title || sc.class_type?.name || '-'}
+                        </span>
+                        {sc.title && <span className="text-xs text-muted-foreground">({sc.class_type?.name})</span>}
+                        {/* Un cours annulé reste visible ici — il a existé et
+                            l'admin doit pouvoir le retrouver — mais il ne doit
+                            pas se confondre avec un cours qui aura lieu. */}
+                        {sc.is_cancelled && (
+                          <Badge variant="destructive" className="text-[10px]">
+                            {i18n.language === 'fr' ? 'Annulé' : 'Cancelled'}
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">{sc.coach?.display_name ?? '—'}</TableCell>
