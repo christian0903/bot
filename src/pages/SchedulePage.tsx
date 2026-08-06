@@ -544,10 +544,11 @@ export function SchedulePage() {
   const handleRemoveBooking = async (booking: Booking) => {
     if (!detailClass || !user) return
 
-    // Cancel booking + refund credit
-    const { data: result } = await supabase.rpc('cancel_booking_v2', {
+    // Retrait décidé par le studio : le crédit revient quoi qu'il arrive.
+    // cancel_booking_v2 appliquerait le délai de prévenance du membre et
+    // pourrait le lui faire perdre sans qu'il y soit pour rien.
+    const { data: result } = await supabase.rpc('cancel_booking_by_studio', {
       p_booking_id: booking.id,
-      p_user_id: booking.user_id,
     })
 
     if (result?.error) {

@@ -183,9 +183,11 @@ export function CoachClassDetailPage() {
   const handleRemoveBooking = async (booking: Booking) => {
     if (!user || !scheduledClass) return
 
-    const { data: result } = await supabase.rpc('cancel_booking_v2', {
+    // Retrait décidé par le studio, pas par le membre : le crédit revient
+    // quoi qu'il arrive. cancel_booking_v2 appliquerait le délai de
+    // prévenance et pourrait le lui faire perdre sans qu'il y soit pour rien.
+    const { data: result } = await supabase.rpc('cancel_booking_by_studio', {
       p_booking_id: booking.id,
-      p_user_id: booking.user_id,
     })
 
     if (result?.error) { toast.error(result.error as string); return }
@@ -282,12 +284,20 @@ export function CoachClassDetailPage() {
     // n'apparaissait pas dans la liste. On charge donc aussi is_unlimited, et
     // l'abonnement passe devant — il est déjà facturé, les crédits achetés à
     // côté restent au membre.
-    const { data: packs } = await supabase
+    const { data: packs, error: packsError } = await supabase
       .from('pack_purchases')
       .select('user_id, credits_remaining, expires_at, id, subscription_id, pack_type:pack_types(credit_type_id, is_unlimited)')
       .gt('expires_at', new Date().toISOString())
       .order('expires_at', { ascending: true })
 
+    // L'échec était muet : la liste sortait vide et l'écran annonçait
+    // « aucun membre », sans dire que la requête avait été refusée.
+    if (packsError) {
+      console.error('openAddMember / pack_purchases', packsError)
+      toast.error(packsError.message)
+      setAddMemberLoading(false)
+      return
+    }
     if (!packs) { setAddMemberLoading(false); return }
 
     const bookedUserIds = new Set(bookings.map(b => b.user_id))
@@ -329,7 +339,14 @@ export function CoachClassDetailPage() {
 
     const userIds = [...memberMap.keys()]
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from('profiles').select('id, display_name').in('id', userIds)
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles').select('id, display_name').in('id', userIds)
+      if (profilesError) {
+        console.error('openAddMember / profiles', profilesError)
+        toast.error(profilesError.message)
+        setAddMemberLoading(false)
+        return
+      }
       const result = (profiles ?? []).map(p => ({
         user_id: p.id,
         display_name: p.display_name,
@@ -563,8 +580,12 @@ export function CoachClassDetailPage() {
             </div>
           )}
 
-          {/* Add member */}
-          {isFuture && spotsLeft > 0 && (
+          {/* Add member — réservé aux admins.
+              Inscrire quelqu'un consomme un crédit, et seul un admin peut
+              écrire dans pack_purchases. Proposer l'action à un coach le
+              menait à un échec silencieux : « aucun membre avec des crédits »
+              alors que la requête était simplement refusée. */}
+          {isFuture && spotsLeft > 0 && hasRole('admin') && (
             <div className="pt-3 border-t">
               {!addMemberOpen ? (
                 <Button variant="outline" className="w-full" onClick={openAddMember}>

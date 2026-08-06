@@ -25,12 +25,7 @@ CREATE TYPE activity_action AS ENUM (
   'user_created', 'registration_fee_paid', 'user_login',
   'trial_booked', 'check_in', 'no_show',
   'password_reset_by_admin',
-  'email_change_by_admin',
-  'subscription_cancelled',
-  'subscription_paused',
-  'subscription_resumed',
-  'subscription_postponed',
-  'subscription_discounted'
+  'email_change_by_admin'
 );
 
 
@@ -75,8 +70,6 @@ CREATE TABLE profiles (
   member_status TEXT DEFAULT 'visitor'
     CHECK (member_status IN ('visitor', 'potential', 'active', 'inactive', 'former')),
   weekly_goal INTEGER DEFAULT 3,
-  -- Recevoir un e-mail à chaque réservation faite par soi-même.
-  email_on_self_booking BOOLEAN DEFAULT TRUE,
   -- Coach fields
   instagram_url TEXT,
   facebook_url TEXT,
@@ -137,24 +130,9 @@ CREATE TABLE pack_types (
   price_cents INTEGER NOT NULL CHECK (price_cents > 0),
   validity_days INTEGER NOT NULL CHECK (validity_days > 0),
   is_unlimited BOOLEAN NOT NULL DEFAULT FALSE,
-  -- Abonnement : renouvellement automatique par Stripe.
-  -- « week » x 4 = 28 jours fixes, soit 13 échéances par an ; « month » x 1 =
-  -- mois calendaire, 12 échéances. Les deux ne sont PAS équivalents.
-  is_recurring BOOLEAN NOT NULL DEFAULT FALSE,
-  recurring_interval TEXT
-    CHECK (recurring_interval IS NULL OR recurring_interval IN ('day', 'week', 'month')),
-  recurring_interval_count INTEGER
-    CHECK (recurring_interval_count IS NULL OR recurring_interval_count > 0),
-  -- Price Stripe, distinct par mode : un prix de test n'existe pas en live.
-  stripe_price_id_test TEXT,
-  stripe_price_id_live TEXT,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT pack_types_recurring_coherent CHECK (
-    NOT is_recurring
-    OR (recurring_interval IS NOT NULL AND recurring_interval_count IS NOT NULL)
-  )
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Junction : catégories éligibles par type de pack
