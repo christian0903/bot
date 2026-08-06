@@ -6,8 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
-import { CalendarDays, Users } from 'lucide-react'
-import { format } from 'date-fns'
+import { CalendarDays, Users, ChevronLeft, ChevronRight} from 'lucide-react'
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import type { ScheduledClass } from '@/types'
 import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
@@ -48,6 +48,11 @@ export function CoachClassesPage() {
   const [attendedCounts, setAttendedCounts] = useState<Map<string, number>>(new Map())
   /** Période affichée. « upcoming » par défaut : c'est ce qu'on regarde le matin. */
   const [period, setPeriod] = useState<'upcoming' | 'week' | 'month'>('upcoming')
+  /**
+   * Décalage par rapport à la période courante : 0 = cette semaine / ce mois,
+   * -1 = la précédente, +1 la suivante. Les flèches jouent là-dessus.
+   */
+  const [periodOffset, setPeriodOffset] = useState(0)
   /** Filtre de statut, utile surtout sur les cours passés. */
   const [statusFilter, setStatusFilter] = useState<'all' | 'given' | 'pending_checkin' | 'not_given' | 'empty' | 'cancelled'>('all')
   const [minParticipants, setMinParticipants] = useState(1)
@@ -61,11 +66,22 @@ export function CoachClassesPage() {
       const now = new Date()
       const from30d = new Date(now.getTime() - 30 * 86400000).toISOString()
 
-      // Fenêtre affichée selon la période choisie.
-      const from = period === 'upcoming'
-        ? now
-        : new Date(now.getTime() - (period === 'week' ? 7 : 30) * 86400000)
-      const to = period === 'upcoming' ? null : now
+      // Bornes calendaires : la semaine commence le lundi, le mois le 1er.
+      // Des fenêtres glissantes de 7 ou 30 jours ne correspondraient à rien
+      // pour un coach qui pense « ma semaine » ou « le mois de juillet ».
+      let from: Date
+      let to: Date | null = null
+      if (period === 'upcoming') {
+        from = now
+      } else if (period === 'week') {
+        const ref = addWeeks(now, periodOffset)
+        from = startOfWeek(ref, { weekStartsOn: 1 })
+        to = endOfWeek(ref, { weekStartsOn: 1 })
+      } else {
+        const ref = addMonths(now, periodOffset)
+        from = startOfMonth(ref)
+        to = endOfMonth(ref)
+      }
 
       let listQuery = supabase
         .from('scheduled_classes')
@@ -189,7 +205,7 @@ export function CoachClassesPage() {
     }
 
     load()
-  }, [user, period])
+  }, [user, period, periodOffset])
 
   // Statut calculé par la même règle que partout ailleurs (getClassStatus) :
   // un cours passé a « eu lieu » s'il atteignait le minimum de participants.
@@ -200,6 +216,21 @@ export function CoachClassesPage() {
     attended: attendedCounts.get(sc.id) ?? 0,
     minParticipants,
   })
+
+  // Ce qu'on regarde, en clair : « 4 – 10 août » ou « août 2026 ».
+  const periodLabel = (() => {
+    const now = new Date()
+    if (period === 'week') {
+      const ref = addWeeks(now, periodOffset)
+      const a = startOfWeek(ref, { weekStartsOn: 1 })
+      const b = endOfWeek(ref, { weekStartsOn: 1 })
+      return `${format(a, 'd MMM', { locale })} – ${format(b, 'd MMM', { locale })}`
+    }
+    if (period === 'month') {
+      return format(addMonths(now, periodOffset), 'MMMM yyyy', { locale })
+    }
+    return ''
+  })()
 
   const visibleClasses = statusFilter === 'all'
     ? classes
@@ -281,22 +312,62 @@ export function CoachClassesPage() {
 
       {/* Filtres. La période recharge les données ; le statut filtre en place. */}
       <div className="space-y-2">
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap items-center">
           {([
             ['upcoming', isFr ? 'À venir' : 'Upcoming'],
-            ['week', isFr ? '7 derniers jours' : 'Last 7 days'],
-            ['month', isFr ? '30 derniers jours' : 'Last 30 days'],
+            ['week', isFr ? 'Cette semaine' : 'This week'],
+            ['month', isFr
+              ? `Ce mois-ci (${format(new Date(), 'MMMM', { locale })})`
+              : `This month (${format(new Date(), 'MMMM')})`],
           ] as const).map(([key, label]) => (
             <Button
               key={key}
               variant={period === key ? 'default' : 'outline'}
               size="sm"
               className="h-8 text-xs"
-              onClick={() => { setPeriod(key); setStatusFilter('all') }}
+              onClick={() => { setPeriod(key); setPeriodOffset(0); setStatusFilter('all') }}
             >
               {label}
             </Button>
           ))}
+
+          {/* Flèches : reculent ou avancent d'une semaine ou d'un mois, selon
+              la vue. Sans objet sur « À venir », qui part de maintenant. */}
+          {period !== 'upcoming' && (
+            <div className="flex items-center gap-1 ml-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPeriodOffset(o => o - 1)}
+                title={isFr ? 'Période précédente' : 'Previous period'}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-xs font-medium min-w-[7rem] text-center">
+                {periodLabel}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPeriodOffset(o => o + 1)}
+                title={isFr ? 'Période suivante' : 'Next period'}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              {periodOffset !== 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setPeriodOffset(0)}
+                >
+                  {isFr ? 'Actuel' : 'Current'}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Le statut n'a de sens que sur des cours passés : un cours à venir
