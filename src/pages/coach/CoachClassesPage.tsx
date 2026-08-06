@@ -307,7 +307,7 @@ export function CoachClassesPage() {
               ['all', isFr ? 'Tous' : 'All'],
               ['given', isFr ? 'Exécutés' : 'Given'],
               ['pending_checkin', isFr ? 'Présences à valider' : 'Check-in pending'],
-              ['not_given', isFr ? 'Non donnés' : 'Not given'],
+              ['not_given', isFr ? 'Effectif insuffisant' : 'Below minimum'],
               ['empty', isFr ? 'Sans inscrit' : 'No bookings'],
               ['cancelled', isFr ? 'Annulés' : 'Cancelled'],
             ] as const).map(([key, label]) => (

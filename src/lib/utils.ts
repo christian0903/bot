@@ -105,7 +105,13 @@ export function classStatusLabel(status: ClassStatus, isFr = true): { label: str
     case 'cancelled':
       return { label: isFr ? 'Annulé' : 'Cancelled', variant: 'destructive' }
     case 'empty':
-      return { label: isFr ? 'Sans inscrit' : 'No bookings', variant: 'outline', className: 'text-muted-foreground' }
+      // Personne ne s'était inscrit : rien à traiter, personne n'a été lésé.
+      // Volontairement discret.
+      return {
+        label: isFr ? 'Sans inscrit' : 'No bookings',
+        variant: 'outline',
+        className: 'text-muted-foreground/70 border-muted',
+      }
     case 'given':
       // Présences pointées : le cours a bien eu lieu, c'est établi.
       return {
@@ -122,12 +128,20 @@ export function classStatusLabel(status: ClassStatus, isFr = true): { label: str
         className: 'border-amber-500 text-amber-600',
       }
     case 'not_given':
-      return { label: isFr ? 'Non donné' : 'Not given', variant: 'secondary' }
-    case 'at_risk':
+      // Des inscrits, mais sous le seuil : leur crédit a été consommé pour un
+      // cours qui n'a probablement pas eu lieu. C'est le cas à traiter.
       return {
         label: isFr ? 'Effectif insuffisant' : 'Below minimum',
         variant: 'outline',
         className: 'border-orange-500 text-orange-600 dark:text-orange-400',
+      }
+    case 'at_risk':
+      // Cours à venir dont l'effectif ne suffit pas encore : une alerte, pas
+      // un constat. D'où un libellé qui annonce plutôt qu'il ne juge.
+      return {
+        label: isFr ? 'Effectif à surveiller' : 'Watch attendance',
+        variant: 'outline',
+        className: 'border-amber-500 text-amber-600',
       }
     default:
       return { label: isFr ? 'Planifié' : 'Scheduled', variant: 'outline' }
