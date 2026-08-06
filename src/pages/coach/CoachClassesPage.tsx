@@ -167,9 +167,12 @@ export function CoachClassesPage() {
       {/* Chiffres personnels — ceux de ce coach uniquement */}
       {stats && (
         <div>
-          <p className="text-xs text-muted-foreground mb-2">
-            {isFr ? 'Mes 30 derniers jours' : 'My last 30 days'}
-          </p>
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarDays className="h-4 w-4 text-primary" />
+            <h2 className="text-base font-semibold">
+              {isFr ? 'Mes 30 derniers jours' : 'My last 30 days'}
+            </h2>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-3">
@@ -178,7 +181,8 @@ export function CoachClassesPage() {
                   <span className="text-sm text-muted-foreground font-normal"> / {stats.scheduled}</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {isFr ? 'Cours donnés' : 'Classes given'}
+                  {isFr ? 'Cours donnés / planifiés' : 'Classes given / scheduled'}
+                  <span className="block">{isFr ? 'sur 30 jours' : 'over 30 days'}</span>
                 </p>
               </CardContent>
             </Card>
@@ -187,6 +191,7 @@ export function CoachClassesPage() {
                 <p className="text-2xl font-bold">{stats.attendees}</p>
                 <p className="text-xs text-muted-foreground">
                   {isFr ? 'Participants' : 'Attendees'}
+                  <span className="block">{isFr ? 'sur 30 jours' : 'over 30 days'}</span>
                 </p>
               </CardContent>
             </Card>
@@ -195,6 +200,7 @@ export function CoachClassesPage() {
                 <p className="text-2xl font-bold">{stats.fillRate} %</p>
                 <p className="text-xs text-muted-foreground">
                   {isFr ? 'Taux de remplissage' : 'Fill rate'}
+                  <span className="block">{isFr ? 'sur 30 jours' : 'over 30 days'}</span>
                 </p>
               </CardContent>
             </Card>
@@ -203,6 +209,7 @@ export function CoachClassesPage() {
                 <p className="text-2xl font-bold">{stats.upcoming}</p>
                 <p className="text-xs text-muted-foreground">
                   {isFr ? 'Cours à venir' : 'Upcoming classes'}
+                  <span className="block">{isFr ? 'à partir de maintenant' : 'from now on'}</span>
                 </p>
               </CardContent>
             </Card>
