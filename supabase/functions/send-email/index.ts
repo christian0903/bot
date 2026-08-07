@@ -57,18 +57,31 @@ serve(async (req) => {
       })
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    )
+    // Appel serveur-à-serveur : le webhook Stripe et le consommateur de la
+    // file d'e-mails se présentent avec la clé de service, qui ne correspond à
+    // aucun utilisateur. `getUser()` renvoyait donc null et l'envoi était
+    // refusé — les e-mails d'échec de paiement et de place libérée ne
+    // partaient jamais.
+    //
+    // La clé de service ne circule qu'entre fonctions : la détenir vaut
+    // autorisation.
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const isServiceCall = serviceKey && authHeader === `Bearer ${serviceKey}`
 
-    const { data: { user: caller } } = await supabaseClient.auth.getUser()
-    if (!caller) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    if (!isServiceCall) {
+      const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      )
+
+      const { data: { user: caller } } = await supabaseClient.auth.getUser()
+      if (!caller) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     const payload = (await req.json()) as EmailPayload

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { CalendarDays } from 'lucide-react'
 import { toast } from 'sonner'
 import { notifyMember } from '@/lib/notify-member'
+import { flushEmailQueue } from '@/lib/flush-email-queue'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import type { Booking } from '@/types'
@@ -31,18 +32,11 @@ export function MyBookingsPage() {
   /** Natures affichées. Les trois par défaut : la liste montre tout. */
   const [filters, setFilters] = useState<BookingKind[]>(['upcoming', 'past', 'cancelled'])
 
-  useEffect(() => {
+  // Relisable à la demande : après un refus serveur, l'écran doit repartir de
+  // l'état réel plutôt que de sa version optimiste.
+  const fetchBookings = useCallback(async () => {
     if (!user) return
-
-    // Fetch cancellation deadline from booking_rules
-    supabase.from('app_settings').select('value').eq('key', 'booking_rules').single()
-      .then(({ data }) => {
-        if (data?.value?.cancellation_free_hours !== undefined) {
-          setCancellationHours(data.value.cancellation_free_hours as number)
-        }
-      })
-
-    const fetchBookings = async () => {
+    {
       const { data } = await supabase
         .from('bookings')
         .select('*, scheduled_class:scheduled_classes(*, class_type:class_types(*)), pack_purchase:pack_purchases(id, credits_remaining, expires_at, pack_type:pack_types(name, is_unlimited))')
@@ -66,8 +60,21 @@ export function MyBookingsPage() {
       setBookings(rawBookings)
       setLoading(false)
     }
-    fetchBookings()
   }, [user])
+
+  useEffect(() => {
+    if (!user) return
+
+    // Délai d'annulation gratuite, affiché sur chaque réservation à venir.
+    supabase.from('app_settings').select('value').eq('key', 'booking_rules').single()
+      .then(({ data }) => {
+        if (data?.value?.cancellation_free_hours !== undefined) {
+          setCancellationHours(data.value.cancellation_free_hours as number)
+        }
+      })
+
+    fetchBookings()
+  }, [user, fetchBookings])
 
   const handleCancel = async (bookingId: string) => {
     if (!user) return
@@ -95,9 +102,27 @@ export function MyBookingsPage() {
       p_user_id: user.id,
     })
 
-    if (error) {
-      toast.error(error.message)
-    } else {
+    // `cancel_booking_v2` signale ses refus DANS son retour, pas en levant une
+    // erreur SQL : `error` reste null et le code passait dans la branche de
+    // succès. L'écran affichait « annulée » alors que rien n'avait bougé en
+    // base — d'où un bouton « Annuler » persistant sur une ligne pourtant
+    // barrée. Même piège que les écritures muettes du 6 août.
+    const rpcError = (result as { error?: string } | null)?.error
+    if (error || rpcError) {
+      const messages: Record<string, string> = {
+        booking_not_found: isFr
+          ? 'Cette réservation n\'est plus active. Rechargez la page.'
+          : 'This booking is no longer active. Please reload the page.',
+      }
+      toast.error(error?.message ?? messages[rpcError!] ?? (isFr ? 'Annulation impossible' : 'Cancellation failed'))
+      // L'écran ment sur au moins une ligne : on le resynchronise plutôt que
+      // de laisser le membre décider sur une information fausse.
+      if (rpcError) fetchBookings()
+      setCancelId(null)
+      return
+    }
+
+    {
       const refunded = result?.refunded as boolean
       const hoursBefore = result?.hours_before as number
 
@@ -121,6 +146,11 @@ export function MyBookingsPage() {
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' as const, cancelled_at: new Date().toISOString() } : b))
       )
+
+      // L'annulation libère une place : si quelqu'un attendait, la fonction SQL
+      // vient de déposer son e-mail. L'offre expire en 2 h — on l'envoie
+      // maintenant, pas au prochain passage sur l'accueil.
+      flushEmailQueue()
 
       // La trace est due quelle que soit la préférence e-mail — d'autant plus
       // ici, où le sort du crédit se joue : restitué ou perdu, le membre doit
@@ -194,70 +224,21 @@ export function MyBookingsPage() {
     cancelled: bookings.filter(b => kindOf(b) === 'cancelled').length,
   }
 
-  // Liste unique : filtrée par nature, puis triée du plus récent au plus
-  // ancien. Les séances à venir restent en tête, dans l'ordre chronologique.
+  // Une seule liste, strictement chronologique : la séance la plus proche en
+  // premier, la plus lointaine en dernier.
+  //
+  // Les réservations étaient auparavant regroupées par pack. Le regroupement
+  // montrait bien ce qui avait été consommé sur chaque pack, mais il dispersait
+  // les dates : une séance de mardi pouvait se retrouver sous un pack plus bas
+  // dans la page, et passer inaperçue. Le pack est désormais rappelé sur chaque
+  // ligne — l'information est conservée sans découper le calendrier.
   const visible = bookings
     .filter(b => filters.includes(kindOf(b)))
     .sort((a, b) => {
-      const ka = kindOf(a), kb = kindOf(b)
-      if (ka === 'upcoming' && kb !== 'upcoming') return -1
-      if (kb === 'upcoming' && ka !== 'upcoming') return 1
       const ta = new Date(a.scheduled_class?.starts_at ?? '').getTime()
       const tb = new Date(b.scheduled_class?.starts_at ?? '').getTime()
-      return ka === 'upcoming' ? ta - tb : tb - ta
+      return ta - tb
     })
-
-  /**
-   * Regroupe des réservations par pack d'origine, packs les plus récents en
-   * tête. Sur un abonnement reconduit toutes les 4 semaines, chaque cycle est
-   * un pack distinct : le regroupement rend visible « ce que j'ai consommé sur
-   * l'abonnement en cours » plutôt qu'une liste indifférenciée.
-   */
-  const groupByPack = (list: Booking[]) => {
-    const groups = new Map<string, { pack: Booking['pack_purchase']; items: Booking[] }>()
-    for (const b of list) {
-      const key = b.pack_purchase_id ?? 'none'
-      if (!groups.has(key)) groups.set(key, { pack: b.pack_purchase, items: [] })
-      groups.get(key)!.items.push(b)
-    }
-    return [...groups.values()].sort((a, b) => {
-      const da = a.pack?.expires_at ? new Date(a.pack.expires_at).getTime() : 0
-      const db = b.pack?.expires_at ? new Date(b.pack.expires_at).getTime() : 0
-      return db - da
-    })
-  }
-
-  /** En-tête d'un groupe : nom du pack, période, et ce qu'il en reste. */
-  const PackGroupHeader = ({ pack, count }: { pack: Booking['pack_purchase']; count: number }) => {
-    if (!pack?.pack_type) {
-      return (
-        <h3 className="text-sm font-semibold text-muted-foreground mt-4 mb-2">
-          {isFr ? 'Sans pack' : 'No pack'} ({count})
-        </h3>
-      )
-    }
-    const isUnlimited = pack.pack_type.is_unlimited
-    const isActive = new Date(pack.expires_at) > now
-    return (
-      <div className="mt-4 mb-2 flex items-center gap-2 flex-wrap">
-        <h3 className="text-sm font-semibold">{pack.pack_type.name}</h3>
-        {isActive && (
-          <Badge variant="default" className="text-[10px]">
-            {isFr ? 'En cours' : 'Current'}
-          </Badge>
-        )}
-        <span className="text-xs text-muted-foreground">
-          {isFr ? "jusqu'au" : 'until'} {format(new Date(pack.expires_at), 'dd/MM/yyyy', { locale })}
-          {' · '}
-          {/* Nombre d'éléments AFFICHÉS : dépend des filtres actifs */}
-          {count} {isFr ? (count > 1 ? 'lignes' : 'ligne') : count > 1 ? 'entries' : 'entry'}
-          {!isUnlimited && (
-            <> · {pack.credits_remaining} {isFr ? 'crédit(s) restant(s)' : 'credit(s) left'}</>
-          )}
-        </span>
-      </div>
-    )
-  }
 
   const BookingCard = ({ booking }: { booking: Booking }) => (
     <Card>
@@ -270,6 +251,18 @@ export function MyBookingsPage() {
           <p className="text-sm text-muted-foreground">
             {t('schedule.coach')}: {booking.scheduled_class?.coach?.display_name}
           </p>
+          {/* Le pack qui paie cette séance. Portée par la ligne depuis que la
+              liste est chronologique : sans ce rappel, l'information disparue
+              avec le regroupement laisserait le membre sans repère. */}
+          {booking.pack_purchase?.pack_type && (
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5">
+                {booking.is_trial
+                  ? (isFr ? 'Séance d\'essai offerte' : 'Free trial session')
+                  : booking.pack_purchase.pack_type.name}
+              </span>
+            </p>
+          )}
           {/* Contexte d'annulation : quand, et avec quel pack */}
           {booking.status === 'cancelled' && booking.cancelled_at && (() => {
             const startsAt = booking.scheduled_class?.starts_at
@@ -364,19 +357,13 @@ export function MyBookingsPage() {
         })}
       </div>
 
-      {/* Liste unique, groupée par pack */}
+      {/* Liste chronologique : la séance la plus proche en premier. Le pack est
+          rappelé sur chaque ligne plutôt qu'en tête de groupe. */}
       <div className="space-y-2">
         {visible.length === 0 ? (
           <EmptyState icon={CalendarDays} message={t('bookings.noBookings')} />
         ) : (
-          groupByPack(visible).map((g, i) => (
-            <div key={g.pack?.id ?? `none-${i}`}>
-              <PackGroupHeader pack={g.pack} count={g.items.length} />
-              <div className="space-y-2">
-                {g.items.map((b) => <BookingCard key={b.id} booking={b} />)}
-              </div>
-            </div>
-          ))
+          visible.map((b) => <BookingCard key={b.id} booking={b} />)
         )}
       </div>
 

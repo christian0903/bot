@@ -22,6 +22,8 @@ export function MyPacksPage() {
   const navigate = useNavigate()
   const locale = isFr ? fr : enUS
   const [packs, setPacks] = useState<PackPurchase[]>([])
+  /** Inclure les packs vides ou expirés. Faux par défaut : ils encombrent. */
+  const [showAllPacks, setShowAllPacks] = useState(false)
   const [loading, setLoading] = useState(true)
   const [selectedPack, setSelectedPack] = useState<PackPurchase | null>(null)
   const [packBookings, setPackBookings] = useState<(Booking & { scheduled_class: ScheduledClass })[]>([])
@@ -158,8 +160,19 @@ export function MyPacksPage() {
   const otherSubscriptionPacks = packs.filter(
     p => p.subscription_id && p.id !== subscriptionPack?.id,
   )
-  const displayedPacks = [...standalonePacks, ...otherSubscriptionPacks]
+  const allPacks = [...standalonePacks, ...otherSubscriptionPacks]
     .sort((a, b) => new Date(b.purchased_at).getTime() - new Date(a.purchased_at).getTime())
+
+  /** Utilisable : pas expiré, et il reste des crédits (ou l'accès est illimité). */
+  const isUsable = (p: PackPurchase) =>
+    new Date(p.expires_at) > now
+    && (p.pack_type?.is_unlimited || p.credits_remaining > 0)
+
+  // Par défaut, seuls les packs utilisables. Les packs vides ou périmés
+  // s'accumulent au fil des mois et noient ceux qui servent encore : le membre
+  // doit voir d'un coup d'œil ce dont il dispose, pas son historique d'achats.
+  const spentCount = allPacks.length - allPacks.filter(isUsable).length
+  const displayedPacks = showAllPacks ? allPacks : allPacks.filter(isUsable)
   let nextAmountLabel: string | null = null
   if (pendingDiscount && fullPriceCents !== null) {
     const reduced = pendingDiscount.percent_off
@@ -373,6 +386,29 @@ export function MyPacksPage() {
             )
           })}
         </div>
+
+        {/* Rien d'utilisable, mais de l'historique : le dire, sinon la page
+            paraît vide alors que des packs existent. */}
+        {displayedPacks.length === 0 && spentCount > 0 && (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            {isFr
+              ? 'Aucun pack utilisable pour le moment.'
+              : 'No usable pack at the moment.'}
+          </p>
+        )}
+
+        {spentCount > 0 && (
+          <button
+            onClick={() => setShowAllPacks((v) => !v)}
+            className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
+          >
+            {showAllPacks
+              ? (isFr ? 'Masquer les packs terminés' : 'Hide finished packs')
+              : (isFr
+                ? `Voir aussi les packs terminés (${spentCount})`
+                : `Also show finished packs (${spentCount})`)}
+          </button>
+        )}
         </>
       )}
 

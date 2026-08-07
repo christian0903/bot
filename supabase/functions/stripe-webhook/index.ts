@@ -219,8 +219,52 @@ async function consumeCreditNote(
   if (error) console.error('consume_credit_note', error)
 }
 
-async function notify(userId: string, title: string, message: string, type = 'success', link = '/my-packs') {
-  await admin.from('notifications').insert({ user_id: userId, title, message, type, link })
+async function notify(
+  userId: string, title: string, message: string, type = 'success', link = '/my-packs',
+  emailTemplate: string | null = null,
+) {
+  const { error } = await admin.from('notifications').insert({
+    user_id: userId, title, message, type, link, email_template: emailTemplate,
+  })
+  if (error) console.error('notify', error)
+}
+
+/**
+ * Envoie un e-mail depuis le webhook.
+ *
+ * Les paiements se jouent ici, sans que le membre soit devant son écran : une
+ * communication laissée dans la seule application peut n'être lue que des
+ * jours plus tard. Pour un échec de prélèvement, c'est trop tard.
+ *
+ * L'échec d'envoi ne fait jamais échouer le traitement du paiement : on trace
+ * et on continue.
+ */
+async function sendMemberEmail(
+  userId: string,
+  template: string,
+  vars: Record<string, unknown>,
+) {
+  try {
+    const { data: prof } = await admin
+      .from('profiles').select('email, display_name').eq('id', userId).maybeSingle()
+    if (!prof?.email) return
+
+    const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        template,
+        to: prof.email,
+        vars: { user_name: prof.display_name ?? '', ...vars },
+      }),
+    })
+    if (!res.ok) console.error('sendMemberEmail', template, await res.text())
+  } catch (err) {
+    console.error('sendMemberEmail', template, err)
+  }
 }
 
 /** Prévient tous les admins (échec de paiement, incident). */
@@ -494,12 +538,22 @@ serve(async (req) => {
         const { data: prof } = await admin
           .from('profiles').select('display_name').eq('id', subRow.user_id).maybeSingle()
 
+        const failedPackName = (subRow.pack_type as { name?: string } | null)?.name
+
+        // L'application seule ne suffit pas ici : le membre n'est pas devant
+        // son écran quand le prélèvement échoue, et il peut perdre son
+        // abonnement sans l'avoir su. L'e-mail est le seul canal qui le
+        // rattrape à temps.
         await notify(
           subRow.user_id,
           'Paiement refusé',
           'Le renouvellement de votre abonnement n\'a pas abouti. Vérifiez votre moyen de paiement — nous réessaierons automatiquement.',
           'error', '/my-packs',
+          'payment_failed',
         )
+        await sendMemberEmail(subRow.user_id, 'payment_failed', {
+          pack_name: failedPackName,
+        })
         await notifyAdmins(
           'Échec de paiement',
           `Le renouvellement de ${prof?.display_name ?? 'un membre'} a échoué (${(subRow.pack_type as { name?: string } | null)?.name ?? 'abonnement'}).`,

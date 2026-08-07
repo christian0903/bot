@@ -11,6 +11,7 @@ import { CalendarDays, CreditCard, ChevronRight, Dumbbell, ShoppingBag, X, Clock
 import { QRCodeSVG } from 'qrcode.react'
 import { LoadingState } from '@/components/common/LoadingState'
 import { HomeCommunications } from '@/components/common/HomeCommunications'
+import { flushEmailQueue } from '@/lib/flush-email-queue'
 import type { PackPurchase, Booking, ScheduledClass } from '@/types'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
@@ -44,6 +45,12 @@ export function DashboardPage() {
   const [announcement, setAnnouncement] = useState<string | null>(null)
   /** Jours restants sur la séance d'essai, `null` si elle est consommée ou absente. */
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
+
+  // Les e-mails déposés par les fonctions SQL partent ici, à l'ouverture de
+  // l'accueil. Faute de pg_cron sur ce projet, c'est l'application qui
+  // déclenche — le staff l'ouvre plusieurs fois par jour, la file ne stagne
+  // pas. Sans effet visible, sans blocage.
+  useEffect(() => { flushEmailQueue() }, [])
 
   useEffect(() => {
     supabase

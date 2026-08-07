@@ -8,6 +8,8 @@ export type TemplateKey =
   | 'password_reset_by_admin'
   | 'email_change_notice'
   | 'email_change_by_admin'
+  | 'waitlist_spot_offered'
+  | 'payment_failed'
 
 export interface TemplateVars {
   user_name?: string
@@ -23,6 +25,8 @@ export interface TemplateVars {
   new_email?: string         // pour email_change_notice / email_change_by_admin
   confirmation_url?: string  // pour email_change_by_admin
   app_url?: string
+  expires_at?: string        // waitlist_spot_offered : heure limite de confirmation
+  pack_name?: string         // payment_failed : l'abonnement concerné
 }
 
 function shell(title: string, body: string) {
@@ -220,6 +224,41 @@ export function buildTemplate(template: TemplateKey, v: TemplateVars): { subject
         ${cta(`${appUrl}/auth`, 'Se connecter')}
       `
       return { subject, html: shell('Changement d\'adresse email', body) }
+    }
+
+    // Une place se libère : le membre a 2 h pour la prendre. Sans e-mail, il
+    // fallait qu'il ouvre l'application par hasard dans ce créneau — l'offre
+    // expirait le plus souvent sans que personne ne le sache.
+    case 'waitlist_spot_offered': {
+      const subject = `Une place s'est libérée — ${v.class_name}`
+      const body = `
+        <p>${hello}</p>
+        <p>Bonne nouvelle : <strong>une place vient de se libérer</strong> pour un cours où vous étiez en liste d'attente.</p>
+        ${detailsBlock(v)}
+        <p style="background:#fef3c7;border-radius:8px;padding:12px 14px;color:#92400e;font-size:14px;margin:18px 0;">
+          ⏳ <strong>Vous avez 2 heures pour confirmer.</strong>${v.expires_at ? `<br>Cette place vous est réservée jusqu'à <strong>${v.expires_at}</strong>.` : ''}<br>
+          Passé ce délai, elle sera proposée à la personne suivante.
+        </p>
+        ${cta(`${appUrl}/schedule`, 'Confirmer ma place')}
+      `
+      return { subject, html: shell('Une place s\'est libérée', body) }
+    }
+
+    // Le renouvellement a échoué. Ton mesuré volontairement : dans la plupart
+    // des cas c'est une carte expirée, et Stripe réessaie tout seul. Alarmer
+    // ferait croire à une résiliation qui n'a pas eu lieu.
+    case 'payment_failed': {
+      const subject = 'Le renouvellement de votre abonnement n\'a pas abouti'
+      const body = `
+        <p>${hello}</p>
+        <p>Le paiement de votre abonnement${v.pack_name ? ` <strong>${v.pack_name}</strong>` : ''} n'a pas pu être encaissé.</p>
+        <p>Il s'agit le plus souvent d'une carte expirée ou d'un plafond atteint. <strong>Votre abonnement n'est pas résilié</strong> : nous réessaierons automatiquement dans les prochains jours.</p>
+        <p style="background:#f4f4f5;border-radius:8px;padding:12px 14px;font-size:14px;margin:18px 0;">
+          Pour éviter toute interruption, vérifiez votre moyen de paiement depuis votre espace.
+        </p>
+        ${cta(`${appUrl}/my-packs`, 'Vérifier mon moyen de paiement')}
+      `
+      return { subject, html: shell('Paiement non abouti', body) }
     }
   }
 }

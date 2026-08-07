@@ -197,10 +197,13 @@ export interface Booking {
   id: string
   scheduled_class_id: string
   user_id: string
-  pack_purchase_id: string
+  /** Null seulement pour un essai régularisé à la main (cf. contrainte bookings_pack_or_trial). */
+  pack_purchase_id: string | null
   status: 'confirmed' | 'cancelled'
   checked_in_at: string | null
   is_no_show: boolean
+  /** Séance d'essai offerte : payée par le pack d'essai, affichée comme telle. */
+  is_trial: boolean
   created_at: string
   cancelled_at: string | null
   scheduled_class?: ScheduledClass
