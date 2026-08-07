@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CalendarDays, CreditCard, ChevronRight, Dumbbell, ShoppingBag, X, Clock, Megaphone, ScanLine } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { LoadingState } from '@/components/common/LoadingState'
-import { TrialCreditBanner } from '@/components/common/TrialCreditBanner'
+import { HomeCommunications } from '@/components/common/HomeCommunications'
 import type { PackPurchase, Booking, ScheduledClass } from '@/types'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
@@ -42,6 +42,8 @@ export function DashboardPage() {
   const [packBookings, setPackBookings] = useState<(Booking & { scheduled_class: ScheduledClass })[]>([])
   const [packBookingsLoading, setPackBookingsLoading] = useState(false)
   const [announcement, setAnnouncement] = useState<string | null>(null)
+  /** Jours restants sur la séance d'essai, `null` si elle est consommée ou absente. */
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
 
   useEffect(() => {
     supabase
@@ -75,7 +77,22 @@ export function DashboardPage() {
           .eq('status', 'confirmed'),
       ])
 
-      setPacks((packsRes.data as PackPurchase[]) ?? [])
+      const activePacks = (packsRes.data as PackPurchase[]) ?? []
+      setPacks(activePacks)
+
+      // La séance d'essai est déjà dans les packs chargés : pas de requête de
+      // plus. Elle n'est annoncée que tant qu'elle n'est pas consommée — la
+      // requête filtre sur credits_remaining > 0 et expires_at futur.
+      const trial = activePacks.find(
+        (p) => (p.pack_type as { is_trial?: boolean } | null)?.is_trial,
+      )
+      setTrialDaysLeft(
+        trial
+          ? Math.max(0, Math.ceil(
+              (new Date(trial.expires_at).getTime() - Date.now()) / 86_400_000,
+            ))
+          : null,
+      )
 
       // Fetch bookings then resolve scheduled_classes + coaches separately
       const rawBookings = (bookingsRes.data as Booking[]) ?? []
@@ -187,8 +204,10 @@ export function DashboardPage() {
         </motion.div>
       )}
 
-      {/* Séance d'essai offerte — disparaît d'elle-même une fois utilisée */}
-      <TrialCreditBanner />
+      {/* Communications — la séance d'essai en tête, puis tout ce qui a été
+          notifié au membre, e-mails compris. Placé haut : c'est la première
+          chose à voir en arrivant. */}
+      <HomeCommunications trialDaysLeft={trialDaysLeft} />
 
       {/* Upcoming bookings — first and prominent */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>

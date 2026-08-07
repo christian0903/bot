@@ -217,6 +217,13 @@ export interface Notification {
   is_read: boolean
   link: string | null
   created_at: string
+  /**
+   * Le membre a retiré cette communication de son accueil. La ligne reste en
+   * base : elle prouve que l'information a été transmise.
+   */
+  dismissed_at: string | null
+  /** Template e-mail parti en parallèle, `null` si la communication est in-app seulement. */
+  email_template: string | null
 }
 
 export interface AppSetting {

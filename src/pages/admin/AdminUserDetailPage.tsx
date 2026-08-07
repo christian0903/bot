@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
 import { adminUpdatePassword } from '@/lib/admin-update-password'
 import { adminUpdateEmail } from '@/lib/admin-update-email'
-import { sendEmail } from '@/lib/send-email'
+import { notifyMember } from '@/lib/notify-member'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Profile, PackPurchase, Booking, ScheduledClass, MemberCategory, Subscription, SubscriptionDiscount, ReferralReward } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -717,9 +717,23 @@ export function AdminUserDetailPage() {
       description: `Mot de passe réinitialisé pour ${profile.display_name}`,
     })
 
-    if (profile.email) {
-      sendEmail('password_reset_by_admin', profile.email, { user_name: profile.display_name })
-    }
+    // Un tiers a changé le mot de passe : le membre doit en garder une trace
+    // dans l'application, pas seulement dans une boîte mail qu'il ne lira
+    // peut-être pas. C'est un événement de sécurité.
+    await notifyMember({
+      userId: id!,
+      title: isFr ? 'Mot de passe modifié' : 'Password changed',
+      message: isFr
+        ? 'Le studio a réinitialisé ton mot de passe. Si tu n\'es pas à l\'origine de cette demande, contacte-nous.'
+        : 'The studio reset your password. If you did not request this, please contact us.',
+      type: 'warning',
+      link: '/profile',
+      email: {
+        to: profile.email,
+        template: 'password_reset_by_admin',
+        vars: { user_name: profile.display_name },
+      },
+    })
 
     toast.success(isFr ? 'Mot de passe mis à jour' : 'Password updated')
     setPasswordDialogOpen(false)

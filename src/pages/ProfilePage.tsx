@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { sendEmail } from '@/lib/send-email'
+import { notifyMember } from '@/lib/notify-member'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -109,10 +109,27 @@ export function ProfilePage() {
         return
       }
       emailChangeRequested = true
-      if (currentEmail) {
-        sendEmail('email_change_notice', currentEmail, {
-          user_name: form.display_name || profile?.display_name || '',
-          new_email: newEmail,
+      // Point d'alerte contre le détournement de compte : si la demande ne
+      // vient pas du membre, c'est là qu'il doit s'en apercevoir. L'avertir
+      // uniquement à l'ancienne adresse ne suffit pas — il peut ne plus la
+      // consulter, alors qu'il est connecté à l'application maintenant.
+      if (user) {
+        await notifyMember({
+          userId: user.id,
+          title: isFr ? 'Changement d\'adresse e-mail demandé' : 'Email change requested',
+          message: isFr
+            ? `Une demande de changement vers ${newEmail} a été enregistrée. Si ce n'est pas toi, contacte le studio immédiatement.`
+            : `A change to ${newEmail} was requested. If this wasn't you, contact the studio immediately.`,
+          type: 'warning',
+          link: '/profile',
+          email: {
+            to: currentEmail,
+            template: 'email_change_notice',
+            vars: {
+              user_name: form.display_name || profile?.display_name || '',
+              new_email: newEmail,
+            },
+          },
         })
       }
     }

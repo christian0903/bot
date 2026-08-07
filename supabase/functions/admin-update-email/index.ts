@@ -89,6 +89,20 @@ serve(async (req) => {
       }),
     })
 
+    // Trace dans l'application : le membre doit retrouver l'information même
+    // s'il ne lit pas ses e-mails — et surtout si le changement ne vient pas
+    // de lui. L'échec d'insertion ne fait pas échouer l'opération, mais il est
+    // journalisé plutôt qu'avalé.
+    const { error: notifErr } = await adminClient.from('notifications').insert({
+      user_id: payload.user_id,
+      title: 'Adresse e-mail modifiée par le studio',
+      message: `Le studio a demandé le changement de ton adresse vers ${newEmail}. Un lien de confirmation y a été envoyé. Si tu n'es pas à l'origine de cette demande, contacte-nous.`,
+      type: 'warning',
+      link: '/profile',
+      email_template: 'email_change_by_admin',
+    })
+    if (notifErr) console.error('admin-update-email: notification', notifErr)
+
     if (!sendRes.ok) {
       const errText = await sendRes.text()
       return jsonError(`Email send failed: ${errText}`, 500)

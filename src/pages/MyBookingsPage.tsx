@@ -11,7 +11,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { CalendarDays } from 'lucide-react'
 import { toast } from 'sonner'
-import { sendEmail } from '@/lib/send-email'
+import { notifyMember } from '@/lib/notify-member'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import type { Booking } from '@/types'
@@ -122,16 +122,33 @@ export function MyBookingsPage() {
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' as const, cancelled_at: new Date().toISOString() } : b))
       )
 
-      // Email (self-cancel, optional)
-      if (profile?.email_on_self_booking && user.email && booking?.scheduled_class) {
+      // La trace est due quelle que soit la préférence e-mail — d'autant plus
+      // ici, où le sort du crédit se joue : restitué ou perdu, le membre doit
+      // pouvoir le vérifier après coup.
+      if (booking?.scheduled_class) {
         const sc = booking.scheduled_class
-        sendEmail('booking_cancelled_by_self', user.email, {
-          user_name: profile.display_name,
-          class_name: sc.title || sc.class_type?.name,
-          class_date: format(new Date(sc.starts_at), "EEEE dd MMMM 'à' HH:mm", { locale: fr }),
-          coach_name: sc.coach?.display_name,
-          duration_minutes: sc.duration_minutes,
-          refunded,
+        const when = format(new Date(sc.starts_at), "EEEE d MMMM 'à' HH:mm", { locale: fr })
+        await notifyMember({
+          userId: user.id,
+          title: isFr ? 'Réservation annulée' : 'Booking cancelled',
+          message: isFr
+            ? `${sc.title || sc.class_type?.name} — ${when}. ${refunded ? 'Ton crédit t\'a été restitué.' : 'Le délai étant dépassé, le crédit n\'a pas été restitué.'}`
+            : `${sc.title || sc.class_type?.name} — ${when}. ${refunded ? 'Your credit was returned.' : 'The deadline had passed, so the credit was not returned.'}`,
+          type: refunded ? 'info' : 'warning',
+          link: '/my-bookings',
+          email: {
+            to: user.email,
+            template: 'booking_cancelled_by_self',
+            vars: {
+              user_name: profile?.display_name,
+              class_name: sc.title || sc.class_type?.name,
+              class_date: when,
+              coach_name: sc.coach?.display_name,
+              duration_minutes: sc.duration_minutes,
+              refunded,
+            },
+            optOut: !profile?.email_on_self_booking,
+          },
         })
       }
 

@@ -8,6 +8,10 @@ interface NotificationContextType {
   unreadCount: number
   markAsRead: (id: string) => Promise<void>
   markAllAsRead: () => Promise<void>
+  /** Retire une communication de l'écran du membre. La ligne est conservée. */
+  dismiss: (id: string) => Promise<void>
+  /** Retire toutes les communications déjà lues. Les non lues restent. */
+  dismissRead: () => Promise<void>
   loading: boolean
 }
 
@@ -21,10 +25,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const fetchNotifications = useCallback(async () => {
     if (!user) return
     setLoading(true)
+    // Les communications écartées ne reviennent pas : le membre les a retirées
+    // de son écran. Elles restent en base comme preuve de transmission.
     const { data } = await supabase
       .from('notifications')
       .select('*')
       .eq('user_id', user.id)
+      .is('dismissed_at', null)
       .order('created_at', { ascending: false })
       .limit(50)
     setNotifications((data as Notification[]) ?? [])
@@ -76,9 +83,34 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
   }
 
+  const dismiss = async (id: string) => {
+    // Retiré de l'écran tout de suite : attendre le serveur donnerait
+    // l'impression que le bouton ne répond pas.
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+    const { error } = await supabase
+      .from('notifications')
+      .update({ dismissed_at: new Date().toISOString(), is_read: true })
+      .eq('id', id)
+    // Le refus serveur est silencieux côté Supabase : sans ce contrôle, la
+    // communication réapparaîtrait au prochain chargement sans explication.
+    if (error) {
+      console.error('[notifications] dismiss', error)
+      fetchNotifications()
+    }
+  }
+
+  const dismissRead = async () => {
+    const { error } = await supabase.rpc('dismiss_read_notifications')
+    if (error) {
+      console.error('[notifications] dismissRead', error)
+      return
+    }
+    setNotifications((prev) => prev.filter((n) => !n.is_read))
+  }
+
   return (
     <NotificationContext.Provider
-      value={{ notifications, unreadCount, markAsRead, markAllAsRead, loading }}
+      value={{ notifications, unreadCount, markAsRead, markAllAsRead, dismiss, dismissRead, loading }}
     >
       {children}
     </NotificationContext.Provider>

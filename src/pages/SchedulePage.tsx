@@ -19,6 +19,7 @@ import ReactMarkdown from 'react-markdown'
 import { MarkdownLink } from '@/components/common/MarkdownLink'
 import { toast } from 'sonner'
 import { sendEmail } from '@/lib/send-email'
+import { notifyMember } from '@/lib/notify-member'
 import { addDays, startOfWeek, format, isSameDay, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -407,10 +408,24 @@ export function SchedulePage() {
     setUserBookings((prev) => new Set([...prev, classId]))
     setBookingCounts(prev => { const n = new Map(prev); n.set(classId, (n.get(classId) ?? 0) + 1); return n })
 
-    // Email confirmation (self-booking, optional)
-    if (profile?.email_on_self_booking && user.email) {
-      sendEmail('booking_confirmed', user.email, classEmailVars(scheduledClass, profile.display_name))
-    }
+    // `email_on_self_booking` est une préférence d'E-MAIL : elle ne doit pas
+    // priver le membre de la trace dans l'application. Il a refusé un canal,
+    // pas l'information.
+    await notifyMember({
+      userId: user.id,
+      title: isFr ? 'Réservation confirmée' : 'Booking confirmed',
+      message: isFr
+        ? `${scheduledClass.class_type?.name} — ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}`
+        : `${scheduledClass.class_type?.name} — ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'at' HH:mm", { locale })}`,
+      type: 'success',
+      link: '/my-bookings',
+      email: {
+        to: user.email,
+        template: 'booking_confirmed',
+        vars: classEmailVars(scheduledClass, profile?.display_name ?? ''),
+        optOut: !profile?.email_on_self_booking,
+      },
+    })
 
     toast.success(t('schedule.bookingConfirmed'))
     setBookingInProgress(null)
@@ -488,9 +503,21 @@ export function SchedulePage() {
     setUserBookings((prev) => new Set([...prev, classId]))
     setUserWaitlist(prev => { const n = new Map(prev); n.delete(classId); return n })
 
-    if (profile?.email_on_self_booking && user.email) {
-      sendEmail('booking_confirmed', user.email, classEmailVars(scheduledClass, profile.display_name))
-    }
+    await notifyMember({
+      userId: user.id,
+      title: isFr ? 'Place confirmée' : 'Spot confirmed',
+      message: isFr
+        ? `Tu as pris la place libérée — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}`
+        : `You took the freed spot — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'at' HH:mm", { locale })}`,
+      type: 'success',
+      link: '/my-bookings',
+      email: {
+        to: user.email,
+        template: 'booking_confirmed',
+        vars: classEmailVars(scheduledClass, profile?.display_name ?? ''),
+        optOut: !profile?.email_on_self_booking,
+      },
+    })
 
     toast.success(t('schedule.spotConfirmed'))
     setBookingInProgress(null)
