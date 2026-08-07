@@ -405,8 +405,20 @@ export function AuthPage() {
                       <input type="checkbox" id="reg-cgv" checked={regCgvAccepted}
                         onChange={(e) => { setRegCgvAccepted(e.target.checked); setRegErrors([]) }}
                         className="mt-1 h-4 w-4 rounded border-gray-300" />
-                      <Label htmlFor="reg-cgv" className="text-sm font-normal leading-snug flex items-center gap-2">
-                        {t('auth.cgvAccept')} * <FieldCheck ok={cgvOk} />
+                      <Label htmlFor="reg-cgv" className="text-sm font-normal leading-snug flex items-center gap-2 flex-wrap">
+                        {/* Le document doit être atteignable AVANT d'accepter :
+                            une case cochée pour des conditions illisibles
+                            n'engage à rien. Nouvel onglet pour ne pas perdre
+                            le formulaire en cours de saisie. */}
+                        <a
+                          href="/cgv"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="underline underline-offset-2 hover:text-primary"
+                        >
+                          {t('auth.cgvAccept')}
+                        </a> * <FieldCheck ok={cgvOk} />
                       </Label>
                     </div>
                     <div className="flex items-start gap-3">

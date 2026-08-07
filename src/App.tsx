@@ -28,6 +28,7 @@ const ProfilePage = lazy(() => import('@/pages/ProfilePage').then(m => ({ defaul
 const PublicProfilePage = lazy(() => import('@/pages/PublicProfilePage').then(m => ({ default: m.PublicProfilePage })))
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })))
 const HelpPage = lazy(() => import('@/pages/HelpPage').then(m => ({ default: m.HelpPage })))
+const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m.TermsPage })))
 const PerformancesPage = lazy(() => import('@/pages/PerformancesPage').then(m => ({ default: m.PerformancesPage })))
 const ManagePerformanceTypesPage = lazy(() => import('@/pages/ManagePerformanceTypesPage').then(m => ({ default: m.ManagePerformanceTypesPage })))
 
@@ -77,6 +78,9 @@ function App() {
                   <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
                   <Route path="/auth/confirm" element={<ConfirmEmailPage />} />
                   <Route path="/auth/email-changed" element={<EmailChangedPage />} />
+                  {/* Publique : l'inscription exige d'accepter les CGV, on ne
+                      peut pas les réserver aux personnes déjà inscrites. */}
+                  <Route path="/cgv" element={<Lazy><TermsPage /></Lazy>} />
 
                   {/* Authenticated */}
                   <Route path="/dashboard" element={<AuthGuard><Lazy><DashboardPage /></Lazy></AuthGuard>} />
