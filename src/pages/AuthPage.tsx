@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Dumbbell, ChevronRight, ChevronLeft, Check } from 'lucide-react'
+import { Dumbbell, ChevronRight, ChevronLeft, Check, MailCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { landingRouteFor } from '@/lib/landing-route'
 import type { UserRole } from '@/types'
@@ -29,6 +29,8 @@ export function AuthPage() {
   const [tab, setTab] = useState<string>('login')
   const [loading, setLoading] = useState(false)
   const [regStep, setRegStep] = useState(1) // 1: infos perso, 2: compte + legal
+  /** Adresse à laquelle l'e-mail de confirmation vient de partir. Non nul = inscription aboutie. */
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
 
   // Login form
   const [loginEmail, setLoginEmail] = useState('')
@@ -187,8 +189,11 @@ export function AuthPage() {
       setRegErrors([msg])
       toast.error(msg)
     } else {
-      toast.success(t('auth.emailConfirmation'))
-      setTab('login')
+      // Un toast disparaît en quelques secondes : le membre se retrouvait
+      // devant le formulaire de connexion sans savoir qu'un e-mail l'attendait,
+      // et beaucoup essayaient de se connecter en vain. L'écran de
+      // confirmation reste affiché tant qu'il ne le quitte pas.
+      setRegisteredEmail(regEmail)
       setRegStep(1)
     }
   }
@@ -204,6 +209,62 @@ export function AuthPage() {
     } else {
       toast.success(t('auth.resetEmailSent'))
     }
+  }
+
+  // Inscription aboutie : on remplace le formulaire par la marche à suivre.
+  // Le membre ne peut pas se connecter tant qu'il n'a pas cliqué le lien reçu —
+  // le lui dire ici évite qu'il essaie, échoue, et conclue à une panne.
+  if (registeredEmail) {
+    return (
+      <div className="flex items-center justify-center min-h-[70vh]">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <MailCheck className="h-7 w-7 text-primary" />
+              </div>
+            </div>
+            <CardTitle>
+              {isFr ? 'Vérifie ta boîte mail' : 'Check your inbox'}
+            </CardTitle>
+            <CardDescription>
+              {isFr
+                ? 'Ton compte est créé, il reste une étape.'
+                : 'Your account is created — one step left.'}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border bg-muted/40 p-4 text-sm">
+              <p>
+                {isFr ? 'Un e-mail vient d\'être envoyé à ' : 'An email was just sent to '}
+                <strong className="break-all">{registeredEmail}</strong>.
+              </p>
+              <p className="mt-2 text-muted-foreground">
+                {isFr
+                  ? 'Clique sur le lien qu\'il contient pour activer ton compte. Sans cette confirmation, la connexion ne fonctionnera pas.'
+                  : 'Click the link inside to activate your account. Until you do, signing in won\'t work.'}
+              </p>
+            </div>
+
+            {/* Le dossier indésirables est la première cause de « je n'ai rien
+                reçu » : autant le dire tout de suite. */}
+            <p className="text-xs text-muted-foreground">
+              {isFr
+                ? 'Rien reçu après quelques minutes ? Regarde dans les indésirables (spam), ou contacte le studio.'
+                : 'Nothing after a few minutes? Check your spam folder, or contact the studio.'}
+            </p>
+
+            <Button
+              className="w-full"
+              onClick={() => { setRegisteredEmail(null); setTab('login') }}
+            >
+              {isFr ? 'J\'ai confirmé, me connecter' : 'I confirmed, sign in'}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -430,6 +491,14 @@ export function AuthPage() {
                       </Label>
                     </div>
                   </div>
+
+                  {/* Annoncé AVANT de valider : le membre sait qu'une étape
+                      l'attend, au lieu de la découvrir après coup. */}
+                  <p className="text-xs text-muted-foreground text-center">
+                    {isFr
+                      ? 'Après validation, un e-mail te sera envoyé pour activer ton compte.'
+                      : 'After submitting, you\'ll receive an email to activate your account.'}
+                  </p>
 
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" className="flex-1" onClick={() => setRegStep(1)}>
