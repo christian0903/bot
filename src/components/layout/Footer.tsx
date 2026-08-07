@@ -2,7 +2,8 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Heart } from 'lucide-react'
 
-const APP_VERSION = '1.0.0'
+/** Injectée au build depuis package.json (cf. vite.config.ts). */
+declare const __APP_VERSION__: string
 
 export function Footer() {
   const { t } = useTranslation()
@@ -13,11 +14,16 @@ export function Footer() {
         <p>
           &copy; {new Date().getFullYear()} {t('footer.copyright')}. {t('footer.rights')}
         </p>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap justify-center">
+          {/* Document contractuel : il doit rester atteignable en permanence,
+              pas seulement au moment de cocher la case à l'inscription. */}
+          <Link to="/cgv" className="hover:text-foreground transition-colors">
+            {t('footer.terms')}
+          </Link>
           <Link to="/help" className="hover:text-foreground transition-colors">
             {t('nav.help')}
           </Link>
-          <span>{t('footer.version', { version: APP_VERSION })}</span>
+          <span>{t('footer.version', { version: __APP_VERSION__ })}</span>
           <Link to="/packs" className="flex items-center gap-1 hover:text-foreground transition-colors">
             <Heart className="h-3 w-3" />
             {t('footer.support')}
