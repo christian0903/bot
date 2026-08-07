@@ -27,26 +27,11 @@ import {
   SelectTrigger,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Activity, Plus, Pencil, Trash2, Settings, ChevronLeft, ChevronRight, Trophy } from 'lucide-react'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, addMonths, isWithinInterval } from 'date-fns'
+import { cn } from '@/lib/utils'
+import { Activity, Plus, Pencil, Trash2, Settings, Trophy } from 'lucide-react'
+import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-
-type Period = 'day' | 'week' | 'month'
-
-function parseLeadingNumber(value: string): number | null {
-  // Handles "13 kg", "250 kg", "1500m", and m:ss / h:mm:ss durations
-  const trimmed = value.trim()
-  const timeMatch = trimmed.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?/)
-  if (timeMatch) {
-    const a = parseInt(timeMatch[1] ?? '0', 10)
-    const b = parseInt(timeMatch[2] ?? '0', 10)
-    const c = timeMatch[3] ? parseInt(timeMatch[3], 10) : null
-    return c == null ? a + b / 60 : a * 60 + b + c / 60
-  }
-  const m = trimmed.match(/^-?\d+(?:[.,]\d+)?/)
-  return m ? parseFloat(m[0].replace(',', '.')) : null
-}
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface FormState {
   performance_type_id: string
@@ -86,9 +71,6 @@ export function PerformancesPage() {
   const [timeMin, setTimeMin] = useState('')
   const [timeSec, setTimeSec] = useState('')
 
-  const [period, setPeriod] = useState<Period>('week')
-  const [anchorDate, setAnchorDate] = useState<Date>(new Date())
-
   /** Nature du mouvement en cours de saisie : commande la forme du formulaire. */
   const formKind = types.find(t => t.id === form.performance_type_id)?.measure_kind ?? 'number'
   /** Unité affichée à côté du champ. Vient du type, jamais de la frappe. */
@@ -118,105 +100,128 @@ export function PerformancesPage() {
 
   const activeTypes = useMemo(() => types.filter(t => !t.archived), [types])
 
+  /**
+   * Mouvement affiché par défaut : le plus suivi.
+   *
+   * Le graphique demande un mouvement. Sans cela, la page s'ouvrait sur une
+   * simple liste et le membre ne découvrait la courbe qu'en cliquant au
+   * hasard sur un filtre.
+   *
+   * Calculé au rendu plutôt que posé dans un effet : écrire un état depuis un
+   * effet provoque un second rendu en cascade, pour un résultat qu'on sait
+   * déduire directement.
+   */
+  const defaultTypeId = useMemo(() => {
+    if (performances.length === 0 || activeTypes.length === 0) return ''
+    // Un mouvement archivé n'a pas de bouton de filtre : le choisir
+    // afficherait une courbe que le membre ne pourrait plus quitter.
+    const selectable = new Set(activeTypes.map(t => t.id))
+    const counts = new Map<string, number>()
+    for (const p of performances) {
+      if (p.value_num === null || p.value_num === undefined) continue
+      if (!selectable.has(p.performance_type_id)) continue
+      counts.set(p.performance_type_id, (counts.get(p.performance_type_id) ?? 0) + 1)
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
+  }, [performances, activeTypes])
+
+  /** Sélection effective : le choix du membre, ou le mouvement par défaut. */
+  const shownTypeId = filterTypeId || defaultTypeId
+
   const filteredPerformances = useMemo(
-    () => (filterTypeId ? performances.filter(p => p.performance_type_id === filterTypeId) : performances),
-    [performances, filterTypeId],
+    () => (shownTypeId ? performances.filter(p => p.performance_type_id === shownTypeId) : performances),
+    [performances, shownTypeId],
   )
 
   const selectedType = useMemo(
-    () => types.find(t => t.id === filterTypeId),
-    [types, filterTypeId],
+    () => types.find(t => t.id === shownTypeId),
+    [types, shownTypeId],
   )
 
-  const periodRange = useMemo(() => {
-    if (period === 'day') {
-      return { start: anchorDate, end: anchorDate }
-    }
-    if (period === 'week') {
-      return {
-        start: startOfWeek(anchorDate, { weekStartsOn: 1 }),
-        end: endOfWeek(anchorDate, { weekStartsOn: 1 }),
-      }
-    }
-    return { start: startOfMonth(anchorDate), end: endOfMonth(anchorDate) }
-  }, [period, anchorDate])
-
-  const periodLabel = useMemo(() => {
-    const { start, end } = periodRange
-    if (period === 'day') return format(start, 'EEEE dd MMMM yyyy', { locale })
-    if (period === 'week') return `${format(start, 'dd', { locale })} - ${format(end, 'dd MMM yyyy', { locale })}`
-    return format(start, 'MMMM yyyy', { locale })
-  }, [periodRange, period, locale])
-
-  // chartData: per-day MAX of numeric value, within periodRange
+  /**
+   * La courbe de progression : toutes les mesures du mouvement, dans l'ordre.
+   *
+   * Elle ne se limite plus à la période affichée. Une progression se lit sur
+   * la durée — un squat qui passe de 35 à 60 kg en cinq mois ne se voit pas
+   * sur une semaine.
+   *
+   * Les jours sans mesure ne sont plus comblés par des zéros : sur un chrono,
+   * un « 0 seconde » écrasait toute l'échelle et rendait la courbe illisible.
+   * Un point par mesure, espacé selon sa date.
+   */
   const chartData = useMemo(() => {
-    if (!filterTypeId) return []
-    const { start, end } = periodRange
-    const inRange = filteredPerformances.filter(p => {
-      const d = new Date(p.date + 'T00:00:00')
-      return isWithinInterval(d, { start, end })
-    })
+    if (!shownTypeId) return []
+    return filteredPerformances
+      .filter(p => p.value_num !== null && p.value_num !== undefined)
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(p => ({
+        label: format(new Date(p.date + 'T00:00:00'), 'dd/MM', { locale }),
+        value: Number(p.value_num),
+        rawValue: p.value,
+        date: p.date,
+      }))
+  }, [shownTypeId, filteredPerformances, locale])
 
-    if (period === 'day') {
-      // one bar per entry (sorted chronologically by created_at)
-      return inRange
-        .slice()
-        .sort((a, b) => a.created_at.localeCompare(b.created_at))
-        .map((p, i) => {
-          const n = parseLeadingNumber(p.value)
-          return { label: `#${i + 1}`, value: n ?? 0, rawValue: p.value }
-        })
+  /**
+   * Ce que la courbe raconte : record, progression, dernière mesure.
+   *
+   * Le sens du progrès vient du type de mouvement. Chercher le maximum sur un
+   * chrono désignerait la pire performance comme record — c'est ce que faisait
+   * le code précédent.
+   */
+  const progression = useMemo(() => {
+    if (!selectedType || chartData.length === 0) return null
+
+    const lowerIsBetter = selectedType.lower_is_better
+    const values = chartData.map(d => d.value)
+    const first = chartData[0]
+    const last = chartData[chartData.length - 1]
+
+    const bestValue = lowerIsBetter ? Math.min(...values) : Math.max(...values)
+    const best = chartData.find(d => d.value === bestValue)!
+
+    // Écart entre la première et la dernière mesure, exprimé dans le sens du
+    // progrès : positif = amélioration, quel que soit le type de mesure.
+    const rawDelta = last.value - first.value
+    const gain = lowerIsBetter ? -rawDelta : rawDelta
+
+    return {
+      count: chartData.length,
+      first,
+      last,
+      best,
+      gain,
+      isRecord: last.value === bestValue && chartData.length > 1,
+      since: format(new Date(first.date + 'T00:00:00'), 'MMMM yyyy', { locale }),
     }
+  }, [selectedType, chartData, locale])
 
-    // week/month: max per day
-    const byDay = new Map<string, { date: string; max: number; raw: string }>()
-    for (const p of inRange) {
-      const n = parseLeadingNumber(p.value)
-      if (n == null) continue
-      const existing = byDay.get(p.date)
-      if (!existing || n > existing.max) {
-        byDay.set(p.date, { date: p.date, max: n, raw: p.value })
-      }
+  /** Met en forme un écart selon la nature de la mesure. */
+  const formatGain = (gain: number): string => {
+    const kind = selectedType?.measure_kind
+    const sign = gain > 0 ? '+' : ''
+    if (kind === 'time') {
+      // Un écart de temps se lit en secondes tant qu'il reste court.
+      const abs = Math.abs(gain)
+      const txt = abs >= 60
+        ? `${Math.floor(abs / 60)} min ${String(Math.round(abs % 60)).padStart(2, '0')} s`
+        : `${Math.round(abs)} s`
+      return gain > 0 ? `−${txt}` : `+${txt}`
     }
+    const unit = selectedType?.unit_hint ?? ''
+    return `${sign}${Number(gain.toFixed(1))} ${unit}`.trim()
+  }
 
-    // fill missing days with 0 for steady X axis
-    const days: { date: string; max: number; raw: string }[] = []
-    const dayCount = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
-    for (let i = 0; i < dayCount; i++) {
-      const d = addDays(start, i)
-      const key = format(d, 'yyyy-MM-dd')
-      const found = byDay.get(key)
-      days.push({ date: key, max: found?.max ?? 0, raw: found?.raw ?? '' })
+  /** Affiche une valeur brute selon la nature : « 1:55 » ou « 50 kg ». */
+  const formatValue = (n: number): string => {
+    if (selectedType?.measure_kind === 'time') {
+      const m = Math.floor(n / 60)
+      const s = Math.round(n % 60)
+      return `${m}:${String(s).padStart(2, '0')}`
     }
-    return days.map(d => ({
-      label: format(new Date(d.date + 'T00:00:00'), period === 'week' ? 'EEE' : 'dd', { locale }),
-      value: d.max,
-      rawValue: d.raw,
-      date: d.date,
-    }))
-  }, [filterTypeId, filteredPerformances, periodRange, period, locale])
-
-  const periodSummary = useMemo(() => {
-    if (!filterTypeId) return null
-    const { start, end } = periodRange
-    const entries = filteredPerformances.filter(p => {
-      const d = new Date(p.date + 'T00:00:00')
-      return isWithinInterval(d, { start, end })
-    })
-    const numericValues = entries
-      .map(p => ({ p, n: parseLeadingNumber(p.value) }))
-      .filter(x => x.n != null) as { p: Performance; n: number }[]
-    const best = numericValues.reduce<{ p: Performance; n: number } | null>(
-      (acc, x) => (acc && acc.n >= x.n ? acc : x),
-      null,
-    )
-    return { count: entries.length, best }
-  }, [filterTypeId, filteredPerformances, periodRange])
-
-  const shiftPeriod = (direction: 1 | -1) => {
-    if (period === 'day') setAnchorDate(addDays(anchorDate, direction))
-    else if (period === 'week') setAnchorDate(addWeeks(anchorDate, direction))
-    else setAnchorDate(addMonths(anchorDate, direction))
+    const unit = selectedType?.unit_hint ?? ''
+    return `${Number(n.toFixed(1))} ${unit}`.trim()
   }
 
   const openCreate = () => {
@@ -373,19 +378,14 @@ export function PerformancesPage() {
         </Card>
       )}
 
+      {/* Plus de bouton « Tous » : la courbe demande un mouvement, et un
+          filtre qui ne peut plus s'activer serait un bouton mort. */}
       {activeTypes.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant={filterTypeId === '' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterTypeId('')}
-          >
-            {isFr ? 'Tous' : 'All'}
-          </Button>
           {activeTypes.map(t => (
             <Button
               key={t.id}
-              variant={filterTypeId === t.id ? 'default' : 'outline'}
+              variant={shownTypeId === t.id ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilterTypeId(t.id)}
             >
@@ -401,7 +401,7 @@ export function PerformancesPage() {
         </div>
       )}
 
-      {filterTypeId && selectedType && (
+      {shownTypeId && selectedType && (
         <Card>
           <CardContent className="p-3 sm:p-4 space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -414,76 +414,103 @@ export function PerformancesPage() {
                   <Badge variant="outline" className="text-[11px] shrink-0">{selectedType.unit_hint}</Badge>
                 )}
               </div>
-              <div className="inline-flex rounded-md border bg-muted/30 p-0.5 text-xs shrink-0">
-                {(['day', 'week', 'month'] as Period[]).map(p => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => { setPeriod(p); setAnchorDate(new Date()) }}
-                    className={
-                      'px-2 py-1 rounded transition-colors ' +
-                      (period === p ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground')
-                    }
-                  >
-                    {isFr
-                      ? (p === 'day' ? 'Jour' : p === 'week' ? 'Sem.' : 'Mois')
-                      : (p === 'day' ? 'Day' : p === 'week' ? 'Week' : 'Month')}
-                  </button>
-                ))}
-              </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="icon" onClick={() => shiftPeriod(-1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm font-medium capitalize">{periodLabel}</span>
-              <Button variant="ghost" size="icon" onClick={() => shiftPeriod(1)}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {chartData.length === 0 || chartData.every(d => d.value === 0) ? (
+            {chartData.length < 2 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
-                {isFr ? 'Aucune performance sur cette période' : 'No performance in this period'}
+                {chartData.length === 0
+                  ? (isFr ? 'Aucune mesure enregistrée' : 'No measurement yet')
+                  : (isFr
+                    ? 'Encore une mesure et la courbe apparaît.'
+                    : 'One more measurement and the curve appears.')}
               </p>
             ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} width={32} />
-                  <Tooltip
-                    contentStyle={{ fontSize: 12 }}
-                    formatter={(v, _name, props) => {
-                      const raw = (props?.payload as { rawValue?: string } | undefined)?.rawValue
-                      return [raw || String(v), selectedType.name]
-                    }}
-                    labelFormatter={() => ''}
-                  />
-                  <Bar
-                    dataKey="value"
-                    fill={selectedType.color || 'var(--color-primary)'}
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+              <>
+                {/* La progression, en clair. C'est ce que le membre retient —
+                    la courbe illustre, la phrase informe. */}
+                {progression && (
+                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                    <div>
+                      <span className={cn(
+                        'text-2xl font-bold',
+                        progression.gain > 0 && 'text-emerald-600 dark:text-emerald-400',
+                      )}>
+                        {progression.gain === 0
+                          ? formatValue(progression.last.value)
+                          : formatGain(progression.gain)}
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {progression.gain === 0
+                          ? (isFr ? 'stable' : 'steady')
+                          : (isFr ? `depuis ${progression.since}` : `since ${progression.since}`)}
+                      </span>
+                    </div>
+                    {progression.isRecord && (
+                      <Badge className="gap-1">
+                        <Trophy className="h-3 w-3" />
+                        {isFr ? 'Record' : 'Personal best'}
+                      </Badge>
+                    )}
+                  </div>
+                )}
 
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <div className="rounded-lg border p-2 text-center">
-                <p className="text-xs text-muted-foreground">{isFr ? 'Entrées' : 'Entries'}</p>
-                <p className="text-xl font-bold">{periodSummary?.count ?? 0}</p>
-              </div>
-              <div className="rounded-lg border p-2 text-center">
-                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                  <Trophy className="h-3 w-3" />
-                  {isFr ? 'Meilleur' : 'Best'}
-                </p>
-                <p className="text-xl font-bold truncate">
-                  {periodSummary?.best ? periodSummary.best.p.value : '—'}
-                </p>
-              </div>
-            </div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                    {/* Axe inversé sur un chrono : « ça monte » doit toujours
+                        vouloir dire « je progresse ». Sans cela, une courbe
+                        descendante ferait croire à une régression alors que
+                        c'est un record. */}
+                    <YAxis
+                      tick={{ fontSize: 10 }}
+                      width={44}
+                      domain={['dataMin - 5', 'dataMax + 5']}
+                      reversed={selectedType.lower_is_better}
+                      tickFormatter={(v) => formatValue(Number(v))}
+                    />
+                    <Tooltip
+                      contentStyle={{ fontSize: 12 }}
+                      formatter={(_v, _name, props) => {
+                        const raw = (props?.payload as { rawValue?: string } | undefined)?.rawValue
+                        return [raw ?? '', selectedType.name]
+                      }}
+                      labelFormatter={(l) => String(l)}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke={selectedType.color || 'var(--color-primary)'}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div className="rounded-lg border p-2 text-center">
+                    <p className="text-xs text-muted-foreground">{isFr ? 'Mesures' : 'Entries'}</p>
+                    <p className="text-lg font-bold">{progression?.count ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border p-2 text-center">
+                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                      <Trophy className="h-3 w-3" />
+                      {isFr ? 'Record' : 'Best'}
+                    </p>
+                    <p className="text-lg font-bold truncate">
+                      {progression ? progression.best.rawValue : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border p-2 text-center">
+                    <p className="text-xs text-muted-foreground">{isFr ? 'Dernière' : 'Latest'}</p>
+                    <p className="text-lg font-bold truncate">
+                      {progression ? progression.last.rawValue : '—'}
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
