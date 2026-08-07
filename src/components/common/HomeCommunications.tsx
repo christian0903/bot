@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import {
-  Gift, Mail, X, ChevronDown, ChevronUp, Info, CheckCircle2, AlertTriangle, XCircle,
+  Gift, Mail, X, Check, ChevronDown, ChevronUp, Info, CheckCircle2, AlertTriangle, XCircle,
 } from 'lucide-react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { ClassReviewPrompt } from '@/components/common/ClassReviewPrompt'
@@ -82,13 +82,30 @@ function CommunicationRow({
         </span>
       </button>
 
-      <button
-        onClick={onDismiss}
-        aria-label={isFr ? 'Retirer' : 'Dismiss'}
-        className="shrink-0 rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 focus:opacity-100"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
+      <div className="flex shrink-0 items-center gap-0.5">
+        {/* Marquer lu sans ouvrir. Jusqu'ici la seule façon de le faire était
+            de cliquer la ligne — ce qui navigue ailleurs. Une communication
+            qu'on a lue en diagonale n'a pas à emmener le membre sur une autre
+            page pour être classée. */}
+        {unread && (
+          <button
+            onClick={onRead}
+            aria-label={isFr ? 'Marquer comme lu' : 'Mark as read'}
+            title={isFr ? 'Marquer comme lu' : 'Mark as read'}
+            className="rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <button
+          onClick={onDismiss}
+          aria-label={isFr ? 'Retirer' : 'Dismiss'}
+          title={isFr ? 'Retirer' : 'Dismiss'}
+          className="rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -105,18 +122,32 @@ function CommunicationRow({
  * Elle disparaît d'elle-même une fois la séance réservée.
  */
 export function HomeCommunications({ trialDaysLeft }: { trialDaysLeft: number | null }) {
-  const { notifications, markAsRead, dismiss, dismissRead } = useNotifications()
+  const { notifications, markAsRead, markAllAsRead, dismiss, dismissRead } = useNotifications()
   const { i18n } = useTranslation()
   const isFr = i18n.language === 'fr'
   const locale = isFr ? fr : enUS
   const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
+  /** Ce qu'on affiche : tout, ou seulement ce qui n'a pas été lu. */
+  const [filter, setFilter] = useState<'all' | 'unread'>('all')
 
   const hasTrial = trialDaysLeft !== null
-  const shown = expanded ? notifications : notifications.slice(0, VISIBLE_COUNT)
-  const hidden = notifications.length - shown.length
   const unread = notifications.filter((n) => !n.is_read).length
   const readCount = notifications.length - unread
+
+  // Le filtre porte sur la liste, pas sur la requête : tout est déjà chargé,
+  // et basculer ne doit pas provoquer d'attente.
+  //
+  // Il se désactive de lui-même quand il n'y a plus rien de non lu : les
+  // boutons disparaissent alors, et rester bloqué sur « non lues » laisserait
+  // le membre devant un cadre vide sans moyen d'en sortir.
+  const activeFilter = unread > 0 ? filter : 'all'
+  const filtered = activeFilter === 'unread'
+    ? notifications.filter((n) => !n.is_read)
+    : notifications
+
+  const shown = expanded ? filtered : filtered.slice(0, VISIBLE_COUNT)
+  const hidden = filtered.length - shown.length
 
   // Pas de sortie anticipée : la demande d'avis peut être le seul contenu à
   // afficher, et `ClassReviewPrompt` décide lui-même s'il a quelque chose à
@@ -179,29 +210,71 @@ export function HomeCommunications({ trialDaysLeft }: { trialDaysLeft: number | 
               )}
             </div>
 
-            {/* Ne s'affiche que s'il y a quelque chose à retirer : proposer
-                « tout effacer » sur une liste sans élément lu ne ferait rien. */}
-            {readCount > 0 && (
-              <button
-                onClick={dismissRead}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {isFr ? 'Effacer les lues' : 'Clear read'}
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {/* Filtre : proposé seulement s'il y a un tri à faire. Sur une
+                  liste entièrement lue ou entièrement non lue, il n'apprend
+                  rien et encombre. */}
+              {unread > 0 && readCount > 0 && (
+                <div className="inline-flex rounded-md border bg-muted/30 p-0.5 text-[11px]">
+                  {(['all', 'unread'] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={cn(
+                        'px-2 py-0.5 rounded transition-colors',
+                        activeFilter === f ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {f === 'all'
+                        ? (isFr ? 'Tout' : 'All')
+                        : (isFr ? 'Non lues' : 'Unread')}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {unread > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {isFr ? 'Tout marquer lu' : 'Mark all read'}
+                </button>
+              )}
+
+              {/* Ne s'affiche que s'il y a quelque chose à retirer : proposer
+                  « effacer les lues » sans élément lu ne ferait rien. */}
+              {readCount > 0 && (
+                <button
+                  onClick={dismissRead}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {isFr ? 'Effacer les lues' : 'Clear read'}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="p-1">
-            {shown.map((n) => (
-              <CommunicationRow
-                key={n.id}
-                notif={n}
-                isFr={isFr}
-                locale={locale}
-                onRead={() => markAsRead(n.id)}
-                onDismiss={() => dismiss(n.id)}
-              />
-            ))}
+            {/* Le filtre « non lues » peut se vider sous les doigts du membre
+                quand il marque la dernière. Le dire, plutôt que de laisser un
+                cadre vide qui ressemble à une panne. */}
+            {shown.length === 0 ? (
+              <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+                {isFr ? 'Tout est lu.' : 'Everything is read.'}
+              </p>
+            ) : (
+              shown.map((n) => (
+                <CommunicationRow
+                  key={n.id}
+                  notif={n}
+                  isFr={isFr}
+                  locale={locale}
+                  onRead={() => markAsRead(n.id)}
+                  onDismiss={() => dismiss(n.id)}
+                />
+              ))
+            )}
           </div>
 
           {(hidden > 0 || expanded) && (
