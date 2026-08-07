@@ -118,6 +118,8 @@ export function SchedulePage() {
   // Le crédit d'essai encore disponible, s'il existe. Sert à proposer l'essai
   // et à afficher jusqu'à quand il reste valable.
   const [trialCredit, setTrialCredit] = useState<{ id: string; expires_at: string } | null>(null)
+  /** Crédits restants par type de crédit, pour le rappel en tête de planning. */
+  const [creditsByType, setCreditsByType] = useState<Map<string, { count: number; unlimited: boolean }>>(new Map())
   // Réservation refusée faute de crédit : on propose l'achat sur place.
   const [noCredits, setNoCredits] = useState<{
     reason: NoCreditsReason
@@ -140,6 +142,45 @@ export function SchedulePage() {
     () => Array.from({ length: 7 }, (_, i) => addDays(currentDate, i)),
     [currentDate]
   )
+
+  // Défini ici plutôt que plus bas : la navigation du planning en dépend, et
+  // une constante utilisée avant sa déclaration casse à l'exécution.
+  const isStaff = !!user && (roles.includes('admin') || roles.includes('super_admin') || roles.includes('coach'))
+
+  // Le bouton « Aujourd'hui » ne s'affiche que si on n'y est pas : proposer de
+  // revenir là où l'on se trouve déjà n'apprend rien.
+  const showingToday = isSameDay(currentDate, new Date())
+
+  /**
+   * Crédits à rappeler en tête de planning.
+   *
+   * Le libellé du type vient des cours affichés — c'est la seule source qui le
+   * porte. Un type dont aucun cours n'est programmé sur la période n'apparaît
+   * donc pas : le membre n'a de toute façon rien à y réserver.
+   *
+   * Réservé au client : le staff réserve pour les autres, ses propres crédits
+   * n'ont rien à faire là.
+   */
+  const creditSummary = useMemo(() => {
+    if (isStaff || creditsByType.size === 0) return []
+    const labels = new Map<string, string>()
+    for (const sc of classes) {
+      const ct = sc.class_type?.credit_type
+      const id = sc.class_type?.credit_type_id
+      if (!id || labels.has(id)) continue
+      const label = (isFr ? ct?.label_fr : ct?.label_en) ?? ct?.name
+      if (label) labels.set(id, label)
+    }
+    return [...creditsByType.entries()]
+      .filter(([id]) => labels.has(id))
+      .map(([id, v]) => ({ id, label: labels.get(id)!, count: v.count, unlimited: v.unlimited }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [creditsByType, classes, isFr, isStaff])
+
+  // Le client ne recule pas avant la semaine en cours. Le staff, si : il a
+  // besoin de l'historique pour les présences et la facturation.
+  const canGoBack = isStaff || startOfWeek(addDays(currentDate, -7), { weekStartsOn: 1 })
+    >= startOfWeek(new Date(), { weekStartsOn: 1 })
 
   // Extract unique class types and coaches for filters
   const classTypes = useMemo(() => {
@@ -222,8 +263,24 @@ export function SchedulePage() {
       setTrialCredit(
         rows.find(p => p.pack_type?.is_trial && p.credits_remaining > 0) ?? null,
       )
+
+      // Crédits restants par type, calculés depuis les packs déjà chargés :
+      // aucune requête de plus. Affichés en tête du planning pour répondre à
+      // « combien de réservations puis-je encore faire ? » sans quitter la
+      // page — jusqu'ici il fallait aller dans « Mes packs ».
+      const byType = new Map<string, { count: number; unlimited: boolean }>()
+      for (const p of rows) {
+        const t = p.pack_type?.credit_type_id
+        if (!t) continue
+        const cur = byType.get(t) ?? { count: 0, unlimited: false }
+        if (p.pack_type?.is_unlimited) cur.unlimited = true
+        else cur.count += Math.max(0, p.credits_remaining)
+        byType.set(t, cur)
+      }
+      setCreditsByType(byType)
     } else {
       setHasUsablePack(false)
+      setCreditsByType(new Map())
     }
 
     const givenRule = givenRuleRes.data?.value as { min_participants?: number } | undefined
@@ -594,7 +651,6 @@ export function SchedulePage() {
 
   // Class info popup
   const [infoClassType, setInfoClassType] = useState<ScheduledClass['class_type'] | null>(null)
-  const isStaff = user && (roles.includes('admin') || roles.includes('super_admin') || roles.includes('coach'))
 
   /**
    * Cours à signaler au staff : réservations fermées, cours pas encore commencé,
@@ -1333,25 +1389,69 @@ export function SchedulePage() {
         </div>
       )}
 
+      {/* Crédits restants — « combien de réservations puis-je encore faire ? »
+          Il fallait aller dans « Mes packs » pour le savoir. */}
+      {creditSummary.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          {creditSummary.map((c) => (
+            <span
+              key={c.id}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1',
+                c.unlimited || c.count > 0
+                  ? 'border-primary/30 bg-primary/5'
+                  : 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400',
+              )}
+            >
+              <span className="text-muted-foreground">{c.label}</span>
+              <span className="font-semibold">
+                {c.unlimited
+                  ? (isFr ? 'illimité' : 'unlimited')
+                  : isFr
+                    ? `${c.count} crédit${c.count > 1 ? 's' : ''}`
+                    : `${c.count} credit${c.count > 1 ? 's' : ''}`}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Week nav + view toggle */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
+          {/* Reculer est refusé au client quand cela sortirait de la semaine
+              courante : le passé ne lui sert à rien et il pouvait s'y perdre
+              sans comprendre pourquoi le planning était vide. Le staff garde
+              l'accès complet — il a besoin de l'historique. */}
           <Button variant="ghost" size="icon" className="h-8 w-8"
+            disabled={!canGoBack}
+            title={!canGoBack ? (isFr ? 'Les cours passés ne sont pas consultables' : 'Past classes are not available') : undefined}
             onClick={() => { setSwipeDirection(-1); setCurrentDate((d) => addDays(d, -7)) }}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <button
-            onClick={() => { setSwipeDirection(0); setCurrentDate(new Date()); setSelectedDay(new Date()) }}
-            className="text-sm font-medium hover:text-primary transition-colors"
-          >
+          <span className="text-sm font-medium">
             {viewMode === 'day'
               ? `${format(dayViewDays[0], 'dd MMM', { locale })} — ${format(dayViewDays[6], 'dd MMM yyyy', { locale })}`
               : `${format(weekStart, 'dd MMM', { locale })} — ${format(addDays(weekStart, 6), 'dd MMM yyyy', { locale })}`}
-          </button>
+          </span>
           <Button variant="ghost" size="icon" className="h-8 w-8"
             onClick={() => { setSwipeDirection(1); setCurrentDate((d) => addDays(d, 7)) }}>
             <ChevronRight className="h-4 w-4" />
           </Button>
+
+          {/* Le retour à aujourd'hui existait, mais caché derrière la plage de
+              dates : rien n'indiquait qu'elle était cliquable. Il devient un
+              bouton, visible seulement quand on n'y est pas déjà. */}
+          {!showingToday && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => { setSwipeDirection(0); setCurrentDate(new Date()); setSelectedDay(new Date()) }}
+            >
+              {isFr ? "Aujourd'hui" : 'Today'}
+            </Button>
+          )}
         </div>
 
         <div className="flex rounded-lg border overflow-hidden">
