@@ -318,7 +318,7 @@ Les fichiers sont déposés à la racine du site, au même endroit que l'applica
 Le format est du Markdown, du texte ordinaire avec quelques signes :
 
 ```
-## Un titre de section        ← apparaît dans le sommaire de la page
+## Un titre de section       (deux dièses : apparaît dans le sommaire)
 ### Un sous-titre
 **du texte en gras**
 - un élément de liste
@@ -341,6 +341,75 @@ Le bas du document attend aussi les **coordonnées légales du studio** : adress
 ### En cas d'erreur
 
 Si un fichier est supprimé ou corrompu, la page affiche un message d'indisponibilité plutôt qu'un écran blanc. Reposer le fichier suffit à rétablir l'affichage. Une copie de chaque document existe dans le dépôt de code.
+
+---
+
+## Clients professionnels — paiement sur facture
+
+Une entreprise ne paie pas par carte : elle commande, vous facturez, elle règle par virement selon ses délais.
+
+> **Le pack est crédité immédiatement.** L'employé doit pouvoir s'entraîner sans attendre le circuit comptable de son employeur. C'est un paiement à terme — vous portez le risque d'impayé, comme pour toute facture.
+
+### Qualifier un client — fiche membre, onglet Packs
+
+Activez **Client professionnel** et renseignez la raison sociale (obligatoire), le numéro de TVA et l'adresse de facturation.
+
+**Vous seul pouvez le faire.** Un client qui pourrait se déclarer entreprise obtiendrait des séances sans payer.
+
+Une fois qualifié, le membre voit « Payer par facture » à la place du paiement, un bandeau lui rappelle qu'aucune carte ne sera débitée, et les abonnements disparaissent de son catalogue — un prélèvement automatique n'a pas de sens sur facture.
+
+### Revenir en arrière
+
+C'est possible et sans danger : les packs achetés restent valides, les factures restent dues, seul le mode de paiement des **prochaines** commandes change.
+
+S'il reste des factures ouvertes, l'application vous le signale avec leur montant. Ce n'est pas un blocage, juste une information à avoir avant de décider.
+
+### Suivre les factures — Administration → Demandes de facture
+
+Trois filtres : **à encaisser**, **payées**, **toutes**. Le montant s'affiche à droite de chaque ligne.
+
+Une facture ouverte depuis plus de trente jours passe en orange. C'est un repère visuel, rien de plus : aucune relance ni suspension automatique, la décision reste la vôtre.
+
+Sur chaque ligne :
+
+- **N° de facture (Odoo)** et **Date de facture** — saisissables **à tout moment**, dès qu'Odoo les a attribués. Vous n'attendez pas le règlement pour les noter.
+- **Marquer payée** — quand l'argent est arrivé.
+
+> Pointer une facture comme payée **n'a aucun effet sur les crédits** : ils ont été donnés à la commande. Ce geste ne sert qu'à votre suivi.
+
+### Ce qui n'existe pas encore
+
+- **Pas de relance automatique** : les impayés se suivent à l'œil dans cet écran
+- **Pas d'abonnement B2B** : pour un engagement long, créez plutôt un pack de longue validité — par exemple « Pack entreprise 12 séances / 90 jours »
+- **Pas de facture générée ici** : la facture se crée dans Odoo. Un export est prévu (voir ci-dessous)
+
+---
+
+## Avis sur les cours
+
+Après une séance, le membre peut la noter de 1 à 5 étoiles et laisser un commentaire.
+
+**Les avis sont anonymes pour le coach** — c'est ce qui les rend francs. Vous êtes le seul à pouvoir remonter à leur auteur.
+
+Sur la fiche d'un cours passé, le coach voit la moyenne, la répartition par étoile et les commentaires. La répartition compte autant que la moyenne : un 4 de moyenne peut cacher deux 5 et un 2.
+
+**Réglage** — Administration → Réglages → Avis sur les cours : activer ou non, et combien de jours la proposition reste affichée (sept par défaut). Passé ce délai elle disparaît d'elle-même. Désactiver ne supprime aucun avis déjà donné.
+
+Seul un membre **inscrit** à un cours **terminé** peut le noter, une seule fois. Il peut corriger son avis tant que le délai court.
+
+---
+
+## Supprimer un compte
+
+À la demande du membre, depuis sa fiche. Le membre peut aussi le faire lui-même depuis son profil.
+
+> **On anonymise, on n'efface pas.** Le droit comptable impose de conserver sept ans les justificatifs de paiement. La personne disparaît — nom, coordonnées, santé, performances, notifications — la comptabilité reste, sans lien avec une identité.
+
+Le profil devient « Membre supprimé #… » et son statut passe à « ancien ». Ses réservations à venir sont annulées, les places libérées.
+
+**Un abonnement actif bloque la suppression** : sans compte, le membre ne pourrait plus le résilier et continuerait d'être prélevé. Résiliez-le d'abord.
+
+Un super administrateur ne peut pas être supprimé — le studio perdrait son accès.
 
 ---
 

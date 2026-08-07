@@ -27,6 +27,18 @@ Sur la page de connexion, onglet **Mot de passe oublié** : tu reçois un lien p
 
 ## Au quotidien
 
+### Ta page d'accueil
+
+Tout ce que tu dois savoir s'y trouve, en haut :
+
+- **Ta séance d'essai** si tu y as droit — elle est offerte, il suffit de choisir un cours dans le planning
+- **Tes communications** : confirmations, annulations, échéances. Ce qui est parti aussi par e-mail porte une petite enveloppe — c'est normal de le retrouver dans ta boîte mail
+- **Ton avis** sur ta dernière séance, s'il en manque un
+
+Une communication lue s'efface visuellement mais reste consultable. Tu peux en retirer une avec la croix, ou effacer toutes les lues d'un coup. Les non lues résistent : mieux vaut ne pas les perdre par mégarde.
+
+> **Ton QR code de check-in est en bas de la page d'accueil**, à présenter en arrivant au studio. Il est aussi sur ta fiche profil.
+
 ### Réserver un cours
 
 1. Ouvre **Planning**
@@ -63,6 +75,14 @@ Tu reçois un message qui **dit ce qui change** : nouveau coach, nouvelle salle,
 
 Si c'est l'horaire ou le type de cours qui change, le message te propose explicitement d'annuler avec restitution de ton crédit — libre à toi de rester ou de réserver autre chose.
 
+### Donner ton avis sur un cours
+
+Après une séance, ta page d'accueil te propose de la noter de 1 à 5 étoiles, avec un commentaire si tu veux — il reste facultatif.
+
+**Ton coach ne voit pas qui a écrit quoi.** C'est ce qui permet d'être franc : dis ce que tu as pensé, pas ce qui ferait plaisir.
+
+La proposition disparaît d'elle-même après quelques jours. Si tu ne veux pas répondre, ignore-la simplement.
+
 ### Liste d'attente
 
 Cours complet ? Clique sur **Liste d'attente**. Si une place se libère, tu es prévenu et tu as un délai pour confirmer. Passé ce délai, elle passe au suivant.
@@ -88,6 +108,22 @@ Va dans **Packs**. Les formules sont classées **par type de crédit** (semi-pri
 **Un pack à l'unité** s'achète quand tu en as besoin, sans engagement. Nombre de séances et date d'expiration.
 
 **Une formule illimitée** ne décompte rien : tu réserves autant de cours que tu veux pendant sa durée de validité. Le compteur ne bouge pas, c'est normal. En contrepartie, annuler ne « rend » rien — il n'y a rien à rendre.
+
+### Quand tu n'as plus de crédits
+
+Si tu essaies de réserver sans crédit disponible, l'application te propose directement les formules qui débloquent **ce cours-là** — pas toutes, seulement celles du bon type. Tu peux payer sans quitter la page.
+
+Si ton abonnement est simplement épuisé pour le cycle en cours, elle te propose une carte ou un pack pour te dépanner en attendant le renouvellement.
+
+### Supprimer ton compte
+
+Depuis **Profil**, tout en bas.
+
+Tes données personnelles sont effacées : nom, coordonnées, date de naissance, contact d'urgence, informations de santé, performances, notifications. Tes réservations à venir sont annulées.
+
+> **Ce qui est conservé** : les justificatifs de paiement, **sans lien avec ton identité**. La loi comptable l'impose, nous ne pouvons pas y déroger.
+
+Si tu as un abonnement en cours, résilie-le d'abord — sans compte, tu ne pourrais plus le faire et les prélèvements continueraient.
 
 ### Utiliser un bon d'achat
 
@@ -118,6 +154,16 @@ Dans **Mes packs**, ton abonnement affiche son état et sa prochaine échéance.
 ### Demander une facture
 
 **Demande de facture** : indique tes coordonnées de facturation et l'achat concerné. Le studio s'en occupe.
+
+### Suivre mes performances
+
+Dans **Performances**, tes mesures pour chaque mouvement, avec une courbe de progression.
+
+La saisie s'adapte à ce qu'on mesure : deux cases minutes/secondes pour un chrono, un champ chiffré pour une charge. Tu n'as pas de format à retenir.
+
+Au-dessus de la courbe, ta progression en clair — « +12,5 kg depuis mars », « −20 s » — et un repère quand ta dernière mesure est ton record.
+
+> Sur un chrono, la courbe **monte** quand tu progresses, même si le temps baisse. C'est voulu : « ça monte » veut toujours dire « je m'améliore ».
 
 ### Mon profil, mes performances
 

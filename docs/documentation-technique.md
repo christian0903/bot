@@ -151,6 +151,9 @@ C'est ce qui a évité d'écrire un moteur de quota, une table de formules et un
 | `bookings` | Une réservation, rattachée au pack qui l'a payée |
 | `referrals` | Qui a parrainé qui, et où en est la qualification |
 | `referral_rewards` | Les bons d'achat, quelle que soit leur origine |
+| `invoice_requests` | Commandes B2B à facturer, et leur encaissement |
+| `class_reviews` | Avis sur une séance, rattachés à la **réservation** |
+| `email_queue` | E-mails déposés par les fonctions SQL, consommés par l'application |
 | `app_settings` | Tous les réglages, en JSON, une ligne par clé |
 | `activity_log` | Tout ce qui a été fait, avec l'auteur |
 
@@ -178,6 +181,55 @@ Sept états : planifié, effectif à surveiller, exécuté, présences à valide
 - `book_member_by_staff(class, user, pack)` — inscription par le staff. **Ignore le délai de fermeture**, respecte la capacité. Un coach n'agit que sur ses cours
 - `decline_modified_booking(booking)` — le membre renonce à un cours modifié après sa réservation : **restitue toujours**, sans délai
 - `reset_member_purchases(user)` — remise à zéro, **refuse de s'exécuter en mode live**
+- `grant_trial_pack(user)` — attribue la séance d'essai. Idempotente, appelée par trigger à la création du profil
+- `order_pack_on_invoice(pack)` — commande B2B. **Refuse un profil non qualifié** : c'est le seul rempart contre des séances gratuites
+- `set_invoice_details(id, numéro, date)` — enregistre l'émission Odoo, **indépendamment du paiement**
+- `mark_invoice_paid(id)` — pointe l'encaissement. Aucun effet sur les crédits
+- `submit_class_review(booking, note, texte)` — dépose un avis. Exige une réservation confirmée sur un cours terminé
+- `delete_own_account()` / `delete_member_account(user)` — **anonymisent**, ne suppriment pas
+- `queue_email(user, template, vars)` — dépose un e-mail quand on est dans une fonction SQL
+
+---
+
+## Facturation B2B
+
+### Le principe
+
+> **La facture ne se crée pas ici. Elle se crée dans Odoo.**
+
+L'application enregistre la commande, crédite le pack, et garde trace du numéro et de la date que **vous** lui donnez après coup. Elle ne calcule aucun numéro, ne génère aucun document.
+
+Ce partage est délibéré : la comptabilité a un système, on ne le duplique pas.
+
+### Trois moments, trois colonnes
+
+| Moment | Colonne | Qui l'écrit |
+|---|---|---|
+| La commande | `created_at` | `order_pack_on_invoice`, à l'achat |
+| L'émission dans Odoo | `invoice_number` + `invoice_date` | L'admin, quand il veut |
+| L'encaissement | `paid_at` | L'admin, quand l'argent arrive |
+
+Les séparer était nécessaire : le numéro est connu à l'émission, souvent des semaines avant le règlement. Les confondre obligeait à attendre le paiement pour noter une information déjà disponible.
+
+`invoice_number` porte un **index unique partiel** — un doublon signale une erreur de saisie, pas une situation valable.
+
+### Le crédit précède le paiement
+
+`order_pack_on_invoice` crée la ligne `pack_purchases` **immédiatement**. C'est un choix commercial : l'employé s'entraîne sans attendre le circuit comptable de son employeur.
+
+Conséquence à connaître : **rien ne distingue en base un pack payé d'un pack facturé impayé**. Le suivi se fait dans `invoice_requests`, pas dans `pack_purchases`.
+
+### Le garde-fou
+
+```sql
+IF NOT COALESCE(v_profile.is_business, FALSE) THEN
+  RETURN jsonb_build_object('ok', false, 'reason', 'not_business');
+END IF;
+```
+
+Sans ce contrôle **côté serveur**, n'importe qui appellerait la fonction et obtiendrait des séances gratuites. Le front masque le bouton, mais un front ne protège rien.
+
+`is_business` est aussi ce qui masque les abonnements au B2B — pas une catégorie de membre. Deux marqueurs pour le même fait finiraient par diverger, et un membre oublié en catégorie tomberait sur un paiement Stripe inattendu.
 
 ---
 

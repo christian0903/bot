@@ -147,6 +147,8 @@ Deux choix de conception méritent d'être notés :
 
 L'écran de suivi filtre sur ce qui compte quand on facture — payée ou non, pas « traitée ». Le numéro et la date de facture, attribués dans Odoo, se saisissent **à tout moment** : ils sont connus à l'émission, souvent des semaines avant le règlement.
 
+> **La facture ne se crée pas dans l'application.** Elle se crée dans Odoo, qui tient la comptabilité. L'application enregistre la commande, crédite le pack, et garde trace de ce qu'Odoo lui dit. La suite attendue est un **export** vers Odoo, pas une génération de document ici.
+
 ### Prérequis App Store
 
 Compte Apple Developer au nom propre de Christian. La commission de 30 % ne s'applique pas à Back On Track — règle 3.1.3(e), biens et services physiques : un cours se consomme au studio.
