@@ -20,6 +20,9 @@ export function Footer() {
           <Link to="/cgv" className="hover:text-foreground transition-colors">
             {t('footer.terms')}
           </Link>
+          <Link to="/confidentialite" className="hover:text-foreground transition-colors">
+            {t('footer.privacy')}
+          </Link>
           <Link to="/help" className="hover:text-foreground transition-colors">
             {t('nav.help')}
           </Link>

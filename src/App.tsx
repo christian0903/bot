@@ -29,6 +29,7 @@ const PublicProfilePage = lazy(() => import('@/pages/PublicProfilePage').then(m 
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })))
 const HelpPage = lazy(() => import('@/pages/HelpPage').then(m => ({ default: m.HelpPage })))
 const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m.TermsPage })))
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })))
 const PerformancesPage = lazy(() => import('@/pages/PerformancesPage').then(m => ({ default: m.PerformancesPage })))
 const ManagePerformanceTypesPage = lazy(() => import('@/pages/ManagePerformanceTypesPage').then(m => ({ default: m.ManagePerformanceTypesPage })))
 
@@ -81,6 +82,9 @@ function App() {
                   {/* Publique : l'inscription exige d'accepter les CGV, on ne
                       peut pas les réserver aux personnes déjà inscrites. */}
                   <Route path="/cgv" element={<Lazy><TermsPage /></Lazy>} />
+                  {/* Publique : Apple exige une URL accessible sans compte, et
+                      le RGPD veut qu'on puisse lire avant de consentir. */}
+                  <Route path="/confidentialite" element={<Lazy><PrivacyPage /></Lazy>} />
 
                   {/* Authenticated */}
                   <Route path="/dashboard" element={<AuthGuard><Lazy><DashboardPage /></Lazy></AuthGuard>} />

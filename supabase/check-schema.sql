@@ -94,6 +94,12 @@ FROM (
   UNION ALL SELECT 'Col: performances.value_num', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='performances' AND column_name='value_num')
   UNION ALL SELECT 'Func: parse_performance_value', EXISTS(SELECT 1 FROM pg_proc WHERE proname='parse_performance_value')
 
+  -- SUPPRESSION DE COMPTE — prerequis App Store (2026-08-07)
+  UNION ALL SELECT 'Col: profiles.deleted_at', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='deleted_at')
+  UNION ALL SELECT 'Func: can_delete_own_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='can_delete_own_account')
+  UNION ALL SELECT 'Func: delete_own_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='delete_own_account')
+  UNION ALL SELECT 'Enum: activity_action.account_deleted', EXISTS(SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid=t.oid WHERE t.typname='activity_action' AND e.enumlabel='account_deleted')
+
   -- RLS
   UNION ALL SELECT 'RLS: profiles', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='profiles' AND rowsecurity=true)
   UNION ALL SELECT 'RLS: bookings', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='bookings' AND rowsecurity=true)

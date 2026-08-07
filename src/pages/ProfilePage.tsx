@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { LoadingState } from '@/components/common/LoadingState'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Copy, Share2, ScanLine, FileText } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 
@@ -33,6 +34,10 @@ export function ProfilePage() {
   const { user, profile, roles, refreshProfile } = useAuth()
   const isCoachOrAdmin = roles.includes('coach') || roles.includes('admin') || roles.includes('super_admin')
   const [loading, setLoading] = useState(false)
+  const [deleteChecking, setDeleteChecking] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  /** Ce que le membre perdra, annoncé avant qu'il confirme. */
+  const [deleteWarning, setDeleteWarning] = useState('')
   const [form, setForm] = useState({
     display_name: '',
     first_name: '',
@@ -173,6 +178,60 @@ export function ProfilePage() {
       }
       refreshProfile()
     }
+  }
+
+  /**
+   * Premier temps : demander au serveur si la fermeture est possible, et ce
+   * qu'elle emporte.
+   *
+   * Un abonnement actif bloque — sans compte, le membre ne pourrait plus le
+   * résilier et continuerait d'être prélevé. Les réservations à venir ne
+   * bloquent pas, mais il doit savoir qu'elles seront annulées.
+   */
+  const startAccountDeletion = async () => {
+    setDeleteChecking(true)
+    const { data, error } = await supabase.rpc('can_delete_own_account')
+    setDeleteChecking(false)
+
+    if (error) { toast.error(error.message); return }
+
+    const res = data as { ok: boolean; reason?: string; upcoming_bookings?: number } | null
+
+    if (!res?.ok) {
+      if (res?.reason === 'active_subscription') {
+        toast.error(isFr
+          ? 'Résilie d\'abord ton abonnement : sans compte, tu ne pourrais plus le faire.'
+          : 'Cancel your subscription first — without an account you could no longer do it.')
+        return
+      }
+      toast.error(isFr ? 'Suppression impossible' : 'Deletion not possible')
+      return
+    }
+
+    const upcoming = res.upcoming_bookings ?? 0
+    setDeleteWarning(
+      isFr
+        ? `Tes données personnelles seront effacées définitivement.${upcoming > 0 ? ` ${upcoming} réservation${upcoming > 1 ? 's' : ''} à venir ${upcoming > 1 ? 'seront annulées' : 'sera annulée'}.` : ''} Tu seras déconnecté.`
+        : `Your personal data will be permanently erased.${upcoming > 0 ? ` ${upcoming} upcoming booking${upcoming > 1 ? 's' : ''} will be cancelled.` : ''} You will be signed out.`,
+    )
+    setDeleteConfirmOpen(true)
+  }
+
+  const confirmAccountDeletion = async () => {
+    const { data, error } = await supabase.rpc('delete_own_account')
+    if (error) { toast.error(error.message); return }
+
+    const res = data as { ok: boolean; reason?: string } | null
+    if (!res?.ok) {
+      // Le refus arrive DANS le retour, pas en erreur SQL : sans ce contrôle
+      // on déconnecterait un membre dont le compte existe toujours.
+      toast.error(isFr ? 'Suppression impossible' : 'Deletion failed')
+      return
+    }
+
+    toast.success(isFr ? 'Ton compte a été supprimé.' : 'Your account has been deleted.')
+    await supabase.auth.signOut()
+    navigate('/')
   }
 
   const copyReferralCode = () => {
@@ -514,6 +573,52 @@ export function ProfilePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Fermeture du compte — exigée par Apple depuis 2022 pour toute
+          application permettant d'en créer un, et par le RGPD. Isolée en bas
+          de page, en rouge : ce n'est pas une action qu'on déclenche par
+          mégarde. */}
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="text-base text-destructive">
+            {isFr ? 'Supprimer mon compte' : 'Delete my account'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {isFr
+              ? 'Tes données personnelles seront effacées et tes réservations à venir annulées. Cette action est définitive.'
+              : 'Your personal data will be erased and upcoming bookings cancelled. This cannot be undone.'}
+          </p>
+          {/* Dit franchement ce qui est conservé, plutôt que de laisser croire
+              à un effacement total : la loi comptable l'impose. */}
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? 'Les justificatifs de paiement sont conservés sans lien avec ton identité, comme la loi comptable l\'exige.'
+              : 'Payment records are kept without any link to your identity, as accounting law requires.'}
+          </p>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={deleteChecking}
+            onClick={startAccountDeletion}
+          >
+            {deleteChecking
+              ? '...'
+              : (isFr ? 'Supprimer mon compte' : 'Delete my account')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title={isFr ? 'Supprimer définitivement ?' : 'Delete permanently?'}
+        description={deleteWarning}
+        variant="destructive"
+        onConfirm={confirmAccountDeletion}
+      />
     </div>
   )
 }

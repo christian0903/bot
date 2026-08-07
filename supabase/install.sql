@@ -38,7 +38,7 @@ CREATE TYPE activity_action AS ENUM (
   'booking_created', 'booking_cancelled', 'booking_assigned',
   'role_changed', 'waitlist_joined', 'waitlist_promoted',
   'user_created', 'registration_fee_paid', 'user_login',
-  'trial_booked', 'check_in', 'no_show',
+  'trial_booked', 'check_in', 'no_show', 'account_deleted',
   'password_reset_by_admin',
   'email_change_by_admin',
   'subscription_cancelled',
@@ -86,6 +86,9 @@ CREATE TABLE profiles (
   medical_conditions TEXT,
   cgv_accepted_at TIMESTAMPTZ,
   rgpd_accepted_at TIMESTAMPTZ,
+  -- Compte fermé à la demande du membre : données personnelles anonymisées,
+  -- pièces comptables conservées sans lien identifiable.
+  deleted_at TIMESTAMPTZ,
   referral_code TEXT UNIQUE,
   member_status TEXT DEFAULT 'visitor'
     CHECK (member_status IN ('visitor', 'potential', 'active', 'inactive', 'former')),
@@ -947,6 +950,121 @@ BEGIN
   RETURN v_count;
 END;
 $fn$;
+
+
+-- ---------------------------------------------------------------------------
+-- Suppression de compte par le membre (Apple l'exige depuis 2022, RGPD art. 17)
+-- ---------------------------------------------------------------------------
+-- On ANONYMISE plutôt qu'on efface : le droit comptable belge impose sept ans
+-- de conservation des pièces justificatives. La personne disparaît, la
+-- comptabilité reste, sans lien identifiable.
+CREATE OR REPLACE FUNCTION can_delete_own_account()
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_uid           UUID := auth.uid();
+  v_sub_count     INTEGER;
+  v_future_count  INTEGER;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_authenticated');
+  END IF;
+
+  SELECT COUNT(*) INTO v_sub_count
+  FROM subscriptions
+  WHERE user_id = v_uid AND status IN ('active', 'past_due', 'paused', 'incomplete');
+
+  -- Un abonnement actif bloque : sans compte, le membre ne pourrait plus le
+  -- résilier et continuerait d'être prélevé.
+  IF v_sub_count > 0 THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'active_subscription');
+  END IF;
+
+  SELECT COUNT(*) INTO v_future_count
+  FROM bookings b
+  JOIN scheduled_classes sc ON sc.id = b.scheduled_class_id
+  WHERE b.user_id = v_uid AND b.status = 'confirmed' AND sc.starts_at > NOW();
+
+  RETURN jsonb_build_object('ok', true, 'upcoming_bookings', v_future_count);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION delete_own_account()
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_uid   UUID := auth.uid();
+  v_check JSONB;
+  v_tag   TEXT;
+BEGIN
+  v_check := can_delete_own_account();
+  IF NOT (v_check->>'ok')::BOOLEAN THEN
+    RETURN v_check;
+  END IF;
+
+  v_tag := 'Membre supprimé #' || substr(v_uid::text, 1, 8);
+
+  -- Les cours à venir sont libérés par l'annulation ordinaire : la liste
+  -- d'attente est prévenue et le crédit traité selon la règle du délai.
+  PERFORM cancel_booking_v2(b.id, v_uid)
+  FROM bookings b
+  JOIN scheduled_classes sc ON sc.id = b.scheduled_class_id
+  WHERE b.user_id = v_uid AND b.status = 'confirmed' AND sc.starts_at > NOW();
+
+  DELETE FROM waitlist WHERE user_id = v_uid;
+
+  UPDATE profiles SET
+    display_name            = v_tag,
+    first_name              = NULL,
+    last_name               = NULL,
+    email                   = NULL,
+    phone                   = NULL,
+    date_of_birth           = NULL,
+    address                 = NULL,
+    bio                     = NULL,
+    avatar_url              = NULL,
+    emergency_contact_name  = NULL,
+    emergency_contact_phone = NULL,
+    objectives              = NULL,
+    medical_conditions      = NULL,
+    fitness_level           = NULL,
+    instagram_url           = NULL,
+    facebook_url            = NULL,
+    linkedin_url            = NULL,
+    coach_description       = NULL,
+    referral_code           = NULL,
+    member_status           = 'former',
+    deleted_at              = NOW()
+  WHERE id = v_uid;
+
+  DELETE FROM notifications WHERE user_id = v_uid;
+  DELETE FROM email_queue WHERE user_id = v_uid;
+  -- Données de santé au sens du RGPD : aucune raison de les garder.
+  DELETE FROM performances WHERE user_id = v_uid;
+  DELETE FROM user_roles WHERE user_id = v_uid;
+
+  INSERT INTO activity_log (action, actor_id, target_user_id, entity_type, entity_id, description)
+  VALUES ('account_deleted', v_uid, v_uid, 'profile', v_uid,
+          'Compte fermé à la demande du membre — données personnelles anonymisées');
+
+  RETURN jsonb_build_object('ok', true);
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION can_delete_own_account() FROM PUBLIC;
+REVOKE ALL ON FUNCTION delete_own_account() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION can_delete_own_account() TO authenticated;
+GRANT EXECUTE ON FUNCTION delete_own_account() TO authenticated;
+
+CREATE INDEX IF NOT EXISTS profiles_active
+  ON profiles (member_status)
+  WHERE deleted_at IS NULL;
 
 -- Phase 4 : Vérifier si un membre peut réserver
 CREATE OR REPLACE FUNCTION can_book_class(p_class_id UUID, p_user_id UUID)
