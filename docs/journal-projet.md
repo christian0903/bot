@@ -7,7 +7,7 @@
 
 ## Où en est le projet
 
-**Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.46.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
+**Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.53.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
 
 **Phase 11** (admin avancé) : **largement livrée** — rôles, statuts de cours, espace coach autonome.
 **Phase 12** (abonnements récurrents) : **livrée et éprouvée**. Renouvellement vérifié au *test clock* Stripe le 2026-08-07.
@@ -39,7 +39,7 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ## Session du 2026-08-07
 
-32 commits (v2.17.0 → v2.46.0), tous poussés. Journée nourrie par les retours de **deux coachs**, l'un récent, l'autre plus ancien. L'après-midi a ouvert deux chantiers neufs : les avis sur les cours et la facturation B2B.
+37 commits (v2.17.0 → v2.53.0), tous poussés. Journée nourrie par les retours de **deux coachs**, l'un récent, l'autre plus ancien. L'après-midi a ouvert deux chantiers neufs : les avis sur les cours et la facturation B2B.
 
 ### Le fil rouge — ce que le code promet, ce que la base fait
 
@@ -154,6 +154,40 @@ L'écran de suivi filtre sur ce qui compte quand on facture — payée ou non, p
 Compte Apple Developer au nom propre de Christian. La commission de 30 % ne s'applique pas à Back On Track — règle 3.1.3(e), biens et services physiques : un cours se consomme au studio.
 
 Les deux prérequis bloquants sont levés : suppression de compte depuis l'application, et politique de confidentialité avec URL publique.
+
+### Mentions légales : saisies une fois, injectées partout
+
+Les coordonnées du studio manquaient depuis le début, et bloquaient trois choses à la fois : les CGV, la politique de confidentialité et la facturation.
+
+Elles ne sont pas codées en dur ni répétées dans chaque document : elles vivent dans les Réglages, et les documents portent des repères `{{studio_address}}` remplacés à l'affichage. Une adresse qui change se corrige **à un seul endroit** — les répéter dans deux fichiers aurait garanti qu'un des deux finisse par mentir.
+
+Un champ vide affiche « (à compléter dans les Réglages) », et l'écran liste ce qui manque. Sans cela, un document afficherait un trou sans que personne le sache.
+
+### Coupons : enfin utilisables
+
+Le champ de saisie **n'existait nulle part**. On pouvait créer des coupons avec dates et limite d'usage, le serveur savait traiter un code — mais aucun écran ne permettait d'en entrer un. Le défaut était signalé depuis le 6 août.
+
+Il vit désormais dans la confirmation d'achat, au moment de payer. Il n'apparaît donc jamais chez un client professionnel : ce n'est pas une règle codée, c'est une conséquence de l'endroit où le champ est placé.
+
+Le code est **vérifié avant** le paiement. Découvrir un refus sur la page Stripe, sans explication, fait abandonner l'achat : `check_coupon` annonce la remise et nomme la raison d'un refus.
+
+Restriction par catégorie ajoutée — aucune ligne = ouvert à tous, le cas nominal qu'on ne doit pas avoir à déclarer.
+
+### Types de cours : un seul champ dangereux
+
+L'édition existait et fonctionnait. Ce qui manquait, ce sont les garde-fous — et un seul champ le méritait.
+
+Changer le **type de crédit** rendrait incompatibles les packs qui ont déjà payé les réservations : le membre a consommé un crédit d'un type, le cours en réclamerait un autre. Les données le confirmaient : 157 cours planifiés sur « BackOnTrack », 58 à venir.
+
+Le verrou est posé **en base**, par trigger, et ne touche que ce champ : renommer ou redécrire un cours très utilisé reste possible sans condition. L'écran affiche le champ grisé avec le nombre de cours concernés — l'admin le sait avant, il ne le découvre pas sur un refus.
+
+> Verrouillé dès qu'un cours est **planifié**, pas seulement réservé : un cours annoncé au planning est une promesse commerciale.
+
+### Communications : marquer lu sans ouvrir
+
+Une communication ne se marquait lue qu'en la **cliquant** — ce qui navigue ailleurs. Celle qu'on a lue en diagonale emmenait donc le membre sur une autre page pour être classée.
+
+Une coche par ligne, un filtre « Tout / Non lues », et « Tout marquer lu ». Les boutons n'apparaissent que s'ils servent.
 
 ### Documentation et outillage
 
