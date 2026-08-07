@@ -12,6 +12,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { LoadingState } from '@/components/common/LoadingState'
 import { HomeCommunications } from '@/components/common/HomeCommunications'
 import { flushEmailQueue } from '@/lib/flush-email-queue'
+import { SocialLinks } from '@/components/common/SocialLinks'
 import type { PackPurchase, Booking, ScheduledClass } from '@/types'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
@@ -429,6 +430,13 @@ export function DashboardPage() {
           </Card>
         </motion.div>
       )}
+
+      {/* Réseaux du studio, en pied de tableau de bord. Après le QR code :
+          l'ordre suit l'usage — on vient pour son planning, on repart
+          éventuellement vers Instagram. */}
+      <div className="flex justify-center pt-2">
+        <SocialLinks />
+      </div>
 
       {/* Pack detail — bookings made with this pack */}
       <Dialog open={!!selectedPack} onOpenChange={(open) => { if (!open) setSelectedPack(null) }}>

@@ -35,6 +35,12 @@ interface StudioInfo {
   instagram_url: string
   facebook_url: string
   website_url: string
+  tiktok_url: string
+  youtube_url: string
+  /** Numéro au format international sans espaces ni « + » — ex. 32470123456. */
+  whatsapp_number: string
+  /** Lien d'avis Google. Mieux vaut susciter des avis que les afficher. */
+  google_review_url: string
 }
 
 export function AdminSettingsPage() {
@@ -69,6 +75,10 @@ export function AdminSettingsPage() {
     instagram_url: '',
     facebook_url: '',
     website_url: '',
+    tiktok_url: '',
+    youtube_url: '',
+    whatsapp_number: '',
+    google_review_url: '',
   })
 
   // Room names
@@ -226,6 +236,46 @@ export function AdminSettingsPage() {
               <Input value={studio.website_url} onChange={e => setStudio(s => ({ ...s, website_url: e.target.value }))} placeholder="https://..." />
             </div>
           </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label>TikTok</Label>
+              <Input value={studio.tiktok_url} onChange={e => setStudio(s => ({ ...s, tiktok_url: e.target.value }))} placeholder="https://tiktok.com/@..." />
+            </div>
+            <div className="space-y-2">
+              <Label>YouTube</Label>
+              <Input value={studio.youtube_url} onChange={e => setStudio(s => ({ ...s, youtube_url: e.target.value }))} placeholder="https://youtube.com/@..." />
+            </div>
+            <div className="space-y-2">
+              <Label>WhatsApp</Label>
+              <Input
+                value={studio.whatsapp_number}
+                onChange={e => setStudio(s => ({ ...s, whatsapp_number: e.target.value }))}
+                placeholder="32470123456"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? 'Format international, sans + ni espaces.'
+                  : 'International format, no + or spaces.'}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>{isFr ? 'Avis Google' : 'Google review'}</Label>
+              <Input value={studio.google_review_url} onChange={e => setStudio(s => ({ ...s, google_review_url: e.target.value }))} placeholder="https://g.page/r/.../review" />
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? 'Lien qui ouvre le formulaire d\'avis.'
+                  : 'Link that opens the review form.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Les liens vides ne s'affichent nulle part : renseigner un réseau
+              suffit à le faire apparaître, l'effacer le retire. */}
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? 'Ces liens apparaissent sur la page d\'accueil, publique et connectée. Un champ vide n\'affiche rien.'
+              : 'These links appear on the home page, public and signed-in. An empty field shows nothing.'}
+          </p>
           <Button size="sm" disabled={saving === 'studio_info'} onClick={() => saveSetting('studio_info', studio as unknown as Record<string, unknown>)}>
             {saving === 'studio_info' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
           </Button>

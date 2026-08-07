@@ -11,6 +11,7 @@ import { MarkdownLink } from '@/components/common/MarkdownLink'
 import remarkGfm from 'remark-gfm'
 import { motion } from 'framer-motion'
 import { landingRouteFor } from '@/lib/landing-route'
+import { SocialLinks } from '@/components/common/SocialLinks'
 
 export function HomePage() {
   const { t } = useTranslation()
@@ -103,6 +104,18 @@ export function HomePage() {
           </Card>
         </motion.div>
       )}
+
+      {/* Réseaux du studio. En bas de la page vitrine : le visiteur y arrive
+          après avoir lu la présentation. Rien ne s'affiche si aucun lien
+          n'est renseigné dans les Réglages. */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="flex justify-center pt-2"
+      >
+        <SocialLinks />
+      </motion.div>
     </div>
   )
 }
