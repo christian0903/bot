@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
+import { ClassReviews } from '@/components/common/ClassReviews'
 import { Users, ArrowLeft, Pencil, Check, X, ScanLine, UserCheck, AlertTriangle, MapPin, UserPlus, UserMinus, Ban} from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -766,6 +767,11 @@ export function CoachClassDetailPage() {
           {isFr ? 'Annuler ce cours' : 'Cancel this class'}
         </Button>
       )}
+
+      {/* Avis des participants — uniquement sur un cours passé, et seulement
+          s'il y en a. Sans le nom des auteurs : c'est ce qui rend les retours
+          honnêtes quand on revoit les gens la semaine suivante. */}
+      {isPast && <ClassReviews scheduledClassId={scheduledClass.id} />}
 
       {/* Confirmation renforcée : le coach doit voir qui est concerné avant
           de valider. Les crédits sont rendus, les membres prévenus. */}

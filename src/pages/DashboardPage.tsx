@@ -13,6 +13,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { HomeCommunications } from '@/components/common/HomeCommunications'
 import { flushEmailQueue } from '@/lib/flush-email-queue'
 import { SocialLinks } from '@/components/common/SocialLinks'
+import { ClassReviewPrompt } from '@/components/common/ClassReviewPrompt'
 import type { PackPurchase, Booking, ScheduledClass } from '@/types'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
@@ -216,6 +217,11 @@ export function DashboardPage() {
           notifié au membre, e-mails compris. Placé haut : c'est la première
           chose à voir en arrivant. */}
       <HomeCommunications trialDaysLeft={trialDaysLeft} />
+
+      {/* Avis sur la dernière séance. Placé après les communications : c'est
+          une demande, pas une information — elle ne doit pas passer devant ce
+          que le membre vient chercher. Disparaît s'il n'y a rien à noter. */}
+      <ClassReviewPrompt />
 
       {/* Upcoming bookings — first and prominent */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>

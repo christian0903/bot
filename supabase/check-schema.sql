@@ -99,6 +99,12 @@ FROM (
   UNION ALL SELECT 'Func: can_delete_own_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='can_delete_own_account')
   UNION ALL SELECT 'Func: delete_own_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='delete_own_account')
   UNION ALL SELECT 'Func: delete_member_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='delete_member_account')
+
+  -- AVIS SUR LES COURS (2026-08-07)
+  UNION ALL SELECT 'Table: class_reviews', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='class_reviews')
+  UNION ALL SELECT 'Func: submit_class_review', EXISTS(SELECT 1 FROM pg_proc WHERE proname='submit_class_review')
+  UNION ALL SELECT 'Func: pending_class_reviews', EXISTS(SELECT 1 FROM pg_proc WHERE proname='pending_class_reviews')
+  UNION ALL SELECT 'RLS: class_reviews', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='class_reviews' AND rowsecurity=true)
   UNION ALL SELECT 'Enum: activity_action.account_deleted', EXISTS(SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid=t.oid WHERE t.typname='activity_action' AND e.enumlabel='account_deleted')
 
   -- RLS
