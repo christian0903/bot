@@ -268,7 +268,23 @@ serve(async (req) => {
         const validUntil = coupon.valid_until ? new Date(coupon.valid_until) : null
         const usesLeft = !coupon.max_uses || coupon.current_uses < coupon.max_uses
 
-        if (now >= validFrom && (!validUntil || now <= validUntil) && usesLeft) {
+        // Catégories éligibles. Aucune ligne = coupon ouvert à tous — c'est le
+        // cas nominal, on ne demande pas de cocher toutes les catégories.
+        //
+        // Le contrôle est refait ici et pas seulement à l'écran : cette
+        // fonction est appelable directement, et un coupon réservé à une
+        // population serait sinon utilisable par n'importe qui.
+        const { data: couponCats } = await admin
+          .from('coupon_categories')
+          .select('member_category_id')
+          .eq('coupon_id', coupon.id)
+
+        const categoryOk = !couponCats || couponCats.length === 0
+          || couponCats.some(
+            (c: { member_category_id: string }) => c.member_category_id === profile?.member_category_id,
+          )
+
+        if (categoryOk && now >= validFrom && (!validUntil || now <= validUntil) && usesLeft) {
           couponId = coupon.id
           if (packType.is_recurring) {
             // Sur un abonnement, la remise passe par un coupon Stripe

@@ -53,6 +53,7 @@ const emptyForm: CouponForm = {
 
 export function AdminCouponsPage() {
   const { t, i18n } = useTranslation()
+  const isFr = i18n.language === 'fr'
   const locale = i18n.language === 'fr' ? fr : enUS
   const [coupons, setCoupons] = useState<Coupon[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,13 +61,18 @@ export function AdminCouponsPage() {
   const [editing, setEditing] = useState<Coupon | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Coupon | null>(null)
   const [form, setForm] = useState<CouponForm>(emptyForm)
+  /** Catégories du studio, pour restreindre un coupon à une population. */
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+  /** Catégories cochées. Vide = coupon ouvert à tous. */
+  const [selectedCats, setSelectedCats] = useState<string[]>([])
 
   const fetchData = async () => {
-    const { data } = await supabase
-      .from('coupons')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setCoupons((data as Coupon[]) ?? [])
+    const [couponsRes, catsRes] = await Promise.all([
+      supabase.from('coupons').select('*').order('created_at', { ascending: false }),
+      supabase.from('member_categories').select('id, name').order('name'),
+    ])
+    setCoupons((couponsRes.data as Coupon[]) ?? [])
+    setCategories((catsRes.data as { id: string; name: string }[]) ?? [])
     setLoading(false)
   }
 
@@ -77,6 +83,7 @@ export function AdminCouponsPage() {
   const openAdd = () => {
     setEditing(null)
     setForm(emptyForm)
+    setSelectedCats([])
     setDialogOpen(true)
   }
 
@@ -91,6 +98,14 @@ export function AdminCouponsPage() {
       valid_until: c.valid_until ? format(new Date(c.valid_until), 'yyyy-MM-dd') : '',
       is_active: c.is_active,
     })
+    // Les restrictions existantes sont relues : ouvrir le formulaire vide
+    // puis enregistrer aurait supprimé les catégories sans le dire.
+    supabase.from('coupon_categories')
+      .select('member_category_id')
+      .eq('coupon_id', c.id)
+      .then(({ data }) => {
+        setSelectedCats((data ?? []).map((r: { member_category_id: string }) => r.member_category_id))
+      })
     setDialogOpen(true)
   }
 
@@ -105,13 +120,28 @@ export function AdminCouponsPage() {
       is_active: form.is_active,
     }
 
+    let couponId = editing?.id ?? null
+
     if (editing) {
       const { error } = await supabase.from('coupons').update(payload).eq('id', editing.id)
       if (error) { toast.error(t('common.error')); return }
     } else {
-      const { error } = await supabase.from('coupons').insert(payload)
+      const { data, error } = await supabase.from('coupons').insert(payload).select('id').single()
       if (error) { toast.error(t('common.error')); return }
+      couponId = (data as { id: string }).id
     }
+
+    // Restrictions : on remplace l'ensemble plutôt que de calculer un écart.
+    // Aucune ligne = coupon ouvert à tous, ce qui est le cas nominal.
+    if (couponId) {
+      await supabase.from('coupon_categories').delete().eq('coupon_id', couponId)
+      if (selectedCats.length > 0) {
+        await supabase.from('coupon_categories').insert(
+          selectedCats.map(catId => ({ coupon_id: couponId, member_category_id: catId })),
+        )
+      }
+    }
+
     toast.success(t('common.saveSuccess'))
     setDialogOpen(false)
     fetchData()
@@ -260,6 +290,46 @@ export function AdminCouponsPage() {
                 />
               </div>
             </div>
+            {/* Restriction par catégorie. Rien de coché = ouvert à tous : le
+                cas nominal d'un code promotionnel, qu'on ne doit pas avoir à
+                déclarer en cochant toutes les cases. */}
+            {categories.length > 0 && (
+              <div className="space-y-2">
+                <Label>{isFr ? 'Réservé à certaines catégories' : 'Restricted to categories'}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map(cat => {
+                    const checked = selectedCats.includes(cat.id)
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedCats(prev =>
+                          checked ? prev.filter(id => id !== cat.id) : [...prev, cat.id],
+                        )}
+                        className={
+                          'rounded-full border px-3 py-1 text-xs transition-colors ' +
+                          (checked
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'hover:bg-muted')
+                        }
+                      >
+                        {cat.name}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {selectedCats.length === 0
+                    ? (isFr
+                      ? 'Aucune sélection : le code vaut pour tous les membres.'
+                      : 'Nothing selected: the code applies to every member.')
+                    : (isFr
+                      ? 'Seuls les membres de ces catégories pourront l\'utiliser.'
+                      : 'Only members in these categories can use it.')}
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <Switch
                 checked={form.is_active}

@@ -52,6 +52,10 @@ export function PacksPage() {
   const [invoiceOrdering, setInvoiceOrdering] = useState(false)
   /** Onglet de type de crédit choisi par le membre. Vide = premier groupe. */
   const [activeCreditTab, setActiveCreditTab] = useState('')
+  /** Code promotionnel saisi, et sa validation par le serveur. */
+  const [couponInput, setCouponInput] = useState('')
+  const [couponChecking, setCouponChecking] = useState(false)
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_cents: number | null } | null>(null)
   const [useCreditNote, setUseCreditNote] = useState(true)
   /** Le membre a-t-il déjà un parrain ? Sinon on lui propose de saisir un code. */
   const [hasReferrer, setHasReferrer] = useState(true)
@@ -286,6 +290,52 @@ export function PacksPage() {
     navigate('/my-packs')
   }
 
+  /**
+   * Vérifie un code avant le paiement.
+   *
+   * Le membre doit savoir ce que vaut son code AVANT d'être envoyé sur Stripe :
+   * découvrir un refus sur la page de paiement, sans explication, est le plus
+   * sûr moyen de faire abandonner un achat. La fonction ne consomme rien —
+   * le décompte se fait au paiement confirmé.
+   */
+  const verifyCoupon = async (purchaseCents: number) => {
+    if (!couponInput.trim()) return
+    setCouponChecking(true)
+    const { data, error } = await supabase.rpc('check_coupon', {
+      p_code: couponInput.trim(),
+      p_purchase_cents: purchaseCents,
+    })
+    setCouponChecking(false)
+
+    if (error) { toast.error(t('common.error')); return }
+
+    const res = data as {
+      ok: boolean; reason?: string; code?: string; discount_cents?: number | null
+    } | null
+
+    if (!res?.ok) {
+      const messages: Record<string, string> = {
+        unknown_code: isFr ? 'Ce code n\'existe pas.' : 'This code does not exist.',
+        expired: isFr ? 'Ce code a expiré.' : 'This code has expired.',
+        not_yet_valid: isFr ? 'Ce code n\'est pas encore actif.' : 'This code is not active yet.',
+        exhausted: isFr ? 'Ce code a atteint sa limite d\'utilisation.' : 'This code reached its usage limit.',
+        not_eligible: isFr
+          ? 'Ce code ne s\'applique pas à ton profil.'
+          : 'This code does not apply to your profile.',
+      }
+      toast.error(messages[res?.reason ?? ''] ?? (isFr ? 'Code invalide' : 'Invalid code'))
+      return
+    }
+
+    setAppliedCoupon({ code: res.code!, discount_cents: res.discount_cents ?? null })
+    toast.success(isFr ? 'Code appliqué' : 'Code applied')
+  }
+
+  const clearCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponInput('')
+  }
+
   const handleBuy = async (packType: PackType) => {
     if (!hasRegistrationFee) {
       toast.error(t('packs.registrationFeeRequired'))
@@ -336,6 +386,7 @@ export function PacksPage() {
           body: JSON.stringify({
             pack_type_id: packType.id,
             credit_note_id: noteId ?? null,
+            coupon_code: appliedCoupon?.code ?? null,
             success_url: `${window.location.origin}/my-packs?success=true`,
             cancel_url: `${window.location.origin}/packs?cancelled=true`,
           }),
@@ -902,6 +953,49 @@ export function PacksPage() {
                             : (isFr ? 'Valider' : 'Apply')}
                         </Button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Code promotionnel. Le champ n'existait nulle part : on
+                      pouvait créer des coupons que personne ne pouvait saisir.
+                      Il vit ici, au moment de payer — donc jamais chez un
+                      client professionnel, qui règle sur facture.
+                      Un bon d'achat et un coupon ne se cumulent pas : le
+                      serveur refuse, autant ne pas le proposer. */}
+                  {!(bestNote && useCreditNote) && (
+                    <div className="rounded-lg border p-3 space-y-2">
+                      <p className="font-medium text-sm">
+                        {isFr ? 'Code promo' : 'Promo code'}
+                      </p>
+                      {appliedCoupon ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                            <span className="font-mono font-semibold">{appliedCoupon.code}</span>
+                            {appliedCoupon.discount_cents
+                              ? ` — ${eur(appliedCoupon.discount_cents)} ${isFr ? 'de remise' : 'off'}`
+                              : ''}
+                          </p>
+                          <Button variant="ghost" size="sm" onClick={clearCoupon}>
+                            {isFr ? 'Retirer' : 'Remove'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Input
+                            value={couponInput}
+                            onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                            placeholder={isFr ? 'Ton code' : 'Your code'}
+                            className="font-mono"
+                          />
+                          <Button
+                            variant="outline"
+                            disabled={couponChecking || !couponInput.trim()}
+                            onClick={() => verifyCoupon(priceCents)}
+                          >
+                            {couponChecking ? '…' : (isFr ? 'Valider' : 'Apply')}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 

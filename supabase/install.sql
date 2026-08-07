@@ -195,6 +195,13 @@ CREATE TABLE pack_types (
 CREATE UNIQUE INDEX pack_types_single_trial
   ON pack_types (is_trial) WHERE is_trial;
 
+-- Junction : catégories éligibles par coupon. Aucune ligne = ouvert à tous.
+CREATE TABLE coupon_categories (
+  coupon_id UUID NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  member_category_id UUID NOT NULL REFERENCES member_categories(id) ON DELETE CASCADE,
+  PRIMARY KEY (coupon_id, member_category_id)
+);
+
 -- Junction : catégories éligibles par type de pack
 CREATE TABLE pack_type_categories (
   pack_type_id UUID NOT NULL REFERENCES pack_types(id) ON DELETE CASCADE,
@@ -1541,6 +1548,82 @@ CREATE UNIQUE INDEX IF NOT EXISTS invoice_requests_number
   ON invoice_requests (invoice_number)
   WHERE invoice_number IS NOT NULL;
 
+
+-- Vérifie un code promotionnel et annonce la remise, sans rien consommer.
+-- Le membre doit savoir ce que vaut son code AVANT d'être envoyé sur Stripe :
+-- découvrir un refus sur la page de paiement fait abandonner l'achat.
+CREATE OR REPLACE FUNCTION check_coupon(p_code TEXT, p_purchase_cents INTEGER DEFAULT NULL)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+STABLE
+AS $fn$
+DECLARE
+  v_uid        UUID := auth.uid();
+  v_coupon     coupons%ROWTYPE;
+  v_category   UUID;
+  v_restricted BOOLEAN;
+  v_discount   INTEGER;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_authenticated');
+  END IF;
+
+  SELECT * INTO v_coupon FROM coupons
+  WHERE code = upper(trim(p_code)) AND is_active;
+
+  IF v_coupon.id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'unknown_code');
+  END IF;
+
+  IF v_coupon.valid_from IS NOT NULL AND NOW() < v_coupon.valid_from THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_yet_valid', 'valid_from', v_coupon.valid_from);
+  END IF;
+
+  IF v_coupon.valid_until IS NOT NULL AND NOW() > v_coupon.valid_until THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'expired');
+  END IF;
+
+  IF v_coupon.max_uses IS NOT NULL AND v_coupon.current_uses >= v_coupon.max_uses THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'exhausted');
+  END IF;
+
+  -- Sans restriction déclarée, le coupon vaut pour tous.
+  SELECT EXISTS (SELECT 1 FROM coupon_categories WHERE coupon_id = v_coupon.id)
+    INTO v_restricted;
+
+  IF v_restricted THEN
+    SELECT member_category_id INTO v_category FROM profiles WHERE id = v_uid;
+    IF v_category IS NULL OR NOT EXISTS (
+      SELECT 1 FROM coupon_categories
+      WHERE coupon_id = v_coupon.id AND member_category_id = v_category
+    ) THEN
+      RETURN jsonb_build_object('ok', false, 'reason', 'not_eligible');
+    END IF;
+  END IF;
+
+  IF p_purchase_cents IS NOT NULL THEN
+    v_discount := CASE
+      WHEN v_coupon.discount_percent IS NOT NULL
+        THEN ROUND(p_purchase_cents * v_coupon.discount_percent / 100.0)
+      ELSE LEAST(COALESCE(v_coupon.discount_amount_cents, 0), p_purchase_cents)
+    END;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'code', v_coupon.code,
+    'discount_percent', v_coupon.discount_percent,
+    'discount_amount_cents', v_coupon.discount_amount_cents,
+    'discount_cents', v_discount
+  );
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION check_coupon(TEXT, INTEGER) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION check_coupon(TEXT, INTEGER) TO authenticated;
+
 -- Phase 4 : Vérifier si un membre peut réserver
 CREATE OR REPLACE FUNCTION can_book_class(p_class_id UUID, p_user_id UUID)
 RETURNS JSONB
@@ -2561,6 +2644,7 @@ ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coupon_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registration_fees ENABLE ROW LEVEL SECURITY;
@@ -2615,6 +2699,9 @@ CREATE POLICY "Purchases: admin insert" ON pack_purchases FOR INSERT WITH CHECK 
 CREATE POLICY "Purchases: admin update" ON pack_purchases FOR UPDATE USING (has_role(auth.uid(), 'admin'));
 
 -- COUPONS
+CREATE POLICY "Coupon categories: public read" ON coupon_categories FOR SELECT USING (true);
+CREATE POLICY "Coupon categories: admin manage" ON coupon_categories FOR ALL USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin'));
+
 CREATE POLICY "Coupons: read active" ON coupons FOR SELECT USING (is_active = true);
 CREATE POLICY "Coupons: admin manage" ON coupons FOR ALL USING (has_role(auth.uid(), 'admin'));
 

@@ -112,6 +112,10 @@ FROM (
   UNION ALL SELECT 'Col: invoice_requests.paid_at', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='invoice_requests' AND column_name='paid_at')
   UNION ALL SELECT 'Func: order_pack_on_invoice', EXISTS(SELECT 1 FROM pg_proc WHERE proname='order_pack_on_invoice')
   UNION ALL SELECT 'Func: mark_invoice_paid', EXISTS(SELECT 1 FROM pg_proc WHERE proname='mark_invoice_paid')
+
+  -- COUPONS PAR CATEGORIE (2026-08-07)
+  UNION ALL SELECT 'Table: coupon_categories', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='coupon_categories')
+  UNION ALL SELECT 'Func: check_coupon', EXISTS(SELECT 1 FROM pg_proc WHERE proname='check_coupon')
   UNION ALL SELECT 'Enum: activity_action.account_deleted', EXISTS(SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid=t.oid WHERE t.typname='activity_action' AND e.enumlabel='account_deleted')
 
   -- RLS
