@@ -108,6 +108,18 @@ supabase functions deploy stripe-webhook --no-verify-jwt
 
 Les autres fonctions se déploient normalement.
 
+> **Le drapeau ne colle pas à la fonction : il est redonné à chaque déploiement.** L'oublier une seule fois remet `verify_jwt` à `true` et coupe les encaissements. C'est arrivé le 7 août : le webhook a rejeté tous les appels pendant une heure, Stripe encaissait, l'application ne créditait plus rien.
+
+**Vérifier juste après, systématiquement :**
+
+```bash
+supabase functions list --project-ref <ref>
+```
+
+La colonne `VERIFY JWT` doit afficher `false` pour `stripe-webhook`, et `true` partout ailleurs.
+
+Ce contrôle vaut d'être fait à chaque fois, parce que la panne est **silencieuse** : rien ne casse visiblement, aucune alerte ne part, l'application continue de fonctionner. Seul un client qui paie sans être crédité finit par le signaler — et il faut alors rejouer à la main tous les événements perdus.
+
 ### Le cas du paiement à zéro
 
 Stripe refuse une session de paiement à 0 €. Quand un bon couvre la totalité — 30 € de bon sur 30 € de frais d'inscription, le cas nominal du parrainage — `create-checkout-session` enregistre directement, sans passer par Stripe : elle crée la ligne, consomme le bon, qualifie le parrainage.
@@ -198,9 +210,11 @@ Les fichiers vivent dans `supabase/migrations/`. Ils s'exécutent dans le SQL Ed
 ```bash
 supabase link --project-ref <ref>
 supabase functions deploy <nom>
-supabase functions deploy stripe-webhook --no-verify-jwt
-supabase functions list
+supabase functions deploy stripe-webhook --no-verify-jwt   # drapeau à redonner À CHAQUE FOIS
+supabase functions list                                    # contrôler : VERIFY JWT = false pour stripe-webhook
 ```
+
+> Le `supabase functions list` n'est pas décoratif. Le drapeau n'est pas mémorisé d'un déploiement à l'autre, et l'oublier coupe les encaissements sans aucun signal visible.
 
 ### Front
 
@@ -233,6 +247,9 @@ npm run cap:android    # application Android
 | 200 mais aucun crédit | `invoice.paid` arrivé **avant** `checkout.session.completed` : l'abonnement n'existait pas encore | Les deux événements créent l'abonnement si besoin |
 | Deux packs pour un paiement | Un report d'échéance passe par `trial_end`, ce qui fait émettre une facture à 0 € comptée comme un cycle | Les factures à 0 € sont ignorées |
 | Membre absent d'une liste | Filtre `credits_remaining > 0` excluant les illimités | Tester `is_unlimited` d'abord |
+| 401 sur tous les appels, plus rien n'est crédité | `--no-verify-jwt` oublié au dernier déploiement — le drapeau est à redonner à chaque fois | Redéployer avec le drapeau, puis rejouer les événements perdus depuis Stripe |
+| Abonnement qui paraît échu le jour de la souscription | `invoice.period_start` / `period_end` datent la **facture**, pas le cycle : sur une souscription, les deux valent l'instant d'émission | Lire `lines.data[0].period`, qui porte le vrai cycle |
+| Crédits d'un renouvellement expirés d'avance | `expires_at` calculé depuis l'heure du serveur au lieu du cycle facturé | Le cycle facturé fait foi ; sans période, la validité s'applique depuis l'achat |
 
 ---
 
@@ -256,6 +273,14 @@ npm run cap:android    # application Android
 
 **Un refus d'écriture ne lève pas d'exception.** Supabase renvoie une erreur dans l'objet de réponse, que le code peut ignorer sans rien remarquer. Un coach annulait son cours, le journal s'écrivait, les crédits partaient — et le cours restait planifié. **Toujours tester `error` après une écriture.**
 
+**Les options de déploiement ne sont pas mémorisées.** `--no-verify-jwt` doit être redonné à chaque `deploy` du webhook. Un déploiement qui l'oublie coupe les encaissements sans le moindre signal. Vérifier avec `supabase functions list` fait partie du déploiement, pas du dépannage.
+
+**Un timestamp Stripe ne dit pas toujours ce que son nom suggère.** `invoice.period_start` / `period_end` datent la facture, pas le cycle d'abonnement — le cycle vit sur `lines.data[0].period`. De même, `current_period_*` a migré de la racine de l'abonnement vers ses items. **Vérifier sur un objet réel plutôt que se fier au nom du champ**, surtout quand une durée calculée tombe à zéro.
+
+> Corollaire : `??` ne bascule que sur `null`/`undefined`. Mettre le mauvais champ en premier dans un `a ?? b` suffit à ce que `b` ne soit **jamais** lu, si `a` est renseigné mais faux sémantiquement. C'est ce qui a masqué le bug de cycle.
+
+**Le temps du serveur n'est pas celui de la facturation.** Un pack d'abonnement doit couvrir la période payée, pas les N jours qui suivent l'instant où le webhook s'exécute. Un événement rejoué avec retard produit sinon un pack décalé — voire, sous *test clock*, des crédits qui expirent avant le cycle qu'ils couvrent.
+
 ---
 
 ## Environnement de test
@@ -264,7 +289,32 @@ Un bac à sable Stripe permet de tout éprouver sans argent réel.
 
 **Cartes** : `4242 4242 4242 4242` (accepté), `4000 0000 0000 9995` (refusé), `4000 0000 0000 0341` (accepté puis échec au renouvellement). N'importe quelle date future, n'importe quel CVC.
 
-**Test clock** : pour éprouver un renouvellement sans attendre 28 jours, Stripe permet d'avancer l'horloge d'un abonnement de test.
+### Test clock — éprouver un renouvellement sans attendre 28 jours
+
+Procédure suivie le 7 août, qui a mis au jour deux défauts réels. Le MCP Stripe n'expose pas les `test_helpers` : il faut appeler l'API directement, avec une clé `sk_test_` ou une clé restreinte (Test clocks, Customers, Subscriptions en écriture ; Invoices en lecture).
+
+1. **Créer l'horloge**, figée à maintenant :
+   `POST /v1/test_helpers/test_clocks` avec `frozen_time`
+2. **Créer un client rattaché à l'horloge** (`test_clock=clock_...`), lui attacher un moyen de paiement (`tok_visa`) et le poser en `invoice_settings[default_payment_method]`
+3. **Créer un profil applicatif réel** et reporter son identifiant dans les métadonnées de l'abonnement : `user_id`, `pack_type_id`, `kind=subscription`, `credit_count`, `validity_days`. Sans elles, le webhook n'a aucune cible et sort sans rien créditer.
+4. **Créer l'abonnement** sur ce client
+5. **Avancer l'horloge** au-delà de l'échéance : `POST /v1/test_helpers/test_clocks/{id}/advance`. L'opération est asynchrone — attendre `status: ready`.
+
+> **Viser l'heure, pas seulement le jour.** L'échéance tombe à l'heure exacte de la souscription : avancer au bon jour mais treize minutes trop tôt ne déclenche rien, et laisse croire à une panne.
+
+6. **Vérifier** qu'une seconde facture `billing_reason: subscription_cycle` est émise et payée, puis **en base** que le cycle s'enchaîne sans trou ni recouvrement :
+
+```sql
+select pp.stripe_invoice_id, pp.credits_remaining,
+       pp.purchased_at::date, pp.expires_at::date,
+       (pp.expires_at::date - pp.purchased_at::date) as jours
+from pack_purchases pp
+where pp.user_id = '<uuid>' order by pp.purchased_at;
+```
+
+7. **Nettoyer** : supprimer l'horloge emporte client, abonnement et factures. Puis retirer le profil de test de la base.
+
+Si le webhook ne réagit pas, contrôler d'abord `verify_jwt` (voir plus haut) : c'est la cause la plus fréquente, et la plus silencieuse. Les événements manqués se rejouent depuis Stripe sans risque de double crédit.
 
 **Remise à zéro d'un membre** : le bouton sur sa fiche efface tous ses achats pour rejouer un scénario. Il n'apparaît qu'en mode test, refuse de s'exécuter si `stripe_mode = live`, et refuse aussi si le membre a un abonnement créé en production.
 
