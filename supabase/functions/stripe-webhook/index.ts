@@ -125,10 +125,29 @@ async function creditPack(opts: {
   subscriptionId?: string | null
   stripeInvoiceId?: string | null
   stripePaymentIntentId?: string | null
+  /**
+   * Cycle facturé, quand il y en a un (abonnement). Le pack couvre CETTE
+   * période, pas les N jours qui suivent l'instant du traitement.
+   */
+  periodStart?: string | null
+  periodEnd?: string | null
 }) {
-  const purchasedAt = new Date()
-  const expiresAt = new Date(purchasedAt)
-  expiresAt.setDate(expiresAt.getDate() + opts.validityDays)
+  // Le cycle facturé fait foi. Compter les jours depuis `new Date()` datait le
+  // pack de l'instant où le webhook s'exécute : un événement rejoué avec
+  // retard, ou traité en différé, produisait un pack décalé — et sous test
+  // clock, un pack expirant avant même le cycle qu'il couvre.
+  //
+  // Sans période (achat ponctuel), la durée de validité du pack s'applique à
+  // partir de l'achat, comme avant.
+  const purchasedAt = opts.periodStart ? new Date(opts.periodStart) : new Date()
+
+  let expiresAt: Date
+  if (opts.periodEnd) {
+    expiresAt = new Date(opts.periodEnd)
+  } else {
+    expiresAt = new Date(purchasedAt)
+    expiresAt.setDate(expiresAt.getDate() + opts.validityDays)
+  }
 
   const { error } = await admin.from('pack_purchases').insert({
     user_id: opts.userId,
@@ -409,6 +428,10 @@ serve(async (req) => {
         } | null
         if (!pt) break
 
+        // Le pack couvre exactement le cycle facturé : les crédits vivent aussi
+        // longtemps que la période payée, ni plus ni moins.
+        const cyclePeriod = invoicePeriod(invoice)
+
         const { alreadyProcessed, expiresAt } = await creditPack({
           userId: subRow.user_id,
           packTypeId: subRow.pack_type_id,
@@ -417,6 +440,8 @@ serve(async (req) => {
           creditCount: pt.credit_count,
           subscriptionId: subRow.id,
           stripeInvoiceId: invoice.id,
+          periodStart: cyclePeriod.start,
+          periodEnd: cyclePeriod.end,
         })
         if (alreadyProcessed) break
 
@@ -430,11 +455,10 @@ serve(async (req) => {
             .is('consumed_at', null)
         }
 
-        const invPeriod = invoicePeriod(invoice)
         await admin.from('subscriptions').update({
           status: 'active',
-          current_period_start: invPeriod.start,
-          current_period_end: invPeriod.end,
+          current_period_start: cyclePeriod.start,
+          current_period_end: cyclePeriod.end,
         }).eq('id', subRow.id)
 
         await notify(
