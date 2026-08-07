@@ -15,12 +15,23 @@
 **Communications** : **livrées** — tout e-mail laisse une trace dans l'application.
 **Parrainage & bons d'achat** : livré, **toujours non testé de bout en bout**.
 **Performances** : étapes 1 et 2 livrées (valeurs comparables, courbes). Paliers et régularité à faire.
-**Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter.
+**Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter. **Deux de ses éléments deviennent bloquants pour l'App Store** — voir ci-dessous.
 **Rémunération des coachs** : reportée — module à part, la gestion se fait hors application (décision du 2026-08-06).
 
 L'application tourne sur **Stripe** — la migration vers Mollie prévue au plan a été abandonnée le 2026-08-03.
 
 Une version de test tourne sur iPhone depuis le 2026-08-07 (signature de développement, valable 7 jours).
+
+### Publication sur l'App Store
+
+Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décision du 2026-08-07.
+
+**La commission de 30 % ne s'applique pas** : règle 3.1.3(e), biens et services physiques. Un cours se consomme au studio, pas dans l'application. Les packs et abonnements restent vendus par Stripe.
+
+**Deux prérequis bloquants avant toute soumission :**
+
+1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. La fonction doit **anonymiser** plutôt qu'effacer : les données comptables se conservent.
+2. **Politique de confidentialité avec URL publique** — à créer sur le modèle de `public/cgv.md`.
 
 ---
 
