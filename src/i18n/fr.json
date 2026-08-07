@@ -365,7 +365,8 @@
   "footer": {
     "version": "Version {{version}}",
     "support": "Soutenir",
-    "rights": "Tous droits réservés."
+    "rights": "Tous droits réservés.",
+    "copyright": "Christian Vanhenten pour Back on Track"
   },
   "roles": {
     "admin": "Administrateur",

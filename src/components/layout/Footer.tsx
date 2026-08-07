@@ -11,7 +11,7 @@ export function Footer() {
     <footer className="border-t bg-background">
       <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 py-4 px-4 mx-auto max-w-7xl text-sm text-muted-foreground">
         <p>
-          &copy; {new Date().getFullYear()} {t('app.name')}. {t('footer.rights')}
+          &copy; {new Date().getFullYear()} {t('footer.copyright')}. {t('footer.rights')}
         </p>
         <div className="flex items-center gap-4">
           <Link to="/help" className="hover:text-foreground transition-colors">
