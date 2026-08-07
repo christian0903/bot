@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LoadingState } from '@/components/common/LoadingState'
 import { MarkdownDoc } from '@/components/common/MarkdownDoc'
+import { fillLegalPlaceholders, loadStudioLegal } from '@/lib/studio-legal'
 
 /**
  * Conditions générales de vente.
@@ -22,13 +23,18 @@ export function TermsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/cgv.md')
-      .then((r) => {
+    // Le document et les coordonnées arrivent de deux sources : le fichier
+    // Markdown, éditable sans développeur, et les Réglages, où le studio tient
+    // ses mentions légales à jour. Les fusionner ici évite de les répéter.
+    Promise.all([
+      fetch('/cgv.md').then((r) => {
         if (!r.ok) throw new Error(String(r.status))
         return r.text()
-      })
-      .then((text) => {
-        setContent(text)
+      }),
+      loadStudioLegal(),
+    ])
+      .then(([text, studio]) => {
+        setContent(fillLegalPlaceholders(text, studio, isFr))
         setLoading(false)
       })
       .catch(() => {

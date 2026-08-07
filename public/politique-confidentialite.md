@@ -8,9 +8,11 @@ Dernière mise à jour : 7 août 2026
 
 ## 1. Qui traite vos données
 
-**Back On Track**, responsable du traitement.
+**{{studio_name}}**, responsable du traitement.
 
-*À compléter — adresse du siège, numéro d'entreprise (BCE), adresse e-mail de contact pour les questions relatives aux données.*
+Siège : {{studio_address}}
+Numéro d'entreprise (BCE) : {{studio_company_number}}
+Contact : {{studio_email}}
 
 ---
 
@@ -104,4 +106,8 @@ Toute modification substantielle vous sera signalée. La date de dernière mise 
 
 ## Nous contacter
 
-*À compléter — adresse e-mail dédiée aux questions relatives aux données personnelles, adresse postale du studio.*
+Pour toute question relative à vos données, ou pour exercer vos droits :
+
+**{{studio_name}}**
+{{studio_address}}
+{{studio_email}} — {{studio_phone}}

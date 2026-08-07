@@ -91,6 +91,9 @@ Les présentes conditions sont soumises au droit belge.
 
 ## Le studio
 
-**Back On Track**
+**{{studio_name}}**
 
-*À compléter — adresse du siège, numéro d'entreprise (BCE), numéro de TVA, adresse e-mail de contact, téléphone.*
+Siège : {{studio_address}}
+Numéro d'entreprise (BCE) : {{studio_company_number}}
+Numéro de TVA : {{studio_vat}}
+Contact : {{studio_email}} — {{studio_phone}}

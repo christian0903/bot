@@ -32,6 +32,8 @@ interface StudioInfo {
   phone: string
   email: string
   vat_number: string
+  /** Numéro d'entreprise (BCE). Distinct du n° TVA, qui peut différer. */
+  company_number: string
   instagram_url: string
   facebook_url: string
   website_url: string
@@ -72,6 +74,7 @@ export function AdminSettingsPage() {
     phone: '',
     email: '',
     vat_number: '',
+    company_number: '',
     instagram_url: '',
     facebook_url: '',
     website_url: '',
@@ -188,6 +191,20 @@ export function AdminSettingsPage() {
     toast.success(isFr ? 'Paramètres enregistrés' : 'Settings saved')
   }
 
+  /**
+   * Mentions légales manquantes.
+   *
+   * Signalées plutôt que supposées présentes : elles bloquent les CGV, la
+   * politique de confidentialité et les factures, et rien ne le dirait
+   * autrement — les documents se contenteraient d'afficher un trou.
+   */
+  const missingLegal = [
+    !studio.name.trim() && (isFr ? 'dénomination' : 'legal name'),
+    !studio.company_number.trim() && (isFr ? 'n° d\'entreprise' : 'company number'),
+    !studio.address.trim() && (isFr ? 'adresse du siège' : 'registered address'),
+    !studio.email.trim() && (isFr ? 'email de contact' : 'contact email'),
+  ].filter(Boolean) as string[]
+
   if (loading) return <LoadingState />
 
   return (
@@ -206,19 +223,66 @@ export function AdminSettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Ces données ne sont pas décoratives : elles alimentent les CGV, la
+              politique de confidentialité et les factures. Tant qu'elles sont
+              vides, ces documents portent des mentions manquantes. */}
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? 'Ces informations apparaissent sur vos documents légaux (CGV, politique de confidentialité) et sur les factures. Elles sont obligatoires en Belgique.'
+              : 'This information appears on your legal documents (terms, privacy policy) and on invoices. It is legally required in Belgium.'}
+          </p>
+
+          {missingLegal.length > 0 && (
+            <div className="rounded-lg border border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-3">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                {isFr ? 'Mentions légales incomplètes' : 'Legal details incomplete'}
+              </p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
+                {isFr ? 'Manque : ' : 'Missing: '}{missingLegal.join(', ')}
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{isFr ? 'Nom' : 'Name'}</Label>
-              <Input value={studio.name} onChange={e => setStudio(s => ({ ...s, name: e.target.value }))} />
+              <Label>{isFr ? 'Dénomination sociale' : 'Legal name'} *</Label>
+              <Input
+                value={studio.name}
+                onChange={e => setStudio(s => ({ ...s, name: e.target.value }))}
+                placeholder={isFr ? 'Ex. Back On Track SRL' : 'e.g. Back On Track Ltd'}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{isFr ? 'N° d\'entreprise (BCE)' : 'Company number'} *</Label>
+              <Input
+                value={studio.company_number}
+                onChange={e => setStudio(s => ({ ...s, company_number: e.target.value }))}
+                placeholder="BE 0123.456.789"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>{isFr ? 'Adresse du siège' : 'Registered address'} *</Label>
+              <Input
+                value={studio.address}
+                onChange={e => setStudio(s => ({ ...s, address: e.target.value }))}
+                placeholder={isFr ? 'Rue, numéro, code postal, commune' : 'Street, number, postcode, city'}
+              />
             </div>
             <div className="space-y-2">
               <Label>{isFr ? 'N° TVA' : 'VAT number'}</Label>
-              <Input value={studio.vat_number} onChange={e => setStudio(s => ({ ...s, vat_number: e.target.value }))} placeholder="BE0xxx.xxx.xxx" />
+              <Input
+                value={studio.vat_number}
+                onChange={e => setStudio(s => ({ ...s, vat_number: e.target.value }))}
+                placeholder="BE 0123.456.789"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? 'Laisser vide s\'il est identique au numéro d\'entreprise.'
+                  : 'Leave empty if identical to the company number.'}
+              </p>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>{isFr ? 'Adresse' : 'Address'}</Label>
-            <Input value={studio.address} onChange={e => setStudio(s => ({ ...s, address: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -226,8 +290,13 @@ export function AdminSettingsPage() {
               <Input value={studio.phone} onChange={e => setStudio(s => ({ ...s, phone: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label>{isFr ? 'Email de contact' : 'Contact email'} *</Label>
               <Input type="email" value={studio.email} onChange={e => setStudio(s => ({ ...s, email: e.target.value }))} />
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? 'Sert aussi aux demandes relatives aux données personnelles (RGPD).'
+                  : 'Also used for personal data requests (GDPR).'}
+              </p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">

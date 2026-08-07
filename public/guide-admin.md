@@ -330,11 +330,21 @@ Deux points à connaître :
 - **Les titres commençant par `##` construisent le sommaire** affiché en haut de la page. En ajouter un le fait apparaître automatiquement.
 - **Laisser une ligne vide entre les paragraphes**, sinon ils se collent.
 
+### Les coordonnées légales se saisissent une seule fois
+
+Dénomination, adresse du siège, numéro d'entreprise, TVA et contact vivent dans **Administration → Réglages → Informations du studio** — pas dans les fichiers.
+
+Les documents portent des repères comme `{{studio_address}}`, remplacés à l'affichage par ce que vous avez saisi. Une adresse qui change se corrige donc **à un seul endroit**, et les CGV comme la politique de confidentialité suivent.
+
+Tant qu'un champ est vide, le document affiche *(à compléter dans les Réglages)* — le lecteur voit qu'il manque quelque chose, et l'écran des Réglages vous le signale aussi.
+
+> Ces mentions sont **obligatoires en Belgique**. Elles bloquent aussi bien les CGV que la facturation.
+
 ### Ce qui reste à compléter dans les CGV
 
 Le fichier `cgv.md` est amorcé, pas terminé. L'article 1 — la séance d'essai n'est pas couverte par l'assurance — est rédigé et applicable. Les articles 3 à 10 portent la mention « à compléter » avec un rappel de ce qu'ils doivent couvrir : santé, packs, annulations, comportement, droit à l'image, litiges.
 
-Le bas du document attend aussi les **coordonnées légales du studio** : adresse, numéro d'entreprise (BCE), numéro de TVA, contact. Ce sont des mentions obligatoires.
+Les coordonnées légales, elles, ne se saisissent plus dans le fichier : voir ci-dessus.
 
 > **Avant la mise en vente**, faire relire les conditions générales par un juriste. Une clause qui limite la responsabilité envers un consommateur peut être réputée non écrite si elle est mal rédigée — c'est particulièrement vrai pour la clause d'assurance de l'article 1.
 
