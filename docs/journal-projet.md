@@ -7,13 +7,15 @@
 
 ## Où en est le projet
 
-**Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.36.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
+**Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.46.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
 
 **Phase 11** (admin avancé) : **largement livrée** — rôles, statuts de cours, espace coach autonome.
 **Phase 12** (abonnements récurrents) : **livrée et éprouvée**. Renouvellement vérifié au *test clock* Stripe le 2026-08-07.
 **Séance d'essai** : **livrée** — vrai pack gratuit attribué à l'inscription (2026-08-07).
 **Communications** : **livrées** — tout e-mail laisse une trace dans l'application.
 **Parrainage & bons d'achat** : livré, **toujours non testé de bout en bout**.
+**Avis sur les cours** : **livré** — étoiles et commentaire, délai réglable.
+**Clients professionnels** : **livré** — commande sur facture, suivi des encaissements.
 **Performances** : étapes 1 et 2 livrées (valeurs comparables, courbes). Paliers et régularité à faire.
 **Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter. **Deux de ses éléments deviennent bloquants pour l'App Store** — voir ci-dessous.
 **Rémunération des coachs** : reportée — module à part, la gestion se fait hors application (décision du 2026-08-06).
@@ -37,7 +39,7 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ## Session du 2026-08-07
 
-20 commits (v2.17.0 → v2.36.0), tous poussés. Journée nourrie par les retours de **deux coachs**, l'un récent, l'autre plus ancien.
+32 commits (v2.17.0 → v2.46.0), tous poussés. Journée nourrie par les retours de **deux coachs**, l'un récent, l'autre plus ancien. L'après-midi a ouvert deux chantiers neufs : les avis sur les cours et la facturation B2B.
 
 ### Le fil rouge — ce que le code promet, ce que la base fait
 
@@ -112,6 +114,44 @@ Les courbes suivent : historique complet, record marqué, progression annoncée 
 **Mes réservations** — liste strictement chronologique, pack rappelé sur chaque ligne. Le regroupement par pack dispersait les dates : une séance pouvait passer inaperçue sous un pack plus bas dans la page.
 
 **Inscription** — un écran de confirmation remplace le message fugace. Le membre voyait un toast de quelques secondes puis retombait sur la connexion, essayait de se connecter, échouait, et concluait à une panne.
+
+### Avis sur les cours
+
+Demande des coachs. La question « qui peut noter quoi » se règle en base : l'avis s'attache à une **réservation**, pas à un cours. Il faut avoir été inscrit, la réservation doit être confirmée, le cours terminé — trois conditions qui rendent impossible de noter une séance à laquelle on n'est pas allé.
+
+Anonyme pour le coach, nominatif pour l'admin. Un membre qui reverra son coach mardi ne note pas franchement s'il sait être identifié ; mais un avis intraçable n'engage personne.
+
+La demande vit dans le bloc communications de l'accueil et disparaît d'elle-même passé un délai réglable — sept jours par défaut. Il était d'abord figé à trente dans le code : une demande qui insiste un mois se fait ignorer, puis agace.
+
+### Suppression de compte
+
+Exigée par Apple depuis 2022 pour publier, et par le RGPD. Deux versions : le membre depuis son profil, le studio depuis la fiche membre.
+
+La cartographie des clés étrangères a montré qu'une vraie suppression était impossible : `registration_fees`, `subscriptions` et `performances` sont en `CASCADE` — les traces de paiement seraient parties avec le compte, ce que le droit comptable belge interdit (sept ans).
+
+**On anonymise donc.** La personne disparaît, la comptabilité reste, détachée de toute identité. C'est exactement ce que prévoit l'article 17.3(b) du RGPD. Un abonnement actif bloque la fermeture : sans compte, le membre ne pourrait plus le résilier et continuerait d'être prélevé.
+
+### Clients professionnels — paiement sur facture
+
+Une entreprise ne paie pas par carte : elle commande, reçoit une facture, règle selon ses délais. **Le pack est crédité immédiatement** — l'employé doit pouvoir s'entraîner sans attendre le circuit comptable de son employeur.
+
+C'est un paiement à terme, la norme en B2B, et cela veut dire que le studio porte le risque d'impayé. Décision assumée : aucun automatisme de relance ni de suspension.
+
+Seul un admin qualifie un profil en B2B, et le contrôle est côté serveur — un particulier qui appellerait la fonction directement obtiendrait sinon des séances gratuitement.
+
+Deux choix de conception méritent d'être notés :
+
+**Pas de catégorie « B2B ».** Le filtre suit `is_business`, sans catégorie dédiée. Deux marqueurs pour le même fait auraient fini par diverger, et un membre oublié en catégorie serait tombé sur un paiement Stripe inattendu.
+
+**Pas de verrouillage de la bascule.** Passer de B2B à B2C ne casse rien : les packs restent valides, les factures restent dues, seul le mode de paiement des futures commandes change. Verrouiller aurait empêché de corriger une simple erreur de saisie. Un avertissement signale les factures ouvertes, sans bloquer.
+
+L'écran de suivi filtre sur ce qui compte quand on facture — payée ou non, pas « traitée ». Le numéro et la date de facture, attribués dans Odoo, se saisissent **à tout moment** : ils sont connus à l'émission, souvent des semaines avant le règlement.
+
+### Prérequis App Store
+
+Compte Apple Developer au nom propre de Christian. La commission de 30 % ne s'applique pas à Back On Track — règle 3.1.3(e), biens et services physiques : un cours se consomme au studio.
+
+Les deux prérequis bloquants sont levés : suppression de compte depuis l'application, et politique de confidentialité avec URL publique.
 
 ### Documentation et outillage
 
