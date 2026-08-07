@@ -405,6 +405,17 @@ export function AdminUsersPage() {
                       onClick={() => navigate(`/admin/users/${user.id}`)}
                     >
                       {user.display_name}
+                      {/* Repère professionnel : ce membre commande sur facture,
+                          pas par carte. Utile avant même d'ouvrir sa fiche. */}
+                      {user.is_business && (
+                        <Badge
+                          variant="outline"
+                          className="ml-1 h-5 px-1.5 text-[10px] border-blue-500/50 text-blue-600 dark:text-blue-400"
+                          title={user.company_name ?? undefined}
+                        >
+                          B2B
+                        </Badge>
+                      )}
                       <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   </TableCell>

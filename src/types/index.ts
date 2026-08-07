@@ -277,6 +277,12 @@ export interface InvoiceRequest {
   vat_number: string | null
   status: 'pending' | 'processed'
   admin_notes: string | null
+  /** Pack commandé sur facture. NULL si la demande porte sur un achat déjà payé. */
+  pack_type_id: string | null
+  amount_cents: number | null
+  /** Encaissement pointé à la main. NULL = en attente. Sans effet sur les crédits. */
+  paid_at: string | null
+  invoice_number: string | null
   created_at: string
   processed_at: string | null
   pack_purchase?: PackPurchase

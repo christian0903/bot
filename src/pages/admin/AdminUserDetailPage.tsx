@@ -134,6 +134,8 @@ export function AdminUserDetailPage() {
     company_address: '',
   })
   const [businessSaving, setBusinessSaving] = useState(false)
+  /** Factures en attente d'encaissement : avertissement avant de repasser en B2C. */
+  const [unpaidInvoices, setUnpaidInvoices] = useState({ count: 0, totalCents: 0 })
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
@@ -175,11 +177,23 @@ export function AdminUserDetailPage() {
     setStripeTestMode((modeVal?.mode ?? 'test') !== 'live')
 
     // Parrainage du membre (en tant que filleul), bons d'achat, et rôles.
-    const [refRes, notesRes, rolesRes] = await Promise.all([
+    const [refRes, notesRes, rolesRes, unpaidRes] = await Promise.all([
       supabase.from('referrals').select('referral_code, status').eq('referee_id', id).maybeSingle(),
       supabase.from('referral_rewards').select('*').eq('user_id', id).order('created_at', { ascending: false }),
       supabase.from('user_roles').select('role').eq('user_id', id),
+      // Factures en attente : ce qu'il faut savoir avant de retirer la
+      // qualification professionnelle à quelqu'un.
+      supabase.from('invoice_requests')
+        .select('id, amount_cents')
+        .eq('user_id', id)
+        .is('paid_at', null)
+        .neq('status', 'cancelled'),
     ])
+    const unpaid = (unpaidRes.data as { id: string; amount_cents: number | null }[]) ?? []
+    setUnpaidInvoices({
+      count: unpaid.length,
+      totalCents: unpaid.reduce((s, i) => s + (i.amount_cents ?? 0), 0),
+    })
     setMemberRoles(((rolesRes.data ?? []) as { role: string }[]).map(r => r.role))
     setMemberReferral(refRes.data as { referral_code: string; status: string } | null)
     setCreditNotes((notesRes.data as ReferralReward[]) ?? [])
@@ -1283,6 +1297,26 @@ export function AdminUserDetailPage() {
                         : 'A company name is required, otherwise the member cannot order by invoice.'}
                     </p>
                   )}
+                </div>
+              )}
+
+              {/* Retirer la qualification ne casse rien — les packs et les
+                  factures restent — mais le membre repassera au paiement par
+                  carte. S'il reste des factures ouvertes, il faut le savoir
+                  avant, pas le découvrir en cherchant pourquoi elles traînent. */}
+              {!businessForm.is_business && profile.is_business && unpaidInvoices.count > 0 && (
+                <div className="rounded-lg border border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm">
+                  <p className="font-medium text-amber-800 dark:text-amber-300">
+                    {isFr
+                      ? `${unpaidInvoices.count} facture${unpaidInvoices.count > 1 ? 's' : ''} encore à encaisser`
+                      : `${unpaidInvoices.count} invoice${unpaidInvoices.count > 1 ? 's' : ''} still unpaid`}
+                    {unpaidInvoices.totalCents > 0 && ` — ${(unpaidInvoices.totalCents / 100).toFixed(2).replace('.', ',')} €`}
+                  </p>
+                  <p className="text-amber-700/80 dark:text-amber-400/80 mt-1">
+                    {isFr
+                      ? 'Elles restent dues et suivies dans les demandes de facture. Le membre repassera simplement au paiement par carte pour ses prochains achats.'
+                      : 'They remain due and tracked in invoice requests. The member will simply go back to card payment for future purchases.'}
+                  </p>
                 </div>
               )}
 
