@@ -1,12 +1,19 @@
+-- Compare les policies attendues au réel. Aucune ligne = base conforme ;
+-- toute ligne est un bug en attente.
+--
+-- Tenir cette liste à jour est ce qui fait sa valeur : un outil qui signale
+-- des problèmes inexistants finit par ne plus être lu. Vérifié le 2026-08-07.
 SELECT t.tbl, t.pol FROM (VALUES
 ('profiles','Profiles: public read'),
 ('profiles','Profiles: own update'),
 ('profiles','Profiles: admin update all'),
 ('profiles','Profiles: insert on signup'),
+-- user_roles n'a QUE des policies de lecture, volontairement : les écritures
+-- passent par grant_user_role / revoke_user_role (SECURITY DEFINER), qui
+-- vérifient la hiérarchie. Une policy d'écriture rouvrirait la faille corrigée
+-- le 2026-08-06, où tout admin pouvait se créer un pair.
 ('user_roles','Roles: read own or admin'),
-('user_roles','Roles: admin insert'),
-('user_roles','Roles: admin update'),
-('user_roles','Roles: admin delete'),
+('user_roles','Roles: admin read all'),
 ('member_categories','Categories: public read'),
 ('member_categories','Categories: admin manage'),
 ('credit_types','Credit types: public read'),
@@ -53,21 +60,21 @@ SELECT t.tbl, t.pol FROM (VALUES
 ('activity_log','Activity log: coach read'),
 ('activity_log','Activity log: own read'),
 ('activity_log','Activity log: system insert'),
-('registration_fees','Reg fees: own read'),
-('registration_fees','Reg fees: admin read'),
-('registration_fees','Reg fees: insert'),
-('registration_fees','Reg fees: admin all'),
-('invoice_requests','Invoice: own read'),
-('invoice_requests','Invoice: own insert'),
-('invoice_requests','Invoice: admin all'),
+('registration_fees','reg_fees_own_read'),
+('registration_fees','reg_fees_admin_read'),
+('registration_fees','reg_fees_insert'),
+('registration_fees','reg_fees_admin_all'),
+('invoice_requests','invoice_own_read'),
+('invoice_requests','invoice_own_insert'),
+('invoice_requests','invoice_admin_all'),
 ('performance_types','PerfTypes: read all'),
 ('performance_types','PerfTypes: coach/admin insert'),
 ('performance_types','PerfTypes: coach/admin update'),
 ('performance_types','PerfTypes: coach/admin delete'),
 ('performances','Perf: own read'),
-('performances','Perf: insert'),
-('performances','Perf: update'),
-('performances','Perf: delete'),
+('performances','Perf: own insert'),
+('performances','Perf: own update'),
+('performances','Perf: own delete'),
 ('subscriptions','Subscriptions: own read'),
 ('subscriptions','Subscriptions: admin all'),
 ('subscription_discounts','Sub discounts: own read'),

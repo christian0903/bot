@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { CalendarDays, CreditCard, ChevronRight, Dumbbell, ShoppingBag, X, Clock, Megaphone } from 'lucide-react'
+import { CalendarDays, CreditCard, ChevronRight, Dumbbell, ShoppingBag, X, Clock, Megaphone, ScanLine } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { LoadingState } from '@/components/common/LoadingState'
+import { TrialCreditBanner } from '@/components/common/TrialCreditBanner'
 import type { PackPurchase, Booking, ScheduledClass } from '@/types'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
@@ -184,6 +186,9 @@ export function DashboardPage() {
           </Card>
         </motion.div>
       )}
+
+      {/* Séance d'essai offerte — disparaît d'elle-même une fois utilisée */}
+      <TrialCreditBanner />
 
       {/* Upcoming bookings — first and prominent */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
@@ -368,6 +373,32 @@ export function DashboardPage() {
                   )
                 })}
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Code de check-in — en bas de page : c'est le geste de l'arrivée au
+          studio, on le cherche sur place, pas en consultant son planning.
+          Il reste aussi sur la fiche profil. */}
+      {profile && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm font-medium mb-3 flex items-center gap-2">
+                <ScanLine className="h-4 w-4" />
+                {t('profile.qrTitle')}
+              </p>
+              <div className="flex justify-center">
+                {/* Fond blanc explicite : en thème sombre, un QR sur fond
+                    transparent devient illisible par le scanner. */}
+                <div className="bg-white p-3 rounded-lg">
+                  <QRCodeSVG value={profile.id} size={160} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                {t('profile.qrDesc')}
+              </p>
             </CardContent>
           </Card>
         </motion.div>

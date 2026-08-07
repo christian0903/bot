@@ -210,6 +210,14 @@ serve(async (req) => {
 
     if (packError || !packType) return json({ error: 'Type de pack introuvable' }, 404)
 
+    // Un pack hors catalogue ne s'achète pas — cas de la séance d'essai, qui
+    // est offerte à l'inscription. Le front ne l'affiche pas, mais cette
+    // fonction est appelable directement : sans ce refus, n'importe qui
+    // obtiendrait un pack à 0 € en passant son identifiant.
+    if (packType.is_purchasable === false) {
+      return json({ error: 'Ce pack n\'est pas en vente' }, 403)
+    }
+
     // Éligibilité par catégorie de membre
     const { data: profile } = await admin
       .from('profiles').select('member_category_id').eq('id', user.id).maybeSingle()

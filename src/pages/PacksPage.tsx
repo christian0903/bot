@@ -59,6 +59,9 @@ export function PacksPage() {
         .from('pack_types')
         .select('*, credit_type:credit_types(*), categories:pack_type_categories(member_category_id)')
         .eq('is_active', true)
+        // La séance d'essai est offerte, pas vendue : elle reste active (donc
+        // utilisable) mais ne figure pas au catalogue.
+        .eq('is_purchasable', true)
         .order('price_cents')
 
       let packs = (data as PackType[]) ?? []
