@@ -52,25 +52,53 @@ export function NoCreditsDialog({ open, onOpenChange, reason, creditTypeId, cred
   const [packs, setPacks] = useState<PackType[]>([])
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState<string | null>(null)
+  /** Le membre a déjà un abonnement : on ne lui en propose pas un second. */
+  const [hasSubscription, setHasSubscription] = useState(false)
 
   useEffect(() => {
     if (!open || !creditTypeId) return
+    let cancelled = false
 
     const load = async () => {
       setLoading(true)
-      const { data } = await supabase
-        .from('pack_types')
-        .select('*, credit_type:credit_types(*)')
-        .eq('is_active', true)
-        .eq('is_purchasable', true)
-        .eq('credit_type_id', creditTypeId)
-        .order('price_cents')
 
-      setPacks((data as PackType[]) ?? [])
+      // Un seul abonnement à la fois : le serveur refuse le second en 409.
+      // Sans ce contrôle ici, on proposait des achats voués à l'échec — à
+      // quelqu'un dont l'abonnement est simplement épuisé pour ce cycle.
+      const [packRes, subRes] = await Promise.all([
+        supabase
+          .from('pack_types')
+          .select('*, credit_type:credit_types(*)')
+          .eq('is_active', true)
+          .eq('is_purchasable', true)
+          .eq('credit_type_id', creditTypeId)
+          .order('price_cents'),
+        user
+          ? supabase
+            .from('subscriptions')
+            .select('id')
+            .eq('user_id', user.id)
+            .in('status', ['active', 'past_due', 'paused', 'incomplete'])
+            .limit(1)
+          : Promise.resolve({ data: null }),
+      ])
+
+      if (cancelled) return
+
+      const subscribed = ((subRes.data as unknown[] | null)?.length ?? 0) > 0
+      const all = (packRes.data as PackType[]) ?? []
+
+      setHasSubscription(subscribed)
+      // Un abonné épuisé garde un besoin réel : dépanner d'ici au
+      // renouvellement. Les packs ponctuels répondent à ça, pas un abonnement
+      // supplémentaire qu'il ne peut de toute façon pas souscrire.
+      setPacks(subscribed ? all.filter(p => !p.is_recurring) : all)
       setLoading(false)
     }
+
     load()
-  }, [open, creditTypeId])
+    return () => { cancelled = true }
+  }, [open, creditTypeId, user])
 
   /**
    * Ouvre le paiement sans quitter le contexte.
@@ -117,19 +145,28 @@ export function NoCreditsDialog({ open, onOpenChange, reason, creditTypeId, cred
     }
   }
 
-  const title = reason === 'exhausted'
-    ? (isFr ? 'Tes crédits sont épuisés' : 'Your credits are used up')
-    : reason === 'wrong_type'
-      ? (isFr ? 'Il te faut un autre type de crédit' : 'You need a different credit type')
-      : (isFr ? 'Il te faut des crédits' : 'You need credits')
+  const title = hasSubscription
+    ? (isFr ? 'Ton abonnement est épuisé' : 'Your subscription is used up')
+    : reason === 'exhausted'
+      ? (isFr ? 'Tes crédits sont épuisés' : 'Your credits are used up')
+      : reason === 'wrong_type'
+        ? (isFr ? 'Il te faut un autre type de crédit' : 'You need a different credit type')
+        : (isFr ? 'Il te faut des crédits' : 'You need credits')
 
-  const description = reason === 'wrong_type'
+  // Un abonné épuisé n'est pas « sans formule » : il en a une, elle est juste
+  // consommée pour ce cycle. Lui proposer de s'abonner serait absurde ; on lui
+  // explique ce qui se passe et on propose de quoi dépanner.
+  const description = hasSubscription
     ? (isFr
-      ? `Ce cours demande un crédit « ${creditTypeLabel} ». Voici les formules qui le couvrent.`
-      : `This class needs a "${creditTypeLabel}" credit. Here are the options that cover it.`)
-    : (isFr
-      ? `Choisis une formule et réserve ton cours dans la foulée.`
-      : `Pick an option and book your class right away.`)
+      ? 'Ton abonnement est épuisé pour ce cycle. En attendant le renouvellement, une carte ou un pack te dépanne.'
+      : 'Your subscription is used up for this cycle. Until it renews, a single card or pack will cover you.')
+    : reason === 'wrong_type'
+      ? (isFr
+        ? `Ce cours demande un crédit « ${creditTypeLabel} ». Voici les formules qui le couvrent.`
+        : `This class needs a "${creditTypeLabel}" credit. Here are the options that cover it.`)
+      : (isFr
+        ? `Choisis une formule et réserve ton cours dans la foulée.`
+        : `Pick an option and book your class right away.`)
 
   const price = (cents: number) => (cents / 100).toFixed(2).replace('.', ',')
 
@@ -160,12 +197,24 @@ export function NoCreditsDialog({ open, onOpenChange, reason, creditTypeId, cred
         ) : packs.length === 0 ? (
           <div className="py-6 text-center">
             <p className="text-sm text-muted-foreground mb-4">
-              {isFr
-                ? 'Aucune formule disponible pour ce type de cours.'
-                : 'No option available for this class type.'}
+              {hasSubscription
+                ? (isFr
+                  // Aucun pack ponctuel pour ce type : le membre n'a rien à
+                  // acheter, il doit attendre. Le dire franchement vaut mieux
+                  // que le renvoyer vers un catalogue sans réponse.
+                  ? 'Aucun pack ponctuel pour ce type de cours. Tes crédits reviendront au renouvellement de ton abonnement.'
+                  : 'No one-off pack for this class type. Your credits will return when your subscription renews.')
+                : (isFr
+                  ? 'Aucune formule disponible pour ce type de cours.'
+                  : 'No option available for this class type.')}
             </p>
-            <Button variant="outline" onClick={() => { onOpenChange(false); navigate('/packs') }}>
-              {isFr ? 'Voir toutes les formules' : 'See all options'}
+            <Button
+              variant="outline"
+              onClick={() => { onOpenChange(false); navigate(hasSubscription ? '/my-packs' : '/packs') }}
+            >
+              {hasSubscription
+                ? (isFr ? 'Voir mon abonnement' : 'View my subscription')
+                : (isFr ? 'Voir toutes les formules' : 'See all options')}
             </Button>
           </div>
         ) : (
@@ -216,11 +265,16 @@ export function NoCreditsDialog({ open, onOpenChange, reason, creditTypeId, cred
               </button>
             ))}
 
+            {/* Un abonné est renvoyé vers SON abonnement, pas vers le catalogue :
+                il n'a rien d'autre à souscrire, mais peut vouloir vérifier sa
+                date de renouvellement. */}
             <button
-              onClick={() => { onOpenChange(false); navigate('/packs') }}
+              onClick={() => { onOpenChange(false); navigate(hasSubscription ? '/my-packs' : '/packs') }}
               className="w-full pt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              {isFr ? 'Voir toutes les formules' : 'See all options'}
+              {hasSubscription
+                ? (isFr ? 'Voir mon abonnement' : 'View my subscription')
+                : (isFr ? 'Voir toutes les formules' : 'See all options')}
             </button>
           </div>
         )}
