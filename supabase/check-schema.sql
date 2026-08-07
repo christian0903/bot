@@ -116,6 +116,8 @@ FROM (
   -- COUPONS PAR CATEGORIE (2026-08-07)
   UNION ALL SELECT 'Table: coupon_categories', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='coupon_categories')
   UNION ALL SELECT 'Func: check_coupon', EXISTS(SELECT 1 FROM pg_proc WHERE proname='check_coupon')
+  UNION ALL SELECT 'Trigger: class_types_protect_credit', EXISTS(SELECT 1 FROM information_schema.triggers WHERE trigger_name='class_types_protect_credit')
+  UNION ALL SELECT 'Func: class_type_usage', EXISTS(SELECT 1 FROM pg_proc WHERE proname='class_type_usage')
   UNION ALL SELECT 'Enum: activity_action.account_deleted', EXISTS(SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid=t.oid WHERE t.typname='activity_action' AND e.enumlabel='account_deleted')
 
   -- RLS

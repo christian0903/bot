@@ -58,13 +58,18 @@ const emptyForm: ClassTypeForm = {
 }
 
 export function AdminClassTypesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isFr = i18n.language === 'fr'
   const [classTypes, setClassTypes] = useState<ClassType[]>([])
   const [creditTypes, setCreditTypes] = useState<CreditType[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [globalDefaultMax, setGlobalDefaultMax] = useState(4)
   const [editing, setEditing] = useState<ClassType | null>(null)
+  /** Ce qui dépend du type en cours d'édition. Null tant qu'on ne le sait pas. */
+  const [usage, setUsage] = useState<{
+    total_classes: number; future_classes: number; future_bookings: number; credit_locked: boolean
+  } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ClassType | null>(null)
   const [form, setForm] = useState<ClassTypeForm>(emptyForm)
 
@@ -89,6 +94,9 @@ export function AdminClassTypesPage() {
       })
   }, [])
 
+  /** Un type qu'on crée n'a rien derrière lui : le champ reste libre. */
+  const creditLocked = !!editing && usage?.credit_locked === true
+
   const openAdd = () => {
     setEditing(null)
     setForm({ ...emptyForm, default_max_participants: globalDefaultMax })
@@ -97,6 +105,13 @@ export function AdminClassTypesPage() {
 
   const openEdit = (ct: ClassType) => {
     setEditing(ct)
+    // Le serveur dit ce qui dépend de ce type : l'écran n'a aucune règle à
+    // dupliquer, et ne peut donc pas annoncer autre chose que ce que la base
+    // appliquera.
+    setUsage(null)
+    supabase.rpc('class_type_usage', { p_class_type_id: ct.id }).then(({ data }) => {
+      setUsage(data as typeof usage)
+    })
     setForm({
       name: ct.name,
       description: ct.description ?? '',
@@ -240,6 +255,7 @@ export function AdminClassTypesPage() {
               <Label>{t('admin.classTypes.creditType')}</Label>
               <Select
                 value={form.credit_type_id}
+                disabled={creditLocked}
                 onValueChange={(val) => setForm(f => ({ ...f, credit_type_id: val ?? '' }))}
               >
                 <SelectTrigger>
@@ -251,6 +267,26 @@ export function AdminClassTypesPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Le verrou est posé en base : le dire ici évite un refus
+                  incompréhensible au moment d'enregistrer. Changer le type de
+                  crédit rendrait incompatibles les packs qui ont déjà payé les
+                  réservations de ce cours. */}
+              {creditLocked && usage && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+                  {isFr
+                    ? `Verrouillé : ${usage.total_classes} cours planifié${usage.total_classes > 1 ? 's' : ''} en dépendent`
+                    : `Locked: ${usage.total_classes} scheduled class${usage.total_classes > 1 ? 'es' : ''} depend on it`}
+                  {usage.future_bookings > 0 && (
+                    isFr
+                      ? `, dont ${usage.future_bookings} réservation${usage.future_bookings > 1 ? 's' : ''} à venir`
+                      : `, including ${usage.future_bookings} upcoming booking${usage.future_bookings > 1 ? 's' : ''}`
+                  )}
+                  {isFr
+                    ? '. Créez un nouveau type de cours si la prestation change.'
+                    : '. Create a new class type if the service changes.'}
+                </p>
+              )}
             </div>
             <div>
               <Label>{t('schedule.defaultMaxParticipants')}</Label>

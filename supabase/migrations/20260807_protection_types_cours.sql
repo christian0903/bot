@@ -1,0 +1,14 @@
+-- ============================================================================
+-- Types de cours : protéger ce qui est déjà engagé
+-- ----------------------------------------------------------------------------
+-- L'édition existait déjà, sans aucun contrôle. Or tous les champs ne se
+-- valent pas : nom, description, image et places par défaut sont sans risque,
+-- mais changer le TYPE DE CRÉDIT casse les réservations existantes — le
+-- membre a consommé un crédit d'un type, le cours en réclamerait un autre.
+--
+-- Contenu appliqué : voir install.sql (protect_class_type_credit et
+-- class_type_usage).
+-- ============================================================================
+
+-- Les deux fonctions et le trigger sont définis dans install.sql, portés au
+-- même commit selon la règle du 2026-08-07.

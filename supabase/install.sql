@@ -1624,6 +1624,93 @@ $fn$;
 REVOKE ALL ON FUNCTION check_coupon(TEXT, INTEGER) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION check_coupon(TEXT, INTEGER) TO authenticated;
 
+
+-- ---------------------------------------------------------------------------
+-- Types de cours : protéger ce qui est déjà engagé
+-- ---------------------------------------------------------------------------
+-- Tous les champs ne se valent pas. Nom, description, image et places par
+-- défaut se modifient librement. Le TYPE DE CRÉDIT, non : le changer rendrait
+-- incompatibles les packs qui ont déjà payé les réservations de ce cours — le
+-- membre a consommé un crédit d'un type, le cours en réclamerait un autre.
+--
+-- Verrouillé dès qu'un cours est PLANIFIÉ, pas seulement réservé : un cours
+-- annoncé au planning est une promesse commerciale.
+CREATE OR REPLACE FUNCTION protect_class_type_credit()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_classes  INTEGER;
+  v_bookings INTEGER;
+BEGIN
+  IF NEW.credit_type_id = OLD.credit_type_id THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT COUNT(*) INTO v_classes
+  FROM scheduled_classes WHERE class_type_id = OLD.id;
+
+  IF v_classes = 0 THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT COUNT(*) INTO v_bookings
+  FROM bookings b
+  JOIN scheduled_classes sc ON sc.id = b.scheduled_class_id
+  WHERE sc.class_type_id = OLD.id AND b.status = 'confirmed';
+
+  RAISE EXCEPTION
+    'Type de credit verrouille : % cours planifie(s) et % reservation(s) en dependent. Creez un nouveau type de cours plutot que de modifier celui-ci.',
+    v_classes, v_bookings
+    USING ERRCODE = 'check_violation';
+END;
+$fn$;
+
+DROP TRIGGER IF EXISTS class_types_protect_credit ON class_types;
+CREATE TRIGGER class_types_protect_credit
+  BEFORE UPDATE ON class_types
+  FOR EACH ROW EXECUTE FUNCTION protect_class_type_credit();
+
+-- Ce qui dépend d'un type de cours. Renseigne l'écran AVANT modification :
+-- l'admin doit le savoir, pas le découvrir sur un refus.
+CREATE OR REPLACE FUNCTION class_type_usage(p_class_type_id UUID)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+STABLE
+AS $fn$
+DECLARE
+  v_total    INTEGER;
+  v_future   INTEGER;
+  v_bookings INTEGER;
+BEGIN
+  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+    RAISE EXCEPTION 'Reserve aux administrateurs';
+  END IF;
+
+  SELECT COUNT(*), COUNT(*) FILTER (WHERE starts_at > NOW())
+    INTO v_total, v_future
+  FROM scheduled_classes WHERE class_type_id = p_class_type_id;
+
+  SELECT COUNT(*) INTO v_bookings
+  FROM bookings b
+  JOIN scheduled_classes sc ON sc.id = b.scheduled_class_id
+  WHERE sc.class_type_id = p_class_type_id
+    AND b.status = 'confirmed' AND sc.starts_at > NOW();
+
+  RETURN jsonb_build_object(
+    'total_classes', v_total,
+    'future_classes', v_future,
+    'future_bookings', v_bookings,
+    'credit_locked', v_total > 0
+  );
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION class_type_usage(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION class_type_usage(UUID) TO authenticated;
+
 -- Phase 4 : Vérifier si un membre peut réserver
 CREATE OR REPLACE FUNCTION can_book_class(p_class_id UUID, p_user_id UUID)
 RETURNS JSONB
