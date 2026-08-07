@@ -25,9 +25,13 @@ export function TrialCreditBanner({ className }: { className?: string }) {
   const [daysLeft, setDaysLeft] = useState<number | null>(null)
 
   useEffect(() => {
-    if (!user) { setDaysLeft(null); return }
+    // `cancelled` évite d'écrire l'état d'une requête obsolète : à la
+    // déconnexion, une réponse en vol repeuplerait le bandeau après coup.
+    let cancelled = false
 
     const load = async () => {
+      if (!user) { if (!cancelled) setDaysLeft(null); return }
+
       const { data } = await supabase
         .from('pack_purchases')
         .select('expires_at, credits_remaining, pack_type:pack_types!inner(is_trial)')
@@ -37,6 +41,7 @@ export function TrialCreditBanner({ className }: { className?: string }) {
         .gt('expires_at', new Date().toISOString())
         .maybeSingle()
 
+      if (cancelled) return
       if (!data) { setDaysLeft(null); return }
 
       const ms = new Date((data as { expires_at: string }).expires_at).getTime() - Date.now()
@@ -44,6 +49,7 @@ export function TrialCreditBanner({ className }: { className?: string }) {
     }
 
     load()
+    return () => { cancelled = true }
   }, [user])
 
   if (daysLeft === null) return null

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { NoCreditsDialog, type NoCreditsReason } from '@/components/common/NoCreditsDialog'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -116,6 +117,12 @@ export function SchedulePage() {
   // Le crédit d'essai encore disponible, s'il existe. Sert à proposer l'essai
   // et à afficher jusqu'à quand il reste valable.
   const [trialCredit, setTrialCredit] = useState<{ id: string; expires_at: string } | null>(null)
+  // Réservation refusée faute de crédit : on propose l'achat sur place.
+  const [noCredits, setNoCredits] = useState<{
+    reason: NoCreditsReason
+    creditTypeId: string | null
+    creditTypeLabel: string | null
+  } | null>(null)
   /** Minimum d'inscrits pour qu'un cours compte comme donné (Réglages). */
   const [minParticipants, setMinParticipants] = useState(1)
   /** Cours que le staff a choisi de maintenir : retirés du bandeau de revue. */
@@ -347,17 +354,14 @@ export function SchedulePage() {
         ? scheduledClass.class_type.credit_type?.label_fr
         : scheduledClass.class_type.credit_type?.label_en
 
-      if (sameTypeExhausted) {
-        toast.error(isFr
-          ? `Tes crédits « ${typeLabel} » sont épuisés pour cette période.`
-          : `Your "${typeLabel}" credits are used up for this period.`)
-      } else if (otherTypeAvailable.length > 0) {
-        toast.error(isFr
-          ? `Ce cours demande un crédit « ${typeLabel} ». Tes packs en cours ne couvrent pas ce type de séance.`
-          : `This class needs a "${typeLabel}" credit. Your current packs don't cover this type of session.`)
-      } else {
-        toast.error(t('schedule.noCredits'))
-      }
+      // Un toast laissait le membre chercher seul le chemin vers les packs.
+      // C'est pourtant l'instant où l'intention d'achat est la plus forte : on
+      // lui propose directement les formules qui débloquent CE cours.
+      setNoCredits({
+        reason: sameTypeExhausted ? 'exhausted' : otherTypeAvailable.length > 0 ? 'wrong_type' : 'none',
+        creditTypeId: requiredType,
+        creditTypeLabel: typeLabel ?? null,
+      })
       setBookingInProgress(null)
       return
     }
@@ -450,7 +454,19 @@ export function SchedulePage() {
     if (!scheduledClass?.class_type) { setBookingInProgress(null); return }
     if (new Date(scheduledClass.starts_at) < new Date()) { toast.error(isFr ? 'Ce cours est déjà passé' : 'This class has already passed'); setBookingInProgress(null); return }
     const { data: credits } = await supabase.rpc('get_available_credits', { p_user_id: user.id, p_credit_type_id: scheduledClass.class_type.credit_type_id })
-    if (!credits || credits.length === 0) { toast.error(t('schedule.noCredits')); setBookingInProgress(null); return }
+    // La place offerte expire : c'est l'endroit où laisser le membre sans
+    // solution coûte le plus cher. On propose l'achat immédiatement.
+    if (!credits || credits.length === 0) {
+      setNoCredits({
+        reason: 'none',
+        creditTypeId: scheduledClass.class_type.credit_type_id,
+        creditTypeLabel: (isFr
+          ? scheduledClass.class_type.credit_type?.label_fr
+          : scheduledClass.class_type.credit_type?.label_en) ?? null,
+      })
+      setBookingInProgress(null)
+      return
+    }
     const packPurchaseId = credits[0].pack_purchase_id
 
     const { data: reactivated } = await supabase
@@ -1536,6 +1552,15 @@ export function SchedulePage() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Pas de crédit pour ce cours : proposer l'achat sans quitter le contexte */}
+      <NoCreditsDialog
+        open={!!noCredits}
+        onOpenChange={(open) => { if (!open) setNoCredits(null) }}
+        reason={noCredits?.reason ?? 'none'}
+        creditTypeId={noCredits?.creditTypeId ?? null}
+        creditTypeLabel={noCredits?.creditTypeLabel ?? null}
+      />
 
       {/* Class Detail Dialog (coach/admin) */}
       {isStaff && (
