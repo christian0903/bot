@@ -1,21 +1,114 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-06**
+> Dernière mise à jour : **2026-08-07**
 
 ---
 
 ## Où en est le projet
 
-**Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.16.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
+**Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.36.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
 
 **Phase 11** (admin avancé) : **largement livrée** — rôles, statuts de cours, espace coach autonome.
-**Phase 12** (abonnements récurrents) : **livrée et éprouvée en test**. Pont Stripe opérationnel, écrans client et studio en place.
-**Parrainage & bons d'achat** : **livré, non testé de bout en bout**.
-**Phase 13** (RGPD & sécurité) : non entamée.
+**Phase 12** (abonnements récurrents) : **livrée et éprouvée**. Renouvellement vérifié au *test clock* Stripe le 2026-08-07.
+**Séance d'essai** : **livrée** — vrai pack gratuit attribué à l'inscription (2026-08-07).
+**Communications** : **livrées** — tout e-mail laisse une trace dans l'application.
+**Parrainage & bons d'achat** : livré, **toujours non testé de bout en bout**.
+**Performances** : étapes 1 et 2 livrées (valeurs comparables, courbes). Paliers et régularité à faire.
+**Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter.
 **Rémunération des coachs** : reportée — module à part, la gestion se fait hors application (décision du 2026-08-06).
 
 L'application tourne sur **Stripe** — la migration vers Mollie prévue au plan a été abandonnée le 2026-08-03.
+
+Une version de test tourne sur iPhone depuis le 2026-08-07 (signature de développement, valable 7 jours).
+
+---
+
+## Session du 2026-08-07
+
+20 commits (v2.17.0 → v2.36.0), tous poussés. Journée nourrie par les retours de **deux coachs**, l'un récent, l'autre plus ancien.
+
+### Le fil rouge — ce que le code promet, ce que la base fait
+
+Quatre bugs distincts, une même forme : **le code croyait avoir écrit, la base disait non, et personne n'écoutait**. Aucun ne se voyait à l'écran.
+
+| Symptôme | Cause réelle |
+|---|---|
+| Le cours d'essai n'apparaît nulle part | Écrit dans `trial_sessions`, une table que les écrans ne lisent pas |
+| L'abonnement paraît échu le jour même | `invoice.period_*` date la **facture**, pas le cycle d'abonnement |
+| Bouton « Annuler » sur une réservation déjà annulée | `cancel_booking_v2` renvoie son refus **dans** son retour, sans lever d'erreur |
+| Le webhook rejette tout pendant une heure | `--no-verify-jwt` perdu au redéploiement |
+
+Le troisième cas est le plus instructif : `error` restait `null`, le code passait dans la branche de succès, l'écran affichait « annulée » — alors que rien n'avait bougé. **Tester le retour autant que `error`** est désormais consigné dans la documentation technique.
+
+### La séance d'essai devient une vraie réservation
+
+Elle était écrite dans une table à part que ni « Mes réservations », ni l'accueil, **ni la liste de présence du coach** ne consultaient. Des personnes étaient attendues au studio sans que personne ne le sache.
+
+La cause était structurelle : `bookings.pack_purchase_id` était `NOT NULL`, et un essai n'a pas de pack derrière lui. `trial_sessions` contournait l'obstacle, au prix d'une seconde source de vérité.
+
+L'essai est maintenant un **vrai pack** — gratuit, hors catalogue, attribué à la création du profil. Il produit une réservation ordinaire, donc visible partout sans qu'aucun écran soit modifié. `trial_sessions` est supprimée : garder deux systèmes aurait recréé la divergence.
+
+> Décisions : semi-privé uniquement, 30 jours configurables, nouveaux profils seulement.
+
+### Les communications remontent sur l'accueil
+
+Un audit des 14 points d'envoi d'e-mail a montré que **6 ne laissaient aucune trace** dans l'application — or tout le monde ne lit pas ses e-mails.
+
+Un bloc en tête d'accueil rassemble désormais tout : la séance d'essai en avant, puis les communications reçues, lu et non lu distingués, écartables à l'unité pour ne pas saturer la page.
+
+Le helper `notifyMember` inverse l'ordre : **la notification part toujours, l'e-mail n'est qu'un rappel**. C'est le contraire de ce qui se faisait — l'e-mail était le canal principal et la notification un ajout écrit à la main juste à côté, d'où les six oublis.
+
+> Écarter n'est pas supprimer. `dismissed_at` retire la ligne de l'écran du membre mais la conserve : en cas de contestation (« je n'ai jamais été prévenu »), elle prouve la transmission.
+
+### Deux e-mails qui manquaient vraiment
+
+**« Place disponible »** offre une place qui expire en **deux heures**, et n'existait qu'en notification : il fallait que le membre ouvre l'application par hasard dans ce créneau. **« Paiement refusé »** lui faisait risquer de perdre son abonnement sans le savoir.
+
+L'offre naît dans une fonction SQL, qui ne peut pas appeler d'Edge Function. D'où une file `email_queue` : la fonction dépose, une fonction dédiée envoie. Le passage par une table rend l'envoi **ré-essayable** — un e-mail qui échoue reste visible au lieu d'être perdu.
+
+Découvert au passage : `send-email` **refusait les appels serveur-à-serveur**. Elle exigeait un utilisateur authentifié, or le webhook se présente avec la clé de service, qui ne correspond à personne. Les deux e-mails ne seraient jamais partis.
+
+### Le renouvellement d'abonnement, éprouvé
+
+*Test clock* Stripe sur 28 jours : souscription, avance du temps, renouvellement. **Le mécanisme est sain** — seconde facture émise et payée, cycle crédité.
+
+Mais le test a trouvé deux défauts réels :
+
+1. **Le webhook rejetait tout depuis une heure** (401). Le déploiement du correctif de cycle avait remis `verify_jwt` à `true`. Entre 11 h et midi, tout paiement aurait été encaissé sans rien créditer — panne totalement silencieuse.
+2. **Les crédits d'un renouvellement expiraient avant leur propre cycle** : `expires_at` était calculé depuis l'heure du serveur au lieu de la période facturée.
+
+Un troisième défaut avait été trouvé juste avant, en cherchant pourquoi un abonnement paraissait échu : `invoicePeriod` lisait `invoice.period_start/end`, qui datent la **facture** et non le cycle. Sur une souscription, les deux valent l'instant d'émission — on enregistrait donc une période de durée nulle. Conséquence plus grave que l'affichage : à la résiliation, `endedEarly` était toujours faux, donc une résiliation immédiate ne clôturait pas les packs.
+
+### Performances — rendre les valeurs comparables, puis tracer
+
+Le coach demandait des graphiques. L'obstacle n'était pas technique — Recharts était déjà installé — mais dans les données : `value` est un texte libre où trois choses se mélangeaient. Sur 57 valeurs saisies, **2 seulement** étaient des nombres purs.
+
+Deux informations manquaient, décidées au niveau du **mouvement** : la nature de la mesure (charge, temps, répétitions, distance) et le sens du progrès. Pour une charge, monter c'est mieux ; pour un chrono, descendre. Les deux sont indépendants — un gainage se mesure en temps et s'améliore en montant.
+
+`value_num` porte la valeur en unité canonique, `value` reste le texte affiché ; les deux sont posés ensemble, donc ne divergent jamais. La saisie est contrainte : deux champs min/sec pour un chrono, un champ chiffré pour une charge.
+
+Les courbes suivent : historique complet, record marqué, progression annoncée en clair (« +25 kg depuis mars »), et **axe inversé sur un chrono** pour que « ça monte » veuille toujours dire « je progresse ».
+
+### Le reste
+
+**Conditions générales** — page publique `/cgv`, contenu dans `public/cgv.md` éditable sans développeur. L'inscription **exigeait** déjà de les accepter et enregistrait la date, mais aucune page ne les présentait : le membre cochait une case pour un document inexistant. L'article 1 sur l'assurance est rédigé et applicable ; le reste attend le contenu du studio.
+
+**Réseaux sociaux** — sept liens configurables, affichés sur les deux accueils. Instagram, Facebook et le site web existaient déjà dans les Réglages mais n'étaient affichés nulle part.
+
+**Planning** — bouton « Aujourd'hui » (il existait, mais caché derrière la plage de dates), passé masqué aux clients, crédits restants visibles.
+
+**Mes réservations** — liste strictement chronologique, pack rappelé sur chaque ligne. Le regroupement par pack dispersait les dates : une séance pouvait passer inaperçue sous un pack plus bas dans la page.
+
+**Inscription** — un écran de confirmation remplace le message fugace. Le membre voyait un toast de quelques secondes puis retombait sur la connexion, essayait de se connecter, échouait, et concluait à une panne.
+
+### Documentation et outillage
+
+`install.sql` avait pris du retard sur toute la journée : une table, cinq fonctions, un trigger, quatre colonnes, deux index et un réglage manquaient. Remis à niveau, vérifié objet par objet contre la base — 25 tables, 42 fonctions, aucun écart.
+
+> **Règle posée** : toute migration se reporte dans `install.sql` **au même commit**. Le rattrapage différé a échoué deux jours de suite.
+
+`check-schema.sql` et `check-policies.sql` couvrent désormais les objets du jour. L'audit des policies signalait 13 manques — après vérification, **aucun n'était réel** : trois tables avaient des policies renommées, et `user_roles` n'a volontairement que des policies de lecture depuis le durcissement du 6 août.
 
 ---
 
