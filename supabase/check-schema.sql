@@ -88,6 +88,12 @@ FROM (
   UNION ALL SELECT 'Func: decline_modified_booking', EXISTS(SELECT 1 FROM pg_proc WHERE proname='decline_modified_booking')
   UNION ALL SELECT 'RLS: email_queue', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='email_queue' AND rowsecurity=true)
 
+  -- PERFORMANCES MESURABLES (2026-08-07)
+  UNION ALL SELECT 'Col: performance_types.measure_kind', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='performance_types' AND column_name='measure_kind')
+  UNION ALL SELECT 'Col: performance_types.lower_is_better', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='performance_types' AND column_name='lower_is_better')
+  UNION ALL SELECT 'Col: performances.value_num', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='performances' AND column_name='value_num')
+  UNION ALL SELECT 'Func: parse_performance_value', EXISTS(SELECT 1 FROM pg_proc WHERE proname='parse_performance_value')
+
   -- RLS
   UNION ALL SELECT 'RLS: profiles', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='profiles' AND rowsecurity=true)
   UNION ALL SELECT 'RLS: bookings', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='bookings' AND rowsecurity=true)

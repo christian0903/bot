@@ -442,7 +442,14 @@ CREATE TABLE performance_types (
   color TEXT,
   display_order INTEGER NOT NULL DEFAULT 0,
   archived BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Nature de la mesure : commande la forme du formulaire (deux champs
+  -- min/sec pour un temps, un champ chiffré pour une charge) et l'affichage.
+  measure_kind TEXT NOT NULL DEFAULT 'number'
+    CHECK (measure_kind IN ('weight', 'time', 'reps', 'distance', 'number')),
+  -- TRUE quand descendre est un progrès (chrono). Indépendant de
+  -- `measure_kind` : un gainage se mesure en temps et s'améliore en montant.
+  lower_is_better BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Entrées de performances par utilisateur
@@ -451,13 +458,57 @@ CREATE TABLE performances (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   performance_type_id UUID NOT NULL REFERENCES performance_types(id) ON DELETE RESTRICT,
   date DATE NOT NULL,
+  -- Ce que le membre voit : « 1:55 », « 50 kg ». Reste la source affichée.
   value TEXT NOT NULL,
+  -- La même valeur en nombre, unité canonique : kg, SECONDES, répétitions,
+  -- mètres. NULL si la saisie est ininterprétable — la ligne reste lisible,
+  -- elle est simplement absente des courbes et des records.
+  value_num NUMERIC,
   notes TEXT,
   created_by UUID REFERENCES auth.users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_performances_user_date ON performances(user_id, date DESC);
 CREATE INDEX idx_performances_type ON performances(performance_type_id);
+-- Série d'un membre sur un mouvement : la requête des courbes.
+CREATE INDEX performances_user_type_date
+  ON performances (user_id, performance_type_id, date)
+  WHERE value_num IS NOT NULL;
+
+-- Convertit une saisie libre en nombre (secondes pour un temps). Renvoie NULL
+-- si la valeur est ininterprétable : mieux vaut un point manquant qu'un point
+-- faux. Sert au rattrapage de l'existant ; la saisie courante produit
+-- directement les deux formes.
+CREATE OR REPLACE FUNCTION parse_performance_value(p_value TEXT, p_kind TEXT)
+RETURNS NUMERIC
+LANGUAGE plpgsql
+IMMUTABLE
+AS $fn$
+DECLARE
+  v_clean TEXT;
+  v_parts TEXT[];
+BEGIN
+  IF p_value IS NULL THEN RETURN NULL; END IF;
+
+  v_clean := trim(replace(p_value, ',', '.'));
+
+  IF v_clean ~ '^[0-9]+:[0-5][0-9]$' THEN
+    v_parts := string_to_array(v_clean, ':');
+    RETURN v_parts[1]::NUMERIC * 60 + v_parts[2]::NUMERIC;
+  END IF;
+
+  IF v_clean ~ '^[0-9]+:[0-5][0-9]:[0-5][0-9]$' THEN
+    v_parts := string_to_array(v_clean, ':');
+    RETURN v_parts[1]::NUMERIC * 3600 + v_parts[2]::NUMERIC * 60 + v_parts[3]::NUMERIC;
+  END IF;
+
+  IF v_clean ~ '^[0-9]+(\.[0-9]+)?\s*[a-zA-Z]*$' THEN
+    RETURN (regexp_match(v_clean, '^([0-9]+(?:\.[0-9]+)?)'))[1]::NUMERIC;
+  END IF;
+
+  RETURN NULL;
+END;
+$fn$;
 
 -- ============================================
 -- Parrainage et bons d'achat

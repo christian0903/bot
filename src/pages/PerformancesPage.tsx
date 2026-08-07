@@ -82,9 +82,17 @@ export function PerformancesPage() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Performance | null>(null)
+  /** Chrono saisi en deux champs : « 1:55 » ne se tape plus à la main. */
+  const [timeMin, setTimeMin] = useState('')
+  const [timeSec, setTimeSec] = useState('')
 
   const [period, setPeriod] = useState<Period>('week')
   const [anchorDate, setAnchorDate] = useState<Date>(new Date())
+
+  /** Nature du mouvement en cours de saisie : commande la forme du formulaire. */
+  const formKind = types.find(t => t.id === form.performance_type_id)?.measure_kind ?? 'number'
+  /** Unité affichée à côté du champ. Vient du type, jamais de la frappe. */
+  const selectedUnit = types.find(t => t.id === form.performance_type_id)?.unit_hint ?? ''
 
   const fetchData = async () => {
     if (!user) return
@@ -213,6 +221,8 @@ export function PerformancesPage() {
 
   const openCreate = () => {
     setEditing(null)
+    setTimeMin('')
+    setTimeSec('')
     setForm({
       ...emptyForm,
       performance_type_id: activeTypes[0]?.id ?? '',
@@ -223,10 +233,32 @@ export function PerformancesPage() {
 
   const openEdit = (p: Performance) => {
     setEditing(p)
+    const kind = types.find(t => t.id === p.performance_type_id)?.measure_kind ?? 'number'
+
+    if (kind === 'time') {
+      // On repart du nombre quand il existe : le texte a pu être saisi dans
+      // l'ancien format libre, et n'est pas toujours redécoupable.
+      const total = p.value_num ?? null
+      if (total !== null) {
+        setTimeMin(String(Math.floor(total / 60)))
+        setTimeSec(String(Math.round(total % 60)).padStart(2, '0'))
+      } else {
+        const m = p.value.match(/^(\d+):([0-5]\d)$/)
+        setTimeMin(m?.[1] ?? '')
+        setTimeSec(m?.[2] ?? '')
+      }
+    } else {
+      setTimeMin('')
+      setTimeSec('')
+    }
+
     setForm({
       performance_type_id: p.performance_type_id,
       date: p.date,
-      value: p.value,
+      // Le champ numérique n'accepte pas « 50 kg » : on lui donne le nombre.
+      value: p.value_num !== null && p.value_num !== undefined
+        ? String(p.value_num)
+        : p.value.replace(/[^\d.,]/g, '').replace(',', '.'),
       notes: p.notes ?? '',
     })
     setDialogOpen(true)
@@ -238,15 +270,45 @@ export function PerformancesPage() {
       toast.error(isFr ? 'Choisis un type' : 'Pick a type')
       return
     }
-    if (!form.value.trim()) {
-      toast.error(isFr ? 'La valeur est requise' : 'Value is required')
-      return
+
+    // Deux formes produites ensemble : le texte, lisible et affiché tel quel,
+    // et le nombre, qui sert aux courbes et aux records. Les calculer ici
+    // garantit qu'ils ne divergent jamais.
+    let valueText: string
+    let valueNum: number | null
+
+    if (formKind === 'time') {
+      const m = parseInt(timeMin || '0', 10)
+      const s = parseInt(timeSec || '0', 10)
+      if (Number.isNaN(m) || Number.isNaN(s) || (m === 0 && s === 0)) {
+        toast.error(isFr ? 'Indique un temps' : 'Enter a time')
+        return
+      }
+      if (s > 59) {
+        toast.error(isFr ? 'Les secondes vont de 0 à 59' : 'Seconds must be 0–59')
+        return
+      }
+      valueNum = m * 60 + s
+      valueText = `${m}:${String(s).padStart(2, '0')}`
+    } else {
+      const raw = form.value.trim().replace(',', '.')
+      const n = Number(raw)
+      if (!raw || Number.isNaN(n) || n < 0) {
+        toast.error(isFr ? 'Indique une valeur chiffrée' : 'Enter a numeric value')
+        return
+      }
+      valueNum = n
+      // L'unité vient du type, jamais de la frappe : c'est ce mélange qui
+      // rendait « 50 kg », « 6kg » et « 22,5 » incomparables.
+      valueText = selectedUnit ? `${raw} ${selectedUnit}` : raw
     }
+
     setSaving(true)
     const payload = {
       performance_type_id: form.performance_type_id,
       date: form.date,
-      value: form.value.trim(),
+      value: valueText,
+      value_num: valueNum,
       notes: form.notes.trim() || null,
     }
     const { error } = editing
@@ -505,18 +567,56 @@ export function PerformancesPage() {
                   onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1">
-                <Label>{isFr ? 'Valeur' : 'Value'}</Label>
-                <Input
-                  value={form.value}
-                  onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
-                  placeholder={
-                    activeTypes.find(t => t.id === form.performance_type_id)?.unit_hint
-                      ? `ex: 13 ${activeTypes.find(t => t.id === form.performance_type_id)?.unit_hint}`
-                      : 'ex: 13 kg, 3:42, 1500m'
-                  }
-                />
-              </div>
+              {/* La saisie suit la nature du mouvement. Le champ libre
+                  precedent invitait a melanger les formats — son placeholder
+                  proposait « 13 kg, 3:42, 1500m » — et 55 valeurs sur 57 sont
+                  devenues incomparables. Un chrono se saisit en deux champs,
+                  une charge en nombre : le format n'est plus une question. */}
+              {formKind === 'time' ? (
+                <div className="space-y-1">
+                  <Label>{isFr ? 'Temps' : 'Time'}</Label>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      inputMode="numeric"
+                      className="text-center"
+                      value={timeMin}
+                      onChange={e => setTimeMin(e.target.value)}
+                      placeholder="min"
+                      aria-label={isFr ? 'Minutes' : 'Minutes'}
+                    />
+                    <span className="text-muted-foreground font-medium">:</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={59}
+                      inputMode="numeric"
+                      className="text-center"
+                      value={timeSec}
+                      onChange={e => setTimeSec(e.target.value)}
+                      placeholder="sec"
+                      aria-label={isFr ? 'Secondes' : 'Seconds'}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Label>
+                    {isFr ? 'Valeur' : 'Value'}
+                    {selectedUnit && <span className="text-muted-foreground font-normal"> ({selectedUnit})</span>}
+                  </Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.5"
+                    inputMode="decimal"
+                    value={form.value}
+                    onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
+                    placeholder={formKind === 'weight' ? '50' : '10'}
+                  />
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <Label>{isFr ? 'Notes (optionnel)' : 'Notes (optional)'}</Label>

@@ -329,6 +329,13 @@ export interface PerformanceType {
   display_order: number
   archived: boolean
   created_at: string
+  /** Nature de la mesure : commande la forme du formulaire et l'affichage. */
+  measure_kind: 'weight' | 'time' | 'reps' | 'distance' | 'number'
+  /**
+   * TRUE quand descendre est un progrès (chrono). Indépendant de
+   * `measure_kind` : un gainage se mesure en temps et s'améliore en montant.
+   */
+  lower_is_better: boolean
 }
 
 export interface Performance {
@@ -336,7 +343,14 @@ export interface Performance {
   user_id: string
   performance_type_id: string
   date: string
+  /** Ce que le coach voit : « 1:55 », « 50 kg ». Source de vérité affichée. */
   value: string
+  /**
+   * La même valeur en nombre, unité canonique (kg, SECONDES, reps, mètres).
+   * `null` quand la saisie d'origine était ininterprétable : la ligne reste
+   * lisible, elle est simplement absente des courbes.
+   */
+  value_num: number | null
   notes: string | null
   created_by: string | null
   created_at: string
