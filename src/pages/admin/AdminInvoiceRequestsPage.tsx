@@ -22,8 +22,9 @@ export function AdminInvoiceRequestsPage() {
   const [loading, setLoading] = useState(true)
   // L'argent d'abord : « impayée » est la question qui compte, pas « traitée ».
   const [filter, setFilter] = useState<'unpaid' | 'paid' | 'all'>('unpaid')
-  /** Numéro de facture saisi avant de pointer le règlement. */
-  const [invoiceNumbers, setInvoiceNumbers] = useState<Record<string, string>>({})
+  /** Saisie en cours par facture : numéro et date, tels qu'Odoo les a attribués. */
+  const [drafts, setDrafts] = useState<Record<string, { number: string; date: string }>>({})
+  const [savingDetails, setSavingDetails] = useState<string | null>(null)
   const [markingPaid, setMarkingPaid] = useState<string | null>(null)
 
   const fetchRequests = async () => {
@@ -74,6 +75,45 @@ export function AdminInvoiceRequestsPage() {
   useEffect(() => { fetchRequests() }, [filter])
 
   /**
+   * Enregistre le numéro et la date de la facture émise dans Odoo.
+   *
+   * Séparé de l'encaissement : le numéro est connu dès l'émission, souvent
+   * des semaines avant le règlement. Les confondre obligeait à attendre le
+   * paiement pour noter une information déjà disponible.
+   */
+  const handleSaveDetails = async (id: string) => {
+    const draft = drafts[id]
+    if (!draft?.number?.trim()) {
+      toast.error(isFr ? 'Le numéro de facture est requis' : 'Invoice number is required')
+      return
+    }
+    setSavingDetails(id)
+    const { data, error } = await supabase.rpc('set_invoice_details', {
+      p_invoice_id: id,
+      p_invoice_number: draft.number.trim(),
+      p_invoice_date: draft.date || null,
+    })
+    setSavingDetails(null)
+
+    if (error) { toast.error(error.message); return }
+
+    const res = data as { ok: boolean; reason?: string } | null
+    if (!res?.ok) {
+      const messages: Record<string, string> = {
+        duplicate_number: isFr
+          ? 'Ce numéro de facture existe déjà.'
+          : 'This invoice number already exists.',
+        number_required: isFr ? 'Le numéro est requis.' : 'Number is required.',
+      }
+      toast.error(messages[res?.reason ?? ''] ?? (isFr ? 'Enregistrement impossible' : 'Save failed'))
+      return
+    }
+
+    toast.success(isFr ? 'Facture enregistrée' : 'Invoice details saved')
+    fetchRequests()
+  }
+
+  /**
    * Pointe une facture comme encaissée.
    *
    * Sans effet sur les crédits : ils ont été donnés à la commande. Ce geste ne
@@ -84,7 +124,7 @@ export function AdminInvoiceRequestsPage() {
     setMarkingPaid(id)
     const { data, error } = await supabase.rpc('mark_invoice_paid', {
       p_invoice_id: id,
-      p_invoice_number: invoiceNumbers[id]?.trim() || null,
+      p_invoice_number: null,
     })
     setMarkingPaid(null)
 
@@ -190,19 +230,54 @@ export function AdminInvoiceRequestsPage() {
                   )}
                 </div>
 
-                {!isPaid && (
-                  <div className="flex items-end gap-2 pt-2 border-t">
-                    <div className="flex-1 max-w-[220px]">
-                      <label className="text-xs text-muted-foreground">
-                        {isFr ? 'N° de facture (optionnel)' : 'Invoice number (optional)'}
-                      </label>
-                      <Input
-                        className="h-8 text-sm"
-                        value={invoiceNumbers[req.id] ?? ''}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInvoiceNumbers(prev => ({ ...prev, [req.id]: e.target.value }))}
-                        placeholder="2026-001"
-                      />
+                {/* Deux gestes distincts, dans l'ordre du circuit réel :
+                    la facture est émise dans Odoo (numéro + date), puis elle
+                    est encaissée — parfois des semaines plus tard. Les
+                    confondre obligeait à attendre le règlement pour noter un
+                    numéro déjà connu. */}
+                <div className="space-y-2 pt-2 border-t">
+                  <div className="flex items-end gap-2 flex-wrap">
+                      <div className="flex-1 min-w-[140px] max-w-[200px]">
+                        <label className="text-xs text-muted-foreground">
+                          {isFr ? 'N° de facture (Odoo)' : 'Invoice number (Odoo)'}
+                        </label>
+                        <Input
+                          className="h-8 text-sm"
+                          value={drafts[req.id]?.number ?? req.invoice_number ?? ''}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDrafts(prev => ({
+                            ...prev,
+                            [req.id]: { ...(prev[req.id] ?? { number: '', date: '' }), number: e.target.value },
+                          }))}
+                          placeholder="2026-001"
+                        />
+                      </div>
+                      <div className="w-[150px]">
+                        <label className="text-xs text-muted-foreground">
+                          {isFr ? 'Date de facture' : 'Invoice date'}
+                        </label>
+                        <Input
+                          type="date"
+                          className="h-8 text-sm"
+                          value={drafts[req.id]?.date ?? req.invoice_date ?? ''}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDrafts(prev => ({
+                            ...prev,
+                            [req.id]: { ...(prev[req.id] ?? { number: '', date: '' }), date: e.target.value },
+                          }))}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSaveDetails(req.id)}
+                        disabled={savingDetails === req.id}
+                      >
+                        {savingDetails === req.id
+                          ? '...'
+                          : (isFr ? 'Enregistrer' : 'Save')}
+                      </Button>
                     </div>
+
+                  {!isPaid && (
                     <Button
                       size="sm"
                       onClick={() => handleMarkPaid(req.id)}
@@ -213,8 +288,8 @@ export function AdminInvoiceRequestsPage() {
                         ? '...'
                         : (isFr ? 'Marquer payée' : 'Mark paid')}
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t flex-wrap">
                   <span>{isFr ? 'Membre' : 'Member'}: <span className="font-medium">{req.user?.display_name}</span> ({req.user?.email})</span>

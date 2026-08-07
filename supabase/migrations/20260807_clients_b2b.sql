@@ -39,3 +39,12 @@ CREATE INDEX IF NOT EXISTS invoice_requests_unpaid
 -- Les fonctions order_pack_on_invoice et mark_invoice_paid sont définies dans
 -- install.sql — elles y ont été portées au même commit, selon la règle du
 -- 2026-08-07.
+
+-- Numéro et date de facture (ajout du 2026-08-07, après retour d'usage).
+-- La comptabilité est tenue dans Odoo : ces informations y sont attribuées à
+-- l'ÉMISSION, souvent des semaines avant l'encaissement. Elles se saisissent
+-- donc à tout moment, indépendamment du pointage du règlement.
+ALTER TABLE invoice_requests ADD COLUMN IF NOT EXISTS invoice_date DATE;
+CREATE UNIQUE INDEX IF NOT EXISTS invoice_requests_number
+  ON invoice_requests (invoice_number) WHERE invoice_number IS NOT NULL;
+-- Fonction set_invoice_details : voir install.sql.

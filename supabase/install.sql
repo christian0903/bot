@@ -442,6 +442,10 @@ CREATE TABLE invoice_requests (
   -- effet sur les crédits : ils sont donnés dès la commande.
   paid_at TIMESTAMPTZ,
   invoice_number TEXT,
+  -- Date de la facture émise dans Odoo, où la comptabilité est tenue.
+  -- Distincte de created_at (la commande) et de paid_at (l'encaissement) :
+  -- le numéro est connu bien avant le règlement.
+  invoice_date DATE,
   pack_purchase_id UUID REFERENCES pack_purchases(id),
   company_name TEXT NOT NULL,
   address TEXT NOT NULL,
@@ -1488,6 +1492,54 @@ GRANT EXECUTE ON FUNCTION mark_invoice_paid(UUID, TEXT) TO authenticated;
 CREATE INDEX IF NOT EXISTS invoice_requests_unpaid
   ON invoice_requests (created_at)
   WHERE paid_at IS NULL AND status <> 'cancelled';
+
+
+-- Enregistre le numéro et la date de la facture émise dans Odoo. Séparé de
+-- l'encaissement : ces informations sont connues dès l'émission, souvent des
+-- semaines avant le paiement.
+CREATE OR REPLACE FUNCTION set_invoice_details(
+  p_invoice_id UUID,
+  p_invoice_number TEXT,
+  p_invoice_date DATE DEFAULT NULL
+)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+    RAISE EXCEPTION 'Reserve aux administrateurs';
+  END IF;
+
+  IF COALESCE(trim(p_invoice_number), '') = '' THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'number_required');
+  END IF;
+
+  UPDATE invoice_requests
+     SET invoice_number = trim(p_invoice_number),
+         invoice_date = COALESCE(p_invoice_date, CURRENT_DATE),
+         status = CASE WHEN paid_at IS NULL THEN 'sent' ELSE status END
+   WHERE id = p_invoice_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
+  END IF;
+
+  RETURN jsonb_build_object('ok', true);
+EXCEPTION WHEN unique_violation THEN
+  -- Un numéro est unique par construction comptable : le dupliquer signale
+  -- une erreur de saisie, pas une situation valable.
+  RETURN jsonb_build_object('ok', false, 'reason', 'duplicate_number');
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION set_invoice_details(UUID, TEXT, DATE) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION set_invoice_details(UUID, TEXT, DATE) TO authenticated;
+
+CREATE UNIQUE INDEX IF NOT EXISTS invoice_requests_number
+  ON invoice_requests (invoice_number)
+  WHERE invoice_number IS NOT NULL;
 
 -- Phase 4 : Vérifier si un membre peut réserver
 CREATE OR REPLACE FUNCTION can_book_class(p_class_id UUID, p_user_id UUID)

@@ -283,6 +283,8 @@ export interface InvoiceRequest {
   /** Encaissement pointé à la main. NULL = en attente. Sans effet sur les crédits. */
   paid_at: string | null
   invoice_number: string | null
+  /** Date de la facture émise dans Odoo. Distincte de la commande et du paiement. */
+  invoice_date: string | null
   created_at: string
   processed_at: string | null
   pack_purchase?: PackPurchase
