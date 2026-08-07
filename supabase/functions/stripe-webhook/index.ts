@@ -97,9 +97,20 @@ function invoicePeriod(invoice: Stripe.Invoice): { start: string | null; end: st
     return Number.isNaN(d.getTime()) ? null : d.toISOString()
   }
 
+  // La LIGNE d'abord, la racine seulement en secours.
+  //
+  // `invoice.period_start` / `period_end` datent la FACTURE, pas le cycle
+  // d'abonnement : sur une souscription, les deux valent l'instant d'émission.
+  // Les lire en priorité enregistrait donc une période de durée nulle —
+  // `current_period_end` figé au jour de la souscription. L'abonnement
+  // paraissait échu le jour même, alors que Stripe le renouvelait normalement
+  // 28 jours plus tard.
+  //
+  // Le piège est que `??` ne bascule que sur null/undefined : `period_end`
+  // étant un nombre valide, la ligne n'était jamais consultée.
   return {
-    start: toIso(inv.period_start ?? line?.period?.start),
-    end: toIso(inv.period_end ?? line?.period?.end),
+    start: toIso(line?.period?.start ?? inv.period_start),
+    end: toIso(line?.period?.end ?? inv.period_end),
   }
 }
 
