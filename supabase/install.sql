@@ -360,13 +360,12 @@ CREATE TABLE registration_fees (
 );
 
 -- Phase 3 : Séances d'essai
-CREATE TABLE trial_sessions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  scheduled_class_id UUID REFERENCES scheduled_classes(id),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id)
-);
+--
+-- La table `trial_sessions` a été supprimée le 2026-08-07. Une séance d'essai
+-- est désormais une réservation ordinaire (bookings.is_trial), payée par le
+-- crédit du pack d'essai offert à l'inscription. Elle tenait un compte séparé
+-- de `bookings`, si bien que l'essai n'apparaissait ni dans « Mes réservations »
+-- ni sur la liste de présence du coach.
 
 -- Phase 9 : Demandes de factures
 CREATE TABLE invoice_requests (
@@ -668,11 +667,16 @@ AS $$
 $$;
 
 -- Phase 3 : Vérifier séance d'essai
+-- L'essai consommé se lit sur la réservation : une seule source de vérité.
 CREATE OR REPLACE FUNCTION has_used_trial(p_user_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql SECURITY DEFINER STABLE
+SET search_path = public
 AS $$
-  SELECT EXISTS (SELECT 1 FROM trial_sessions WHERE user_id = p_user_id);
+  SELECT EXISTS (
+    SELECT 1 FROM bookings
+    WHERE user_id = p_user_id AND is_trial AND status = 'confirmed'
+  );
 $$;
 
 -- Phase 4 : Vérifier si un membre peut réserver
@@ -1304,9 +1308,10 @@ BEGIN
   DELETE FROM pack_purchases WHERE user_id = p_user_id;
   DELETE FROM subscriptions WHERE user_id = p_user_id;
   DELETE FROM registration_fees WHERE user_id = p_user_id;
-  DELETE FROM trial_sessions WHERE user_id = p_user_id;
 
   PERFORM update_member_status(p_user_id);
+  -- Remis à zéro veut dire remis à neuf : la séance d'essai revient.
+  PERFORM grant_trial_pack(p_user_id);
 
   RETURN jsonb_build_object(
     'bookings', v_bookings,
@@ -1689,7 +1694,6 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registration_fees ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trial_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_requests ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE subscriptions          ENABLE ROW LEVEL SECURITY;
@@ -1800,10 +1804,8 @@ CREATE POLICY "Reg fees: admin read" ON registration_fees FOR SELECT USING (has_
 CREATE POLICY "Reg fees: insert" ON registration_fees FOR INSERT WITH CHECK (true);
 CREATE POLICY "Reg fees: admin all" ON registration_fees FOR ALL USING (has_role(auth.uid(), 'admin'));
 
--- TRIAL_SESSIONS
-CREATE POLICY "Trial: own read" ON trial_sessions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Trial: own insert" ON trial_sessions FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Trial: admin read" ON trial_sessions FOR SELECT USING (has_role(auth.uid(), 'admin'));
+-- Séances d'essai : plus de table dédiée depuis le 2026-08-07. Les policies de
+-- `bookings` couvrent l'essai, qui est une réservation comme une autre.
 
 -- INVOICE_REQUESTS
 CREATE POLICY "Invoice: own read" ON invoice_requests FOR SELECT USING (auth.uid() = user_id);

@@ -9,7 +9,6 @@
 -- 1. Données transactionnelles
 DELETE FROM bookings;
 DELETE FROM waitlist;
-DELETE FROM trial_sessions;
 DELETE FROM invoice_requests;
 DELETE FROM registration_fees;
 DELETE FROM pack_purchases;

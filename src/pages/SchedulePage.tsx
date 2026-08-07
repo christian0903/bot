@@ -99,13 +99,23 @@ export function SchedulePage() {
   const [selectedSourceId, setSelectedSourceId] = useState<string>('')
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0)
+  // Le jour affiché en vue « jour », stocké comme DATE et non comme index.
+  //
+  // C'était un index, partagé entre deux tableaux de 7 jours d'origines
+  // différentes : `weekDays` part du lundi, `dayViewDays` part de currentDate.
+  // Cliquer vendredi en vue semaine ouvrait donc un autre jour — l'écart valant
+  // le rang du jour courant dans la semaine (un mercredi : +2 jours). Une date
+  // ne peut pas se désynchroniser d'elle-même.
+  const [selectedDay, setSelectedDay] = useState<Date>(() => new Date())
   const [bookingRules, setBookingRules] = useState<BookingRules>(DEFAULT_RULES)
   const [roomNames, setRoomNames] = useState<Record<string, string>>({ haut: 'Back On Track Upstairs', bas: 'Back On Track Studio' })
   const [swipeDirection, setSwipeDirection] = useState(0)
   const [filterOpen, setFilterOpen] = useState(false)
   /** Le membre a-t-il au moins un pack valide (illimité compris) ? */
   const [hasUsablePack, setHasUsablePack] = useState(false)
+  // Le crédit d'essai encore disponible, s'il existe. Sert à proposer l'essai
+  // et à afficher jusqu'à quand il reste valable.
+  const [trialCredit, setTrialCredit] = useState<{ id: string; expires_at: string } | null>(null)
   /** Minimum d'inscrits pour qu'un cours compte comme donné (Réglages). */
   const [minParticipants, setMinParticipants] = useState(1)
   /** Cours que le staff a choisi de maintenir : retirés du bandeau de revue. */
@@ -181,7 +191,7 @@ export function SchedulePage() {
     if (user) {
       const { data: packRows } = await supabase
         .from('pack_purchases')
-        .select('id, credits_remaining, expires_at, subscription_id, pack_type:pack_types(name, is_unlimited, credit_type_id)')
+        .select('id, credits_remaining, expires_at, subscription_id, pack_type:pack_types(name, is_unlimited, credit_type_id, is_trial)')
         .eq('user_id', user.id)
         .gt('expires_at', new Date().toISOString())
 
@@ -190,11 +200,19 @@ export function SchedulePage() {
         credits_remaining: number
         expires_at: string
         subscription_id: string | null
-        pack_type: { name: string; is_unlimited: boolean; credit_type_id: string } | null
+        pack_type: { name: string; is_unlimited: boolean; credit_type_id: string; is_trial: boolean } | null
       }[]
 
+      // Le pack d'essai est exclu : il est offert à tout nouveau profil, et le
+      // compter ici ferait disparaître le bouton « Essai gratuit » chez ceux à
+      // qui il est justement destiné. Posséder son essai n'est pas être client.
       setHasUsablePack(
-        rows.some(p => p.pack_type?.is_unlimited || p.credits_remaining > 0),
+        rows.some(p => !p.pack_type?.is_trial
+          && (p.pack_type?.is_unlimited || p.credits_remaining > 0)),
+      )
+
+      setTrialCredit(
+        rows.find(p => p.pack_type?.is_trial && p.credits_remaining > 0) ?? null,
       )
     } else {
       setHasUsablePack(false)
@@ -470,9 +488,30 @@ export function SchedulePage() {
     if (!sc) { setBookingInProgress(null); return }
     if (new Date(sc.starts_at) < new Date()) { toast.error(isFr ? 'Ce cours est déjà passé' : 'This class has already passed'); setBookingInProgress(null); return }
 
-    const { error: trialError } = await supabase.from('trial_sessions').insert({
-      user_id: user.id,
+    // La séance d'essai est une réservation comme une autre : elle consomme le
+    // crédit du pack d'essai offert à l'inscription. C'est ce qui la rend
+    // visible dans « Mes réservations », sur l'accueil et dans la liste de
+    // présence du coach — l'ancienne table séparée ne l'était nulle part.
+    if (!sc.class_type) { setBookingInProgress(null); return }
+
+    const { data: credits } = await supabase.rpc('get_available_credits', {
+      p_user_id: user.id,
+      p_credit_type_id: sc.class_type.credit_type_id,
+    })
+    const packPurchaseId = credits?.[0]?.pack_purchase_id
+    if (!packPurchaseId) {
+      toast.error(isFr
+        ? 'Ta séance d\'essai n\'est plus disponible.'
+        : 'Your trial session is no longer available.')
+      setBookingInProgress(null)
+      return
+    }
+
+    const { error: trialError } = await supabase.from('bookings').insert({
       scheduled_class_id: classId,
+      user_id: user.id,
+      pack_purchase_id: packPurchaseId,
+      is_trial: true,
     })
     if (trialError) {
       toast.error(trialError.message)
@@ -480,8 +519,17 @@ export function SchedulePage() {
       return
     }
 
+    const { error: consumeError } = await supabase.rpc('consume_credit', {
+      p_pack_purchase_id: packPurchaseId,
+    })
+    if (consumeError) {
+      toast.error(consumeError.message)
+      setBookingInProgress(null)
+      return
+    }
+
     await logActivity({
-      action: 'trial_booked', actor_id: user.id, target_user_id: user.id, entity_type: 'trial_session',
+      action: 'trial_booked', actor_id: user.id, target_user_id: user.id, entity_type: 'booking',
       details: { class_name: sc.class_type?.name, starts_at: sc.starts_at },
       description: `Séance d'essai: ${sc.class_type?.name} le ${format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm')}`,
     })
@@ -493,10 +541,13 @@ export function SchedulePage() {
     setBookingInProgress(null)
   }
 
-  // Un membre qui possède un pack utilisable n'est plus un prospect en essai :
-  // sans cette condition, un pack attribué par l'admin (sans paiement des frais
+  // L'essai se propose à qui détient encore son crédit d'essai — c'est la
+  // possession qui fait foi, plus une déduction indirecte.
+  //
+  // Un membre qui possède un pack acheté n'est plus un prospect en essai : sans
+  // cette condition, un pack attribué par l'admin (sans paiement des frais
   // d'inscription) laissait le bouton bloqué sur « Essai gratuit ».
-  const canUseTrial = user && !hasUsedTrial && !hasRegistrationFee && !hasUsablePack
+  const canUseTrial = user && !!trialCredit && !hasUsedTrial && !hasRegistrationFee && !hasUsablePack
 
   // Class info popup
   const [infoClassType, setInfoClassType] = useState<ScheduledClass['class_type'] | null>(null)
@@ -1247,7 +1298,7 @@ export function SchedulePage() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <button
-            onClick={() => { setSwipeDirection(0); setCurrentDate(new Date()); setSelectedDayIndex(0) }}
+            onClick={() => { setSwipeDirection(0); setCurrentDate(new Date()); setSelectedDay(new Date()) }}
             className="text-sm font-medium hover:text-primary transition-colors"
           >
             {viewMode === 'day'
@@ -1351,13 +1402,13 @@ export function SchedulePage() {
                 className="flex gap-1 touch-pan-y cursor-grab active:cursor-grabbing"
               >
                 {dayViewDays.map((day, idx) => {
-                  const isSelected = selectedDayIndex === idx
+                  const isSelected = isSameDay(day, selectedDay)
                   const today = isToday(day)
                   const count = getClassesForDay(day).length
                   return (
                     <button
                       key={idx}
-                      onClick={() => setSelectedDayIndex(idx)}
+                      onClick={() => setSelectedDay(day)}
                       className={cn(
                         'flex-1 flex flex-col items-center justify-center min-w-0 py-1 rounded-lg transition-colors select-none',
                         isSelected ? 'bg-foreground text-background' : 'hover:bg-muted/50'
@@ -1386,17 +1437,17 @@ export function SchedulePage() {
 
           <AnimatePresence mode="wait">
             <motion.div
-              key={selectedDayIndex}
+              key={selectedDay.toDateString()}
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.15 }}
             >
-              {getClassesForDay(dayViewDays[selectedDayIndex]).length === 0 ? (
+              {getClassesForDay(selectedDay).length === 0 ? (
                 <EmptyState icon={CalendarDays} message={t('schedule.noClasses')} />
               ) : (
                 <div className="grid gap-3 lg:grid-cols-2">
-                  {getClassesForDay(dayViewDays[selectedDayIndex]).map((sc) => (
+                  {getClassesForDay(selectedDay).map((sc) => (
                     <ClassCard key={sc.id} sc={sc} />
                   ))}
                 </div>
@@ -1435,7 +1486,7 @@ export function SchedulePage() {
                       return (
                         <button
                           key={sc.id}
-                          onClick={() => { setSelectedDayIndex(weekDays.findIndex(d => isSameDay(d, day))); setViewMode('day') }}
+                          onClick={() => { setSelectedDay(day); setCurrentDate(day); setViewMode('day') }}
                           className={cn(
                             'w-full text-left rounded-lg p-2 border text-xs transition-all hover:shadow-sm',
                             isPast && 'opacity-40',

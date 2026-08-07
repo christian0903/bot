@@ -23,7 +23,6 @@ FROM (
   UNION ALL SELECT 'Table: app_settings', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='app_settings')
   UNION ALL SELECT 'Table: activity_log', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='activity_log')
   UNION ALL SELECT 'Table: registration_fees', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='registration_fees')
-  UNION ALL SELECT 'Table: trial_sessions', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='trial_sessions')
   UNION ALL SELECT 'Table: invoice_requests', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='invoice_requests')
 
   -- COLONNES CLÉS
@@ -62,18 +61,27 @@ FROM (
   UNION ALL SELECT 'Func: update_member_status', EXISTS(SELECT 1 FROM pg_proc WHERE proname='update_member_status')
   UNION ALL SELECT 'Func: has_registration_fee', EXISTS(SELECT 1 FROM pg_proc WHERE proname='has_registration_fee')
   UNION ALL SELECT 'Func: has_used_trial', EXISTS(SELECT 1 FROM pg_proc WHERE proname='has_used_trial')
+  UNION ALL SELECT 'Func: grant_trial_pack', EXISTS(SELECT 1 FROM pg_proc WHERE proname='grant_trial_pack')
   UNION ALL SELECT 'Func: can_book_class', EXISTS(SELECT 1 FROM pg_proc WHERE proname='can_book_class')
   UNION ALL SELECT 'Func: cancel_booking_v2', EXISTS(SELECT 1 FROM pg_proc WHERE proname='cancel_booking_v2')
 
   -- TRIGGERS
   UNION ALL SELECT 'Trigger: on_auth_user_created', EXISTS(SELECT 1 FROM information_schema.triggers WHERE trigger_name='on_auth_user_created')
   UNION ALL SELECT 'Trigger: generate_referral_code', EXISTS(SELECT 1 FROM information_schema.triggers WHERE trigger_name='generate_referral_code_trigger')
+  UNION ALL SELECT 'Trigger: on_profile_created_grant_trial', EXISTS(SELECT 1 FROM information_schema.triggers WHERE trigger_name='on_profile_created_grant_trial')
+
+  -- PACK D'ESSAI (2026-08-07)
+  UNION ALL SELECT 'Col: bookings.is_trial', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='is_trial')
+  UNION ALL SELECT 'Col: bookings.pack_purchase_id nullable', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='pack_purchase_id' AND is_nullable='YES')
+  UNION ALL SELECT 'Col: pack_types.is_purchasable', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='pack_types' AND column_name='is_purchasable')
+  UNION ALL SELECT 'Col: pack_types.is_trial', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='pack_types' AND column_name='is_trial')
+  UNION ALL SELECT 'Data: pack d''essai present', EXISTS(SELECT 1 FROM pack_types WHERE is_trial AND is_active)
+  UNION ALL SELECT 'Table: trial_sessions supprimee', NOT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='trial_sessions')
 
   -- RLS
   UNION ALL SELECT 'RLS: profiles', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='profiles' AND rowsecurity=true)
   UNION ALL SELECT 'RLS: bookings', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='bookings' AND rowsecurity=true)
   UNION ALL SELECT 'RLS: registration_fees', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='registration_fees' AND rowsecurity=true)
-  UNION ALL SELECT 'RLS: trial_sessions', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='trial_sessions' AND rowsecurity=true)
   UNION ALL SELECT 'RLS: invoice_requests', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='invoice_requests' AND rowsecurity=true)
 
   -- SETTINGS

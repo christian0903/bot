@@ -62,9 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const fetchMemberFlags = async (userId: string) => {
+    // L'essai consommé se lit sur la réservation elle-même : depuis le pack
+    // d'essai (2026-08-07), une séance d'essai est une réservation ordinaire.
+    // L'ancienne table `trial_sessions` tenait un compte séparé qui finissait
+    // par diverger de la réalité — c'est ce qui rendait l'essai invisible.
     const [feeRes, trialRes] = await Promise.all([
       supabase.from('registration_fees').select('id').eq('user_id', userId).limit(1),
-      supabase.from('trial_sessions').select('id').eq('user_id', userId).limit(1),
+      supabase.from('bookings').select('id')
+        .eq('user_id', userId).eq('is_trial', true).eq('status', 'confirmed').limit(1),
     ])
     setHasRegistrationFee((feeRes.data?.length ?? 0) > 0)
     setHasUsedTrial((trialRes.data?.length ?? 0) > 0)
