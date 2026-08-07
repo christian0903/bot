@@ -171,22 +171,29 @@ export function AdminClassTypesPage() {
         <EmptyState icon={Dumbbell} message={t('common.noResults')} actionLabel={t('admin.classTypes.add')} onAction={openAdd} />
       ) : (
         <div className="border rounded-lg overflow-x-auto">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>{t('admin.classTypes.name')}</TableHead>
-                <TableHead className="hidden md:table-cell">{t('admin.classTypes.description')}</TableHead>
-                <TableHead className="hidden lg:table-cell">{t('admin.classTypes.creditType')}</TableHead>
-                <TableHead className="hidden sm:table-cell text-center">Max</TableHead>
-                <TableHead>{t('admin.classTypes.active')}</TableHead>
-                <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
+                <TableHead className="w-[22%]">{t('admin.classTypes.name')}</TableHead>
+                <TableHead className="hidden md:table-cell w-[45%]">{t('admin.classTypes.description')}</TableHead>
+                <TableHead className="hidden lg:table-cell w-[16%]">{t('admin.classTypes.creditType')}</TableHead>
+                <TableHead className="hidden sm:table-cell text-center w-[64px]">Max</TableHead>
+                <TableHead className="w-[92px]">{t('admin.classTypes.active')}</TableHead>
+                <TableHead className="w-[96px] text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {classTypes.map((ct) => (
                 <TableRow key={ct.id}>
-                  <TableCell className="font-medium">{ct.name}</TableCell>
-                  <TableCell className="hidden md:table-cell">{ct.description ?? '-'}</TableCell>
+                  <TableCell className="font-medium truncate">{ct.name}</TableCell>
+                  {/* Bornée en largeur et repliée sur deux lignes : sans cela
+                      une description longue poussait les boutons d'action hors
+                      de l'écran, et personne ne les voyait. */}
+                  <TableCell className="hidden md:table-cell max-w-0">
+                    <p className="text-sm text-muted-foreground line-clamp-2 whitespace-normal break-words">
+                      {ct.description ?? '-'}
+                    </p>
+                  </TableCell>
                   <TableCell className="hidden lg:table-cell">{ct.credit_type?.label_fr ?? '-'}</TableCell>
                   <TableCell className="hidden sm:table-cell text-center font-medium">{ct.default_max_participants ?? '-'}</TableCell>
                   <TableCell>
@@ -194,8 +201,8 @@ export function AdminClassTypesPage() {
                       {ct.is_active ? t('common.active') : t('common.inactive')}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
+                  <TableCell className="w-[96px]">
+                    <div className="flex gap-1 justify-end">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(ct)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
