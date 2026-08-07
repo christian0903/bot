@@ -47,6 +47,9 @@ export function PacksPage() {
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([])
   /** Achat en attente de confirmation, quand un bon peut s'appliquer. */
   const [pendingPurchase, setPendingPurchase] = useState<{ pack: PackType | null; isFee: boolean } | null>(null)
+  /** Pack en attente de commande sur facture (client professionnel). */
+  const [pendingInvoice, setPendingInvoice] = useState<PackType | null>(null)
+  const [invoiceOrdering, setInvoiceOrdering] = useState(false)
   const [useCreditNote, setUseCreditNote] = useState(true)
   /** Le membre a-t-il déjà un parrain ? Sinon on lui propose de saisir un code. */
   const [hasReferrer, setHasReferrer] = useState(true)
@@ -234,9 +237,63 @@ export function PacksPage() {
   /** Pack récurrent en attente de confirmation (null = pas de dialogue ouvert). */
   const [pendingSubscription, setPendingSubscription] = useState<PackType | null>(null)
 
+  /** Le studio a qualifié ce membre comme professionnel : il paie sur facture. */
+  const isBusiness = profile?.is_business === true
+
+  /**
+   * Commande sur facture.
+   *
+   * Le pack est crédité immédiatement : l'employé doit pouvoir s'entraîner
+   * sans attendre le circuit comptable de son employeur. Le studio suit
+   * l'encaissement de son côté.
+   */
+  const confirmInvoiceOrder = async () => {
+    if (!pendingInvoice) return
+    setInvoiceOrdering(true)
+    const { data, error } = await supabase.rpc('order_pack_on_invoice', {
+      p_pack_type_id: pendingInvoice.id,
+    })
+    setInvoiceOrdering(false)
+
+    if (error) { toast.error(error.message); return }
+
+    const res = data as { ok: boolean; reason?: string } | null
+    if (!res?.ok) {
+      const messages: Record<string, string> = {
+        not_business: isFr
+          ? 'Ton profil n\'est pas enregistré comme professionnel. Contacte le studio.'
+          : 'Your profile is not registered as a business. Contact the studio.',
+        company_missing: isFr
+          ? 'Il manque la raison sociale sur ton profil. Contacte le studio.'
+          : 'Your company name is missing. Contact the studio.',
+        registration_fee_due: isFr
+          ? 'Les frais d\'inscription doivent être réglés d\'abord.'
+          : 'Registration fee must be paid first.',
+        recurring_not_supported: isFr
+          ? 'Les abonnements ne se commandent pas sur facture.'
+          : 'Subscriptions cannot be ordered by invoice.',
+      }
+      toast.error(messages[res?.reason ?? ''] ?? (isFr ? 'Commande impossible' : 'Order failed'))
+      return
+    }
+
+    toast.success(isFr
+      ? 'Commande enregistrée. Ton pack est actif, la facture suivra.'
+      : 'Order placed. Your pack is active, the invoice will follow.')
+    setPendingInvoice(null)
+    navigate('/my-packs')
+  }
+
   const handleBuy = async (packType: PackType) => {
     if (!hasRegistrationFee) {
       toast.error(t('packs.registrationFeeRequired'))
+      return
+    }
+
+    // Client professionnel : commande sur facture, sans carte. Les abonnements
+    // restent exclus — un prélèvement automatique n'a pas de sens sur facture.
+    if (isBusiness && !packType.is_recurring) {
+      setPendingInvoice(packType)
       return
     }
     // Un abonnement engage des prélèvements répétés : on demande une
@@ -446,7 +503,11 @@ export function PacksPage() {
           >
             {pack.is_recurring
               ? (isFr ? 'S\'abonner' : 'Subscribe')
-              : t('packs.buy')}
+              // Un professionnel commande, il ne paie pas maintenant : le
+              // libellé doit dire ce qui va se passer.
+              : isBusiness
+                ? (isFr ? 'Commander sur facture' : 'Order by invoice')
+                : t('packs.buy')}
           </Button>
         </div>
       </motion.div>
@@ -584,6 +645,63 @@ export function PacksPage() {
           ))}
         </div>
       )}
+
+      {/* Commande sur facture — clients professionnels. Le pack est actif
+          immédiatement, la facture suit : c'est un engagement, on le dit
+          clairement avant de valider. */}
+      <Dialog
+        open={!!pendingInvoice}
+        onOpenChange={(open) => { if (!open) setPendingInvoice(null) }}
+      >
+        <DialogContent className="max-w-md">
+          {pendingInvoice && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {isFr ? 'Commander sur facture' : 'Order by invoice'}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-3">
+                <div className="rounded-lg border p-3">
+                  <p className="font-semibold">{pendingInvoice.name}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {formatPackCredits(pendingInvoice, isFr)}
+                  </p>
+                  <p className="text-lg font-bold mt-2">
+                    {(pendingInvoice.price_cents / 100).toFixed(2).replace('.', ',')} €
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+                  <p>
+                    {isFr
+                      ? 'La facture sera établie au nom de '
+                      : 'The invoice will be issued to '}
+                    <strong>{profile?.company_name}</strong>.
+                  </p>
+                  <p className="text-muted-foreground">
+                    {isFr
+                      ? 'Tes crédits sont disponibles immédiatement : tu peux réserver sans attendre le règlement.'
+                      : 'Your credits are available right away — you can book before payment goes through.'}
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setPendingInvoice(null)} disabled={invoiceOrdering}>
+                  {t('common.cancel')}
+                </Button>
+                <Button onClick={confirmInvoiceOrder} disabled={invoiceOrdering}>
+                  {invoiceOrdering
+                    ? '...'
+                    : (isFr ? 'Confirmer la commande' : 'Confirm order')}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Proposition du bon d'achat sur un achat ponctuel ou les frais
           d'inscription. Le bon n'est jamais appliqué d'office : le membre

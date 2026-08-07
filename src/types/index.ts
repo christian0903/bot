@@ -24,6 +24,16 @@ export interface Profile {
   cgv_accepted_at: string | null
   rgpd_accepted_at: string | null
   /**
+   * Client professionnel : commande sur facture au lieu de payer par carte.
+   * Positionné par un admin uniquement — un client qui se déclarerait
+   * entreprise obtiendrait des séances sans payer.
+   */
+  is_business: boolean
+  /** Raison sociale, reportée sur la facture. Requise si `is_business`. */
+  company_name: string | null
+  company_vat: string | null
+  company_address: string | null
+  /**
    * Compte fermé à la demande du membre : données personnelles anonymisées,
    * pièces comptables conservées sans lien identifiable.
    */

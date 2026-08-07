@@ -13,7 +13,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -31,7 +32,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X, RefreshCw, PauseCircle, PlayCircle, AlertTriangle, RotateCcw, Trash2, TicketPercent, UserPlus, UserCog, Shield } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X, RefreshCw, PauseCircle, PlayCircle, AlertTriangle, RotateCcw, Trash2, Building2, TicketPercent, UserPlus, UserCog, Shield } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
@@ -125,6 +126,15 @@ export function AdminUserDetailPage() {
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetRunning, setResetRunning] = useState(false)
 
+  /** Qualification professionnelle : décidée par le studio seul. */
+  const [businessForm, setBusinessForm] = useState({
+    is_business: false,
+    company_name: '',
+    company_vat: '',
+    company_address: '',
+  })
+  const [businessSaving, setBusinessSaving] = useState(false)
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleteRunning, setDeleteRunning] = useState(false)
@@ -187,7 +197,18 @@ export function AdminUserDetailPage() {
       setSubDiscounts([])
     }
 
-    setProfile(profileRes.data as Profile)
+    const loadedProfile = profileRes.data as Profile
+    setProfile(loadedProfile)
+
+    // Le formulaire part de ce qui est enregistré : sans cela il s'ouvrirait
+    // vide sur un profil déjà qualifié, et l'enregistrer effacerait tout.
+    setBusinessForm({
+      is_business: loadedProfile.is_business ?? false,
+      company_name: loadedProfile.company_name ?? '',
+      company_vat: loadedProfile.company_vat ?? '',
+      company_address: loadedProfile.company_address ?? '',
+    })
+
     const alertVal = alertRes.data?.value as { threshold_per_cycle?: number } | undefined
     if (alertVal?.threshold_per_cycle) setCancelAlertThreshold(alertVal.threshold_per_cycle)
     setHasRegFee((regFeeRes.data?.length ?? 0) > 0)
@@ -733,6 +754,31 @@ export function AdminUserDetailPage() {
     toast.success(isFr ? 'Profil mis à jour' : 'Profile updated')
   }
 
+  const handleSaveBusiness = async () => {
+    if (!id) return
+    // La raison sociale conditionne la commande sur facture : l'exiger ici
+    // évite un refus incompréhensible plus tard, côté membre.
+    if (businessForm.is_business && !businessForm.company_name.trim()) {
+      toast.error(isFr ? 'La raison sociale est requise' : 'Company name is required')
+      return
+    }
+    setBusinessSaving(true)
+    const payload = {
+      is_business: businessForm.is_business,
+      company_name: businessForm.company_name.trim() || null,
+      company_vat: businessForm.company_vat.trim() || null,
+      company_address: businessForm.company_address.trim() || null,
+    }
+    const { error } = await supabase.from('profiles').update(payload).eq('id', id)
+    setBusinessSaving(false)
+    if (error) { toast.error(error.message); return }
+
+    setProfile(prev => prev ? { ...prev, ...payload } : prev)
+    toast.success(businessForm.is_business
+      ? (isFr ? 'Client professionnel : paiement sur facture activé' : 'Business client: invoice payment enabled')
+      : (isFr ? 'Paiement sur facture désactivé' : 'Invoice payment disabled'))
+  }
+
   const handleResetPassword = async () => {
     if (!profile || !id) return
     if (newPassword.length < 12) {
@@ -1176,6 +1222,76 @@ export function AdminUserDetailPage() {
 
         {/* PACKS TAB */}
         <TabsContent value="packs" className="mt-4 space-y-3">
+          {/* Qualification professionnelle. Décidée par le studio, jamais par
+              le client : se déclarer entreprise serait le moyen le plus simple
+              d'obtenir des séances sans payer. */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                {isFr ? 'Client professionnel' : 'Business client'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm">
+                    {isFr ? 'Paiement sur facture' : 'Pay by invoice'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isFr
+                      ? 'Le membre commande ses packs sans carte. Les crédits sont donnés tout de suite, la facture suit.'
+                      : 'The member orders packs without a card. Credits are granted immediately, the invoice follows.'}
+                  </p>
+                </div>
+                <Switch checked={businessForm.is_business} onCheckedChange={(v: boolean) => setBusinessForm(f => ({ ...f, is_business: v }))} />
+              </div>
+
+              {businessForm.is_business && (
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-xs">{isFr ? 'Raison sociale' : 'Company name'} *</Label>
+                    <Input
+                      value={businessForm.company_name}
+                      onChange={(e) => setBusinessForm(f => ({ ...f, company_name: e.target.value }))}
+                      placeholder={isFr ? 'Ex. Dupont SPRL' : 'e.g. Dupont Ltd'}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">{isFr ? 'N° TVA' : 'VAT number'}</Label>
+                      <Input
+                        value={businessForm.company_vat}
+                        onChange={(e) => setBusinessForm(f => ({ ...f, company_vat: e.target.value }))}
+                        placeholder="BE 0123.456.789"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{isFr ? 'Adresse de facturation' : 'Billing address'}</Label>
+                      <Input
+                        value={businessForm.company_address}
+                        onChange={(e) => setBusinessForm(f => ({ ...f, company_address: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  {/* La raison sociale est obligatoire côté serveur : sans elle
+                      la facture n'a pas de destinataire. */}
+                  {!businessForm.company_name.trim() && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      {isFr
+                        ? 'La raison sociale est nécessaire : sans elle, le membre ne pourra pas commander sur facture.'
+                        : 'A company name is required, otherwise the member cannot order by invoice.'}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <Button size="sm" onClick={handleSaveBusiness} disabled={businessSaving}>
+                {businessSaving ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+              </Button>
+            </CardContent>
+          </Card>
+
           <div className="flex items-center gap-2">
             <input
               type="checkbox"

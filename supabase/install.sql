@@ -89,6 +89,13 @@ CREATE TABLE profiles (
   -- Compte fermé à la demande du membre : données personnelles anonymisées,
   -- pièces comptables conservées sans lien identifiable.
   deleted_at TIMESTAMPTZ,
+  -- Client professionnel : commande sur facture au lieu de payer par carte.
+  -- Positionné par un ADMIN uniquement — un client qui se déclarerait
+  -- entreprise obtiendrait des séances sans payer.
+  is_business BOOLEAN NOT NULL DEFAULT FALSE,
+  company_name TEXT,
+  company_vat TEXT,
+  company_address TEXT,
   referral_code TEXT UNIQUE,
   member_status TEXT DEFAULT 'visitor'
     CHECK (member_status IN ('visitor', 'potential', 'active', 'inactive', 'former')),
@@ -427,6 +434,14 @@ CREATE TABLE registration_fees (
 CREATE TABLE invoice_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id),
+  -- Pack commandé sur facture. NULL quand la demande porte sur un achat déjà
+  -- réglé par carte (usage d'origine de cette table).
+  pack_type_id UUID REFERENCES pack_types(id),
+  amount_cents INTEGER,
+  -- Encaissement pointé à la main par le studio. NULL = en attente. Sans
+  -- effet sur les crédits : ils sont donnés dès la commande.
+  paid_at TIMESTAMPTZ,
+  invoice_number TEXT,
   pack_purchase_id UUID REFERENCES pack_purchases(id),
   company_name TEXT NOT NULL,
   address TEXT NOT NULL,
@@ -1342,6 +1357,137 @@ COMMENT ON FUNCTION class_reviews_for_staff IS
 
 REVOKE ALL ON FUNCTION class_reviews_for_staff(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION class_reviews_for_staff(UUID) TO authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- Paiement sur facture — clients professionnels
+-- ---------------------------------------------------------------------------
+-- Une entreprise reçoit une facture et la règle selon ses propres délais. Le
+-- pack est crédité tout de suite : l'employé doit pouvoir s'entraîner sans
+-- attendre le circuit comptable de son employeur. Le studio porte donc le
+-- risque d'impayé — décision assumée du 2026-08-07, aucun automatisme.
+CREATE OR REPLACE FUNCTION order_pack_on_invoice(p_pack_type_id UUID)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_uid      UUID := auth.uid();
+  v_profile  RECORD;
+  v_pack     pack_types%ROWTYPE;
+  v_fee      JSONB;
+  v_expires  TIMESTAMPTZ;
+  v_purchase UUID;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_authenticated');
+  END IF;
+
+  SELECT is_business, company_name, company_address, company_vat, display_name
+    INTO v_profile
+  FROM profiles WHERE id = v_uid;
+
+  -- Le contrôle décisif : sans lui, n'importe quel particulier obtiendrait des
+  -- séances sans payer.
+  IF NOT COALESCE(v_profile.is_business, FALSE) THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_business');
+  END IF;
+
+  IF COALESCE(trim(v_profile.company_name), '') = '' THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'company_missing');
+  END IF;
+
+  SELECT * INTO v_pack FROM pack_types
+  WHERE id = p_pack_type_id AND is_active AND is_purchasable;
+
+  IF v_pack.id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'pack_not_found');
+  END IF;
+
+  -- Un abonnement se prélève automatiquement : sans objet sur facture.
+  IF v_pack.is_recurring THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'recurring_not_supported');
+  END IF;
+
+  -- Les frais d'inscription valent pour tous : c'est leur paiement qui
+  -- déclenche la couverture d'assurance.
+  SELECT value INTO v_fee FROM app_settings WHERE key = 'registration_fee';
+  IF COALESCE((v_fee->>'enabled')::BOOLEAN, TRUE)
+     AND NOT EXISTS (SELECT 1 FROM registration_fees WHERE user_id = v_uid) THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'registration_fee_due');
+  END IF;
+
+  v_expires := NOW() + (v_pack.validity_days || ' days')::INTERVAL;
+
+  INSERT INTO pack_purchases (
+    user_id, pack_type_id, price_paid_cents, credits_remaining,
+    purchased_at, expires_at
+  ) VALUES (
+    v_uid, p_pack_type_id, v_pack.price_cents, v_pack.credit_count,
+    NOW(), v_expires
+  )
+  RETURNING id INTO v_purchase;
+
+  INSERT INTO invoice_requests (
+    user_id, pack_purchase_id, pack_type_id, amount_cents,
+    company_name, address, vat_number, status
+  ) VALUES (
+    v_uid, v_purchase, p_pack_type_id, v_pack.price_cents,
+    v_profile.company_name,
+    COALESCE(v_profile.company_address, ''),
+    v_profile.company_vat,
+    'pending'
+  );
+
+  PERFORM update_member_status(v_uid);
+
+  INSERT INTO notifications (user_id, title, message, type, link)
+  VALUES (v_uid, 'Commande enregistrée',
+    format('Ton pack %s est activé. La facture sera envoyée à %s.',
+           v_pack.name, v_profile.company_name),
+    'success', '/my-packs');
+
+  RETURN jsonb_build_object('ok', true, 'purchase_id', v_purchase, 'expires_at', v_expires);
+END;
+$fn$;
+
+-- Le studio pointe une facture comme encaissée. Sans effet sur les crédits :
+-- ils ont été donnés à la commande.
+CREATE OR REPLACE FUNCTION mark_invoice_paid(p_invoice_id UUID, p_invoice_number TEXT DEFAULT NULL)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+    RAISE EXCEPTION 'Reserve aux administrateurs';
+  END IF;
+
+  UPDATE invoice_requests
+     SET paid_at = NOW(),
+         status = 'paid',
+         invoice_number = COALESCE(NULLIF(trim(p_invoice_number), ''), invoice_number),
+         processed_at = COALESCE(processed_at, NOW())
+   WHERE id = p_invoice_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
+  END IF;
+
+  RETURN jsonb_build_object('ok', true);
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION order_pack_on_invoice(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION mark_invoice_paid(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION order_pack_on_invoice(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION mark_invoice_paid(UUID, TEXT) TO authenticated;
+
+CREATE INDEX IF NOT EXISTS invoice_requests_unpaid
+  ON invoice_requests (created_at)
+  WHERE paid_at IS NULL AND status <> 'cancelled';
 
 -- Phase 4 : Vérifier si un membre peut réserver
 CREATE OR REPLACE FUNCTION can_book_class(p_class_id UUID, p_user_id UUID)

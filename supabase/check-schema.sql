@@ -106,6 +106,12 @@ FROM (
   UNION ALL SELECT 'Func: pending_class_reviews', EXISTS(SELECT 1 FROM pg_proc WHERE proname='pending_class_reviews')
   UNION ALL SELECT 'RLS: class_reviews', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='class_reviews' AND rowsecurity=true)
   UNION ALL SELECT 'Setting: class_reviews', EXISTS(SELECT 1 FROM app_settings WHERE key='class_reviews')
+
+  -- CLIENTS B2B — paiement sur facture (2026-08-07)
+  UNION ALL SELECT 'Col: profiles.is_business', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='is_business')
+  UNION ALL SELECT 'Col: invoice_requests.paid_at', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='invoice_requests' AND column_name='paid_at')
+  UNION ALL SELECT 'Func: order_pack_on_invoice', EXISTS(SELECT 1 FROM pg_proc WHERE proname='order_pack_on_invoice')
+  UNION ALL SELECT 'Func: mark_invoice_paid', EXISTS(SELECT 1 FROM pg_proc WHERE proname='mark_invoice_paid')
   UNION ALL SELECT 'Enum: activity_action.account_deleted', EXISTS(SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid=t.oid WHERE t.typname='activity_action' AND e.enumlabel='account_deleted')
 
   -- RLS
