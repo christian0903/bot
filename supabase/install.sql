@@ -1211,9 +1211,22 @@ RETURNS TABLE (
 )
 SECURITY DEFINER
 SET search_path = public
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 AS $fn$
+DECLARE
+  v_settings JSONB;
+  v_days     INTEGER;
+BEGIN
+  SELECT value INTO v_settings FROM app_settings WHERE key = 'class_reviews';
+
+  IF COALESCE((v_settings->>'enabled')::BOOLEAN, TRUE) IS NOT TRUE THEN
+    RETURN;
+  END IF;
+
+  v_days := GREATEST(1, COALESCE((v_settings->>'days_to_review')::INTEGER, 7));
+
+  RETURN QUERY
   SELECT b.id,
          sc.id,
          COALESCE(sc.title, ct.name),
@@ -1226,11 +1239,11 @@ AS $fn$
   WHERE b.user_id = auth.uid()
     AND b.status = 'confirmed'
     AND NOT sc.is_cancelled
-    -- La séance doit être finie, pas seulement commencée.
     AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL < NOW()
-    AND sc.starts_at > NOW() - INTERVAL '30 days'
+    AND sc.starts_at > NOW() - (v_days || ' days')::INTERVAL
     AND NOT EXISTS (SELECT 1 FROM class_reviews r WHERE r.booking_id = b.id)
   ORDER BY sc.starts_at DESC;
+END;
 $fn$;
 
 COMMENT ON FUNCTION pending_class_reviews IS
@@ -1270,7 +1283,11 @@ BEGIN
   WHERE b.id = p_booking_id
     AND b.user_id = v_uid
     AND b.status = 'confirmed'
-    AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL < NOW();
+    AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL < NOW()
+    AND sc.starts_at > NOW() - (
+      GREATEST(1, COALESCE(
+        (SELECT (value->>'days_to_review')::INTEGER FROM app_settings WHERE key = 'class_reviews'), 7))
+      || ' days')::INTERVAL;
 
   IF v_booking.id IS NULL THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'not_eligible');
@@ -2613,6 +2630,13 @@ INSERT INTO app_settings (key, value) VALUES
   ('trial_pack', '{
     "enabled": true,
     "validity_days": 30
+  }'::jsonb),
+  -- Demande d'avis après un cours : combien de jours la proposition reste
+  -- affichée sur l'accueil du membre. Passé ce délai elle disparaît — une
+  -- demande qui insiste se fait ignorer, puis agace.
+  ('class_reviews', '{
+    "enabled": true,
+    "days_to_review": 7
   }'::jsonb),
   ('payment_provider', '{"provider": "stripe", "mode": "test"}'::jsonb),
   ('referral_rules', '{

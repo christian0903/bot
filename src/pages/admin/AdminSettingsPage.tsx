@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import { Settings, CreditCard, Users, Clock, Building, Shield, CalendarDays } from 'lucide-react'
+import { Settings, CreditCard, Users, Clock, Building, Shield, CalendarDays, Star } from 'lucide-react'
 
 interface RoomNames {
   haut: string
@@ -103,13 +103,16 @@ export function AdminSettingsPage() {
   const [cancelAlert, setCancelAlert] = useState(4)
   /** Minimum de participants pour qu'un cours compte comme donné. */
   const [minParticipants, setMinParticipants] = useState(1)
+  /** Demande d'avis après un cours : active, et combien de jours affichée. */
+  const [reviewsEnabled, setReviewsEnabled] = useState(true)
+  const [reviewDays, setReviewDays] = useState(7)
 
   useEffect(() => {
     const fetchData = async () => {
       const { data } = await supabase
         .from('app_settings')
         .select('*')
-        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert', 'class_given_rule', 'referral_rules'])
+        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert', 'class_given_rule', 'referral_rules', 'class_reviews'])
 
       for (const setting of data ?? []) {
         if (setting.key === 'stripe_mode') {
@@ -145,6 +148,11 @@ export function AdminSettingsPage() {
           setReferrerReward((val.referrer_reward_cents ?? 3000) / 100)
           setRefereeReward((val.referee_reward_cents ?? 3000) / 100)
           setReferralValidity(val.reward_validity_days ?? 180)
+        }
+        if (setting.key === 'class_reviews') {
+          const v = setting.value as { enabled?: boolean; days_to_review?: number }
+          setReviewsEnabled(v.enabled ?? true)
+          setReviewDays(v.days_to_review ?? 7)
         }
         if (setting.key === 'cancellation_alert') {
           const val = setting.value as { threshold_per_cycle?: number }
@@ -676,6 +684,72 @@ export function AdminSettingsPage() {
             onClick={() => saveSetting('cancellation_alert', { threshold_per_cycle: cancelAlert })}
           >
             {saving === 'cancellation_alert' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Avis sur les cours */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Star className="h-4 w-4 text-primary" />
+            {isFr ? 'Avis sur les cours' : 'Class feedback'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? "Après une séance, le membre peut la noter de 1 à 5 étoiles et laisser un commentaire. La proposition apparaît sur son accueil, puis disparaît d'elle-même après le délai fixé ici — une demande qui insiste se fait ignorer, puis agace."
+              : 'After a class, members can rate it 1 to 5 stars and leave a comment. The prompt appears on their home page, then disappears on its own after the delay set here — a request that keeps nagging gets ignored, then resented.'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? 'Les avis sont anonymes pour le coach : c\'est ce qui les rend francs. Vous seul pouvez remonter à leur auteur.'
+              : 'Feedback is anonymous to the coach — that is what keeps it honest. Only you can trace it back.'}
+          </p>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">
+                {isFr ? 'Demander un avis après les cours' : 'Ask for feedback after classes'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isFr
+                  ? 'Désactiver ne supprime aucun avis déjà donné.'
+                  : 'Turning this off keeps existing feedback.'}
+              </p>
+            </div>
+            <Switch checked={reviewsEnabled} onCheckedChange={setReviewsEnabled} />
+          </div>
+
+          {reviewsEnabled && (
+            <div className="space-y-2">
+              <Label>{isFr ? 'Durée d\'affichage (jours)' : 'Display window (days)'}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={90}
+                className="w-32"
+                value={reviewDays}
+                onChange={e => setReviewDays(parseInt(e.target.value) || 1)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? 'Au-delà, la séance ne peut plus être notée. Sept jours est un bon compromis : le souvenir est encore net.'
+                  : 'After that, the class can no longer be rated. Seven days is a good balance — the memory is still fresh.'}
+              </p>
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            disabled={saving === 'class_reviews'}
+            onClick={() => saveSetting('class_reviews', {
+              enabled: reviewsEnabled,
+              days_to_review: reviewDays,
+            })}
+          >
+            {saving === 'class_reviews' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
           </Button>
         </CardContent>
       </Card>

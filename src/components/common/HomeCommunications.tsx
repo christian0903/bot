@@ -7,6 +7,7 @@ import {
   Gift, Mail, X, ChevronDown, ChevronUp, Info, CheckCircle2, AlertTriangle, XCircle,
 } from 'lucide-react'
 import { useNotifications } from '@/contexts/NotificationContext'
+import { ClassReviewPrompt } from '@/components/common/ClassReviewPrompt'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { Notification } from '@/types'
@@ -117,10 +118,18 @@ export function HomeCommunications({ trialDaysLeft }: { trialDaysLeft: number | 
   const unread = notifications.filter((n) => !n.is_read).length
   const readCount = notifications.length - unread
 
-  if (!hasTrial && notifications.length === 0) return null
-
+  // Pas de sortie anticipée : la demande d'avis peut être le seul contenu à
+  // afficher, et `ClassReviewPrompt` décide lui-même s'il a quelque chose à
+  // dire. Un `return null` ici la rendrait invisible pour un membre sans
+  // essai ni notification — précisément celui qui vient de suivre son cours.
   return (
     <div className="space-y-2">
+      {/* ---- Avis sur la dernière séance ---- */}
+      {/* Placé DANS les communications plutôt qu'en bloc séparé : c'est un
+          message adressé au membre, au même titre qu'une notification. Il
+          disparaît de lui-même passé le délai fixé dans les Réglages. */}
+      <ClassReviewPrompt />
+
       {/* ---- La séance d'essai : traitée à part, volontairement ---- */}
       {hasTrial && (
         <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-4">
