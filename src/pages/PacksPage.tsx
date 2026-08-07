@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
-import { ShoppingBag, Check, Zap, Flame, AlertTriangle, RefreshCw, TicketPercent } from 'lucide-react'
+import { ShoppingBag, Check, Zap, Flame, AlertTriangle, RefreshCw, Receipt, TicketPercent } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn, formatPackCredits, formatValidity } from '@/lib/utils'
 import type { PackType, Subscription, CreditNote } from '@/types'
@@ -50,6 +50,8 @@ export function PacksPage() {
   /** Pack en attente de commande sur facture (client professionnel). */
   const [pendingInvoice, setPendingInvoice] = useState<PackType | null>(null)
   const [invoiceOrdering, setInvoiceOrdering] = useState(false)
+  /** Onglet de type de crédit choisi par le membre. Vide = premier groupe. */
+  const [activeCreditTab, setActiveCreditTab] = useState('')
   const [useCreditNote, setUseCreditNote] = useState(true)
   /** Le membre a-t-il déjà un parrain ? Sinon on lui propose de saisir un code. */
   const [hasReferrer, setHasReferrer] = useState(true)
@@ -369,6 +371,13 @@ export function PacksPage() {
   const creditTypeGroups = (() => {
     const map = new Map<string, { label: string; subscriptions: PackType[]; oneOff: PackType[] }>()
     for (const p of packTypes) {
+      // Un professionnel ne voit pas les abonnements : ils se prélèvent
+      // automatiquement par carte, ce qui n'a pas de sens sur facture. Le
+      // filtre suit `is_business` plutôt qu'une catégorie dédiée — deux
+      // marqueurs pour le même fait finiraient par diverger, et un membre
+      // oublié en catégorie tomberait sur un paiement Stripe inattendu.
+      if (isBusiness && p.is_recurring) continue
+
       const key = p.credit_type_id
       const label = (isFr ? p.credit_type?.label_fr : p.credit_type?.label_en)
         ?? p.credit_type?.name
@@ -386,6 +395,18 @@ export function PacksPage() {
       return a.label.localeCompare(b.label)
     })
   })()
+
+  /**
+   * Onglet affiché : le choix du membre, ou le premier groupe.
+   *
+   * Calculé au rendu plutôt que posé dans un effet — écrire un état depuis un
+   * effet provoque un second rendu pour un résultat qu'on sait déduire. Le
+   * repli sur le premier groupe couvre aussi le cas où l'onglet choisi
+   * disparaît (un professionnel dont les abonnements sont masqués).
+   */
+  const shownCreditTab = creditTypeGroups.some(g => g.label === activeCreditTab)
+    ? activeCreditTab
+    : creditTypeGroups[0]?.label ?? ''
 
   const gridClass = (count: number) => cn(
     'grid gap-5 w-full max-w-5xl',
@@ -503,10 +524,10 @@ export function PacksPage() {
           >
             {pack.is_recurring
               ? (isFr ? 'S\'abonner' : 'Subscribe')
-              // Un professionnel commande, il ne paie pas maintenant : le
-              // libellé doit dire ce qui va se passer.
+              // Un professionnel ne paie pas maintenant : le bouton doit dire
+              // ce qui va réellement se passer, pas « Acheter ».
               : isBusiness
-                ? (isFr ? 'Commander sur facture' : 'Order by invoice')
+                ? (isFr ? 'Payer par facture' : 'Pay by invoice')
                 : t('packs.buy')}
           </Button>
         </div>
@@ -523,11 +544,41 @@ export function PacksPage() {
           <span className="text-primary">{isFr ? 'formules' : 'plans'}</span>
         </h1>
         <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
-          {isFr
-            ? 'Abonne-toi pour venir régulièrement sans y penser, ou achète des crédits à l\'unité 🔥'
-            : 'Subscribe to train regularly without thinking about it, or buy credits one pack at a time 🔥'}
+          {isBusiness
+            // Un professionnel ne voit aucun abonnement : lui parler de
+            // s'abonner n'aurait pas de sens.
+            ? (isFr
+              ? 'Choisis un pack pour ton entreprise : les crédits sont disponibles tout de suite, la facture suit.'
+              : 'Pick a pack for your company: credits are available right away, the invoice follows.')
+            : (isFr
+              ? 'Abonne-toi pour venir régulièrement sans y penser, ou achète des crédits à l\'unité 🔥'
+              : 'Subscribe to train regularly without thinking about it, or buy credits one pack at a time 🔥')}
         </p>
       </div>
+
+      {/* Compte professionnel : dit AVANT tout clic que rien ne sera prélevé.
+          Sans ce repère, le membre découvre le mode de paiement au moment de
+          valider — trop tard pour qu'il comprenne où il est. */}
+      {isBusiness && (
+        <div className="max-w-2xl mx-auto rounded-xl border border-blue-500/40 bg-blue-50 dark:bg-blue-950/20 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/15">
+              <Receipt className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-blue-900 dark:text-blue-200">
+                {isFr ? 'Compte professionnel' : 'Business account'}
+                {profile?.company_name ? ` — ${profile.company_name}` : ''}
+              </p>
+              <p className="text-sm text-blue-800/80 dark:text-blue-300/80 mt-1">
+                {isFr
+                  ? 'Aucun paiement par carte : tes commandes sont facturées. Les crédits sont activés dès la commande, tu peux réserver sans attendre le règlement.'
+                  : 'No card payment: your orders are invoiced. Credits are activated on order — you can book before payment goes through.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Registration fee alert */}
       {!hasRegistrationFee && (
@@ -590,15 +641,45 @@ export function PacksPage() {
             </Card>
           )}
 
-          {/* Un bloc par type de crédit. Chaque type ouvre sur ce qu'il donne
-              droit à faire : sans cette lecture, on achète un pack qui ne paie
-              pas les cours qu'on visait. */}
-          {creditTypeGroups.map((group) => (
-            <div key={group.label} className="space-y-5">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold">{group.label}</h2>
-                <div className="mx-auto mt-2 h-px w-16 bg-border" />
+          {/* Un onglet par type de crédit.
+              Les blocs étaient empilés : semi-privé d'abord, personal training
+              tout en bas. Un client PT devait faire défiler toute la page pour
+              trouver ce qui le concerne. Les onglets mettent les deux au même
+              niveau — et le type de crédit reste le premier choix, puisqu'un
+              crédit PT ne paie pas un cours semi-privé. */}
+          {creditTypeGroups.length > 1 && (
+            <div className="flex justify-center">
+              <div className="inline-flex rounded-lg border bg-muted/30 p-1">
+                {creditTypeGroups.map((group) => (
+                  <button
+                    key={group.label}
+                    type="button"
+                    onClick={() => setActiveCreditTab(group.label)}
+                    className={cn(
+                      'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                      shownCreditTab === group.label
+                        ? 'bg-background shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {group.label}
+                  </button>
+                ))}
               </div>
+            </div>
+          )}
+
+          {creditTypeGroups
+            .filter((group) => creditTypeGroups.length === 1 || group.label === shownCreditTab)
+            .map((group) => (
+            <div key={group.label} className="space-y-5">
+              {/* Le titre ne se répète pas quand l'onglet le porte déjà. */}
+              {creditTypeGroups.length === 1 && (
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold">{group.label}</h2>
+                  <div className="mx-auto mt-2 h-px w-16 bg-border" />
+                </div>
+              )}
 
               {/* Abonnements du type */}
               {!activeSubscription && group.subscriptions.length > 0 && (
