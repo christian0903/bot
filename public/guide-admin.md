@@ -291,6 +291,59 @@ Le message affiché en haut de la page d'accueil des membres.
 
 ---
 
+## Modifier les documents — CGV, guides
+
+Quatre documents ne se modifient pas depuis l'application : ils vivent dans des fichiers texte, à côté du site.
+
+| Document | Fichier | Où il s'affiche |
+|---|---|---|
+| Conditions générales de vente | `cgv.md` | Page `/cgv`, lien en pied de page et à l'inscription |
+| Guide du membre | `guide-utilisateur.md` | Page Aide, onglet « Guide utilisateur » |
+| Guide coach & admin | `guide-admin.md` | Page Aide, onglet « Guide coach & admin » |
+| Versions anglaises | `guide-utilisateur-en.md`, `guide-admin-en.md` | Mêmes pages, en anglais |
+
+### La méthode simple — modifier en ligne
+
+Les fichiers sont déposés à la racine du site, au même endroit que l'application.
+
+1. Se connecter au serveur (cPanel o2switch → Gestionnaire de fichiers, ou un client FTP comme FileZilla ou Transmit).
+2. Ouvrir le dossier du site, y repérer le fichier — par exemple `cgv.md`.
+3. Le modifier directement, ou le télécharger, le corriger, puis le renvoyer en écrasant l'ancien.
+4. Recharger la page dans le navigateur. **La modification est visible immédiatement**, sans reconstruire ni redéployer l'application.
+
+> C'est tout l'intérêt de ce format : un texte juridique évolue à son rythme, souvent sans développeur. Aucune ligne de code n'est touchée.
+
+### Écrire dans ces fichiers
+
+Le format est du Markdown, du texte ordinaire avec quelques signes :
+
+```
+## Un titre de section        ← apparaît dans le sommaire de la page
+### Un sous-titre
+**du texte en gras**
+- un élément de liste
+> un encadré, pour ce qui doit ressortir
+```
+
+Deux points à connaître :
+
+- **Les titres commençant par `##` construisent le sommaire** affiché en haut de la page. En ajouter un le fait apparaître automatiquement.
+- **Laisser une ligne vide entre les paragraphes**, sinon ils se collent.
+
+### Ce qui reste à compléter dans les CGV
+
+Le fichier `cgv.md` est amorcé, pas terminé. L'article 1 — la séance d'essai n'est pas couverte par l'assurance — est rédigé et applicable. Les articles 3 à 10 portent la mention « à compléter » avec un rappel de ce qu'ils doivent couvrir : santé, packs, annulations, comportement, droit à l'image, litiges.
+
+Le bas du document attend aussi les **coordonnées légales du studio** : adresse, numéro d'entreprise (BCE), numéro de TVA, contact. Ce sont des mentions obligatoires.
+
+> **Avant la mise en vente**, faire relire les conditions générales par un juriste. Une clause qui limite la responsabilité envers un consommateur peut être réputée non écrite si elle est mal rédigée — c'est particulièrement vrai pour la clause d'assurance de l'article 1.
+
+### En cas d'erreur
+
+Si un fichier est supprimé ou corrompu, la page affiche un message d'indisponibilité plutôt qu'un écran blanc. Reposer le fichier suffit à rétablir l'affichage. Une copie de chaque document existe dans le dépôt de code.
+
+---
+
 ## Points de vigilance
 
 **Le paiement fait foi.** Un pack n'est crédité qu'après confirmation du paiement par Stripe. Si un membre dit avoir payé sans que rien n'apparaisse, vérifiez d'abord côté Stripe avant d'attribuer à la main.

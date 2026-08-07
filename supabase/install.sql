@@ -149,7 +149,9 @@ CREATE TABLE pack_types (
   description TEXT,
   credit_type_id UUID NOT NULL REFERENCES credit_types(id),
   credit_count INTEGER NOT NULL CHECK (credit_count > 0),
-  price_cents INTEGER NOT NULL CHECK (price_cents > 0),
+  -- La gratuité est un prix légitime : le pack d'essai vaut 0 €. Seuls les
+  -- montants négatifs restent interdits.
+  price_cents INTEGER NOT NULL CHECK (price_cents >= 0),
   validity_days INTEGER NOT NULL CHECK (validity_days > 0),
   is_unlimited BOOLEAN NOT NULL DEFAULT FALSE,
   -- Abonnement : renouvellement automatique par Stripe.
@@ -164,6 +166,12 @@ CREATE TABLE pack_types (
   stripe_price_id_test TEXT,
   stripe_price_id_live TEXT,
   is_active BOOLEAN DEFAULT TRUE,
+  -- FALSE = hors catalogue, mais toujours utilisable. `is_active = FALSE`
+  -- rendrait le pack inutilisable ET invisible : il faut distinguer « retiré
+  -- de la vente » de « hors service ». Cas de la séance d'essai, offerte.
+  is_purchasable BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Marque LE pack d'essai. Un seul à la fois (index unique partiel ci-dessous).
+  is_trial BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT pack_types_recurring_coherent CHECK (
@@ -171,6 +179,11 @@ CREATE TABLE pack_types (
     OR (recurring_interval IS NOT NULL AND recurring_interval_count IS NOT NULL)
   )
 );
+
+-- Un seul pack d'essai : sans cette garantie, l'attribution devrait choisir
+-- entre plusieurs candidats et le comportement deviendrait imprévisible.
+CREATE UNIQUE INDEX pack_types_single_trial
+  ON pack_types (is_trial) WHERE is_trial;
 
 -- Junction : catégories éligibles par type de pack
 CREATE TABLE pack_type_categories (
@@ -288,13 +301,21 @@ CREATE TABLE bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   scheduled_class_id UUID NOT NULL REFERENCES scheduled_classes(id),
   user_id UUID NOT NULL REFERENCES auth.users(id),
-  pack_purchase_id UUID NOT NULL REFERENCES pack_purchases(id),
+  -- Nullable depuis le pack d'essai : couvre une régularisation faite à la
+  -- main par le studio. Le cas nominal reste rempli — l'essai est payé par le
+  -- crédit de son pack.
+  pack_purchase_id UUID REFERENCES pack_purchases(id),
   status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')),
   checked_in_at TIMESTAMPTZ,
   is_no_show BOOLEAN DEFAULT FALSE,
+  -- Réservation consommant la séance d'essai offerte. Sert à l'affichage
+  -- (badge) et aux statistiques de conversion.
+  is_trial BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   cancelled_at TIMESTAMPTZ,
-  UNIQUE(scheduled_class_id, user_id)
+  UNIQUE(scheduled_class_id, user_id),
+  CONSTRAINT bookings_pack_or_trial
+    CHECK (pack_purchase_id IS NOT NULL OR is_trial)
 );
 
 -- Liste d'attente
@@ -319,8 +340,40 @@ CREATE TABLE notifications (
   type TEXT DEFAULT 'info',
   is_read BOOLEAN DEFAULT FALSE,
   link TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Le membre a retiré la communication de son accueil. La ligne est
+  -- conservée : elle prouve que l'information a été transmise.
+  dismissed_at TIMESTAMPTZ,
+  -- Template e-mail parti en parallèle, NULL si la communication n'existe que
+  -- dans l'application. Sert à afficher « aussi envoyé par e-mail ».
+  email_template TEXT
 );
+
+-- L'accueil demande « les communications non écartées, les plus récentes
+-- d'abord » à chaque chargement.
+CREATE INDEX notifications_user_active
+  ON notifications (user_id, created_at DESC)
+  WHERE dismissed_at IS NULL;
+
+-- E-mails demandés par les fonctions SQL, qui ne peuvent pas appeler une Edge
+-- Function. Le cas type : promote_from_waitlist offre une place valable deux
+-- heures — sans e-mail, l'offre expirait sans que le membre l'ait su.
+CREATE TABLE email_queue (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  template TEXT NOT NULL,
+  vars JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  sent_at TIMESTAMPTZ,
+  -- Dernière erreur rencontrée. Conservée : un envoi qui échoue en silence est
+  -- le pire des cas, on veut pouvoir constater la panne.
+  last_error TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX email_queue_pending
+  ON email_queue (created_at)
+  WHERE sent_at IS NULL;
 
 -- Paramètres application
 CREATE TABLE app_settings (
@@ -576,11 +629,42 @@ RETURNS INTEGER AS $$
     AND status IN ('waiting', 'offered');
 $$ LANGUAGE sql STABLE;
 
--- Promouvoir le premier en liste d'attente
+-- Déposer un e-mail à envoyer. Appelée depuis les fonctions SQL, qui ne
+-- peuvent pas joindre les Edge Functions.
+CREATE OR REPLACE FUNCTION queue_email(
+  p_user_id UUID,
+  p_template TEXT,
+  p_vars JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_id UUID;
+BEGIN
+  INSERT INTO email_queue (user_id, template, vars)
+  VALUES (p_user_id, p_template, p_vars)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$fn$;
+
+-- Promouvoir le premier en liste d'attente.
+-- Notification ET e-mail : l'offre expire en 2 h, l'application seule ne
+-- suffit pas à prévenir à temps — il faudrait que le membre l'ouvre par
+-- hasard dans ce créneau.
 CREATE OR REPLACE FUNCTION promote_from_waitlist(p_scheduled_class_id UUID)
-RETURNS UUID AS $$
+RETURNS UUID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
 DECLARE
   v_waitlist_entry RECORD;
+  v_class          RECORD;
+  v_expires_at     TIMESTAMPTZ;
 BEGIN
   SELECT * INTO v_waitlist_entry
   FROM waitlist
@@ -589,17 +673,47 @@ BEGIN
 
   IF v_waitlist_entry.id IS NULL THEN RETURN NULL; END IF;
 
+  v_expires_at := NOW() + interval '2 hours';
+
   UPDATE waitlist
-  SET status = 'offered', notified_at = NOW(), expires_at = NOW() + interval '2 hours'
+  SET status = 'offered', notified_at = NOW(), expires_at = v_expires_at
   WHERE id = v_waitlist_entry.id;
 
-  INSERT INTO notifications (user_id, title, message, type, link)
+  -- De quoi nommer le cours dans l'e-mail : « une place s'est libérée » sans
+  -- dire laquelle obligerait le membre à ouvrir l'application pour comprendre.
+  SELECT sc.starts_at, sc.duration_minutes, sc.floor,
+         COALESCE(sc.title, ct.name) AS class_name,
+         co.display_name AS coach_name
+    INTO v_class
+  FROM scheduled_classes sc
+  LEFT JOIN class_types ct ON ct.id = sc.class_type_id
+  LEFT JOIN profiles co    ON co.id = sc.coach_id
+  WHERE sc.id = p_scheduled_class_id;
+
+  INSERT INTO notifications (user_id, title, message, type, link, email_template)
   VALUES (v_waitlist_entry.user_id, 'Place disponible !',
-    'Une place s''est libérée pour votre cours. Vous avez 2h pour confirmer.', 'success', '/schedule');
+    'Une place s''est libérée pour votre cours. Vous avez 2h pour confirmer.',
+    'success', '/schedule', 'waitlist_spot_offered');
+
+  PERFORM queue_email(
+    v_waitlist_entry.user_id,
+    'waitlist_spot_offered',
+    jsonb_build_object(
+      'class_name', COALESCE(v_class.class_name, 'votre cours'),
+      'class_date', to_char(v_class.starts_at AT TIME ZONE 'Europe/Brussels', 'DD/MM/YYYY à HH24:MI'),
+      'coach_name', v_class.coach_name,
+      'room_name', CASE v_class.floor
+                     WHEN 'haut' THEN 'Étage'
+                     WHEN 'bas'  THEN 'Rez-de-chaussée'
+                     ELSE NULL END,
+      'duration_minutes', v_class.duration_minutes,
+      'expires_at', to_char(v_expires_at AT TIME ZONE 'Europe/Brussels', 'HH24:MI')
+    )
+  );
 
   RETURN v_waitlist_entry.id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$fn$;
 
 -- Compter les réservations confirmées
 CREATE OR REPLACE FUNCTION class_bookings_count(p_scheduled_class_id UUID)
@@ -678,6 +792,110 @@ AS $$
     WHERE user_id = p_user_id AND is_trial AND status = 'confirmed'
   );
 $$;
+
+-- Attribuer la séance d'essai offerte.
+--
+-- Volontairement PAS dans handle_new_user() : ce trigger avale ses erreurs
+-- (EXCEPTION WHEN OTHERS ... RAISE LOG), si bien qu'un échec d'attribution
+-- passerait inaperçu. Ici la fonction est appelée explicitement et son
+-- résultat est lisible. Idempotente : un second appel ne crée pas un
+-- deuxième crédit.
+CREATE OR REPLACE FUNCTION grant_trial_pack(p_user_id UUID)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_settings      JSONB;
+  v_pack          pack_types%ROWTYPE;
+  v_validity_days INTEGER;
+  v_purchase_id   UUID;
+BEGIN
+  SELECT value INTO v_settings FROM app_settings WHERE key = 'trial_pack';
+
+  IF COALESCE((v_settings->>'enabled')::BOOLEAN, TRUE) IS NOT TRUE THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'disabled');
+  END IF;
+
+  SELECT * INTO v_pack FROM pack_types WHERE is_trial AND is_active LIMIT 1;
+  IF v_pack.id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'no_trial_pack');
+  END IF;
+
+  -- Déjà attribué : on ne redonne pas un crédit à chaque appel. C'est aussi ce
+  -- qui répond à « cette personne a-t-elle eu son essai ? ».
+  IF EXISTS (
+    SELECT 1 FROM pack_purchases
+    WHERE user_id = p_user_id AND pack_type_id = v_pack.id
+  ) THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'already_granted');
+  END IF;
+
+  v_validity_days := COALESCE((v_settings->>'validity_days')::INTEGER, v_pack.validity_days, 30);
+
+  INSERT INTO pack_purchases (
+    user_id, pack_type_id, price_paid_cents, credits_remaining,
+    purchased_at, expires_at
+  ) VALUES (
+    p_user_id, v_pack.id, 0, v_pack.credit_count,
+    NOW(), NOW() + (v_validity_days || ' days')::INTERVAL
+  )
+  RETURNING id INTO v_purchase_id;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'purchase_id', v_purchase_id,
+    'expires_at', NOW() + (v_validity_days || ' days')::INTERVAL
+  );
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.grant_trial_on_profile_create()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  PERFORM grant_trial_pack(NEW.id);
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Un essai non attribué ne doit pas empêcher la création du compte, mais
+  -- l'incident doit rester visible : journalisé, pas avalé en silence.
+  RAISE WARNING 'grant_trial_on_profile_create(%) a échoué : %', NEW.id, SQLERRM;
+  RETURN NEW;
+END;
+$fn$;
+
+-- Écarter de l'accueil les communications déjà lues. Ne touche pas aux non
+-- lues : les balayer ferait perdre l'information au membre.
+CREATE OR REPLACE FUNCTION dismiss_read_notifications()
+RETURNS INTEGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentification requise';
+  END IF;
+
+  WITH ecartees AS (
+    UPDATE notifications
+       SET dismissed_at = NOW()
+     WHERE user_id = auth.uid()
+       AND is_read
+       AND dismissed_at IS NULL
+    RETURNING 1
+  )
+  SELECT COUNT(*) INTO v_count FROM ecartees;
+
+  RETURN v_count;
+END;
+$fn$;
 
 -- Phase 4 : Vérifier si un membre peut réserver
 CREATE OR REPLACE FUNCTION can_book_class(p_class_id UUID, p_user_id UUID)
@@ -1624,6 +1842,13 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- Séance d'essai attribuée à la création du profil. Le trigger porte sur
+-- `profiles` et non sur `auth.users` : à ce moment le profil existe déjà, donc
+-- la clé étrangère de pack_purchases est satisfaite.
+CREATE TRIGGER on_profile_created_grant_trial
+  AFTER INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.grant_trial_on_profile_create();
+
 -- Sync profiles.email when auth.users.email changes (after confirmation)
 CREATE OR REPLACE FUNCTION public.sync_profile_email()
 RETURNS TRIGGER
@@ -1691,6 +1916,7 @@ ALTER TABLE scheduled_classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE email_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registration_fees ENABLE ROW LEVEL SECURITY;
@@ -1779,8 +2005,16 @@ CREATE POLICY "Waitlist: own delete" ON waitlist FOR DELETE USING (auth.uid() = 
 
 -- NOTIFICATIONS
 CREATE POLICY "Notifications: own read" ON notifications FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Notifications: own update" ON notifications FOR UPDATE USING (auth.uid() = user_id);
+-- WITH CHECK indispensable : sans lui, un membre pouvait réassigner une
+-- notification à quelqu'un d'autre en modifiant user_id.
+CREATE POLICY "Notifications: own update" ON notifications
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Notifications: system insert" ON notifications FOR INSERT WITH CHECK (true);
+
+-- EMAIL_QUEUE — file technique. Le membre n'y accède pas ; seul le service
+-- role (Edge Functions) l'écrit et la consomme, en contournant RLS.
+CREATE POLICY "Email queue: staff read" ON email_queue
+  FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin'));
 
 -- APP_SETTINGS
 CREATE POLICY "Settings: public read" ON app_settings FOR SELECT USING (true);
@@ -1922,10 +2156,35 @@ INSERT INTO credit_types (name, label_fr, label_en) VALUES
   ('semi_prive', 'Semi-privé', 'Semi-private'),
   ('personal_training', 'Personal Training', 'Personal Training');
 
+-- Le pack d'essai : gratuit, hors catalogue, attribué à la création du profil
+-- par le trigger on_profile_created_grant_trial.
+--
+-- Semi-privé uniquement (décision du 2026-08-07) : un essai en personal
+-- training coûterait au studio le temps de coach correspondant.
+INSERT INTO pack_types (
+  name, description, credit_type_id, credit_count, price_cents,
+  validity_days, is_active, is_purchasable, is_trial
+)
+SELECT
+  'Séance d''essai offerte',
+  'Une séance semi-privée offerte pour découvrir le studio.',
+  ct.id, 1, 0, 30,
+  TRUE,   -- actif : le crédit doit rester utilisable
+  FALSE,  -- hors catalogue : ne s'achète pas
+  TRUE
+FROM credit_types ct
+WHERE ct.name = 'semi_prive';
+
 -- Paramètres
 INSERT INTO app_settings (key, value) VALUES
   ('announcement', '{"content": "", "published": false}'::jsonb),
   ('stripe_mode', '{"mode": "test"}'::jsonb),
+  -- Séance d'essai offerte. `validity_days` est la source de vérité, appliquée
+  -- à chaque attribution : le studio l'ajuste sans passer par les packs.
+  ('trial_pack', '{
+    "enabled": true,
+    "validity_days": 30
+  }'::jsonb),
   ('payment_provider', '{"provider": "stripe", "mode": "test"}'::jsonb),
   ('referral_rules', '{
     "referrer_reward_cents": 3000,

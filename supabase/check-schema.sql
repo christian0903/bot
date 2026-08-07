@@ -77,6 +77,16 @@ FROM (
   UNION ALL SELECT 'Col: pack_types.is_trial', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='pack_types' AND column_name='is_trial')
   UNION ALL SELECT 'Data: pack d''essai present', EXISTS(SELECT 1 FROM pack_types WHERE is_trial AND is_active)
   UNION ALL SELECT 'Table: trial_sessions supprimee', NOT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='trial_sessions')
+  UNION ALL SELECT 'Setting: trial_pack', EXISTS(SELECT 1 FROM app_settings WHERE key='trial_pack')
+
+  -- COMMUNICATIONS ET FILE D'E-MAILS (2026-08-07)
+  UNION ALL SELECT 'Col: notifications.dismissed_at', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='notifications' AND column_name='dismissed_at')
+  UNION ALL SELECT 'Col: notifications.email_template', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='notifications' AND column_name='email_template')
+  UNION ALL SELECT 'Table: email_queue', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='email_queue')
+  UNION ALL SELECT 'Func: queue_email', EXISTS(SELECT 1 FROM pg_proc WHERE proname='queue_email')
+  UNION ALL SELECT 'Func: dismiss_read_notifications', EXISTS(SELECT 1 FROM pg_proc WHERE proname='dismiss_read_notifications')
+  UNION ALL SELECT 'Func: decline_modified_booking', EXISTS(SELECT 1 FROM pg_proc WHERE proname='decline_modified_booking')
+  UNION ALL SELECT 'RLS: email_queue', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='email_queue' AND rowsecurity=true)
 
   -- RLS
   UNION ALL SELECT 'RLS: profiles', EXISTS(SELECT 1 FROM pg_tables WHERE tablename='profiles' AND rowsecurity=true)
