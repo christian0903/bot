@@ -203,7 +203,44 @@ Sept états : planifié, effectif à surveiller, exécuté, présences à valide
 
 Les fichiers vivent dans `supabase/migrations/`. Ils s'exécutent dans le SQL Editor du dashboard, dans l'ordre chronologique de leur nom.
 
-> `install.sql` est censé recréer une base complète à partir de rien. **Vérifiez qu'il est à jour avant de vous en servir** : il a pris du retard sur les migrations.
+> **Toute migration se reporte dans `install.sql` — dans le même commit.**
+>
+> `install.sql` doit reconstruire une base complète à partir de rien. Une migration appliquée sans y être reportée le rend faux en silence : il paraît fonctionner et produit une base incomplète.
+>
+> Le rattrapage différé échoue de façon répétée. Le 7 août, douze migrations ont été appliquées dans la journée et le fichier n'a été repris qu'en fin de session : il manquait une table, cinq fonctions, un trigger, quatre colonnes, deux index et un réglage.
+
+À reporter à chaque fois :
+
+| Ce que la migration ajoute | Où le reporter |
+|---|---|
+| Table, colonne, index, contrainte | `install.sql`, dans le bloc de la table concernée |
+| Fonction, trigger | `install.sql`, près des fonctions de même domaine |
+| Policy RLS | `install.sql` **et** `check-policies.sql` |
+| Réglage (`app_settings`), donnée initiale | `install.sql`, bloc des données de départ |
+| N'importe lequel des précédents | Un contrôle dans `check-schema.sql` |
+
+**Vérifier plutôt que supposer.** La présence d'un objet se contrôle contre la base réelle :
+
+```sql
+-- Les tables déclarées vs les tables réelles
+select table_name from information_schema.tables
+where table_schema='public' and table_type='BASE TABLE' order by table_name;
+
+-- Idem pour les fonctions
+select routine_name from information_schema.routines
+where routine_schema='public' and routine_type='FUNCTION' order by routine_name;
+```
+
+**Valider la syntaxe sans rien casser ni rien payer** : exécuter les blocs ajoutés sur un schéma jetable, dans une transaction annulée.
+
+```sql
+BEGIN;
+CREATE SCHEMA verif;
+-- ... les CREATE TABLE / CREATE FUNCTION ajoutés, préfixés verif.
+ROLLBACK;   -- rien ne persiste
+```
+
+Et tester que les garde-fous **refusent** bien ce qu'ils doivent refuser (un `DO $$ ... EXCEPTION WHEN unique_violation ... $$` suffit) : une contrainte qu'on ne teste pas est une contrainte qu'on croit avoir.
 
 ### Fonctions
 
