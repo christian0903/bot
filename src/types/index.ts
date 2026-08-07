@@ -23,6 +23,11 @@ export interface Profile {
   medical_conditions: string | null
   cgv_accepted_at: string | null
   rgpd_accepted_at: string | null
+  /**
+   * Compte fermé à la demande du membre : données personnelles anonymisées,
+   * pièces comptables conservées sans lien identifiable.
+   */
+  deleted_at: string | null
   referral_code: string | null
   member_status: MemberStatus
   weekly_goal: number

@@ -1066,6 +1066,82 @@ CREATE INDEX IF NOT EXISTS profiles_active
   ON profiles (member_status)
   WHERE deleted_at IS NULL;
 
+
+-- Suppression d'un compte par le studio, à la demande du membre.
+-- Mêmes règles que la version libre-service ; la différence tient à la
+-- traçabilité : le journal retient QUI a supprimé et le nom d'origine, seul
+-- endroit où il subsiste.
+CREATE OR REPLACE FUNCTION delete_member_account(p_user_id UUID)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_actor  UUID := auth.uid();
+  v_subs   INTEGER;
+  v_tag    TEXT;
+  v_name   TEXT;
+BEGIN
+  IF NOT (has_role(v_actor, 'admin') OR has_role(v_actor, 'super_admin')) THEN
+    RAISE EXCEPTION 'Reserve aux administrateurs';
+  END IF;
+
+  -- Personne ne supprime un super admin : le studio perdrait son accès.
+  IF has_role(p_user_id, 'super_admin') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'super_admin_protected');
+  END IF;
+
+  SELECT display_name INTO v_name FROM profiles WHERE id = p_user_id;
+  IF v_name IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
+  END IF;
+
+  SELECT COUNT(*) INTO v_subs
+  FROM subscriptions
+  WHERE user_id = p_user_id AND status IN ('active', 'past_due', 'paused', 'incomplete');
+
+  -- Stripe ne sait rien de la suppression : il continuerait de prélever.
+  IF v_subs > 0 THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'active_subscription');
+  END IF;
+
+  v_tag := 'Membre supprimé #' || substr(p_user_id::text, 1, 8);
+
+  PERFORM cancel_booking_by_studio(b.id)
+  FROM bookings b
+  JOIN scheduled_classes sc ON sc.id = b.scheduled_class_id
+  WHERE b.user_id = p_user_id AND b.status = 'confirmed' AND sc.starts_at > NOW();
+
+  DELETE FROM waitlist WHERE user_id = p_user_id;
+
+  UPDATE profiles SET
+    display_name = v_tag, first_name = NULL, last_name = NULL, email = NULL,
+    phone = NULL, date_of_birth = NULL, address = NULL, bio = NULL,
+    avatar_url = NULL, emergency_contact_name = NULL,
+    emergency_contact_phone = NULL, objectives = NULL,
+    medical_conditions = NULL, fitness_level = NULL, instagram_url = NULL,
+    facebook_url = NULL, linkedin_url = NULL, coach_description = NULL,
+    referral_code = NULL, member_status = 'former', deleted_at = NOW()
+  WHERE id = p_user_id;
+
+  DELETE FROM notifications WHERE user_id = p_user_id;
+  DELETE FROM email_queue WHERE user_id = p_user_id;
+  DELETE FROM performances WHERE user_id = p_user_id;
+  DELETE FROM user_roles WHERE user_id = p_user_id;
+
+  INSERT INTO activity_log (action, actor_id, target_user_id, entity_type, entity_id, details, description)
+  VALUES ('account_deleted', v_actor, p_user_id, 'profile', p_user_id,
+          jsonb_build_object('deleted_by_staff', true, 'former_name', v_name),
+          format('Compte de %s supprimé par le studio — données personnelles anonymisées', v_name));
+
+  RETURN jsonb_build_object('ok', true, 'former_name', v_name);
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION delete_member_account(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION delete_member_account(UUID) TO authenticated;
+
 -- Phase 4 : Vérifier si un membre peut réserver
 CREATE OR REPLACE FUNCTION can_book_class(p_class_id UUID, p_user_id UUID)
 RETURNS JSONB

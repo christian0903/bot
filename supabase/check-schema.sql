@@ -98,6 +98,7 @@ FROM (
   UNION ALL SELECT 'Col: profiles.deleted_at', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='deleted_at')
   UNION ALL SELECT 'Func: can_delete_own_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='can_delete_own_account')
   UNION ALL SELECT 'Func: delete_own_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='delete_own_account')
+  UNION ALL SELECT 'Func: delete_member_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='delete_member_account')
   UNION ALL SELECT 'Enum: activity_action.account_deleted', EXISTS(SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid=t.oid WHERE t.typname='activity_action' AND e.enumlabel='account_deleted')
 
   -- RLS

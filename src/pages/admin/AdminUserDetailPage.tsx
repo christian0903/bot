@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X, RefreshCw, PauseCircle, PlayCircle, AlertTriangle, RotateCcw, TicketPercent, UserPlus, UserCog, Shield } from 'lucide-react'
+import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil, Receipt, KeyRound, Mail, X, RefreshCw, PauseCircle, PlayCircle, AlertTriangle, RotateCcw, Trash2, TicketPercent, UserPlus, UserCog, Shield } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
@@ -124,6 +124,10 @@ export function AdminUserDetailPage() {
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetRunning, setResetRunning] = useState(false)
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleteRunning, setDeleteRunning] = useState(false)
 
   const fetchData = async () => {
     if (!id) return
@@ -421,6 +425,44 @@ export function AdminUserDetailPage() {
     } finally {
       setRoleSaving(null)
     }
+  }
+
+  /**
+   * Ferme le compte d'un membre à sa demande.
+   *
+   * Le serveur refait tous les contrôles — rôle de l'appelant, abonnement
+   * actif, protection du super admin — et signale son refus DANS son retour,
+   * sans lever d'erreur SQL. C'est le piège du 6 août : sans tester `ok`, on
+   * afficherait « supprimé » sur un compte intact.
+   */
+  const handleDeleteAccount = async () => {
+    if (!id) return
+    setDeleteRunning(true)
+    const { data, error } = await supabase.rpc('delete_member_account', { p_user_id: id })
+    setDeleteRunning(false)
+
+    if (error) { toast.error(error.message); return }
+
+    const res = data as { ok: boolean; reason?: string; former_name?: string } | null
+    if (!res?.ok) {
+      const messages: Record<string, string> = {
+        active_subscription: isFr
+          ? 'Résiliez d\'abord l\'abonnement en cours.'
+          : 'Cancel the active subscription first.',
+        super_admin_protected: isFr
+          ? 'Un super administrateur ne peut pas être supprimé.'
+          : 'A super admin cannot be deleted.',
+        not_found: isFr ? 'Membre introuvable.' : 'Member not found.',
+      }
+      toast.error(messages[res?.reason ?? ''] ?? (isFr ? 'Suppression impossible' : 'Deletion failed'))
+      return
+    }
+
+    toast.success(isFr
+      ? `Compte de ${res.former_name} supprimé.`
+      : `${res.former_name}'s account deleted.`)
+    setDeleteDialogOpen(false)
+    navigate('/admin/users')
   }
 
   const handleResetPurchases = async () => {
@@ -748,6 +790,18 @@ export function AdminUserDetailPage() {
   const now = new Date()
   const activePacks = packs.filter(p => p.credits_remaining > 0 && new Date(p.expires_at) > now)
   const totalCredits = activePacks.reduce((sum, p) => sum + p.credits_remaining, 0)
+
+  /** Seul un admin ferme un compte : un coach ne doit pas pouvoir le faire. */
+  const isAdmin = hasRole('admin') || hasRole('super_admin')
+
+  /**
+   * Un abonnement en cours empêche la suppression : Stripe ne sait rien de ce
+   * qui se passe côté application et continuerait de prélever. « canceled »
+   * n'est pas dans la liste, mais une résiliation programmée laisse le statut
+   * « active » — elle bloque donc aussi, à raison.
+   */
+  const hasActiveSubscription = !!subscription
+    && ['active', 'past_due', 'paused', 'incomplete'].includes(subscription.status)
   const upcomingBookings = bookings.filter(b => b.status === 'confirmed' && new Date(b.scheduled_class?.starts_at ?? '') > now)
   // Séances réellement honorées : les annulations et absences ont leur onglet
   // (un no-show garde status='confirmed', d'où l'exclusion explicite).
@@ -1041,7 +1095,31 @@ export function AdminUserDetailPage() {
             {isFr ? 'Remise à zéro (test)' : 'Reset (test)'}
           </Button>
         )}
+
+        {/* Suppression à la demande du membre. Réservée aux admins, et jamais
+            proposée sur un compte déjà fermé. */}
+        {isAdmin && !profile.deleted_at && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs border-destructive/50 text-destructive hover:bg-destructive/5"
+            onClick={() => { setDeleteConfirmText(''); setDeleteDialogOpen(true) }}
+          >
+            <Trash2 className="h-3 w-3 mr-1" />
+            {isFr ? 'Supprimer le compte' : 'Delete account'}
+          </Button>
+        )}
       </div>
+
+      {/* Compte déjà fermé : le dire, sinon un profil « Membre supprimé #… »
+          ressemble à une anomalie. */}
+      {profile.deleted_at && (
+        <div className="rounded-lg border border-muted bg-muted/40 p-3 text-sm text-muted-foreground">
+          {isFr
+            ? `Compte supprimé le ${format(new Date(profile.deleted_at), 'dd/MM/yyyy', { locale })}. Les données personnelles ont été effacées ; les justificatifs de paiement sont conservés.`
+            : `Account deleted on ${format(new Date(profile.deleted_at), 'dd/MM/yyyy', { locale })}. Personal data was erased; payment records are kept.`}
+        </div>
+      )}
 
       {/* Stats cards */}
       <div className="grid grid-cols-3 gap-3">
@@ -1990,6 +2068,92 @@ export function AdminUserDetailPage() {
                 : (isFr ? 'Tout effacer' : 'Delete all')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suppression du compte à la demande du membre */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">
+              {isFr ? 'Supprimer le compte' : 'Delete account'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* L'abonnement actif est un blocage, pas un avertissement : Stripe
+              ne sait rien de la suppression et continuerait de prélever. On le
+              dit AVANT que l'admin tape le nom pour rien. */}
+          {hasActiveSubscription ? (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+                <p className="font-medium text-destructive">
+                  {isFr ? 'Abonnement en cours — résiliez-le d\'abord' : 'Active subscription — cancel it first'}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {isFr
+                    ? 'Ce membre a un abonnement actif. Le supprimer maintenant laisserait Stripe continuer les prélèvements, sans que personne puisse les arrêter côté application.'
+                    : 'This member has an active subscription. Deleting now would let Stripe keep charging, with no way to stop it from the app.'}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {isFr
+                    ? 'Résiliez l\'abonnement dans l\'onglet Abonnement, puis revenez ici.'
+                    : 'Cancel the subscription in the Subscription tab, then come back.'}
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                  {t('common.close')}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-2 text-sm">
+                <p className="font-medium text-destructive">
+                  {isFr ? 'Cette action est définitive.' : 'This cannot be undone.'}
+                </p>
+                <p className="text-muted-foreground">
+                  {isFr
+                    ? 'Nom, coordonnées, date de naissance, contact d\'urgence, informations de santé, performances et notifications seront effacés. Les réservations à venir seront annulées.'
+                    : 'Name, contact details, date of birth, emergency contact, health information, performances and notifications will be erased. Upcoming bookings will be cancelled.'}
+                </p>
+                <p className="text-muted-foreground">
+                  {isFr
+                    ? 'Les justificatifs de paiement — frais d\'inscription, packs, abonnements — sont conservés sans lien avec l\'identité, comme la loi comptable l\'exige.'
+                    : 'Payment records — registration fees, packs, subscriptions — are kept without any link to identity, as accounting law requires.'}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  {isFr
+                    ? <>Tapez <span className="font-mono font-semibold">{profile.display_name}</span> pour confirmer</>
+                    : <>Type <span className="font-mono font-semibold">{profile.display_name}</span> to confirm</>}
+                </Label>
+                <Input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={profile.display_name ?? ''}
+                  autoComplete="off"
+                />
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleteRunning}>
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteRunning || deleteConfirmText.trim() !== (profile.display_name ?? '').trim()}
+                >
+                  {deleteRunning
+                    ? (isFr ? 'Suppression…' : 'Deleting…')
+                    : (isFr ? 'Supprimer le compte' : 'Delete account')}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
