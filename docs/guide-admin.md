@@ -103,6 +103,14 @@ Un coach y trouve ses cours et ses chiffres.
 
 **Un admin y accède aussi**, par le lien **Coach** du menu principal — au même titre qu'un coach simple. Il y voit les cours dont **il est lui-même le coach**, pas ceux de toute l'équipe : pour la vue d'ensemble, c'est Administration → Planning. Utile quand on cumule les deux casquettes et qu'on donne des cours.
 
+### Le menu du staff n'affiche pas les écrans membres
+
+Un coach ou un admin ne voit ni *Mes cours*, ni *Mes packs*, ni *Performances*, ni *Packs* : le staff ne s'entraîne pas au studio, ces écrans n'auraient rien à lui montrer.
+
+Le **planning** reste dans son menu — c'est aussi son outil de travail : lui seul y voit les cours à surveiller et les décisions en attente.
+
+**Pour consulter les réservations ou les packs d'un membre**, passez par Administration → Membres → sa fiche. Les onglets *Packs*, *Réservations*, *Annulations*, *Abonnement* et *Crédits* montrent tout ce que le membre voit de son côté — et davantage, puisqu'on peut aussi l'inscrire à un cours ou lui créditer un geste commercial. Aucune raison de se connecter à sa place.
+
 **Ses chiffres, sur 30 jours** : cours donnés sur planifiés (avec le détail des cours sans inscrit et annulés), participants venus, et deux taux distincts — **remplissage** (inscrits sur places) et, entre parenthèses, **présence** (venus sur inscrits). Le second tourne autour de 100 % en temps normal ; s'en écarter signale des absences répétées.
 
 Ces chiffres portent toujours sur 30 jours, quelle que soit la période affichée dans la liste en dessous.

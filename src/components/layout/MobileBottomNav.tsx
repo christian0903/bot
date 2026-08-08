@@ -14,8 +14,9 @@ import { cn } from '@/lib/utils'
  * écran. Chaque rôle voit les quatre écrans qu'il ouvre le plus souvent, le
  * reste passant par le menu du haut.
  *
- * Un admin ou un coach reste membre du studio : le planning figure dans toutes
- * les barres, et l'espace membre reste joignable par le menu.
+ * Le staff ne s'entraîne pas au studio : aucun écran membre dans ses barres —
+ * ni réservations, ni packs. Le planning, lui, y figure partout : c'est aussi
+ * son outil de travail.
  */
 export function MobileBottomNav() {
   const { t, i18n } = useTranslation()
@@ -39,10 +40,10 @@ export function MobileBottomNav() {
   // Coach non admin : ses cours et le planning. Il n'a pas accès aux écrans
   // d'administration, inutile de les lui proposer.
   const coachItems = [
+    { path: '/', icon: Home, label: t('nav.home') },
     { path: '/coach/my-classes', icon: Dumbbell, label: isFr ? 'Mes cours' : 'My classes' },
     { path: '/schedule', icon: CalendarDays, label: t('nav.schedule') },
-    { path: '/my-bookings', icon: ClipboardList, label: isFr ? 'Mes résas' : 'My bookings' },
-    { path: '/', icon: Home, label: t('nav.home') },
+    { path: '/performance-types', icon: ClipboardList, label: isFr ? 'Perfs' : 'Perfs' },
   ]
 
   // Membre : « Mes cours » plutôt que les stats — le planning signale les cours

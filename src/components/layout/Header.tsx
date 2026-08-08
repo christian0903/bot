@@ -40,17 +40,31 @@ export function Header() {
     await signOut()
   }
 
+  /**
+   * Le staff ne s'entraîne pas au studio : ni pack, ni réservation, ni
+   * performance à suivre. Les écrans personnels n'ont donc rien à faire dans sa
+   * barre — ils l'encombrent avec des fonctions qu'il n'ouvrira jamais.
+   *
+   * Le planning fait exception : c'est l'outil de travail du staff, et lui seul
+   * y voit les cours à surveiller et les décisions en attente.
+   *
+   * Les routes, elles, restent ouvertes. Masquer un lien range un menu, ça ne
+   * protège rien — et un membre qui deviendrait coach garde l'accès à son
+   * historique par une URL directe.
+   */
+  const isStaff = hasRole('coach') || hasRole('admin')
+
   const navItems = [
     { label: t('nav.home'), path: '/', show: true },
     { label: t('nav.schedule'), path: '/schedule', show: !!user },
-    { label: t('nav.myBookings'), path: '/my-bookings', show: !!user },
-    { label: t('nav.myPacks'), path: '/my-packs', show: !!user },
-    { label: t('nav.performances'), path: '/performances', show: !!user },
-    { label: t('nav.packs'), path: '/packs', show: !!user },
+    { label: t('nav.myBookings'), path: '/my-bookings', show: !!user && !isStaff },
+    { label: t('nav.myPacks'), path: '/my-packs', show: !!user && !isStaff },
+    { label: t('nav.performances'), path: '/performances', show: !!user && !isStaff },
+    { label: t('nav.packs'), path: '/packs', show: !!user && !isStaff },
     // L'admin y a droit — la route accepte déjà `['coach', 'admin']`. Sans ce
     // `hasRole('admin')`, un admin qui donne des cours devait taper l'URL à la
     // main pour atteindre un écran qui lui était pourtant ouvert.
-    { label: t('nav.coach'), path: '/coach/my-classes', show: hasRole('coach') || hasRole('admin') },
+    { label: t('nav.coach'), path: '/coach/my-classes', show: isStaff },
     { label: t('nav.admin'), path: '/admin/users', show: hasRole('admin') },
   ].filter((item) => item.show)
 
