@@ -169,6 +169,8 @@ C'est ce qui a évité d'écrire un moteur de quota, une table de formules et un
 
 Sept états : planifié, effectif à surveiller, exécuté, présences à valider, décision attendue, sans inscrit, annulé. **« Exécuté » exige des présences pointées** : sans elles, personne ne sait si le cours a eu lieu.
 
+**Un cours entièrement pointé en absences est « exécuté ».** Le coach s'est déplacé et a constaté que personne n'était venu : le cours a bien eu lieu, et les absents n'ayant pas annulé à temps, leurs crédits restent acquis au studio. Sans ce cas, `getClassStatus` ne comptait que les présents et rangeait un tel cours en « décision attendue » — l'écran réclamait alors un arbitrage que le pointage avait déjà tranché, sans offrir aucun bouton pour le rendre (`disabled={isNoShow}`). D'où le paramètre `noShows`, à passer partout où `attended` l'est.
+
 ### Les fonctions SQL notables
 
 - `get_available_credits(user, credit_type)` — les sources de paiement d'un membre, **abonnement en tête**

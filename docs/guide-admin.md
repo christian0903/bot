@@ -118,7 +118,7 @@ Ces chiffres portent toujours sur 30 jours, quelle que soit la période affiché
 **Sa liste de cours**, filtrable :
 
 - **Période** : à venir, cette semaine (du lundi), ce mois-ci. Des flèches reculent ou avancent d'une semaine ou d'un mois selon la vue.
-- **Statut**, sur les périodes passées : exécutés, présences à valider, décision attendue, sans inscrit, annulés.
+- **Statut**, sur les périodes passées : exécutés, présences à valider, décision attendue, sans inscrit, annulés. Un cours où **tous les inscrits ont été pointés absents** compte comme **exécuté** : le coach s'est déplacé, et les absents n'ayant pas annulé à temps, leurs crédits restent acquis.
 
 Chaque ligne affiche `2/5` pour un cours à venir, `3/4/5` pour un cours passé — présents, inscrits, capacité.
 

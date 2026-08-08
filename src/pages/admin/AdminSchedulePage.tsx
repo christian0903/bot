@@ -72,6 +72,8 @@ export function AdminSchedulePage() {
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
   /** Présences pointées par cours : distingue un cours établi d'un cours supposé. */
   const [attendedCounts, setAttendedCounts] = useState<Map<string, number>>(new Map())
+  /** Absents pointés : un cours tout en absences reste un cours donné. */
+  const [noShowCounts, setNoShowCounts] = useState<Map<string, number>>(new Map())
   /** Minimum d'inscrits pour qu'un cours compte comme donné (Réglages). */
   const [minParticipants, setMinParticipants] = useState(1)
   const [classTypes, setClassTypes] = useState<ClassType[]>([])
@@ -192,6 +194,7 @@ export function AdminSchedulePage() {
 
       const counts = new Map<string, number>()
       const attended = new Map<string, number>()
+      const noShows = new Map<string, number>()
       for (const b of (bookingRows ?? []) as {
         scheduled_class_id: string; status: string; is_no_show: boolean; checked_in_at: string | null
       }[]) {
@@ -200,9 +203,13 @@ export function AdminSchedulePage() {
         }
         if (b.status !== 'confirmed' && !b.is_no_show) continue
         counts.set(b.scheduled_class_id, (counts.get(b.scheduled_class_id) ?? 0) + 1)
+        if (b.is_no_show) {
+          noShows.set(b.scheduled_class_id, (noShows.get(b.scheduled_class_id) ?? 0) + 1)
+        }
       }
       setBookingCounts(counts)
       setAttendedCounts(attended)
+      setNoShowCounts(noShows)
     }
 
     setMinParticipants(
@@ -827,6 +834,7 @@ export function AdminSchedulePage() {
                             is_cancelled: sc.is_cancelled,
                             bookings: bookingCounts.get(sc.id) ?? 0,
                             attended: attendedCounts.get(sc.id) ?? 0,
+                            noShows: noShowCounts.get(sc.id) ?? 0,
                             minParticipants,
                           })
                           if (st === 'scheduled') return null

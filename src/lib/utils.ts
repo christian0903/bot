@@ -69,6 +69,14 @@ export interface ClassStatusInput {
    * cours qu'on suppose donné parce que l'effectif était suffisant.
    */
   attended?: number
+  /**
+   * Absences pointées.
+   * Un absent est un pointage à part entière : le coach a constaté que la
+   * personne n'est pas venue. Sans ce compte, un cours entièrement pointé en
+   * absences passait pour « non pointé » et réclamait une décision impossible
+   * à prendre — tout était déjà tranché.
+   */
+  noShows?: number
 }
 
 export function getClassStatus(c: ClassStatusInput, now = new Date()): ClassStatus {
@@ -90,6 +98,12 @@ export function getClassStatus(c: ClassStatusInput, now = new Date()): ClassStat
     // si le cours a eu lieu. Le déduire de l'effectif donnerait une fausse
     // certitude — et masquerait le fait que le coach n'a pas pointé.
     if ((c.attended ?? 0) > 0) return 'given'
+    // Personne n'est venu, mais TOUT a été pointé : le coach s'est déplacé et
+    // a constaté les absences. Le cours est donné — les absents n'ont pas
+    // annulé à temps, leurs crédits restent acquis au studio. Sans ce cas, un
+    // cours entièrement pointé en absences réclamait une décision alors que
+    // l'écran n'offrait plus aucun bouton : tout était déjà tranché.
+    if ((c.noShows ?? 0) >= c.bookings) return 'given'
     if (hasQuorum) return 'pending_checkin'
     return 'not_given'
   }

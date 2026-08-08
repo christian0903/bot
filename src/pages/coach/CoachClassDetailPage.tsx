@@ -127,12 +127,23 @@ export function CoachClassDetailPage() {
   const handleCheckIn = async (booking: Booking) => {
     if (booking.checked_in_at) return
 
-    const { error } = await supabase
+    // `select()` n'est pas décoratif : une policy RLS qui refuse un UPDATE ne
+    // renvoie AUCUNE erreur, elle met simplement à jour zéro ligne. Sans lire
+    // ce que la base a réellement écrit, on afficherait « pointé ! » sur un
+    // pointage qui n'a pas eu lieu.
+    const { data, error } = await supabase
       .from('bookings')
       .update({ checked_in_at: new Date().toISOString() })
       .eq('id', booking.id)
+      .select('id')
 
     if (error) { toast.error(error.message); return }
+    if (!data || data.length === 0) {
+      toast.error(isFr
+        ? 'Pointage refusé — vous n\'avez pas les droits sur ce cours'
+        : 'Check-in refused — you lack permission on this class')
+      return
+    }
 
     await logActivity({
       action: 'check_in',
@@ -151,22 +162,36 @@ export function CoachClassDetailPage() {
   }
 
   const handleUndoCheckIn = async (booking: Booking) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .update({ checked_in_at: null })
       .eq('id', booking.id)
+      .select('id')
     if (error) { toast.error(error.message); return }
+    if (!data || data.length === 0) {
+      toast.error(isFr
+        ? 'Annulation refusée — vous n\'avez pas les droits sur ce cours'
+        : 'Undo refused — you lack permission on this class')
+      return
+    }
     setBookings(prev => prev.map(b =>
       b.id === booking.id ? { ...b, checked_in_at: null } : b
     ))
   }
 
   const handleMarkNoShow = async (booking: Booking) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .update({ is_no_show: true })
       .eq('id', booking.id)
+      .select('id')
     if (error) { toast.error(error.message); return }
+    if (!data || data.length === 0) {
+      toast.error(isFr
+        ? 'Refusé — vous n\'avez pas les droits sur ce cours'
+        : 'Refused — you lack permission on this class')
+      return
+    }
 
     await logActivity({
       action: 'no_show',

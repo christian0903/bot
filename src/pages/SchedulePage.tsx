@@ -94,6 +94,8 @@ export function SchedulePage() {
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
   /** Présences pointées : distingue un cours établi d'un cours supposé. */
   const [attendedCounts, setAttendedCounts] = useState<Map<string, number>>(new Map())
+  /** Absents pointés : un cours tout en absences reste un cours donné. */
+  const [noShowCounts, setNoShowCounts] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [bookingInProgress, setBookingInProgress] = useState<string | null>(null)
   /** Réservation en attente de confirmation dans la pop-up. */
@@ -320,6 +322,7 @@ export function SchedulePage() {
         .in('scheduled_class_id', classIds)
       const counts = new Map<string, number>()
       const attended = new Map<string, number>()
+      const noShows = new Map<string, number>()
       for (const row of (countData ?? []) as {
         scheduled_class_id: string; status: string; is_no_show: boolean; checked_in_at: string | null
       }[]) {
@@ -328,9 +331,13 @@ export function SchedulePage() {
         }
         if (row.status !== 'confirmed' && !row.is_no_show) continue
         counts.set(row.scheduled_class_id, (counts.get(row.scheduled_class_id) ?? 0) + 1)
+        if (row.is_no_show) {
+          noShows.set(row.scheduled_class_id, (noShows.get(row.scheduled_class_id) ?? 0) + 1)
+        }
       }
       setBookingCounts(counts)
       setAttendedCounts(attended)
+      setNoShowCounts(noShows)
     }
 
     // Waitlist
@@ -677,6 +684,12 @@ export function SchedulePage() {
    *
    * Ne concerne que les cours sous le seuil : au-dessus, l'absence de pointage
    * est un oubli du coach, pas une décision en suspens.
+   *
+   * Un cours dont TOUTES les réservations sont pointées en absence n'y figure
+   * pas : le coach s'est déplacé et a constaté que personne n'était venu. Le
+   * cours a eu lieu, les absents n'ont pas annulé à temps, leurs crédits sont
+   * acquis. Rien à décider — et l'écran de pointage n'offrait d'ailleurs plus
+   * aucun bouton, ce qui rendait la demande insoluble.
    */
   const classesPendingDecision = isStaff
     ? classes.filter(sc => {
@@ -684,7 +697,8 @@ export function SchedulePage() {
         if (new Date(sc.starts_at) > new Date()) return false
         const count = bookingCounts.get(sc.id) ?? 0
         if (count === 0 || count >= minParticipants) return false
-        return (attendedCounts.get(sc.id) ?? 0) === 0
+        if ((attendedCounts.get(sc.id) ?? 0) > 0) return false
+        return (noShowCounts.get(sc.id) ?? 0) < count
       })
     : []
 
@@ -1108,6 +1122,11 @@ export function SchedulePage() {
           starts_at: sc.starts_at,
           is_cancelled: sc.is_cancelled,
           bookings: bookingCounts.get(sc.id) ?? 0,
+          // Sans ces deux comptes, un cours pointé passait pour « à décider » :
+          // c'est ce qui affichait « décision attendue » sur un cours dont
+          // toutes les présences étaient déjà tranchées.
+          attended: attendedCounts.get(sc.id) ?? 0,
+          noShows: noShowCounts.get(sc.id) ?? 0,
           minParticipants,
         })
         const badge = classStatusLabel(status, isFr)
