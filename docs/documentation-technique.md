@@ -185,7 +185,13 @@ Sept états : planifié, effectif à surveiller, exécuté, présences à valide
 - `order_pack_on_invoice(pack)` — commande B2B. **Refuse un profil non qualifié** : c'est le seul rempart contre des séances gratuites
 - `set_invoice_details(id, numéro, date)` — enregistre l'émission Odoo, **indépendamment du paiement**
 - `mark_invoice_paid(id)` — pointe l'encaissement. Aucun effet sur les crédits
-- `submit_class_review(booking, note, texte)` — dépose un avis. Exige une réservation confirmée sur un cours terminé
+- `submit_class_review(booking, note, texte)` — dépose **ou corrige** un avis. Exige une réservation confirmée et une fenêtre ouverte
+- `delete_class_review(booking)` — retire son avis, dans la même fenêtre que la correction
+- `pending_class_reviews()` — les séances de l'appelant qui attendent un avis
+- `my_class_reviews()` — ses avis, avec un champ `editable` calculé en base
+- `class_reviews_for_staff(class)` — avis d'un cours, **anonymes**. Un coach n'accède qu'à ses propres cours
+- `class_reviews_for_admin(coach, type, du, au, limite)` — avis **nominatifs**, admin seul
+- `class_review_stats_by_coach()` — nombre d'avis et moyenne par coach, admin seul
 - `delete_own_account()` / `delete_member_account(user)` — **anonymisent**, ne suppriment pas
 - `queue_email(user, template, vars)` — dépose un e-mail quand on est dans une fonction SQL
 
@@ -230,6 +236,46 @@ END IF;
 Sans ce contrôle **côté serveur**, n'importe qui appellerait la fonction et obtiendrait des séances gratuites. Le front masque le bouton, mais un front ne protège rien.
 
 `is_business` est aussi ce qui masque les abonnements au B2B — pas une catégorie de membre. Deux marqueurs pour le même fait finiraient par diverger, et un membre oublié en catégorie tomberait sur un paiement Stripe inattendu.
+
+---
+
+## Avis sur les cours
+
+### L'avis porte sur la réservation, pas sur le cours
+
+`class_reviews` référence `booking_id` en **clé unique**. C'est ce qui rend la question « qui a le droit de noter quoi » réglable en base plutôt qu'à l'écran : sans réservation confirmée, pas d'avis possible ; une séance, un avis, modifiable mais non empilable.
+
+### Aucune policy INSERT
+
+L'écriture passe exclusivement par `submit_class_review`. Une policy ouverte laisserait noter n'importe quel cours, y compris ceux auxquels on n'a jamais assisté.
+
+### Les deux bornes se comptent depuis la fin du cours
+
+```sql
+sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL
+  + (v_open || ' hours')::INTERVAL < NOW()   -- ouverture
+sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL
+  + (v_close || ' hours')::INTERVAL > NOW()  -- fermeture
+```
+
+Réglage `app_settings.class_reviews` : `hours_before_review` (temps de décantation, 0 par défaut) et `hours_to_review` (fermeture, 168 h = 7 jours). **Les deux en heures** — mélanger les unités obligeait à convertir de tête pour savoir si les bornes se recouvraient. Partir de la **fin** du cours dispense de tenir compte de la durée de chaque séance.
+
+La même fenêtre gouverne le dépôt, la correction et la suppression : ce qu'on laisse modifier, on doit laisser effacer.
+
+### Anonyme pour le coach, nominatif pour l'admin
+
+Deux fonctions distinctes plutôt qu'un drapeau, parce que la levée de l'anonymat est un choix de studio, pas un défaut à corriger :
+
+- `class_reviews_for_staff` — sans le nom des auteurs, et **bornée aux cours du coach appelant**. Sans la jointure sur `scheduled_classes.coach_id`, un rôle staff suffisait à lire les avis d'un collègue en connaissant l'identifiant du cours.
+- `class_reviews_for_admin` — avec nom et e-mail. Sans le nom, on ne peut ni recontacter la personne ni distinguer un mécontentement isolé d'un acharnement.
+
+### `editable` est calculé en base
+
+`my_class_reviews` renvoie ce booléen plutôt que de laisser le client refaire le calcul de fenêtre. Une seule source de vérité, et l'interface n'affiche jamais un bouton qui échouerait au clic.
+
+### Pas de notion d'« avis négatif »
+
+Un premier jet exposait un compteur d'avis à 2 étoiles ou moins. **Le seuil était arbitraire** et le mot laissait croire à une catégorie objective. Le filtre par étoile exacte, côté client, laisse ce jugement à qui lit.
 
 ---
 

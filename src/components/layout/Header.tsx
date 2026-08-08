@@ -47,7 +47,10 @@ export function Header() {
     { label: t('nav.myPacks'), path: '/my-packs', show: !!user },
     { label: t('nav.performances'), path: '/performances', show: !!user },
     { label: t('nav.packs'), path: '/packs', show: !!user },
-    { label: t('nav.coach'), path: '/coach/my-classes', show: hasRole('coach') },
+    // L'admin y a droit — la route accepte déjà `['coach', 'admin']`. Sans ce
+    // `hasRole('admin')`, un admin qui donne des cours devait taper l'URL à la
+    // main pour atteindre un écran qui lui était pourtant ouvert.
+    { label: t('nav.coach'), path: '/coach/my-classes', show: hasRole('coach') || hasRole('admin') },
     { label: t('nav.admin'), path: '/admin/users', show: hasRole('admin') },
   ].filter((item) => item.show)
 

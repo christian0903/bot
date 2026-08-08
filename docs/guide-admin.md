@@ -99,7 +99,9 @@ Ces données alimentent le taux de présence et les statistiques d'annulation.
 
 ## L'espace coach
 
-Un coach y trouve ses cours et ses chiffres. Un admin y accède aussi.
+Un coach y trouve ses cours et ses chiffres.
+
+**Un admin y accède aussi**, par le lien **Coach** du menu principal — au même titre qu'un coach simple. Il y voit les cours dont **il est lui-même le coach**, pas ceux de toute l'équipe : pour la vue d'ensemble, c'est Administration → Planning. Utile quand on cumule les deux casquettes et qu'on donne des cours.
 
 **Ses chiffres, sur 30 jours** : cours donnés sur planifiés (avec le détail des cours sans inscrit et annulés), participants venus, et deux taux distincts — **remplissage** (inscrits sur places) et, entre parenthèses, **présence** (venus sur inscrits). Le second tourne autour de 100 % en temps normal ; s'en écarter signale des absences répétées.
 
@@ -254,6 +256,7 @@ Ces montants s'appliquent aux futurs parrainages ; les bons déjà créés garde
 - **Coût moyen d'une séance illimitée** : sert à valoriser les statistiques, puisqu'un illimité ne décompte rien
 - **Seuil d'alerte annulations** : à partir de combien d'annulations par cycle un membre est signalé
 - **Minimum de participants** : en dessous, un cours est signalé pour revue
+- **Demande d'avis après les cours** : interrupteur, plus deux délais **en heures, comptés à partir de la fin du cours**. Le premier impose un temps d'attente avant qu'un avis soit possible (à 0, la séance est notable dès qu'elle se termine) ; le second ferme la fenêtre — au-delà, plus personne ne peut noter, et les avis déjà donnés se figent. 168 heures valent une semaine. Couper la demande ne supprime aucun avis existant
 - **Informations du studio**, **noms des salles**
 - **Mode Stripe** (super admin) : test ou production. Bascule le paiement **et** le webhook d'un coup
 
@@ -272,6 +275,22 @@ Sur une période au choix (semaine, mois, trimestre, année, ou dates libres) :
 - **Exports CSV** : ventes de packs, et cours avec leurs réservations
 
 > Sur un pack illimité, aucun crédit n'est décompté : la valeur d'une séance vient du réglage « coût moyen d'une séance illimitée ».
+
+### Évaluations — Administration → Évaluations
+
+Les avis laissés par les membres après leurs séances : une note de 1 à 5 étoiles et un commentaire facultatif.
+
+**La liste** affiche une ligne par avis — le cours, sa date et son heure, les étoiles. Le bouton **Détails** déplie le reste sans quitter la page : le coach, le membre **avec son nom et son e-mail**, la date de dépôt, et le commentaire s'il y en a un. Plusieurs lignes peuvent rester ouvertes en même temps.
+
+**Filtrer :**
+
+- **Période** — champs *Du* et *Au*, flèches ◀ ▶ pour décaler d'une durée équivalente, raccourcis *Cette semaine* et *Ce mois*. Même fonctionnement que le planning. La période porte sur la date **du cours**, pas sur celle du dépôt de l'avis.
+- **Coach** et **Type de cours** — listes déroulantes.
+- **Étoiles** — un bouton par note, avec le nombre d'avis concernés. Une note que personne n'a donnée n'est pas cliquable.
+
+**Moyenne par coach** — en bas de page, sur **tout l'historique** et non sur la période affichée : c'est une tendance de fond, elle n'a de sens que dans la durée. Cliquer sur un coach filtre la liste.
+
+> **L'admin est le seul à voir qui a écrit quoi.** Les coachs voient les avis de leurs cours de façon anonyme — un membre qui revoit son coach la semaine suivante ne note pas franchement s'il se sait identifiable. L'accès nominatif de l'admin sert à recontacter quelqu'un, ou à distinguer un mécontentement isolé d'un acharnement.
 
 ### Parrainages — Administration → Parrainages
 

@@ -79,7 +79,11 @@ Si c'est l'horaire ou le type de cours qui change, le message te propose explici
 
 Après une séance, ta page d'accueil te propose de la noter de 1 à 5 étoiles, avec un commentaire si tu veux — il reste facultatif.
 
-**Ton coach ne voit pas qui a écrit quoi.** C'est ce qui permet d'être franc : dis ce que tu as pensé, pas ce qui ferait plaisir.
+Une seule séance t'est proposée à la fois, la plus récente. Les autres reviendront à ta prochaine visite. Tu peux aussi cliquer sur **Plus tard**.
+
+**Tu peux revenir dessus.** Pendant une semaine, retrouve ton avis dans **Mes cours**, sous la séance concernée : tu peux le **modifier** ou le **supprimer**. Passé ce délai, il se fige.
+
+**Ton coach ne voit pas qui a écrit quoi.** C'est ce qui permet d'être franc : dis ce que tu as pensé, pas ce qui ferait plaisir. Le studio, lui, y a accès de manière nominative — c'est ce qui lui permet de te recontacter si quelque chose s'est mal passé.
 
 La proposition disparaît d'elle-même après quelques jours. Si tu ne veux pas répondre, ignore-la simplement.
 

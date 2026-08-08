@@ -303,6 +303,37 @@ Files are CSV format with `;` separator and UTF-8 encoding (Excel compatible). F
 
 ---
 
+## Class Reviews
+
+After a session, members can rate it from 1 to 5 stars and leave an optional comment.
+
+Only a member who was **booked** on a **finished** class can rate it, once. While the window is open they can **edit or delete** their review — a review left in the heat of the moment gets regretted. After that, it freezes.
+
+### Browsing them — Admin → Reviews
+
+One row per review: the class, its date and time, the stars. The **Details** button expands in place to show the coach, the member **with their name and email**, the submission date, and the written comment if any.
+
+**Filters** — period (*From* and *To* fields, ◀ ▶ arrows, *This week* and *This month* shortcuts, same as the schedule), coach, class type, and one button per star rating with its count. The period applies to the **class** date, not the submission date.
+
+At the bottom, the **average per coach** across all history — a long-run trend only means something over time. Clicking a coach filters the list.
+
+### Who sees what
+
+**Reviews are anonymous to coaches** — that is what keeps them honest. A member who sees their coach again next week will not rate frankly if they can be identified. A coach also only sees reviews for **their own classes**.
+
+**You are the only one who can trace a review back to its author.** That is what allows reaching out to someone, or telling an isolated complaint apart from a pattern.
+
+### Settings — Admin → Settings → Class reviews
+
+A toggle, then two delays **in hours, counted from the end of the class**:
+
+- **Wait before rating** — settling time. At 0, the class can be rated as soon as it ends.
+- **Reviews close after** — beyond this, nobody can rate, and existing reviews freeze (no longer editable or deletable). 168 hours is one week.
+
+Counting from the end of the class avoids having to account for each class's duration. Turning the request off does not delete any existing review.
+
+---
+
 ## Security
 
 ### Keys and Secrets

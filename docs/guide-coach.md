@@ -61,6 +61,14 @@ Le coach voit un bouton **"Détail"** à la place du bouton "Réserver" sur chaq
 - Coach
 - ID du cours (visible uniquement pour le Super Admin)
 
+### Avis des participants
+- Bloc affiché **en bas du détail d'un cours passé**, uniquement s'il y a au moins un avis
+- Moyenne du cours, répartition par note (5 à 1), puis les commentaires écrits
+- **Anonyme** : ni nom ni photo. C'est la contrepartie de la franchise — un membre qui vous revoit la semaine suivante ne note pas honnêtement s'il se sait identifiable
+- **Limité à vos propres cours** : les avis d'un cours donné par un collègue ne vous sont pas accessibles
+- L'admin, lui, voit qui a écrit quoi (Administration → Évaluations). C'est ce qui lui permet de traiter un avis problématique
+- Les membres notent de 1 à 5 étoiles dans la semaine qui suit le cours, et peuvent corriger ou retirer leur avis pendant ce délai — une moyenne peut donc encore bouger quelques jours après la séance
+
 ## 4. Types de performances (`/performance-types`)
 
 Page partagée avec les admins, accessible via le bouton "Gérer les types" depuis `/performances`.

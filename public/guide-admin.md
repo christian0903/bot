@@ -397,15 +397,34 @@ Sur chaque ligne :
 
 ## Avis sur les cours
 
-Après une séance, le membre peut la noter de 1 à 5 étoiles et laisser un commentaire.
+Après une séance, le membre peut la noter de 1 à 5 étoiles et laisser un commentaire facultatif.
 
-**Les avis sont anonymes pour le coach** — c'est ce qui les rend francs. Vous êtes le seul à pouvoir remonter à leur auteur.
+Seul un membre **inscrit** à un cours **terminé** peut le noter, une seule fois. Tant que le délai court, il peut **corriger ou supprimer** son avis — un avis donné à chaud se regrette. Passé le délai, il se fige.
+
+### Consulter — Administration → Évaluations
+
+La liste affiche une ligne par avis : le cours, sa date et son heure, les étoiles. Le bouton **Détails** déplie sans quitter la page le coach, le membre **avec son nom et son e-mail**, la date de dépôt et le commentaire éventuel.
+
+**Filtres** — période (champs *Du* et *Au*, flèches ◀ ▶, raccourcis *Cette semaine* et *Ce mois*, comme le planning), coach, type de cours, et un bouton par étoile avec le nombre d'avis concernés. La période porte sur la date **du cours**, pas du dépôt.
+
+En bas de page, la **moyenne par coach** sur tout l'historique — une tendance de fond n'a de sens que dans la durée. Cliquer sur un coach filtre la liste.
+
+### Qui voit quoi
+
+**Les avis sont anonymes pour le coach** — c'est ce qui les rend francs. Un membre qui revoit son coach la semaine suivante ne note pas honnêtement s'il se sait identifiable. Un coach ne voit d'ailleurs que les avis de **ses propres cours**.
+
+**Vous êtes le seul à pouvoir remonter à leur auteur.** C'est ce qui permet de recontacter quelqu'un, ou de distinguer un mécontentement isolé d'un acharnement.
 
 Sur la fiche d'un cours passé, le coach voit la moyenne, la répartition par étoile et les commentaires. La répartition compte autant que la moyenne : un 4 de moyenne peut cacher deux 5 et un 2.
 
-**Réglage** — Administration → Réglages → Avis sur les cours : activer ou non, et combien de jours la proposition reste affichée (sept par défaut). Passé ce délai elle disparaît d'elle-même. Désactiver ne supprime aucun avis déjà donné.
+### Réglage — Administration → Réglages → Avis sur les cours
 
-Seul un membre **inscrit** à un cours **terminé** peut le noter, une seule fois. Il peut corriger son avis tant que le délai court.
+Un interrupteur, puis deux délais **en heures, comptés à partir de la fin du cours** :
+
+- **Attendre avant de pouvoir noter** — temps de décantation. À 0, la séance est notable dès qu'elle se termine.
+- **Fermeture des avis** — au-delà, plus personne ne peut noter, et les avis déjà donnés se figent (ni modifiables ni supprimables). 168 heures valent une semaine.
+
+Compter à partir de la fin du cours évite d'avoir à tenir compte de la durée de chaque séance. Désactiver la demande ne supprime aucun avis déjà donné.
 
 ---
 

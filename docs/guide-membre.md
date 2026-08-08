@@ -67,6 +67,18 @@ Si c'est l'horaire ou le type de cours qui change, le message te propose explici
 
 Cours complet ? Clique sur **Liste d'attente**. Si une place se libère, tu es prévenu et tu as un délai pour confirmer. Passé ce délai, elle passe au suivant.
 
+### Donner mon avis sur un cours
+
+Après une séance, une demande d'avis apparaît **sur ta page d'accueil**, parmi tes messages : une note de 1 à 5 étoiles, et un commentaire si tu veux en laisser un. Le commentaire est facultatif — une note seule suffit.
+
+Une seule séance t'est proposée à la fois, la plus récente. Les autres reviendront à ta prochaine visite. Tu peux aussi cliquer sur **Plus tard** : la demande réapparaîtra.
+
+Tu ne peux noter que les cours auxquels tu étais inscrit, et seulement une fois qu'ils sont terminés.
+
+**Tu as une semaine.** Pendant ce délai, retrouve ton avis dans **Mes cours**, sous la séance concernée : tu peux le **modifier** ou le **supprimer** librement. Passé la semaine, il se fige et n'est plus modifiable.
+
+**Qui voit quoi ?** Ton coach voit les avis de ses cours **sans savoir qui les a écrits**. Le studio, lui, y a accès de manière nominative — c'est ce qui lui permet de te recontacter si quelque chose s'est mal passé.
+
 ---
 
 ## De temps en temps

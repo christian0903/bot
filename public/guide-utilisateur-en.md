@@ -121,6 +121,21 @@ This page lists all your bookings, split into two tabs:
 ### Past
 - History of past and cancelled sessions
 - Each booking shows its status: **Confirmed** or **Cancelled**
+- **Your review**, if you left one — with **Edit** and **Delete** while the window is open
+
+---
+
+## Rating a Class
+
+After a session, your **home page** offers to rate it from 1 to 5 stars, with an optional comment — a rating on its own is already useful.
+
+Only one session is offered at a time, the most recent one. Others come back on your next visit. You can also click **Later**.
+
+You can only rate classes you were booked on, and only once they have finished.
+
+**You have one week.** During that time, find your review in **My Bookings**, under the session: you can **edit** or **delete** it freely. After that, it freezes.
+
+**Your coach cannot see who wrote what.** That is what lets you be honest: say what you thought, not what would please. The studio does have access by name — that is what allows them to reach out if something went wrong.
 
 ---
 

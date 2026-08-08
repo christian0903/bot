@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-07**
+> Dernière mise à jour : **2026-08-08**
 
 ---
 
@@ -14,7 +14,7 @@
 **Séance d'essai** : **livrée** — vrai pack gratuit attribué à l'inscription (2026-08-07).
 **Communications** : **livrées** — tout e-mail laisse une trace dans l'application.
 **Parrainage & bons d'achat** : livré, **toujours non testé de bout en bout**.
-**Avis sur les cours** : **livré** — étoiles et commentaire, délai réglable.
+**Avis sur les cours** : **livré** — étoiles et commentaire, consultation admin nominative, correction et suppression par le membre. **Jamais vu avec des données réelles** (voir session du 2026-08-08).
 **Clients professionnels** : **livré** — commande sur facture, suivi des encaissements.
 **Performances** : étapes 1 et 2 livrées (valeurs comparables, courbes). Paliers et régularité à faire.
 **Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter. **Deux de ses éléments deviennent bloquants pour l'App Store** — voir ci-dessous.
@@ -34,6 +34,60 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. La fonction doit **anonymiser** plutôt qu'effacer : les données comptables se conservent.
 2. **Politique de confidentialité avec URL publique** — à créer sur le modèle de `public/cgv.md`.
+
+---
+
+## Session du 2026-08-08
+
+Un seul commit (v2.55.0) : la **consultation** des avis, restée en friche la veille. Les avis se déposaient depuis le 7 août mais ne se lisaient que cours par cours, depuis la fiche d'un cours passé — ni vue d'ensemble, ni accès nominatif, ni possibilité pour le membre de relire ce qu'il avait écrit.
+
+### Une divergence dépôt / base, et sa cause
+
+En ouvrant le chantier, `install.sql` et `supabase/migrations/` ne disaient pas la même chose : le premier connaissait un réglage `app_settings.class_reviews` que le second ignorait.
+
+**Ce n'était pas une négligence sur `install.sql`** — la règle avait été respectée. La migration `20260807153356 avis_delai_reglable` existait bel et bien **en base**, appliquée directement via `apply_migration` du MCP Supabase, mais aucun fichier n'avait été redescendu dans le dépôt. Le fichier a été reconstitué depuis la définition réelle des fonctions.
+
+**Cause structurelle, toujours ouverte** : `apply_migration` écrit en base sans créer de fichier local. Chaque usage exige de descendre le fichier à la main, dans le même commit. Deux autres migrations sont dans ce cas (`suppression_compte_par_admin`, `facture_numero_et_date`) mais leur contenu se retrouve dans d'autres fichiers — bruit de nommage, pas trou fonctionnel.
+
+### Un seuil arbitraire déguisé en donnée
+
+La première version de l'écran admin proposait un filtre « avis négatifs », défini à 2 étoiles ou moins. **Ce seuil n'avait aucun fondement métier** — il avait été inventé au moment d'écrire l'écran. Le mot « négatif » laissait croire à une catégorie objective.
+
+Remplacé par un filtre par étoile exacte, qui laisse le jugement à qui lit. Le compteur `low_count` a été retiré de `class_review_stats_by_coach` pour la même raison : une notion arbitraire n'a pas à se figer en base.
+
+### Le coach voyait trop
+
+`class_reviews_for_staff` n'exigeait qu'un rôle staff. **Un coach pouvait lire les avis des cours d'un collègue** en connaissant l'identifiant du cours — l'écran ne le proposait pas, la fonction l'autorisait. Resserré aux cours dont il est le coach.
+
+L'anonymat côté coach est conservé (décision du 2026-08-07) : un membre qui revoit son coach mardi ne note pas franchement s'il se sait identifiable. L'admin garde l'accès nominatif — sans le nom, on ne peut ni recontacter la personne ni distinguer un mécontentement isolé d'un acharnement.
+
+### Les délais passent en heures
+
+Le réglage mélangeait deux unités : une ouverture en heures, une fermeture en jours. **Les deux bornes se comptent maintenant en heures, depuis la FIN du cours** — le studio règle un délai sans avoir à tenir compte de la durée de chaque cours.
+
+| Réglage | Rôle | Valeur |
+|---|---|---|
+| `hours_before_review` | Temps de décantation avant qu'un avis soit possible | 0 |
+| `hours_to_review` | Fermeture de la fenêtre | 168 (= les 7 jours précédents) |
+
+Le point de départ a changé au passage : la fenêtre partait du **début** du cours, elle part désormais de sa **fin**.
+
+### Ce qu'on laisse modifier, on doit laisser effacer
+
+Le membre retrouve son avis sous la séance dans *Mes réservations*, et peut le corriger **ou le retirer** tant que la fenêtre est ouverte. Un avis donné à chaud se regrette ; forcer quelqu'un à vivre avec une note qu'il désavoue ne rend service à personne.
+
+`my_class_reviews` renvoie un champ `editable` **calculé en base** : l'interface n'a pas à refaire le calcul de fenêtre, et n'affiche jamais un bouton qui échouerait au clic.
+
+### Livré
+
+- **Admin** — entrée « Évaluations » : une ligne par avis (cours, date et heure, étoiles), bouton *Détails* qui déplie **en place** l'auteur, son e-mail et le texte. Filtres par période (flèches et raccourcis semaine/mois, même mécanique que le planning, période dans l'URL), par coach, par type de cours, par étoile. Moyenne par coach sur tout l'historique.
+- **Membre** — relecture, correction et suppression depuis *Mes réservations*.
+- **Coach** — inchangé à l'écran, mais borné à ses propres cours en base.
+- **Réglages** — deux champs en heures, avec garde-fou si la fermeture précède l'ouverture.
+
+### Point de vigilance
+
+**Rien n'a été vu avec des données réelles.** La table `class_reviews` est vide, et l'insertion d'avis de test a été refusée par le classificateur de permissions. Les fonctions sont en place, les signatures concordent avec la base, le build passe — mais **le rendu des trois écrans reste à confirmer** dès qu'un premier avis existera.
 
 ---
 
