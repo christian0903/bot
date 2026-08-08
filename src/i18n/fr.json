@@ -296,6 +296,9 @@
     "referrals": {
       "title": "Parrainages"
     },
+    "reviews": {
+      "title": "Évaluations"
+    },
     "announcements": {
       "title": "Annonces",
       "content": "Contenu",

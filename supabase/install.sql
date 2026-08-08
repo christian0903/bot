@@ -1242,7 +1242,8 @@ STABLE
 AS $fn$
 DECLARE
   v_settings JSONB;
-  v_days     INTEGER;
+  v_open     NUMERIC;
+  v_close    NUMERIC;
 BEGIN
   SELECT value INTO v_settings FROM app_settings WHERE key = 'class_reviews';
 
@@ -1250,7 +1251,8 @@ BEGIN
     RETURN;
   END IF;
 
-  v_days := GREATEST(1, COALESCE((v_settings->>'days_to_review')::INTEGER, 7));
+  v_open  := GREATEST(0, COALESCE((v_settings->>'hours_before_review')::NUMERIC, 0));
+  v_close := GREATEST(1, COALESCE((v_settings->>'hours_to_review')::NUMERIC, 168));
 
   RETURN QUERY
   SELECT b.id,
@@ -1265,18 +1267,21 @@ BEGIN
   WHERE b.user_id = auth.uid()
     AND b.status = 'confirmed'
     AND NOT sc.is_cancelled
-    AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL < NOW()
-    AND sc.starts_at > NOW() - (v_days || ' days')::INTERVAL
+    -- Les deux bornes partent de la fin du cours.
+    AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL
+        + (v_open || ' hours')::INTERVAL < NOW()
+    AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL
+        + (v_close || ' hours')::INTERVAL > NOW()
     AND NOT EXISTS (SELECT 1 FROM class_reviews r WHERE r.booking_id = b.id)
   ORDER BY sc.starts_at DESC;
 END;
 $fn$;
 
 COMMENT ON FUNCTION pending_class_reviews IS
-  'Séances suivies par l''appelant qui attendent encore un avis. Bornée à trente jours : au-delà, le souvenir s''est estompé.';
+  'Séances suivies par l''appelant qui attendent encore un avis. Ouvre `hours_before_review` heures après la fin du cours, ferme `hours_to_review` heures après cette même fin.';
 
 -- ---------------------------------------------------------------------------
--- Déposer un avis
+-- Déposer ou corriger un avis
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION submit_class_review(
   p_booking_id UUID,
@@ -1289,8 +1294,11 @@ SET search_path = public
 LANGUAGE plpgsql
 AS $fn$
 DECLARE
-  v_uid     UUID := auth.uid();
-  v_booking RECORD;
+  v_uid      UUID := auth.uid();
+  v_booking  RECORD;
+  v_settings JSONB;
+  v_open     NUMERIC;
+  v_close    NUMERIC;
 BEGIN
   IF v_uid IS NULL THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'not_authenticated');
@@ -1300,20 +1308,29 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'reason', 'invalid_rating');
   END IF;
 
-  -- La réservation doit être la sienne, confirmée, et le cours terminé. Ces
-  -- trois conditions ensemble rendent impossible de noter un cours auquel on
-  -- n'est pas allé.
+  SELECT value INTO v_settings FROM app_settings WHERE key = 'class_reviews';
+
+  -- Coupée : ni dépôt ni correction.
+  IF COALESCE((v_settings->>'enabled')::BOOLEAN, TRUE) IS NOT TRUE THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'disabled');
+  END IF;
+
+  v_open  := GREATEST(0, COALESCE((v_settings->>'hours_before_review')::NUMERIC, 0));
+  v_close := GREATEST(1, COALESCE((v_settings->>'hours_to_review')::NUMERIC, 168));
+
+  -- La réservation doit être la sienne, confirmée, et la fenêtre ouverte. Ces
+  -- conditions ensemble rendent impossible de noter un cours auquel on n'est
+  -- pas allé, ou une séance trop ancienne.
   SELECT b.id, b.scheduled_class_id INTO v_booking
   FROM bookings b
   JOIN scheduled_classes sc ON sc.id = b.scheduled_class_id
   WHERE b.id = p_booking_id
     AND b.user_id = v_uid
     AND b.status = 'confirmed'
-    AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL < NOW()
-    AND sc.starts_at > NOW() - (
-      GREATEST(1, COALESCE(
-        (SELECT (value->>'days_to_review')::INTEGER FROM app_settings WHERE key = 'class_reviews'), 7))
-      || ' days')::INTERVAL;
+    AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL
+        + (v_open || ' hours')::INTERVAL < NOW()
+    AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL
+        + (v_close || ' hours')::INTERVAL > NOW();
 
   IF v_booking.id IS NULL THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'not_eligible');
@@ -1331,18 +1348,70 @@ END;
 $fn$;
 
 COMMENT ON FUNCTION submit_class_review IS
-  'Dépose ou corrige l''avis du membre sur une séance suivie. Refuse si la réservation n''est pas la sienne, n''est pas confirmée, ou si le cours n''est pas terminé.';
+  'Dépose ou corrige l''avis du membre. Ouvre `hours_before_review` heures après la fin du cours, ferme `hours_to_review` heures après cette même fin. La modification suit la même fenêtre que le dépôt.';
+
+-- ---------------------------------------------------------------------------
+-- Retirer son avis
+-- ---------------------------------------------------------------------------
+-- Même fenêtre que la modification : ce qu'on peut corriger, on peut le
+-- retirer. Un avis donné à chaud se regrette, et forcer quelqu'un à vivre avec
+-- une note qu'il désavoue ne rend service à personne.
+CREATE OR REPLACE FUNCTION delete_class_review(p_booking_id UUID)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_uid      UUID := auth.uid();
+  v_settings JSONB;
+  v_close    NUMERIC;
+  v_deleted  INTEGER;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_authenticated');
+  END IF;
+
+  SELECT value INTO v_settings FROM app_settings WHERE key = 'class_reviews';
+  v_close := GREATEST(1, COALESCE((v_settings->>'hours_to_review')::NUMERIC, 168));
+
+  DELETE FROM class_reviews r
+  USING scheduled_classes sc
+  WHERE r.booking_id = p_booking_id
+    AND r.user_id = v_uid
+    AND sc.id = r.scheduled_class_id
+    AND sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL
+        + (v_close || ' hours')::INTERVAL > NOW();
+
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+
+  IF v_deleted = 0 THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_eligible');
+  END IF;
+
+  RETURN jsonb_build_object('ok', true);
+END;
+$fn$;
+
+COMMENT ON FUNCTION delete_class_review IS
+  'Retire l''avis du membre sur une séance. Refuse hors de la fenêtre `hours_to_review` : au-delà, l''avis est figé.';
 
 REVOKE ALL ON FUNCTION pending_class_reviews() FROM PUBLIC;
 REVOKE ALL ON FUNCTION submit_class_review(UUID, SMALLINT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION delete_class_review(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION pending_class_reviews() TO authenticated;
 GRANT EXECUTE ON FUNCTION submit_class_review(UUID, SMALLINT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION delete_class_review(UUID) TO authenticated;
 
 -- ---------------------------------------------------------------------------
--- Ce que le coach voit
+-- Ce que le coach voit : ses cours seulement, toujours anonyme
 -- ---------------------------------------------------------------------------
--- Sans le nom de l'auteur : c'est la contrepartie de la franchise. L'admin,
--- lui, lit la table directement et peut remonter à la personne.
+-- Sans le nom de l'auteur : c'est la contrepartie de la franchise. Un membre
+-- qui reverra son coach mardi ne note pas franchement s'il se sait identifiable.
+-- L'admin, lui, a l'accès nominatif via `class_reviews_for_admin`.
+--
+-- Le coach est borné à SES cours : sans la jointure, n'importe quel coach
+-- pouvait lire les avis d'un collègue en connaissant l'identifiant du cours.
 CREATE OR REPLACE FUNCTION class_reviews_for_staff(p_scheduled_class_id UUID)
 RETURNS TABLE (
   rating SMALLINT,
@@ -1356,18 +1425,172 @@ STABLE
 AS $fn$
   SELECT r.rating, r.comment, r.created_at
   FROM class_reviews r
+  JOIN scheduled_classes sc ON sc.id = r.scheduled_class_id
   WHERE r.scheduled_class_id = p_scheduled_class_id
-    AND (has_role(auth.uid(), 'coach')
+    AND (
+      (has_role(auth.uid(), 'coach') AND sc.coach_id = auth.uid())
       OR has_role(auth.uid(), 'admin')
-      OR has_role(auth.uid(), 'super_admin'))
+      OR has_role(auth.uid(), 'super_admin')
+    )
   ORDER BY r.created_at DESC;
 $fn$;
 
 COMMENT ON FUNCTION class_reviews_for_staff IS
-  'Avis d''un cours, sans le nom des auteurs. L''anonymat côté coach est ce qui rend les avis honnêtes ; l''admin garde l''accès nominatif via la table.';
+  'Avis d''un cours, sans le nom des auteurs. Le coach n''y accède que pour les cours qu''il a donnés ; l''admin voit tout. Pour l''accès nominatif, voir `class_reviews_for_admin`.';
+
+-- ---------------------------------------------------------------------------
+-- Ce que l'admin voit : tout, avec l'auteur
+-- ---------------------------------------------------------------------------
+-- Réservé à l'admin — un coach qui appellerait cette fonction n'obtient rien.
+-- C'est ce qui permet de traiter un avis problématique : sans le nom, on ne
+-- peut ni recontacter la personne ni constater un acharnement.
+--
+-- La période porte sur la date du COURS, pas sur celle du dépôt : « les avis
+-- de cette semaine » veut dire les cours de cette semaine.
+CREATE OR REPLACE FUNCTION class_reviews_for_admin(
+  p_coach_id UUID DEFAULT NULL,
+  p_class_type_id UUID DEFAULT NULL,
+  p_from TIMESTAMPTZ DEFAULT NULL,
+  p_to TIMESTAMPTZ DEFAULT NULL,
+  p_limit INTEGER DEFAULT 500
+)
+RETURNS TABLE (
+  id UUID,
+  rating SMALLINT,
+  comment TEXT,
+  created_at TIMESTAMPTZ,
+  user_id UUID,
+  member_name TEXT,
+  member_email TEXT,
+  scheduled_class_id UUID,
+  class_name TEXT,
+  class_type_id UUID,
+  starts_at TIMESTAMPTZ,
+  coach_id UUID,
+  coach_name TEXT
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql
+STABLE
+AS $fn$
+  SELECT r.id,
+         r.rating,
+         r.comment,
+         r.created_at,
+         r.user_id,
+         m.display_name,
+         m.email,
+         r.scheduled_class_id,
+         COALESCE(sc.title, ct.name),
+         sc.class_type_id,
+         sc.starts_at,
+         sc.coach_id,
+         co.display_name
+  FROM class_reviews r
+  JOIN scheduled_classes sc ON sc.id = r.scheduled_class_id
+  LEFT JOIN class_types ct ON ct.id = sc.class_type_id
+  LEFT JOIN profiles m  ON m.id = r.user_id
+  LEFT JOIN profiles co ON co.id = sc.coach_id
+  WHERE (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin'))
+    -- Filtres facultatifs : NULL = pas de filtre.
+    AND (p_coach_id IS NULL OR sc.coach_id = p_coach_id)
+    AND (p_class_type_id IS NULL OR sc.class_type_id = p_class_type_id)
+    AND (p_from IS NULL OR sc.starts_at >= p_from)
+    AND (p_to IS NULL OR sc.starts_at <= p_to)
+  ORDER BY sc.starts_at DESC
+  LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 500), 2000));
+$fn$;
+
+COMMENT ON FUNCTION class_reviews_for_admin IS
+  'Avis avec l''identité de leur auteur, pour l''admin seul. Filtres facultatifs par coach, type de cours et période (sur la date du COURS, pas du dépôt). Triés par date de cours décroissante.';
+
+-- ---------------------------------------------------------------------------
+-- Statistiques par coach, pour l'admin
+-- ---------------------------------------------------------------------------
+-- Une moyenne globale ne dit pas grand-chose ; la comparaison entre coachs, si.
+-- Les coachs sans aucun avis sont exclus : afficher « — » pour quelqu'un qui
+-- n'a pas encore été noté invite à conclure trop vite.
+--
+-- Volontairement sans compteur d'avis « négatifs » : le seuil en dessous duquel
+-- une note devient un problème est un jugement de studio, pas une donnée. Le
+-- filtre par étoiles laisse ce jugement à qui lit.
+CREATE OR REPLACE FUNCTION class_review_stats_by_coach()
+RETURNS TABLE (
+  coach_id UUID,
+  coach_name TEXT,
+  review_count BIGINT,
+  average_rating NUMERIC
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql
+STABLE
+AS $fn$
+  SELECT sc.coach_id,
+         co.display_name,
+         COUNT(*),
+         ROUND(AVG(r.rating)::NUMERIC, 2)
+  FROM class_reviews r
+  JOIN scheduled_classes sc ON sc.id = r.scheduled_class_id
+  LEFT JOIN profiles co ON co.id = sc.coach_id
+  WHERE (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin'))
+    AND sc.coach_id IS NOT NULL
+  GROUP BY sc.coach_id, co.display_name
+  ORDER BY AVG(r.rating) DESC;
+$fn$;
+
+COMMENT ON FUNCTION class_review_stats_by_coach IS
+  'Nombre d''avis et moyenne par coach. Admin seul. Pas de notion d''avis « négatif » : le seuil est un jugement de studio, pas une donnée.';
+
+-- ---------------------------------------------------------------------------
+-- Ce que le membre relit
+-- ---------------------------------------------------------------------------
+-- Relire un avis ancien ne pose aucun problème : pas de borne de lecture. En
+-- revanche `editable` dit si la fenêtre de correction est encore ouverte, pour
+-- que l'interface n'affiche pas des boutons qui échoueraient au clic.
+CREATE OR REPLACE FUNCTION my_class_reviews()
+RETURNS TABLE (
+  booking_id UUID,
+  scheduled_class_id UUID,
+  rating SMALLINT,
+  comment TEXT,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ,
+  editable BOOLEAN
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql
+STABLE
+AS $fn$
+  SELECT r.booking_id,
+         r.scheduled_class_id,
+         r.rating,
+         r.comment,
+         r.created_at,
+         r.updated_at,
+         sc.starts_at + (sc.duration_minutes || ' minutes')::INTERVAL
+           + (GREATEST(1, COALESCE(
+               (SELECT (value->>'hours_to_review')::NUMERIC FROM app_settings WHERE key = 'class_reviews'),
+               168)) || ' hours')::INTERVAL > NOW()
+  FROM class_reviews r
+  JOIN scheduled_classes sc ON sc.id = r.scheduled_class_id
+  WHERE r.user_id = auth.uid()
+  ORDER BY r.created_at DESC;
+$fn$;
+
+COMMENT ON FUNCTION my_class_reviews IS
+  'Les avis déposés par l''appelant. `editable` dit si la fenêtre `hours_to_review` est encore ouverte — au-delà, l''avis est figé.';
 
 REVOKE ALL ON FUNCTION class_reviews_for_staff(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION class_reviews_for_admin(UUID, UUID, TIMESTAMPTZ, TIMESTAMPTZ, INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION class_review_stats_by_coach() FROM PUBLIC;
+REVOKE ALL ON FUNCTION my_class_reviews() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION class_reviews_for_staff(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION class_reviews_for_admin(UUID, UUID, TIMESTAMPTZ, TIMESTAMPTZ, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION class_review_stats_by_coach() TO authenticated;
+GRANT EXECUTE ON FUNCTION my_class_reviews() TO authenticated;
 
 
 -- ---------------------------------------------------------------------------
@@ -3003,12 +3226,18 @@ INSERT INTO app_settings (key, value) VALUES
     "enabled": true,
     "validity_days": 30
   }'::jsonb),
-  -- Demande d'avis après un cours : combien de jours la proposition reste
-  -- affichée sur l'accueil du membre. Passé ce délai elle disparaît — une
-  -- demande qui insiste se fait ignorer, puis agace.
+  -- Demande d'avis après un cours. Les deux bornes se comptent en heures
+  -- depuis la FIN du cours, pour que le studio règle un délai sans avoir à
+  -- tenir compte de la durée de chaque cours :
+  --   * `hours_before_review` — temps de décantation avant qu'un avis soit
+  --     possible. À 0, la séance est notable dès qu'elle se termine ;
+  --   * `hours_to_review` — au-delà, la séance n'est plus notable et l'avis
+  --     déjà donné se fige (ni modifiable ni supprimable). 168 h = 7 jours,
+  --     le souvenir est encore net et la demande n'a pas eu le temps d'agacer.
   ('class_reviews', '{
     "enabled": true,
-    "days_to_review": 7
+    "hours_before_review": 0,
+    "hours_to_review": 168
   }'::jsonb),
   ('payment_provider', '{"provider": "stripe", "mode": "test"}'::jsonb),
   ('referral_rules', '{

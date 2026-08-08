@@ -296,6 +296,9 @@
     "referrals": {
       "title": "Referrals"
     },
+    "reviews": {
+      "title": "Reviews"
+    },
     "announcements": {
       "title": "Announcements",
       "content": "Content",

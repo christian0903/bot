@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { CalendarDays } from 'lucide-react'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { CalendarDays, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { notifyMember } from '@/lib/notify-member'
 import { flushEmailQueue } from '@/lib/flush-email-queue'
@@ -19,6 +21,15 @@ import type { Booking } from '@/types'
 
 /** Nature d'une réservation dans la liste. */
 type BookingKind = 'upcoming' | 'past' | 'cancelled'
+
+/** L'avis déposé par le membre sur une de ses séances. */
+interface MyReview {
+  booking_id: string
+  rating: number
+  comment: string | null
+  /** La fenêtre de notation est-elle encore ouverte ? Calculé en base. */
+  editable: boolean
+}
 
 export function MyBookingsPage() {
   const { t, i18n } = useTranslation()
@@ -31,6 +42,15 @@ export function MyBookingsPage() {
   const [cancellationHours, setCancellationHours] = useState(12)
   /** Natures affichées. Les trois par défaut : la liste montre tout. */
   const [filters, setFilters] = useState<BookingKind[]>(['upcoming', 'past', 'cancelled'])
+  /** Les avis déposés, par réservation — pour les relire depuis l'historique. */
+  const [myReviews, setMyReviews] = useState<Map<string, MyReview>>(new Map())
+  /** Avis en cours de correction. */
+  const [editReview, setEditReview] = useState<MyReview | null>(null)
+  const [editRating, setEditRating] = useState(0)
+  const [editComment, setEditComment] = useState('')
+  const [savingReview, setSavingReview] = useState(false)
+  /** Réservation dont l'avis est sur le point d'être retiré. */
+  const [deleteReviewId, setDeleteReviewId] = useState<string | null>(null)
 
   // Relisable à la demande : après un refus serveur, l'écran doit repartir de
   // l'état réel plutôt que de sa version optimiste.
@@ -60,6 +80,12 @@ export function MyBookingsPage() {
       setBookings(rawBookings)
       setLoading(false)
     }
+
+    // Les avis déjà déposés, pour les afficher sous les séances concernées.
+    // Rechargés avec la liste : après un dépôt, l'historique doit suivre.
+    const { data: reviews, error } = await supabase.rpc('my_class_reviews')
+    if (error) console.error('[reviews] mine', error)
+    setMyReviews(new Map(((reviews as MyReview[]) ?? []).map(r => [r.booking_id, r])))
   }, [user])
 
   useEffect(() => {
@@ -75,6 +101,64 @@ export function MyBookingsPage() {
 
     fetchBookings()
   }, [user, fetchBookings])
+
+  /**
+   * Ouvre la correction en partant de l'avis existant : on corrige, on ne
+   * ressaisit pas. Renseigné ici plutôt que dans un effet — l'état dérive
+   * d'un clic, pas d'un rendu.
+   */
+  const openEditReview = (review: MyReview) => {
+    setEditRating(review.rating)
+    setEditComment(review.comment ?? '')
+    setEditReview(review)
+  }
+
+  const handleUpdateReview = async () => {
+    if (!editReview || editRating === 0) return
+    setSavingReview(true)
+    const { data, error } = await supabase.rpc('submit_class_review', {
+      p_booking_id: editReview.booking_id,
+      p_rating: editRating,
+      p_comment: editComment.trim() || null,
+    })
+    setSavingReview(false)
+
+    if (error) { toast.error(error.message); return }
+
+    // Le refus arrive DANS le retour, sans erreur SQL : sans ce contrôle on
+    // afficherait un succès pour un avis non enregistré.
+    const res = data as { ok: boolean; reason?: string } | null
+    if (!res?.ok) {
+      toast.error(res?.reason === 'not_eligible'
+        ? (isFr ? 'La période de modification est passée' : 'The editing period has ended')
+        : (isFr ? 'Avis non modifié' : 'Review not updated'))
+      return
+    }
+
+    toast.success(isFr ? 'Avis modifié' : 'Review updated')
+    setEditReview(null)
+    await fetchBookings()
+  }
+
+  const handleDeleteReview = async (bookingId: string) => {
+    const { data, error } = await supabase.rpc('delete_class_review', {
+      p_booking_id: bookingId,
+    })
+    setDeleteReviewId(null)
+
+    if (error) { toast.error(error.message); return }
+
+    const res = data as { ok: boolean; reason?: string } | null
+    if (!res?.ok) {
+      toast.error(res?.reason === 'not_eligible'
+        ? (isFr ? 'La période de modification est passée' : 'The editing period has ended')
+        : (isFr ? 'Avis non supprimé' : 'Review not deleted'))
+      return
+    }
+
+    toast.success(isFr ? 'Avis supprimé' : 'Review deleted')
+    await fetchBookings()
+  }
 
   const handleCancel = async (bookingId: string) => {
     if (!user) return
@@ -286,6 +370,52 @@ export function MyBookingsPage() {
               </p>
             )
           })()}
+          {/* L'avis laissé sur cette séance. Le membre doit pouvoir relire ce
+              qu'il a écrit : sans ça, la note part dans le vide et il ne sait
+              plus s'il a répondu. Tant que la fenêtre est ouverte, il peut le
+              corriger ou le retirer — un avis donné à chaud se regrette. */}
+          {(() => {
+            const review = myReviews.get(booking.id)
+            if (!review) return null
+            return (
+              <div className="mt-2 pt-2 border-t">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground mr-1">
+                    {isFr ? 'Votre avis' : 'Your review'}
+                  </span>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star
+                      key={n}
+                      className={
+                        n <= review.rating
+                          ? 'h-3.5 w-3.5 fill-amber-400 text-amber-400'
+                          : 'h-3.5 w-3.5 text-muted-foreground/25'
+                      }
+                    />
+                  ))}
+                </div>
+                {review.comment && (
+                  <p className="text-xs text-muted-foreground mt-1 italic">« {review.comment} »</p>
+                )}
+                {review.editable && (
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <button
+                      onClick={() => openEditReview(review)}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      {isFr ? 'Modifier' : 'Edit'}
+                    </button>
+                    <button
+                      onClick={() => setDeleteReviewId(review.booking_id)}
+                      className="text-xs text-muted-foreground hover:text-destructive hover:underline"
+                    >
+                      {isFr ? 'Supprimer' : 'Delete'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
         <div className="flex items-center gap-2">
           {/* Les natures étant mélangées dans la liste, chaque carte l'affiche */}
@@ -373,6 +503,64 @@ export function MyBookingsPage() {
         title={t('bookings.cancel')}
         description={t('bookings.cancelConfirm')}
         onConfirm={() => cancelId && handleCancel(cancelId)}
+      />
+
+      {/* Correction d'un avis. Réutilise `submit_class_review`, qui accepte le
+          dépôt comme la modification tant que la fenêtre est ouverte. */}
+      <Dialog open={editReview !== null} onOpenChange={(open) => !open && setEditReview(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{isFr ? 'Modifier votre avis' : 'Edit your review'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setEditRating(n)}
+                  aria-label={`${n} ${isFr ? 'étoile' : 'star'}${n > 1 ? 's' : ''}`}
+                  className="p-1 transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={
+                      n <= editRating
+                        ? 'h-7 w-7 fill-amber-400 text-amber-400'
+                        : 'h-7 w-7 text-muted-foreground/30'
+                    }
+                  />
+                </button>
+              ))}
+            </div>
+
+            <Textarea
+              value={editComment}
+              onChange={(e) => setEditComment(e.target.value)}
+              rows={3}
+              placeholder={isFr ? 'Votre commentaire (facultatif)' : 'Your comment (optional)'}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditReview(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleUpdateReview} disabled={savingReview || editRating === 0}>
+              {savingReview ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteReviewId}
+        onOpenChange={() => setDeleteReviewId(null)}
+        title={isFr ? 'Supprimer votre avis' : 'Delete your review'}
+        description={isFr
+          ? 'Votre note et votre commentaire seront retirés. Vous pourrez en redonner un tant que la période reste ouverte.'
+          : 'Your rating and comment will be removed. You can leave a new one while the period is still open.'}
+        onConfirm={() => deleteReviewId && handleDeleteReview(deleteReviewId)}
       />
     </div>
   )

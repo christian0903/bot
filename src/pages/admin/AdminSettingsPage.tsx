@@ -45,6 +45,19 @@ interface StudioInfo {
   google_review_url: string
 }
 
+/**
+ * Traduit un nombre d'heures en équivalent parlant : 168 h ne dit rien,
+ * « soit 7 jours » se lit tout de suite.
+ */
+function formatHours(hours: number, isFr: boolean): string {
+  if (hours < 24) return isFr ? `Soit ${hours} h` : `That is ${hours} h`
+  const days = hours / 24
+  const rounded = Number.isInteger(days) ? days : Math.round(days * 10) / 10
+  return isFr
+    ? `Soit environ ${rounded} jour${rounded > 1 ? 's' : ''}`
+    : `That is about ${rounded} day${rounded > 1 ? 's' : ''}`
+}
+
 export function AdminSettingsPage() {
   const { i18n } = useTranslation()
   const isFr = i18n.language === 'fr'
@@ -108,7 +121,10 @@ export function AdminSettingsPage() {
   const [minParticipants, setMinParticipants] = useState(1)
   /** Demande d'avis après un cours : active, et combien de jours affichée. */
   const [reviewsEnabled, setReviewsEnabled] = useState(true)
-  const [reviewDays, setReviewDays] = useState(7)
+  /** Heures à attendre après la fin du cours avant de pouvoir noter. */
+  const [reviewHoursBefore, setReviewHoursBefore] = useState(0)
+  /** Heures après la fin du cours au-delà desquelles l'avis se ferme. */
+  const [reviewHoursTo, setReviewHoursTo] = useState(168)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -153,9 +169,10 @@ export function AdminSettingsPage() {
           setReferralValidity(val.reward_validity_days ?? 180)
         }
         if (setting.key === 'class_reviews') {
-          const v = setting.value as { enabled?: boolean; days_to_review?: number }
+          const v = setting.value as { enabled?: boolean; hours_to_review?: number; hours_before_review?: number }
           setReviewsEnabled(v.enabled ?? true)
-          setReviewDays(v.days_to_review ?? 7)
+          setReviewHoursBefore(v.hours_before_review ?? 0)
+          setReviewHoursTo(v.hours_to_review ?? 168)
         }
         if (setting.key === 'cancellation_alert') {
           const val = setting.value as { threshold_per_cycle?: number }
@@ -792,30 +809,62 @@ export function AdminSettingsPage() {
           </div>
 
           {reviewsEnabled && (
-            <div className="space-y-2">
-              <Label>{isFr ? 'Durée d\'affichage (jours)' : 'Display window (days)'}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={90}
-                className="w-32"
-                value={reviewDays}
-                onChange={e => setReviewDays(parseInt(e.target.value) || 1)}
-              />
-              <p className="text-[11px] text-muted-foreground">
-                {isFr
-                  ? 'Au-delà, la séance ne peut plus être notée. Sept jours est un bon compromis : le souvenir est encore net.'
-                  : 'After that, the class can no longer be rated. Seven days is a good balance — the memory is still fresh.'}
-              </p>
-            </div>
+            <>
+              {/* Les deux bornes se comptent depuis la FIN du cours, en heures.
+                  Une seule unité : sinon il faut convertir de tête pour savoir
+                  si l'ouverture et la fermeture se recouvrent. */}
+              <div className="space-y-2">
+                <Label>{isFr ? 'Attendre avant de pouvoir noter (heures)' : 'Wait before rating (hours)'}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={720}
+                  className="w-32"
+                  value={reviewHoursBefore}
+                  onChange={e => setReviewHoursBefore(Math.max(0, parseInt(e.target.value) || 0))}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {isFr
+                    ? 'Compté après la fin du cours. À 0, la séance est notable dès qu\'elle se termine.'
+                    : 'Counted from the end of the class. At 0, the class can be rated as soon as it ends.'}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{isFr ? 'Fermeture des avis (heures)' : 'Reviews close after (hours)'}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={2160}
+                  className="w-32"
+                  value={reviewHoursTo}
+                  onChange={e => setReviewHoursTo(Math.max(1, parseInt(e.target.value) || 1))}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {isFr
+                    ? `Compté après la fin du cours. Au-delà, la séance ne peut plus être notée et l'avis déjà donné se fige — il n'est plus ni modifiable ni supprimable. ${formatHours(reviewHoursTo, true)}.`
+                    : `Counted from the end of the class. After that, the class can no longer be rated and any existing review is frozen — no longer editable or deletable. ${formatHours(reviewHoursTo, false)}.`}
+                </p>
+              </div>
+
+              {/* Une fermeture avant l'ouverture ne laisse aucun créneau. */}
+              {reviewHoursTo <= reviewHoursBefore && (
+                <p className="text-[11px] text-destructive">
+                  {isFr
+                    ? 'La fermeture doit être postérieure à l\'ouverture, sinon aucune séance ne peut être notée.'
+                    : 'The closing delay must be greater than the opening delay, otherwise no class can be rated.'}
+                </p>
+              )}
+            </>
           )}
 
           <Button
             size="sm"
-            disabled={saving === 'class_reviews'}
+            disabled={saving === 'class_reviews' || (reviewsEnabled && reviewHoursTo <= reviewHoursBefore)}
             onClick={() => saveSetting('class_reviews', {
               enabled: reviewsEnabled,
-              days_to_review: reviewDays,
+              hours_before_review: reviewHoursBefore,
+              hours_to_review: reviewHoursTo,
             })}
           >
             {saving === 'class_reviews' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
