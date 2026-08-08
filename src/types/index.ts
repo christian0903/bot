@@ -77,6 +77,13 @@ export interface PackType {
   validity_days: number
   /** Accès illimité : pas de décompte à la réservation, pas de recrédit à l'annulation. */
   is_unlimited: boolean
+  /**
+   * Plafond de séances par cycle d'abonnement. `null` = aucun plafond.
+   * Se recharge à chaque renouvellement : un cycle est une ligne
+   * `pack_purchases` distincte. Compté sur la DATE DES COURS, si bien qu'une
+   * séance du cycle suivant n'entame pas le quota courant.
+   */
+  quota_sessions: number | null
   /** Vendu en abonnement : renouvellement automatique par Stripe. */
   is_recurring: boolean
   /** Unité du cycle. « week » × 4 = 28 jours fixes ; « month » × 1 = mois calendaire. */

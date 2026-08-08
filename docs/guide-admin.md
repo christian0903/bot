@@ -201,6 +201,26 @@ En mode test uniquement, un bouton de **remise à zéro** efface tous les achats
 
 C'est la brique de base : « semi-privé », « personal training »… **Un crédit d'un type ne paie que les cours du même type.** Tout part de là.
 
+### Plafond de séances sur un abonnement illimité
+
+Sur un pack **illimité**, un champ facultatif limite le nombre de séances **par cycle d'abonnement**. Laissé vide, aucun plafond ne s'applique — c'est le cas de tous les packs aujourd'hui.
+
+Trois choses à savoir :
+
+- **Le plafond se recharge à chaque renouvellement.** La période, c'est le cycle lui-même (4 semaines chez vous) : il n'y a pas de durée séparée à saisir.
+- **Il se compte sur la date des cours, pas des réservations.** Quelqu'un qui a épuisé ses séances peut réserver un cours du cycle suivant : ce cours sera payé par le cycle qui le contient.
+- **Le staff n'est pas concerné.** Un coach ou un admin peut inscrire quelqu'un au-delà de son plafond, comme il peut déjà passer outre le délai de fermeture.
+
+Le membre voit sa consommation dans *Mes packs* (« 3 / 4 séances utilisées sur ce cycle »), et un message explicite s'il tente de dépasser.
+
+### Fin d'abonnement et réservations
+
+Un abonnement couvre les cours de son cycle. Tant qu'il **se renouvelle**, le membre peut réserver au-delà de la date d'échéance : le cycle suivant paiera.
+
+Dès qu'il est **résilié**, les réservations situées après le terme sont **annulées automatiquement**, et le membre est prévenu par une notification qui nomme le cours et la date de fin. Cela vaut aussi pour les résiliations faites depuis le tableau de bord Stripe.
+
+Un membre déjà en cours de résiliation ne peut plus réserver au-delà de son terme : un message le lui indique, avec la date.
+
 ### Types de packs — Administration → Types de packs
 
 L'écran est regroupé par type de crédit, abonnements d'abord, packs à l'unité ensuite — comme le voit le membre.

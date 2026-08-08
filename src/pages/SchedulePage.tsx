@@ -385,11 +385,42 @@ export function SchedulePage() {
       return
     }
 
+    // La date du cours écarte les packs qui ne le couvrent pas — un cycle
+    // d'abonnement ne paie pas une séance postérieure à son terme — et ceux
+    // dont le quota du cycle est épuisé.
     const { data: credits } = await supabase.rpc('get_available_credits', {
-      p_user_id: user.id, p_credit_type_id: scheduledClass.class_type.credit_type_id,
+      p_user_id: user.id,
+      p_credit_type_id: scheduledClass.class_type.credit_type_id,
+      p_class_starts_at: scheduledClass.starts_at,
     })
 
     if (!credits || credits.length === 0) {
+      // Un pack peut exister et être écarté pour trois raisons distinctes :
+      // quota du cycle épuisé, abonnement qui se termine avant le cours, ou
+      // mauvais type de crédit. Les confondre sous « aucun crédit » enverrait
+      // vers la boutique quelqu'un qui a déjà payé.
+      const { data: blocked } = await supabase.rpc('why_no_credit_for_class', {
+        p_user_id: user.id,
+        p_class_id: classId,
+      })
+      const blockReason = (blocked as { reason?: string; detail?: string } | null) ?? null
+
+      if (blockReason?.reason === 'quota_reached') {
+        toast.error(isFr
+          ? `Vous avez atteint le maximum de séances de votre abonnement pour ce cycle (${blockReason.detail}).`
+          : `You have reached your subscription's session cap for this cycle (${blockReason.detail}).`)
+        setBookingInProgress(null)
+        return
+      }
+
+      if (blockReason?.reason === 'subscription_ending') {
+        toast.error(isFr
+          ? `Votre abonnement se termine le ${blockReason.detail} et ne couvre pas cette séance.`
+          : `Your subscription ends on ${blockReason.detail} and does not cover this class.`)
+        setBookingInProgress(null)
+        return
+      }
+
       // « Aucun crédit » est trompeur quand le membre en a, mais d'un autre
       // type : un pack Personal Training ne paie pas un cours semi-privé. On
       // regarde ce qu'il possède pour lui dire précisément ce qui bloque.
@@ -532,7 +563,11 @@ export function SchedulePage() {
     const scheduledClass = classes.find((c) => c.id === classId)
     if (!scheduledClass?.class_type) { setBookingInProgress(null); return }
     if (new Date(scheduledClass.starts_at) < new Date()) { toast.error(isFr ? 'Ce cours est déjà passé' : 'This class has already passed'); setBookingInProgress(null); return }
-    const { data: credits } = await supabase.rpc('get_available_credits', { p_user_id: user.id, p_credit_type_id: scheduledClass.class_type.credit_type_id })
+    const { data: credits } = await supabase.rpc('get_available_credits', {
+      p_user_id: user.id,
+      p_credit_type_id: scheduledClass.class_type.credit_type_id,
+      p_class_starts_at: scheduledClass.starts_at,
+    })
     // La place offerte expire : c'est l'endroit où laisser le membre sans
     // solution coûte le plus cher. On propose l'achat immédiatement.
     if (!credits || credits.length === 0) {
@@ -604,6 +639,7 @@ export function SchedulePage() {
     const { data: credits } = await supabase.rpc('get_available_credits', {
       p_user_id: user.id,
       p_credit_type_id: sc.class_type.credit_type_id,
+      p_class_starts_at: sc.starts_at,
     })
     const packPurchaseId = credits?.[0]?.pack_purchase_id
     if (!packPurchaseId) {

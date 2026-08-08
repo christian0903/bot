@@ -12,8 +12,17 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { CreditCard, X, Clock, RefreshCw, AlertTriangle, PauseCircle, TicketPercent } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { PackPurchase, Booking, ScheduledClass, Subscription, SubscriptionDiscount } from '@/types'
+
+/** Consommation du plafond de séances sur un cycle d'abonnement. */
+interface QuotaUsage {
+  pack_purchase_id: string
+  quota_sessions: number
+  used: number
+  remaining: number
+}
 
 export function MyPacksPage() {
   const { t, i18n } = useTranslation()
@@ -22,6 +31,8 @@ export function MyPacksPage() {
   const navigate = useNavigate()
   const locale = isFr ? fr : enUS
   const [packs, setPacks] = useState<PackPurchase[]>([])
+  /** Plafond de séances par cycle, par achat. Vide si aucun pack n'en a. */
+  const [quotaUsage, setQuotaUsage] = useState<Map<string, QuotaUsage>>(new Map())
   /** Inclure les packs vides ou expirés. Faux par défaut : ils encombrent. */
   const [showAllPacks, setShowAllPacks] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -67,7 +78,7 @@ export function MyPacksPage() {
 
   const fetchAll = async () => {
     if (!user) return
-    const [packsRes, subRes] = await Promise.all([
+    const [packsRes, subRes, quotaRes] = await Promise.all([
       supabase
         .from('pack_purchases')
         .select('*, pack_type:pack_types(*, credit_type:credit_types(*))')
@@ -82,8 +93,13 @@ export function MyPacksPage() {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      // Vide tant qu'aucun pack du membre n'a de plafond.
+      supabase.rpc('my_pack_quota_usage'),
     ])
     setPacks((packsRes.data as PackPurchase[]) ?? [])
+    setQuotaUsage(new Map(
+      ((quotaRes.data as QuotaUsage[]) ?? []).map(q => [q.pack_purchase_id, q]),
+    ))
     const sub = (subRes.data as Subscription) ?? null
     setSubscription(sub)
 
@@ -300,6 +316,22 @@ export function MyPacksPage() {
                         ? t('packs.unlimited')
                         : t('packs.creditsRemaining', { count: subscriptionPack.credits_remaining })}
                     </p>
+                    {/* Un plafond qu'on découvre en butant dessus au moment de
+                        réserver est vécu comme une panne. On le montre ici. */}
+                    {(() => {
+                      const q = quotaUsage.get(subscriptionPack.id)
+                      if (!q) return null
+                      return (
+                        <p className={cn(
+                          'text-xs mt-0.5',
+                          q.remaining === 0 ? 'text-destructive' : 'text-muted-foreground',
+                        )}>
+                          {isFr
+                            ? `${q.used} / ${q.quota_sessions} séances utilisées sur ce cycle`
+                            : `${q.used} / ${q.quota_sessions} sessions used this cycle`}
+                        </p>
+                      )
+                    })()}
                   </div>
                   <div className="text-right text-xs text-muted-foreground">
                     <p>

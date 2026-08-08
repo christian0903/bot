@@ -281,6 +281,40 @@ Un premier jet exposait un compteur d'avis à 2 étoiles ou moins. **Le seuil é
 
 ---
 
+## Quota d'abonnement et couverture du cycle
+
+### Le cycle est une ligne, pas un calcul
+
+Chaque renouvellement Stripe crée une ligne `pack_purchases` avec ses propres bornes. Il n'y a donc jamais à deviner « dans quel cycle sommes-nous » : la ligne dont `expires_at > NOW()` **est** le cycle courant. C'est ce qui rend ces règles simples à écrire — et vérifiable : un membre n'a qu'un seul cycle vivant à la fois.
+
+### Le quota compte les cours, pas les réservations
+
+`pack_types.quota_sessions` plafonne les séances d'un cycle. La nuance sur ce qu'on compte décide d'un cas réel : un abonné qui a consommé ses 4 séances veut réserver, la veille du renouvellement, un cours de la semaine suivante.
+
+Ce cours relève du cycle suivant — **lequel n'existe pas encore en base**, puisqu'il naîtra du prélèvement. La réservation porte donc forcément le cycle courant. Compter les `pack_purchase_id` l'aurait refusée ; borner sur `sc.starts_at BETWEEN purchased_at AND expires_at` l'accepte.
+
+Pas de durée associée au quota : la période est le cycle. En saisir une seconde rouvrirait un décalage (un quota sur 30 jours dans un cycle de 28).
+
+### Le trigger, pas le client
+
+Les réservations partent d'un `INSERT` direct depuis le front (policy `Bookings: own insert`). Un contrôle appelé côté client serait décoratif : il suffirait d'appeler l'API sans lui. `trg_enforce_unlimited_quota` s'exécute quoi qu'il arrive.
+
+Le staff passe outre, comme il ignore déjà le délai de fermeture.
+
+### La validité se juge à la date du cours
+
+`get_available_credits` acceptait tout pack valide au moment de la réservation — on pouvait donc payer un cours du cycle suivant avec le cycle courant. La variante à trois arguments filtre sur `p_class_starts_at`.
+
+**Tolérance** : un abonnement `active` et non résilié couvre les cours au-delà de son terme. Sans elle, plus aucune réservation anticipée ne serait possible en fin de cycle. Elle s'arrête où le renouvellement s'arrête.
+
+### Réservations orphelines : trigger sur `subscriptions`
+
+Une résiliation arrive par au moins trois routes — la fonction de l'app, le webhook Stripe (**quatre endroits** y écrivent `cancel_at_period_end`), et le dashboard Stripe. Le seul point commun est la table. Un déclencheur posé dans `cancel-my-subscription` raterait les deux autres.
+
+Déclenché **à la résiliation**, pas au renouvellement : au renouvellement il n'y a rien à annuler, et attendre le terme préviendrait le membre des semaines trop tard.
+
+---
+
 ## Sécurité
 
 **Row Level Security actif sur toutes les tables.** Un membre ne voit que ses données, un coach voit les achats et les réservations, un admin voit tout.
