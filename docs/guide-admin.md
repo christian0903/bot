@@ -201,17 +201,21 @@ En mode test uniquement, un bouton de **remise à zéro** efface tous les achats
 
 C'est la brique de base : « semi-privé », « personal training »… **Un crédit d'un type ne paie que les cours du même type.** Tout part de là.
 
-### Plafond de séances sur un abonnement illimité
+### Plafond de fréquentation — Types de packs
 
-Sur un pack **illimité**, un champ facultatif limite le nombre de séances **par cycle d'abonnement**. Laissé vide, aucun plafond ne s'applique — c'est le cas de tous les packs aujourd'hui.
+Sur n'importe quel pack, deux champs facultatifs limitent le rythme : **N cours par D jours**. Laissés vides, aucun plafond ne s'applique — c'est le cas de tous les packs aujourd'hui.
 
-Trois choses à savoir :
+Exemples : *2 cours par 1 jour*, *10 cours par 7 jours*, *12 cours par 14 jours*.
 
-- **Le plafond se recharge à chaque renouvellement.** La période, c'est le cycle lui-même (4 semaines chez vous) : il n'y a pas de durée séparée à saisir.
-- **Il se compte sur la date des cours, pas des réservations.** Quelqu'un qui a épuisé ses séances peut réserver un cours du cycle suivant : ce cours sera payé par le cycle qui le contient.
-- **Le staff n'est pas concerné.** Un coach ou un admin peut inscrire quelqu'un au-delà de son plafond, comme il peut déjà passer outre le délai de fermeture.
+**Comment se compte la fenêtre.** Elle est *glissante* et *centrée sur le cours qu'on veut réserver* : on regarde les séances situées à moins de D jours avant ou après. Rien ne se remet jamais à zéro — contrairement à une semaine calendaire, où quelqu'un pourrait cumuler 4 cours le dimanche et 4 le lundi.
 
-Le membre voit sa consommation dans *Mes packs* (« 3 / 4 séances utilisées sur ce cycle »), et un message explicite s'il tente de dépasser.
+**Maximum 14 jours.** Au-delà, un plafond ne contraint plus le rythme : « 50 cours par 28 jours » laisse en faire 50 la première semaine puis rien pendant trois.
+
+**Le plafond ne sert que s'il est plus bas que les crédits.** Sur un pack de 4 séances, un plafond de 10 ne bloquera jamais — les crédits s'épuisent avant. Pour étaler la consommation d'un pack de 4, posez plutôt *1 cours par 7 jours*. Le formulaire vous prévient si le plafond est sans effet.
+
+**Le staff n'est pas concerné.** Un coach ou un admin peut inscrire quelqu'un au-delà de son plafond, comme il peut déjà passer outre le délai de fermeture.
+
+Le membre voit sa consommation dans *Mes packs* (« 3 / 10 cours sur 7 jours »), et un message explicite s'il tente de dépasser.
 
 ### Fin d'abonnement et réservations
 

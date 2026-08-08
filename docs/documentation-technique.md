@@ -281,19 +281,30 @@ Un premier jet exposait un compteur d'avis à 2 étoiles ou moins. **Le seuil é
 
 ---
 
-## Quota d'abonnement et couverture du cycle
+## Plafond de fréquentation et couverture du cycle
 
-### Le cycle est une ligne, pas un calcul
+### Un plafond, deux colonnes
 
-Chaque renouvellement Stripe crée une ligne `pack_purchases` avec ses propres bornes. Il n'y a donc jamais à deviner « dans quel cycle sommes-nous » : la ligne dont `expires_at > NOW()` **est** le cycle courant. C'est ce qui rend ces règles simples à écrire — et vérifiable : un membre n'a qu'un seul cycle vivant à la fois.
+`pack_types.quota_sessions` et `quota_days` : **N cours par D jours**. Les deux vont ensemble (contrainte `quota_both_or_none`), `NULL` désactive le plafond.
 
-### Le quota compte les cours, pas les réservations
+### La fenêtre est glissante et centrée
 
-`pack_types.quota_sessions` plafonne les séances d'un cycle. La nuance sur ce qu'on compte décide d'un cas réel : un abonné qui a consommé ses 4 séances veut réserver, la veille du renouvellement, un cours de la semaine suivante.
+On compte les cours situés à moins de D jours **avant ou après** la séance visée. Les deux côtés comptent, et c'est essentiel : en ne regardant que vers l'arrière, il suffirait de réserver du plus lointain au plus proche pour que chaque fenêtre soit vide au moment du test, et tout passerait.
 
-Ce cours relève du cycle suivant — **lequel n'existe pas encore en base**, puisqu'il naîtra du prélèvement. La réservation porte donc forcément le cycle courant. Compter les `pack_purchase_id` l'aurait refusée ; borner sur `sc.starts_at BETWEEN purchased_at AND expires_at` l'accepte.
+Deux formes ont été essayées puis écartées :
 
-Pas de durée associée au quota : la période est le cycle. En saisir une seconde rouvrirait un décalage (un quota sur 30 jours dans un cycle de 28).
+- **Quota par cycle d'abonnement** — se rechargeait au renouvellement, mais ne valait que pour les abonnements, et butait sur le fait que le cycle suivant n'existe pas encore en base au moment de réserver.
+- **Fenêtre calendaire** (« 4 par semaine », lundi→dimanche) — plus lisible, mais laisse cumuler 4 le dimanche et 4 le lundi.
+
+### D est borné à 14 jours
+
+Au-delà de deux semaines, un plafond ne contraint plus le rythme : « 50 cours par 28 jours » laisse en faire 50 la première semaine puis rien pendant trois — exactement la surconsommation qu'on veut empêcher.
+
+Borne **fixe** plutôt que calculée par pack : une borne qui suivrait `validity_days` serait illisible, et n'aurait aucun sens sur un pack ponctuel valable un an.
+
+### La fenêtre ignore les cycles, volontairement
+
+Le plafond limite le rythme physique, pas la facturation. Quelqu'un qui a beaucoup fréquenté fin août reste bridé début septembre, même après un nouveau prélèvement. Décision explicite du studio ; avec D ≤ 14 l'effet reste marginal.
 
 ### Le trigger, pas le client
 
@@ -307,11 +318,28 @@ Le staff passe outre, comme il ignore déjà le délai de fermeture.
 
 **Tolérance** : un abonnement `active` et non résilié couvre les cours au-delà de son terme. Sans elle, plus aucune réservation anticipée ne serait possible en fin de cycle. Elle s'arrête où le renouvellement s'arrête.
 
+La tolérance ne joue **que sur la couverture, pas sur les crédits** : un pack à crédits épuisé reste bloqué jusqu'au renouvellement — on ne consomme pas un crédit qui n'existe pas encore.
+
+### `why_no_credit_for_class` : quatre causes, pas une
+
+Une liste vide de crédits ne dit pas pourquoi. La fonction distingue :
+
+| Cause | Message au membre |
+|---|---|
+| `quota_reached` | le plafond du pack, avec sa fenêtre |
+| `subscription_ending` | l'abonnement se termine avant le cours, avec la date |
+| `credits_exhausted_renewal` | crédits épuisés, renouvellement le JJ/MM — rien à racheter |
+| `no_credit` | absence réelle de crédit → boutique |
+
+Sans cette distinction, un abonné à jour dont les crédits sont épuisés voyait le même message que quelqu'un qui n'a jamais rien acheté.
+
 ### Réservations orphelines : trigger sur `subscriptions`
 
 Une résiliation arrive par au moins trois routes — la fonction de l'app, le webhook Stripe (**quatre endroits** y écrivent `cancel_at_period_end`), et le dashboard Stripe. Le seul point commun est la table. Un déclencheur posé dans `cancel-my-subscription` raterait les deux autres.
 
 Déclenché **à la résiliation**, pas au renouvellement : au renouvellement il n'y a rien à annuler, et attendre le terme préviendrait le membre des semaines trop tard.
+
+La coupure se fait à **l'heure près**, pas à la journée : un membre dont l'abonnement expire le 1er septembre à 12h00 garde ses cours du matin et perd celui de 12h30. Cohérent avec Stripe, qui raisonne aussi à l'horodatage.
 
 ---
 

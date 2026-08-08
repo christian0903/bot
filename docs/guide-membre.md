@@ -57,6 +57,8 @@ Le délai est indiqué dans l'application. Préviens dès que tu sais : c'est ce
 
 **Mes packs** — ton abonnement s'il y en a un, avec sa prochaine échéance, et tes packs avec leurs crédits restants et leur date d'expiration.
 
+Si ton pack a un **plafond de fréquentation**, tu y vois où tu en es : « 3 / 10 cours sur 7 jours ». Le compte se fait autour de la séance visée, pas sur une semaine fixe — décaler ta réservation de quelques jours suffit souvent à libérer une place.
+
 ### Quand le studio modifie un cours
 
 Tu reçois un message qui **dit ce qui change** : nouveau coach, nouvelle salle, nouvel horaire, durée différente.

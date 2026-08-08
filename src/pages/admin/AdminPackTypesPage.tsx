@@ -46,8 +46,10 @@ interface PackTypeForm {
   /** Saisi en semaines ; converti en jours (validity_days) a l'enregistrement. */
   validity_weeks: number
   is_unlimited: boolean
-  /** Plafond de séances par cycle d'abonnement. `null` = aucun plafond. */
+  /** Plafond de cours sur `quota_days`. `null` = aucun plafond. */
   quota_sessions: number | null
+  /** Demi-largeur de la fenêtre, en jours (1 à 14). Va avec `quota_sessions`. */
+  quota_days: number | null
   is_recurring: boolean
   recurring_interval: 'day' | 'week' | 'month'
   recurring_interval_count: number
@@ -64,6 +66,7 @@ const emptyForm: PackTypeForm = {
   validity_weeks: 4,
   is_unlimited: false,
   quota_sessions: null,
+  quota_days: null,
   is_recurring: false,
   // 4 semaines par défaut : le cycle retenu pour les abonnements du studio.
   recurring_interval: 'week',
@@ -132,6 +135,7 @@ export function AdminPackTypesPage() {
       validity_weeks: daysToWeeks(pt.validity_days),
       is_unlimited: pt.is_unlimited,
       quota_sessions: pt.quota_sessions ?? null,
+      quota_days: pt.quota_days ?? null,
       is_recurring: pt.is_recurring,
       recurring_interval: pt.recurring_interval ?? 'week',
       recurring_interval_count: pt.recurring_interval_count ?? 4,
@@ -155,7 +159,10 @@ export function AdminPackTypesPage() {
       is_unlimited: form.is_unlimited,
       // Le plafond n'a de sens que sur un illimité, et la contrainte
       // quota_both_or_none refuse un champ sans l'autre.
-      quota_sessions: form.is_unlimited ? form.quota_sessions : null,
+      // Le plafond vaut pour tout pack, illimité ou non : il limite le rythme,
+      // pas le total. La contrainte quota_both_or_none refuse l'un sans l'autre.
+      quota_sessions: form.quota_sessions,
+      quota_days: form.quota_sessions ? (form.quota_days ?? 7) : null,
       is_recurring: form.is_recurring,
       // La contrainte pack_types_recurring_coherent impose une périodicité
       // renseignée si récurrent — et rien de résiduel sinon.
@@ -519,51 +526,78 @@ export function AdminPackTypesPage() {
               </div>
             </div>
 
-            {/* Plafond de fréquentation. « Illimité » sans garde-fou laisse
-                quelqu'un venir tous les jours et occuper les places au
-                détriment des autres. Laisser vide = aucun plafond.
-
-                Pas de durée à saisir : la période, c'est le cycle
-                d'abonnement lui-même. En redemander une ouvrirait un décalage
-                (un quota sur 30 jours dans un cycle de 28). */}
-            {form.is_unlimited && (
-              <div className="rounded-lg border p-3 space-y-2">
-                <Label className="text-sm">
-                  {isFr ? 'Plafond de séances (facultatif)' : 'Session cap (optional)'}
-                </Label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-muted-foreground">{isFr ? 'Maximum' : 'Max'}</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    className="w-20"
-                    placeholder="∞"
-                    value={form.quota_sessions ?? ''}
-                    onChange={e => setForm(f => ({
-                      ...f,
-                      quota_sessions: e.target.value ? Math.max(1, parseInt(e.target.value)) : null,
-                    }))}
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {isFr ? 'séances par cycle' : 'sessions per cycle'}
-                  </span>
-                </div>
+            {/* Plafond de fréquentation : limite le RYTHME, pas le total.
+                « Illimité » sans garde-fou laisse quelqu'un venir plusieurs
+                fois par jour et occuper les places au détriment des autres.
+                Vaut aussi sur un pack à crédits, où il étale la consommation.
+                Laisser vide = aucun plafond. */}
+            <div className="rounded-lg border p-3 space-y-2">
+              <Label className="text-sm">
+                {isFr ? 'Plafond de fréquentation (facultatif)' : 'Attendance cap (optional)'}
+              </Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-muted-foreground">{isFr ? 'Maximum' : 'Max'}</span>
+                <Input
+                  type="number"
+                  min={1}
+                  className="w-20"
+                  placeholder="∞"
+                  value={form.quota_sessions ?? ''}
+                  onChange={e => setForm(f => ({
+                    ...f,
+                    quota_sessions: e.target.value ? Math.max(1, parseInt(e.target.value)) : null,
+                    // Une valeur sans fenêtre ne veut rien dire : on propose
+                    // sept jours dès que le champ est rempli.
+                    quota_days: e.target.value ? (f.quota_days ?? 7) : null,
+                  }))}
+                />
+                <span className="text-sm text-muted-foreground">{isFr ? 'cours par' : 'classes per'}</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={14}
+                  className="w-20"
+                  placeholder="7"
+                  disabled={form.quota_sessions === null}
+                  value={form.quota_days ?? ''}
+                  onChange={e => setForm(f => ({
+                    ...f,
+                    // Borné à 14 : au-delà, un plafond ne contraint plus le
+                    // rythme. La base refuse de toute façon.
+                    quota_days: e.target.value
+                      ? Math.min(14, Math.max(1, parseInt(e.target.value)))
+                      : null,
+                  }))}
+                />
+                <span className="text-sm text-muted-foreground">{isFr ? 'jours' : 'days'}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? 'Fenêtre glissante centrée sur le cours réservé : on compte les séances situées à moins de N jours avant ou après. Rien ne se remet jamais à zéro — contrairement à une semaine calendaire, où quelqu\'un pourrait cumuler le dimanche et le lundi.'
+                  : 'Rolling window centred on the booked class: sessions within N days before or after are counted. Nothing ever resets — unlike a calendar week, where someone could stack Sunday and Monday.'}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? 'Maximum 14 jours : au-delà, le plafond ne contraint plus le rythme. « 50 cours par 28 jours » laisse en faire 50 la première semaine puis rien pendant trois.'
+                  : 'Maximum 14 days: beyond that, the cap no longer constrains pace. "50 classes per 28 days" allows 50 in the first week and none for three.'}
+              </p>
+              {form.quota_sessions !== null && form.quota_days !== null && (
                 <p className="text-[11px] text-muted-foreground">
                   {isFr
-                    ? `Le plafond se recharge à chaque renouvellement${form.is_recurring ? ` (tous les ${form.recurring_interval_count} ${form.recurring_interval === 'week' ? 'semaines' : form.recurring_interval === 'month' ? 'mois' : 'jours'})` : ''}. Il se compte sur la date des cours : réserver une séance du cycle suivant n'entame pas le quota en cours. Laisser vide pour ne poser aucun plafond.`
-                    : `The cap resets at each renewal${form.is_recurring ? ` (every ${form.recurring_interval_count} ${form.recurring_interval}s)` : ''}. It counts class dates: booking a session in the next cycle does not use up the current quota. Leave empty for no cap.`}
+                    ? `Un membre ne pourra pas suivre plus de ${form.quota_sessions} cours sur ${form.quota_days} jours avec ce pack. Le staff peut passer outre en l'inscrivant lui-même.`
+                    : `A member cannot attend more than ${form.quota_sessions} classes over ${form.quota_days} days with this pack. Staff can override by booking them in.`}
                 </p>
-                {/* Un plafond sur un pack non renouvelable ne se rechargerait
-                    jamais : il deviendrait un simple nombre de crédits. */}
-                {form.quota_sessions !== null && !form.is_recurring && (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                    {isFr
-                      ? 'Ce pack n\'est pas un abonnement : le plafond ne se rechargera jamais. Pour limiter un pack ponctuel, utilisez plutôt un nombre de crédits.'
-                      : 'This pack is not a subscription: the cap will never reset. To limit a one-off pack, use a credit count instead.'}
-                  </p>
-                )}
-              </div>
-            )}
+              )}
+              {/* Un plafond au-dessus du nombre de crédits ne bloquera jamais. */}
+              {form.quota_sessions !== null && !form.is_unlimited
+                && form.quota_sessions >= form.credit_count && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  {isFr
+                    ? `Sans effet : le pack ne contient que ${form.credit_count} crédits, ils s'épuiseront avant le plafond. Baissez le plafond pour étaler la consommation.`
+                    : `No effect: the pack only has ${form.credit_count} credits, they will run out before the cap. Lower the cap to spread usage.`}
+                </p>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <Switch
                 checked={form.is_active}

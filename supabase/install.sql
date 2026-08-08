@@ -164,12 +164,21 @@ CREATE TABLE pack_types (
   price_cents INTEGER NOT NULL CHECK (price_cents >= 0),
   validity_days INTEGER NOT NULL CHECK (validity_days > 0),
   is_unlimited BOOLEAN NOT NULL DEFAULT FALSE,
-  -- Plafond de séances par CYCLE d'abonnement. NULL = aucun plafond.
-  -- « Illimité » sans garde-fou laisse quelqu'un venir tous les jours et
-  -- occuper les places au détriment des autres. Pas de durée associée : la
-  -- période est le cycle lui-même (une ligne `pack_purchases`), en saisir une
-  -- seconde rouvrirait un décalage.
+  -- Plafond de fréquentation : N cours par D jours, sur une fenêtre glissante
+  -- centrée sur la séance visée. NULL = aucun plafond. « Illimité » sans
+  -- garde-fou laisse quelqu'un venir plusieurs fois par jour et occuper les
+  -- places au détriment des autres.
+  --
+  -- D est borné à 14 jours : au-delà, un plafond ne contraint plus le rythme.
+  -- « 50 cours par 28 jours » laisse en faire 50 la première semaine puis rien
+  -- pendant trois — exactement ce qu'on veut empêcher.
   quota_sessions INTEGER CHECK (quota_sessions IS NULL OR quota_sessions > 0),
+  quota_days INTEGER CHECK (quota_days IS NULL OR (quota_days >= 1 AND quota_days <= 14)),
+  -- Un plafond sans fenêtre, ou l'inverse, ne veut rien dire.
+  CONSTRAINT quota_both_or_none CHECK (
+    (quota_sessions IS NULL AND quota_days IS NULL)
+    OR (quota_sessions IS NOT NULL AND quota_days IS NOT NULL)
+  ),
   -- Abonnement : renouvellement automatique par Stripe.
   -- « week » x 4 = 28 jours fixes, soit 13 échéances par an ; « month » x 1 =
   -- mois calendaire, 12 échéances. Les deux ne sont PAS équivalents.
@@ -665,19 +674,19 @@ RETURNS TABLE(
           AND s.status = 'active'
           AND COALESCE(s.cancel_at_period_end, FALSE) = FALSE)
     )
-    -- Quota du cycle. Un cours hors du cycle relève du suivant, dont le quota
-    -- est intact : le cycle suivant n'existe pas encore en base, mais le cours
-    -- ne doit pas être refusé pour autant.
+    -- Plafond de fréquentation, fenêtre glissante centrée sur le cours visé.
     AND (
       pt.quota_sessions IS NULL
-      OR (p_class_starts_at IS NOT NULL AND p_class_starts_at >= pp.expires_at)
+      OR p_class_starts_at IS NULL
       OR (SELECT COUNT(*) FROM bookings b
           JOIN scheduled_classes sc ON sc.id = b.scheduled_class_id
-          WHERE b.pack_purchase_id = pp.id
+          WHERE b.user_id = p_user_id
+            AND b.pack_purchase_id = pp.id
             AND b.status = 'confirmed'
             AND NOT sc.is_cancelled
-            AND sc.starts_at >= pp.purchased_at
-            AND sc.starts_at < pp.expires_at) < pt.quota_sessions
+            AND sc.starts_at > p_class_starts_at - (pt.quota_days || ' days')::INTERVAL
+            AND sc.starts_at < p_class_starts_at + (pt.quota_days || ' days')::INTERVAL
+         ) < pt.quota_sessions
     )
   -- Abonnement d'abord : il est déjà facturé, les crédits achetés à côté
   -- restent au membre. Entre deux packs, celui qui expire le plus tôt.
@@ -730,17 +739,18 @@ RETURNS VOID AS $$
 $$ LANGUAGE sql SECURITY DEFINER;
 
 -- ---------------------------------------------------------------------------
--- Quota de séances par cycle d'abonnement
+-- Plafond de fréquentation : N cours par D jours
 -- ---------------------------------------------------------------------------
--- LE CYCLE EST UNE LIGNE, PAS UN CALCUL. Chaque renouvellement Stripe crée une
--- ligne `pack_purchases` avec ses propres bornes : la ligne dont
--- `expires_at > NOW()` EST le cycle courant, sans rien à deviner.
+-- FENÊTRE GLISSANTE CENTRÉE sur la séance visée : on compte les cours situés à
+-- moins de D jours AVANT ou APRÈS. Les deux côtés comptent, sinon l'ordre des
+-- réservations suffit à contourner la règle — réserver du plus lointain au plus
+-- proche laisserait chaque fenêtre arrière vide au moment du test.
 --
--- LE QUOTA SE COMPTE SUR LA DATE DES COURS, pas des réservations. La nuance
--- décide d'un cas réel : un abonné qui a consommé ses 4 séances veut réserver,
--- la veille du renouvellement, un cours de la semaine suivante. Ce cours relève
--- du cycle suivant — lequel n'existe pas encore en base, donc la réservation
--- porte forcément le cycle courant. Compter les réservations l'aurait refusée.
+-- D EST BORNÉ À 14 JOURS (contrainte sur la table) : au-delà, un plafond ne
+-- contraint plus le rythme, il déplace la surconsommation.
+--
+-- LA FENÊTRE IGNORE LES CYCLES, volontairement : le plafond limite le rythme
+-- physique, pas la facturation.
 CREATE OR REPLACE FUNCTION check_pack_quota(
   p_user_id UUID,
   p_pack_purchase_id UUID,
@@ -754,37 +764,35 @@ STABLE
 AS $fn$
 DECLARE
   v_quota INTEGER;
-  v_from  TIMESTAMPTZ;
-  v_to    TIMESTAMPTZ;
+  v_days  INTEGER;
   v_used  INTEGER;
 BEGIN
-  SELECT pt.quota_sessions, pp.purchased_at, pp.expires_at
-    INTO v_quota, v_from, v_to
+  SELECT pt.quota_sessions, pt.quota_days
+    INTO v_quota, v_days
   FROM pack_purchases pp
   JOIN pack_types pt ON pt.id = pp.pack_type_id
   WHERE pp.id = p_pack_purchase_id;
 
-  IF v_quota IS NULL THEN
+  -- Sans plafond, ou sans date de cours (la fenêtre en dépend) : rien à dire.
+  IF v_quota IS NULL OR p_class_starts_at IS NULL THEN
     RETURN jsonb_build_object('ok', true);
-  END IF;
-
-  IF p_class_starts_at IS NOT NULL AND p_class_starts_at >= v_to THEN
-    RETURN jsonb_build_object('ok', true, 'next_cycle', true);
   END IF;
 
   SELECT COUNT(*) INTO v_used
   FROM bookings b
   JOIN scheduled_classes sc ON sc.id = b.scheduled_class_id
-  WHERE b.pack_purchase_id = p_pack_purchase_id
+  WHERE b.user_id = p_user_id
+    AND b.pack_purchase_id = p_pack_purchase_id
     AND b.status = 'confirmed'
     AND NOT sc.is_cancelled
-    AND sc.starts_at >= v_from
-    AND sc.starts_at < v_to;
+    AND sc.starts_at > p_class_starts_at - (v_days || ' days')::INTERVAL
+    AND sc.starts_at < p_class_starts_at + (v_days || ' days')::INTERVAL;
 
   RETURN jsonb_build_object(
     'ok', v_used < v_quota,
     'reason', CASE WHEN v_used >= v_quota THEN 'quota_reached' ELSE NULL END,
     'quota_sessions', v_quota,
+    'quota_days', v_days,
     'used', v_used,
     'remaining', GREATEST(0, v_quota - v_used)
   );
@@ -792,7 +800,7 @@ END;
 $fn$;
 
 COMMENT ON FUNCTION check_pack_quota IS
-  'Le quota du cycle est-il atteint ? Compte les cours dont la DATE tombe dans le cycle : une séance du cycle suivant n''entame pas le quota courant.';
+  'Le plafond est-il atteint ? Compte les cours du membre situés à moins de `quota_days` avant ou après la séance visée.';
 
 -- Le quota se fait respecter par un TRIGGER : les réservations partent d'un
 -- INSERT direct depuis le front, donc un contrôle appelé côté client serait
@@ -823,7 +831,8 @@ BEGIN
   v_check := check_pack_quota(NEW.user_id, NEW.pack_purchase_id, v_starts_at);
 
   IF (v_check->>'ok')::BOOLEAN IS NOT TRUE THEN
-    RAISE EXCEPTION 'quota_reached: % seances par cycle', v_check->>'quota_sessions'
+    RAISE EXCEPTION 'quota_reached: % cours par % jours',
+      v_check->>'quota_sessions', v_check->>'quota_days'
       USING ERRCODE = 'check_violation';
   END IF;
 
@@ -838,8 +847,8 @@ CREATE TRIGGER trg_enforce_unlimited_quota
   EXECUTE FUNCTION enforce_unlimited_quota();
 
 -- Pourquoi aucun crédit ne couvre ce cours ? Une liste vide ne dit pas
--- pourquoi, et confondre « quota plein » avec « aucun crédit » enverrait vers
--- la boutique quelqu'un qui a déjà payé.
+-- pourquoi. Quatre causes se cachent derrière, et les confondre sous « aucun
+-- crédit » enverrait vers la boutique quelqu'un qui a déjà payé.
 CREATE OR REPLACE FUNCTION why_no_credit_for_class(
   p_user_id UUID,
   p_class_id UUID
@@ -864,28 +873,33 @@ BEGIN
     RETURN jsonb_build_object('reason', 'class_not_found');
   END IF;
 
-  SELECT pt.quota_sessions, pt.name INTO v_pack
+  -- 1. Un pack du bon type, valide, couvrant le cours, mais au plafond.
+  SELECT pt.quota_sessions, pt.quota_days INTO v_pack
   FROM pack_purchases pp
   JOIN pack_types pt ON pt.id = pp.pack_type_id
   WHERE pp.user_id = p_user_id
     AND pt.credit_type_id = v_class.credit_type_id
     AND pp.expires_at > NOW()
     AND pt.quota_sessions IS NOT NULL
-    AND v_class.starts_at < pp.expires_at
+    AND (pt.is_unlimited OR pp.credits_remaining > 0)
     AND (SELECT COUNT(*) FROM bookings b
          JOIN scheduled_classes sc2 ON sc2.id = b.scheduled_class_id
-         WHERE b.pack_purchase_id = pp.id
+         WHERE b.user_id = p_user_id
+           AND b.pack_purchase_id = pp.id
            AND b.status = 'confirmed'
            AND NOT sc2.is_cancelled
-           AND sc2.starts_at >= pp.purchased_at
-           AND sc2.starts_at < pp.expires_at) >= pt.quota_sessions
+           AND sc2.starts_at > v_class.starts_at - (pt.quota_days || ' days')::INTERVAL
+           AND sc2.starts_at < v_class.starts_at + (pt.quota_days || ' days')::INTERVAL
+        ) >= pt.quota_sessions
   LIMIT 1;
 
   IF FOUND THEN
     RETURN jsonb_build_object('reason', 'quota_reached',
-                              'detail', v_pack.quota_sessions || ' séances');
+                              'quota_sessions', v_pack.quota_sessions,
+                              'quota_days', v_pack.quota_days);
   END IF;
 
+  -- 2. Un abonnement RÉSILIÉ dont le terme tombe avant le cours.
   SELECT s.current_period_end INTO v_pack
   FROM pack_purchases pp
   JOIN pack_types pt ON pt.id = pp.pack_type_id
@@ -903,22 +917,46 @@ BEGIN
       'detail', to_char(v_pack.current_period_end AT TIME ZONE 'Europe/Brussels', 'DD/MM/YYYY'));
   END IF;
 
+  -- 3. Un abonnement À JOUR dont les crédits sont épuisés : le prochain cycle
+  -- les rechargera. Le membre n'a rien à racheter, juste à attendre.
+  SELECT pp.expires_at INTO v_pack
+  FROM pack_purchases pp
+  JOIN pack_types pt ON pt.id = pp.pack_type_id
+  JOIN subscriptions s ON s.id = pp.subscription_id
+  WHERE pp.user_id = p_user_id
+    AND pt.credit_type_id = v_class.credit_type_id
+    AND pp.expires_at > NOW()
+    AND NOT pt.is_unlimited
+    AND pp.credits_remaining <= 0
+    AND s.status = 'active'
+    AND COALESCE(s.cancel_at_period_end, FALSE) = FALSE
+  ORDER BY pp.expires_at ASC
+  LIMIT 1;
+
+  IF FOUND THEN
+    RETURN jsonb_build_object(
+      'reason', 'credits_exhausted_renewal',
+      'detail', to_char(v_pack.expires_at AT TIME ZONE 'Europe/Brussels', 'DD/MM/YYYY'),
+      'after_renewal', v_class.starts_at >= v_pack.expires_at);
+  END IF;
+
   RETURN jsonb_build_object('reason', 'no_credit');
 END;
 $fn$;
 
 COMMENT ON FUNCTION why_no_credit_for_class IS
-  'Explique pourquoi aucun crédit ne couvre ce cours : quota du cycle épuisé, abonnement se terminant avant la séance, ou absence réelle de crédit.';
+  'Explique pourquoi aucun crédit ne couvre ce cours : plafond atteint, abonnement se terminant avant la séance, crédits épuisés en attente de renouvellement, ou absence réelle de crédit.';
 
--- Où en est le membre sur son quota ? Un plafond qu'on découvre en butant
--- dessus au moment de réserver est vécu comme une panne.
+-- Où en est le membre sur son plafond ? Un plafond qu'on découvre en butant
+-- dessus au moment de réserver est vécu comme une panne. La fenêtre étant
+-- glissante, on la calcule autour d'AUJOURD'HUI.
 CREATE OR REPLACE FUNCTION my_pack_quota_usage()
 RETURNS TABLE (
   pack_purchase_id UUID,
   quota_sessions INTEGER,
+  quota_days INTEGER,
   used INTEGER,
-  remaining INTEGER,
-  period_end TIMESTAMPTZ
+  remaining INTEGER
 )
 SECURITY DEFINER
 SET search_path = public
@@ -927,26 +965,27 @@ STABLE
 AS $fn$
   SELECT pp.id,
          pt.quota_sessions,
+         pt.quota_days,
          COUNT(b.id)::INTEGER,
-         GREATEST(0, pt.quota_sessions - COUNT(b.id))::INTEGER,
-         pp.expires_at
+         GREATEST(0, pt.quota_sessions - COUNT(b.id))::INTEGER
   FROM pack_purchases pp
   JOIN pack_types pt ON pt.id = pp.pack_type_id
   LEFT JOIN bookings b ON b.pack_purchase_id = pp.id
+    AND b.user_id = auth.uid()
     AND b.status = 'confirmed'
     AND EXISTS (SELECT 1 FROM scheduled_classes sc
                 WHERE sc.id = b.scheduled_class_id
                   AND NOT sc.is_cancelled
-                  AND sc.starts_at >= pp.purchased_at
-                  AND sc.starts_at < pp.expires_at)
+                  AND sc.starts_at > NOW() - (pt.quota_days || ' days')::INTERVAL
+                  AND sc.starts_at < NOW() + (pt.quota_days || ' days')::INTERVAL)
   WHERE pp.user_id = auth.uid()
     AND pt.quota_sessions IS NOT NULL
     AND pp.expires_at > NOW()
-  GROUP BY pp.id, pt.quota_sessions, pp.expires_at;
+  GROUP BY pp.id, pt.quota_sessions, pt.quota_days;
 $fn$;
 
 COMMENT ON FUNCTION my_pack_quota_usage IS
-  'Consommation du quota sur les cycles en cours de l''appelant. Vide si aucun de ses packs n''a de plafond.';
+  'Consommation du plafond sur la fenêtre glissante autour d''aujourd''hui. Vide si aucun pack de l''appelant n''a de plafond.';
 
 REVOKE ALL ON FUNCTION check_pack_quota(UUID, UUID, TIMESTAMPTZ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION why_no_credit_for_class(UUID, UUID) FROM PUBLIC;

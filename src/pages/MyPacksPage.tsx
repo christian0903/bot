@@ -16,10 +16,11 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { PackPurchase, Booking, ScheduledClass, Subscription, SubscriptionDiscount } from '@/types'
 
-/** Consommation du plafond de séances sur un cycle d'abonnement. */
+/** Consommation du plafond sur la fenêtre glissante autour d'aujourd'hui. */
 interface QuotaUsage {
   pack_purchase_id: string
   quota_sessions: number
+  quota_days: number
   used: number
   remaining: number
 }
@@ -327,8 +328,8 @@ export function MyPacksPage() {
                           q.remaining === 0 ? 'text-destructive' : 'text-muted-foreground',
                         )}>
                           {isFr
-                            ? `${q.used} / ${q.quota_sessions} séances utilisées sur ce cycle`
-                            : `${q.used} / ${q.quota_sessions} sessions used this cycle`}
+                            ? `${q.used} / ${q.quota_sessions} cours sur ${q.quota_days} jours`
+                            : `${q.used} / ${q.quota_sessions} classes over ${q.quota_days} days`}
                         </p>
                       )
                     })()}

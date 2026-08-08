@@ -403,12 +403,35 @@ export function SchedulePage() {
         p_user_id: user.id,
         p_class_id: classId,
       })
-      const blockReason = (blocked as { reason?: string; detail?: string } | null) ?? null
+      const blockReason = (blocked as {
+        reason?: string
+        detail?: string
+        quota_sessions?: number
+        quota_days?: number
+        after_renewal?: boolean
+      } | null) ?? null
+
+      // Crédits épuisés mais abonnement à jour : le prochain cycle les
+      // rechargera. Sans ce cas, le membre voyait « aucun crédit » et croyait
+      // devoir racheter un pack, alors qu'il lui suffit d'attendre.
+      if (blockReason?.reason === 'credits_exhausted_renewal') {
+        toast.error(blockReason.after_renewal
+          ? (isFr
+            ? `Vos crédits sont épuisés. Votre abonnement se renouvelle le ${blockReason.detail} : vous pourrez réserver cette séance à partir de cette date.`
+            : `Your credits are used up. Your subscription renews on ${blockReason.detail}: you will be able to book this class from then.`)
+          : (isFr
+            ? `Vos crédits sont épuisés pour ce cycle. Votre abonnement se renouvelle le ${blockReason.detail}, mais cette séance a lieu avant : il vous faudrait un autre pack.`
+            : `Your credits are used up for this cycle. Your subscription renews on ${blockReason.detail}, but this class is earlier: you would need another pack.`))
+        setBookingInProgress(null)
+        return
+      }
 
       if (blockReason?.reason === 'quota_reached') {
+        // Nommer le plafond : « maximum atteint » sans dire lequel laisse le
+        // membre croire que son pack est épuisé.
         toast.error(isFr
-          ? `Vous avez atteint le maximum de séances de votre abonnement pour ce cycle (${blockReason.detail}).`
-          : `You have reached your subscription's session cap for this cycle (${blockReason.detail}).`)
+          ? `Votre pack ne permet pas plus de ${blockReason.quota_sessions} cours sur ${blockReason.quota_days} jours. Choisissez une date plus éloignée de vos autres séances.`
+          : `Your pack allows no more than ${blockReason.quota_sessions} classes over ${blockReason.quota_days} days. Pick a date further from your other sessions.`)
         setBookingInProgress(null)
         return
       }
