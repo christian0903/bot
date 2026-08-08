@@ -303,6 +303,22 @@ Files are CSV format with `;` separator and UTF-8 encoding (Excel compatible). F
 
 ---
 
+## Attendance Cap
+
+Two optional fields on any pack type — *N classes per D days*, for example *2 classes per 1 day* or *10 classes per 7 days*. Left empty, no cap applies.
+
+It matters most on an **unlimited** pack: without a guardrail, someone can come several times a day and take places from others.
+
+**The window is rolling**, centred on the class being booked: sessions within D days before or after are counted. Nothing ever resets — unlike a calendar week, where someone could stack 4 classes on Sunday and 4 on Monday.
+
+**Maximum 14 days.** Beyond that, a cap no longer constrains pace: "50 classes per 28 days" allows 50 in the first week and none for three.
+
+**On a credit pack, it only helps if it is lower than the credit count.** A cap of 10 on a 4-session pack will never trigger. To spread out a 4-session pack, set *1 class per 7 days*. The form warns you when a cap has no effect.
+
+**Staff are exempt**: a coach or admin can book someone in beyond their cap.
+
+---
+
 ## Class Reviews
 
 After a session, members can rate it from 1 to 5 stars and leave an optional comment.

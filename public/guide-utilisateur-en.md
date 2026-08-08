@@ -125,6 +125,14 @@ This page lists all your bookings, split into two tabs:
 
 ---
 
+## If Your Pack Caps Attendance
+
+Some packs carry an **attendance cap** — for example 10 classes per 7 days. You can see where you stand in **My Packs**: "3 / 10 classes over 7 days".
+
+The count is made around the class you want to book, not over a fixed week. If a date is refused, moving your booking a few days is often enough to free up a slot.
+
+---
+
 ## Rating a Class
 
 After a session, your **home page** offers to rate it from 1 to 5 stars, with an optional comment — a rating on its own is already useful.

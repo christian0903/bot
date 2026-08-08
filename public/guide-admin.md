@@ -205,9 +205,24 @@ Pour chaque pack :
 | **Prix** | En euros. |
 | **Validité** | Durée pendant laquelle les crédits restent utilisables. |
 | **Abonnement** | Renouvellement automatique. Demande une périodicité. |
+| **Plafond de fréquentation** | Facultatif : *N cours par D jours*. Limite le rythme, pas le total. |
 | **Catégories éligibles** | Restreint la vente à certaines catégories. Vide = ouvert à tous. |
 
 > **Sur un abonnement, la validité doit correspondre au cycle.** Un cycle de 4 semaines va avec une validité de 28 jours. L'application vous alerte si les deux divergent.
+
+#### Le plafond de fréquentation
+
+Deux champs facultatifs — par exemple *2 cours par 1 jour*, *10 cours par 7 jours*. Laissés vides, aucun plafond.
+
+Il sert surtout sur un **illimité** : sans garde-fou, quelqu'un peut venir plusieurs fois par jour et occuper les places au détriment des autres.
+
+**La fenêtre est glissante**, centrée sur le cours qu'on veut réserver : on compte les séances situées à moins de D jours avant ou après. Rien ne se remet jamais à zéro — contrairement à une semaine calendaire, où quelqu'un pourrait cumuler 4 cours le dimanche et 4 le lundi.
+
+**Maximum 14 jours.** Au-delà, un plafond ne contraint plus le rythme : « 50 cours par 28 jours » laisse en faire 50 la première semaine puis rien pendant trois.
+
+**Sur un pack à crédits, il ne sert que s'il est plus bas que le nombre de séances.** Un plafond de 10 sur un pack de 4 ne bloquera jamais. Pour étaler la consommation d'un pack de 4, posez *1 cours par 7 jours*. L'écran vous prévient si le plafond est sans effet.
+
+**Le staff n'est pas concerné** : un coach ou un admin peut inscrire quelqu'un au-delà de son plafond.
 
 > **Attention aux 13 échéances.** Un cycle de 4 semaines revient **13 fois par an**, pas 12. À prendre en compte dans vos prix.
 

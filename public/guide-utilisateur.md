@@ -75,6 +75,12 @@ Tu reçois un message qui **dit ce qui change** : nouveau coach, nouvelle salle,
 
 Si c'est l'horaire ou le type de cours qui change, le message te propose explicitement d'annuler avec restitution de ton crédit — libre à toi de rester ou de réserver autre chose.
 
+### Si ton pack limite le nombre de cours
+
+Certains packs ont un **plafond de fréquentation** — par exemple 10 cours par 7 jours. Tu le vois dans **Mes packs** : « 3 / 10 cours sur 7 jours ».
+
+Le compte se fait autour de la séance que tu veux réserver, pas sur une semaine fixe. Si une date est refusée, décaler ta réservation de quelques jours suffit souvent à libérer une place.
+
 ### Donner ton avis sur un cours
 
 Après une séance, ta page d'accueil te propose de la noter de 1 à 5 étoiles, avec un commentaire si tu veux — il reste facultatif.
