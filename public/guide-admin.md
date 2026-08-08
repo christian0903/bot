@@ -224,6 +224,18 @@ Il sert surtout sur un **illimité** : sans garde-fou, quelqu'un peut venir plus
 
 **Le staff n'est pas concerné** : un coach ou un admin peut inscrire quelqu'un au-delà de son plafond.
 
+#### Quatre situations, et ce que le membre voit
+
+Utile quand quelqu'un appelle en disant « je n'arrive pas à réserver ».
+
+**1. Formule à crédits, crédits épuisés.** Un abonnement de 4 séances avec un plafond de 10 cours / 7 jours : les 4 séances consommées, le 5ᵉ cours est refusé pour manque de crédit. Le plafond n'y est pour rien — sur une formule à crédits, ce sont les crédits qui bloquent.
+
+**2. Formule illimitée, plafond atteint puis libéré.** 10 cours réservés sur trois jours avec un plafond de 10 / 7 jours : le cours du lendemain est refusé, le même cours deux semaines plus tard passe. La fenêtre glisse.
+
+**3. Crédits épuisés, renouvellement proche.** Pour un cours situé après le renouvellement, le membre lit : « Vos crédits sont épuisés. Votre abonnement se renouvelle le JJ/MM : vous pourrez réserver cette séance à partir de cette date. » Il n'a rien à racheter, juste à attendre.
+
+**4. Abonnement résilié.** Les cours réservés après le terme sont annulés d'office, avec une notification par cours et une trace au journal. Les cours antérieurs au terme sont conservés.
+
 > **Attention aux 13 échéances.** Un cycle de 4 semaines revient **13 fois par an**, pas 12. À prendre en compte dans vos prix.
 
 > **Un prix est figé une fois vendu.** Modifier le prix ou la périodicité d'un abonnement crée un nouveau tarif côté Stripe ; les abonnés existants gardent l'ancien. Pour changer le prix de tout le monde, il faut les faire résilier et se réabonner.

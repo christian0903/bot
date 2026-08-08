@@ -225,6 +225,26 @@ Dès qu'il est **résilié**, les réservations situées après le terme sont **
 
 Un membre déjà en cours de résiliation ne peut plus réserver au-delà de son terme : un message le lui indique, avec la date.
 
+### Quatre situations, et ce que le membre voit
+
+Ces quatre cas couvrent l'essentiel de ce qui peut bloquer une réservation. Utile pour comprendre un appel du type « je n'arrive pas à réserver ».
+
+**1. Formule à crédits, crédits épuisés — le plafond n'y est pour rien.**
+Un membre a un abonnement de 4 séances avec un plafond de 10 cours / 7 jours. Il consomme ses 4 séances. Au 5ᵉ cours il est refusé : *« Vos crédits sont épuisés pour ce cycle… »*
+→ Sur une formule à crédits, ce sont les crédits qui bloquent. Un plafond supérieur au nombre de séances ne sert jamais.
+
+**2. Formule illimitée, plafond atteint — puis libéré.**
+Un membre en illimité, plafond 10 cours / 7 jours, réserve 10 cours sur trois jours. Un cours le lendemain est refusé : *« Votre pack ne permet pas plus de 10 cours sur 7 jours. »* Le même cours deux semaines plus tard passe sans problème.
+→ La fenêtre glisse. Le plafond bride le rythme, pas le total.
+
+**3. Crédits épuisés, mais le renouvellement approche.**
+Même formule à crédits, cycle qui se termine dans quelques jours. Pour un cours situé **après** le renouvellement, le membre lit : *« Vos crédits sont épuisés. Votre abonnement se renouvelle le JJ/MM : vous pourrez réserver cette séance à partir de cette date. »*
+→ Il n'a rien à racheter, juste à attendre. Ce message évite un appel inutile.
+
+**4. Abonnement résilié — les réservations postérieures disparaissent.**
+Un membre en illimité a réservé des cours de part et d'autre de son échéance, puis résilie. Les cours antérieurs au terme sont conservés ; ceux d'après sont **annulés d'office**, avec une notification par cours annulé et une trace au journal d'activité.
+→ Personne ne paiera ces séances : elles ne restent pas à bloquer des places.
+
 ### Types de packs — Administration → Types de packs
 
 L'écran est regroupé par type de crédit, abonnements d'abord, packs à l'unité ensuite — comme le voit le membre.

@@ -317,6 +317,18 @@ It matters most on an **unlimited** pack: without a guardrail, someone can come 
 
 **Staff are exempt**: a coach or admin can book someone in beyond their cap.
 
+### Four situations, and what the member sees
+
+Useful when someone calls saying "I can't book".
+
+**1. Credit pack, credits used up.** A 4-session subscription with a cap of 10 classes / 7 days: once the 4 sessions are gone, the 5th booking is refused for lack of credit. The cap plays no part — on a credit pack, credits run out first.
+
+**2. Unlimited pack, cap reached then released.** 10 classes booked over three days with a cap of 10 / 7 days: the next day is refused, the same class two weeks later goes through. The window rolls.
+
+**3. Credits used up, renewal near.** For a class after the renewal date, the member reads: "Your credits are used up. Your subscription renews on DD/MM: you will be able to book this class from then." Nothing to buy, just wait.
+
+**4. Subscription cancelled.** Classes booked after the end date are cancelled automatically, with one notification per class and an activity-log entry. Classes before the end date are kept.
+
 ---
 
 ## Class Reviews

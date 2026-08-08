@@ -14,7 +14,8 @@
 **Séance d'essai** : **livrée** — vrai pack gratuit attribué à l'inscription (2026-08-07).
 **Communications** : **livrées** — tout e-mail laisse une trace dans l'application.
 **Parrainage & bons d'achat** : livré, **toujours non testé de bout en bout**.
-**Avis sur les cours** : **livré** — étoiles et commentaire, consultation admin nominative, correction et suppression par le membre. **Jamais vu avec des données réelles** (voir session du 2026-08-08).
+**Avis sur les cours** : **livré et vu à l'écran** — étoiles et commentaire, consultation admin nominative, correction et suppression par le membre. 67 avis de démonstration en base depuis le 2026-08-08.
+**Plafond de fréquentation** : **livré** — N cours par D jours, fenêtre glissante centrée, D borné à 14. **Actif sur deux formules pour la démonstration**, à retirer après validation.
 **Clients professionnels** : **livré** — commande sur facture, suivi des encaissements.
 **Performances** : étapes 1 et 2 livrées (valeurs comparables, courbes). Paliers et régularité à faire.
 **Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter. **Deux de ses éléments deviennent bloquants pour l'App Store** — voir ci-dessous.
@@ -37,7 +38,56 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ---
 
-## Session du 2026-08-08
+## Session du 2026-08-08 — après-midi
+
+### Le quota : trois versions avant la bonne
+
+Le chantier a coûté trois implémentations parce que la règle n'était pas arrêtée avant de coder. Les deux premières sont parties à la poubelle :
+
+| Forme | Pourquoi écartée |
+|---|---|
+| Quota **par cycle** d'abonnement | Ne valait que pour les abonnements, et butait sur le fait que le cycle suivant n'existe pas encore en base au moment de réserver |
+| Fenêtre **calendaire** (lundi→dimanche) | Plus lisible, mais laisse cumuler 4 cours le dimanche et 4 le lundi |
+| **Fenêtre glissante centrée** ✅ | Retenue |
+
+**Christian a interrompu le travail** au moment où j'allais écrire la troisième version : « tu codes trop vite, on n'a pas fixé les règles ». La méthode qui a fonctionné ensuite — décider, simuler sur papier, coder une fois — est celle qu'il fallait appliquer d'emblée.
+
+### La règle retenue
+
+`quota_sessions` / `quota_days` sur `pack_types` : **N cours par D jours**, fenêtre glissante **centrée sur la séance visée**. Les deux côtés comptent, sinon l'ordre des réservations suffit à contourner la règle — réserver du plus lointain au plus proche laisserait chaque fenêtre arrière vide au moment du test.
+
+**D borné à 14 jours**, en dur. Au-delà, un plafond ne contraint plus le rythme : « 50 cours par 28 jours » laisse en faire 50 la première semaine puis rien pendant trois. Borne fixe et non calculée par pack — une borne suivant `validity_days` serait illisible sur un pack ponctuel valable un an.
+
+La fenêtre **ignore les cycles**, volontairement : le plafond limite le rythme physique, pas la facturation.
+
+### Quatre cas simulés, puis implantés
+
+Simulés d'abord en transaction annulée, puis montés pour de vrai sur quatre clients (Thomas Dupont, Simona Costamagna, Anselme Meunier, joan rodon) avec abonnements offerts et identifiants Stripe fictifs en mode test.
+
+Ce que chaque cas a révélé :
+
+1. **Pack à crédits + plafond 10/7j** — les crédits bloquent, le plafond ne sert jamais. Un avertissement a été ajouté au formulaire admin quand le plafond dépasse le nombre de crédits.
+2. **Illimité + plafond 10/7j** — le glissement se vérifie : refusé le lendemain, accepté deux semaines plus tard.
+3. **Crédits épuisés, cours du cycle suivant** — bloqué, mais le message disait « aucun crédit » comme si rien n'avait été acheté. Nouveau cas `credits_exhausted_renewal` : « votre abonnement se renouvelle le JJ/MM ».
+4. **Résiliation la veille de l'échéance** — la coupure tombe **à l'heure près** : échéance à 12h00, les cours de 8h et 9h sont gardés, celui de 12h30 annulé.
+
+### Autres travaux
+
+- **Avis** : consultation admin nominative, fenêtre en heures, correction et suppression par le membre. 67 avis de démonstration créés sur 31 cours (moyenne 4,09), avec commentaires — les écrans avaient été livrés sans jamais être vus avec des données.
+- **Menu du staff** : les écrans membres (Mes cours, Mes packs, Performances, Packs) disparaissent pour coachs et admins. Le planning reste : c'est leur outil de travail.
+- **Cours tout en absences** : compte désormais comme *exécuté* et non « décision attendue ». `getClassStatus` ne comptait que les présents, et l'écran réclamait un arbitrage que le pointage avait déjà tranché.
+- **Refus silencieux** : une policy RLS qui refuse un UPDATE ne renvoie aucune erreur, elle met à jour zéro ligne. Les trois écritures de pointage annonçaient « pointé ! » sur un pointage inexistant. Elles lisent maintenant ce que la base a écrit.
+- **Planning** : 6 cours vides supprimés, 9 créneaux Personal Training créés (3 après-midis × 3 séances, un coach par après-midi, 1 place).
+
+### Point de vigilance
+
+**Le plafond 10 cours / 7 jours est actif** sur « abonnement mini » et « Pack illimité » — donc pour *tous* leurs détenteurs, pas seulement les quatre clients de test. À retirer après validation par les coachs.
+
+Un document de validation est dans le vault : `_cowork-atelier-pnl/drafts/2026-08-08-reservations-regles-et-cas-de-test.md`.
+
+---
+
+## Session du 2026-08-08 — matin
 
 Un seul commit (v2.55.0) : la **consultation** des avis, restée en friche la veille. Les avis se déposaient depuis le 7 août mais ne se lisaient que cours par cours, depuis la fiche d'un cours passé — ni vue d'ensemble, ni accès nominatif, ni possibilité pour le membre de relire ce qu'il avait écrit.
 
