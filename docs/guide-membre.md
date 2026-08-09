@@ -19,6 +19,14 @@ Réserver, payer, suivre tes entraînements.
 
 > **Code de parrainage oublié ?** Ce n'est pas perdu : tu pourras le saisir au moment de ton premier paiement, ou demander au studio de le rattacher après coup.
 
+### Ta séance d'essai
+
+À la création de ton compte, **une séance d'essai gratuite t'est offerte**. Elle apparaît en tête de ton accueil, et se réserve comme n'importe quel cours : depuis le planning, sans rien payer.
+
+Elle vaut pour un cours **semi-privé**, et reste disponible un temps limité — la durée exacte est indiquée sur ton accueil.
+
+> Une fois réservée, elle devient une réservation ordinaire : tu la retrouves dans « Mes réservations », et le coach t'attend sur sa liste de présence.
+
 ### Mot de passe oublié
 
 Sur la page de connexion, onglet **Mot de passe oublié** : tu reçois un lien pour en choisir un nouveau.
@@ -65,6 +73,18 @@ Tu reçois un message qui **dit ce qui change** : nouveau coach, nouvelle salle,
 
 Si c'est l'horaire ou le type de cours qui change, le message te propose explicitement d'annuler avec restitution de ton crédit — libre à toi de rester ou de réserver autre chose.
 
+### Tes messages, sur l'accueil
+
+**Tout ce que le studio t'envoie par e-mail apparaît aussi sur ton accueil.** Si tu ne lis pas tes e-mails, ou qu'un message part dans les indésirables, tu le retrouves en te connectant.
+
+Une coche sur chaque ligne permet de la marquer lue sans l'ouvrir, et un filtre n'affiche que les non lues. Le bouton **Écarter** retire un message de ton écran — il n'est pas supprimé pour autant, le studio en garde la trace.
+
+### Si un cours est complet
+
+Inscris-toi sur la **liste d'attente**. Dès qu'une place se libère, elle t'est proposée — par notification **et** par e-mail.
+
+> **Tu as deux heures pour la prendre.** Passé ce délai, elle passe à la personne suivante. C'est court, d'où l'e-mail en plus de la notification.
+
 ### Liste d'attente
 
 Cours complet ? Clique sur **Liste d'attente**. Si une place se libère, tu es prévenu et tu as un délai pour confirmer. Passé ce délai, elle passe au suivant.
@@ -103,6 +123,26 @@ Va dans **Packs**. Les formules sont classées **par type de crédit** (semi-pri
 
 **Une formule illimitée** ne décompte rien : tu réserves autant de cours que tu veux pendant sa durée de validité. Le compteur ne bouge pas, c'est normal. En contrepartie, annuler ne « rend » rien — il n'y a rien à rendre.
 
+### M'abonner maintenant, commencer plus tard
+
+Sur la fenêtre de confirmation d'un abonnement, un champ **« Démarrer plus tard »** permet de choisir une date de début. Utile si tu t'engages en août pour une reprise en septembre.
+
+Laisse-le vide pour commencer tout de suite. Si tu mets une date :
+
+- ta carte est enregistrée aujourd'hui, mais **rien n'est prélevé avant la date choisie** ;
+- **tes crédits arrivent à cette date**, pas avant — aucun cours n'est réservable d'ici là ;
+- les échéances suivantes partent de cette date.
+
+> La date doit être au moins 48 heures plus tard. En dessous, l'abonnement démarre immédiatement.
+
+### Utiliser un code promo
+
+Le studio peut diffuser un **code promo** — lors d'une opération, d'un événement. Il se saisit sur la fenêtre de confirmation, au moment de payer : tape le code, la remise s'affiche avant que tu valides.
+
+Si le code est refusé, la raison est indiquée — expiré, déjà utilisé, ou non applicable à ce type de pack.
+
+> **Code promo et bon d'achat ne se cumulent pas** : c'est l'un ou l'autre sur un même achat.
+
 ### Utiliser un bon d'achat
 
 Un bon — parrainage ou geste du studio — t'est **proposé automatiquement** au moment de payer. Tu coches, le montant est déduit. Rien à retenir, rien à taper.
@@ -140,6 +180,16 @@ Dans **Mes packs**, ton abonnement affiche son état et sa prochaine échéance.
 **Performances** — tes mesures et leur évolution, si le studio les suit.
 
 **Stats** — nombre de séances, régularité, types de cours.
+
+### Supprimer mon compte
+
+Depuis **Profil**, en bas de page. La demande est définitive et prend effet immédiatement.
+
+**Ce qui disparaît** : ton nom, ton e-mail, tes coordonnées, ta photo. Tu ne peux plus te connecter, et le studio ne te retrouve plus dans ses listes.
+
+**Ce qui reste** : les traces comptables de tes paiements, sans ton identité. La loi belge impose de les conserver sept ans — elles ne permettent plus de remonter jusqu'à toi.
+
+> **Un abonnement en cours bloque la suppression.** Résilie-le d'abord : sans compte, tu ne pourrais plus l'arrêter et les prélèvements continueraient.
 
 ---
 

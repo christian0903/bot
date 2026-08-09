@@ -187,6 +187,18 @@ Le membre reçoit une notification quand il devient coach, et chaque changement 
 
 > **Plusieurs super admins sont possibles**, et c'est prudent : si l'un perd l'accès à son compte, l'autre peut le rétablir. Deux garde-fous : on ne retire pas ses propres droits d'admin, et le dernier super admin ne peut pas être retiré — sinon le studio se verrouillerait.
 
+### Supprimer un compte
+
+Deux chemins mènent au même résultat : le membre le fait depuis son profil, ou vous depuis sa fiche.
+
+**La suppression anonymise, elle n'efface pas.** Le nom, l'e-mail, le téléphone et la photo disparaissent ; les paiements restent, détachés de toute identité. C'est une contrainte comptable belge — sept ans de conservation — et c'est aussi ce que prévoit le RGPD lorsqu'une obligation légale s'oppose à l'effacement complet.
+
+Concrètement : le membre ne peut plus se connecter, il sort de vos listes, mais votre chiffre d'affaires reste juste.
+
+> **Un abonnement actif bloque l'opération.** Il faut le résilier d'abord — sans compte, le membre ne pourrait plus l'arrêter et continuerait d'être prélevé.
+
+L'opération est tracée au journal d'activité.
+
 ### Autres actions sur la fiche
 
 Corriger le nom, l'adresse e-mail (avec confirmation du membre), réinitialiser le mot de passe (super admin), inscrire le membre à un cours.
@@ -216,6 +228,33 @@ Exemples : *2 cours par 1 jour*, *10 cours par 7 jours*, *12 cours par 14 jours*
 **Le staff n'est pas concerné.** Un coach ou un admin peut inscrire quelqu'un au-delà de son plafond, comme il peut déjà passer outre le délai de fermeture.
 
 Le membre voit sa consommation dans *Mes packs* (« 3 / 10 cours sur 7 jours »), et un message explicite s'il tente de dépasser.
+
+### Vendre en août un abonnement qui commence en septembre
+
+Le cas commercial classique : vous rencontrez un prospect à la mi-août, il signe, mais il ne reprendra qu'à la rentrée.
+
+Sur la fenêtre de confirmation d'abonnement, le champ **« Démarrer plus tard »** règle exactement cela. Le client saisit la date de début — ou vous la saisissez avec lui.
+
+Ce qui se passe alors :
+
+- **la carte est enregistrée le jour de la vente**, l'engagement est pris ;
+- **rien n'est prélevé avant la date choisie**, et la première facture tombe ce jour-là ;
+- **aucun crédit n'existe avant** : le client ne peut pas venir s'entraîner en août ;
+- les échéances suivantes se calent sur la nouvelle date.
+
+> La date doit être au moins 48 heures plus tard — contrainte de Stripe. Au-delà d'un an, l'application refuse : c'est presque toujours une faute de frappe.
+
+**Point à surveiller.** La carte est validée à la vente mais débitée à la date de début. Si elle expire entre-temps, l'échec apparaît le jour du prélèvement — le client reçoit l'e-mail « paiement refusé », et vous le voyez dans son abonnement.
+
+**Pour un pack ponctuel, il n'y a pas d'équivalent** — et ce n'est pas nécessaire : vendez un pack dont la durée de validité couvre la période. Trois mois achetés le 15 août portent jusqu'à mi-novembre. Seule limite, rien n'empêche le client de consommer des séances avant la date prévue ; si cela compte, dites-le-lui.
+
+### La séance d'essai
+
+Tout nouveau compte reçoit **une séance d'essai gratuite**, attribuée automatiquement à l'inscription. Le membre la voit en tête de son accueil et la réserve depuis le planning, sans payer.
+
+C'est un **vrai pack**, gratuit et hors catalogue. Conséquence pratique : la réservation qui en découle est une réservation ordinaire — elle apparaît dans « Mes réservations », **et sur votre liste de présence**. Personne ne se présente au studio sans que vous le sachiez.
+
+Trois règles fixées : **semi-privé uniquement**, **30 jours de validité** (réglable), et **nouveaux profils seulement** — un membre existant n'en reçoit pas.
 
 ### Fin d'abonnement et réservations
 
@@ -277,9 +316,13 @@ Servent à réserver certains packs à certains publics.
 
 ### Coupons — Administration → Coupons
 
-Codes de réduction collectifs, avec quota et période de validité.
+Codes de réduction collectifs, avec quota, période de validité et **restriction par catégorie de pack**. Sans restriction, le coupon vaut pour tout — c'est le cas courant, qu'on n'a pas à déclarer.
 
-> **En l'état, un coupon créé ici n'est pas utilisable** : aucun écran ne permet au membre d'en saisir un. À traiter avant d'en créer.
+Le membre saisit le code **sur la fenêtre de confirmation, au moment de payer**. La remise est vérifiée et affichée **avant** le paiement : un refus est expliqué sur place plutôt que découvert sur la page Stripe, où il ferait abandonner l'achat.
+
+> **Un seul code par achat** : coupon *ou* bon d'achat, jamais les deux.
+
+Le champ n'apparaît pas chez un client professionnel — non par une règle dédiée, mais parce qu'il paie sur facture et ne passe pas par cet écran.
 
 ---
 
@@ -309,8 +352,30 @@ Ces montants s'appliquent aux futurs parrainages ; les bons déjà créés garde
 - **Seuil d'alerte annulations** : à partir de combien d'annulations par cycle un membre est signalé
 - **Minimum de participants** : en dessous, un cours est signalé pour revue
 - **Demande d'avis après les cours** : interrupteur, plus deux délais **en heures, comptés à partir de la fin du cours**. Le premier impose un temps d'attente avant qu'un avis soit possible (à 0, la séance est notable dès qu'elle se termine) ; le second ferme la fenêtre — au-delà, plus personne ne peut noter, et les avis déjà donnés se figent. 168 heures valent une semaine. Couper la demande ne supprime aucun avis existant
-- **Informations du studio**, **noms des salles**
+- **Noms des salles**
 - **Mode Stripe** (super admin) : test ou production. Bascule le paiement **et** le webhook d'un coup
+
+### Coordonnées légales du studio — à remplir en premier
+
+Nom, forme juridique, adresse, numéro d'entreprise, TVA, e-mail et téléphone de contact.
+
+**Ces champs bloquent trois choses tant qu'ils sont vides** : les conditions générales, la politique de confidentialité et les factures. Un document dont le champ manque affiche « (à compléter dans les Réglages) », et l'écran liste ce qui reste à saisir.
+
+Ils ne sont écrits qu'ici. Les documents portent des repères qui vont chercher la valeur au moment de l'affichage — une adresse qui change se corrige **à un seul endroit**.
+
+### Conditions générales et confidentialité
+
+Les CGV sont publiques, à l'adresse `/cgv`, et le lien figure en pied de page. Leur contenu vit dans un fichier texte éditable sans développeur.
+
+L'inscription **exige déjà** que le membre les accepte, et la date est enregistrée sur son profil.
+
+> L'article sur l'assurance est rédigé et applicable. Le reste attend le contenu du studio — à compléter avant la mise en vente réelle.
+
+La politique de confidentialité suit le même principe. Elle a une URL publique, condition posée par Apple pour publier l'application.
+
+### Réseaux sociaux
+
+Sept liens configurables (Instagram, Facebook, site web, et autres). Renseignés, ils s'affichent sur les deux pages d'accueil — celle des visiteurs et celle des membres. Laissés vides, rien n'apparaît.
 
 ---
 
