@@ -242,6 +242,13 @@ export function PacksPage() {
 
   /** Pack récurrent en attente de confirmation (null = pas de dialogue ouvert). */
   const [pendingSubscription, setPendingSubscription] = useState<PackType | null>(null)
+  // Démarrage différé : vide = l'abonnement commence tout de suite. Renseigné,
+  // la carte est enregistrée maintenant et le premier prélèvement attend la
+  // date choisie (vendre en août un abonnement qui commence en septembre).
+  const [subStartsOn, setSubStartsOn] = useState('')
+  // Stripe refuse un report de moins de 48 h : on empêche la saisie plutôt que
+  // de laisser le serveur refuser après coup.
+  const minStartDate = new Date(Date.now() + 49 * 3600 * 1000).toISOString().slice(0, 10)
 
   /** Le studio a qualifié ce membre comme professionnel : il paie sur facture. */
   const isBusiness = profile?.is_business === true
@@ -374,7 +381,7 @@ export function PacksPage() {
     await startCheckout(packType)
   }
 
-  const startCheckout = async (packType: PackType, noteId?: string) => {
+  const startCheckout = async (packType: PackType, noteId?: string, startsOn?: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { toast.error(t('common.error')); return }
@@ -387,6 +394,7 @@ export function PacksPage() {
             pack_type_id: packType.id,
             credit_note_id: noteId ?? null,
             coupon_code: appliedCoupon?.code ?? null,
+            starts_on: startsOn ?? null,
             success_url: `${window.location.origin}/my-packs?success=true`,
             cancel_url: `${window.location.origin}/packs?cancelled=true`,
           }),
@@ -1118,26 +1126,51 @@ export function PacksPage() {
                   </label>
                 )}
 
+                <div className="space-y-1.5">
+                  <label htmlFor="sub-starts-on" className="text-sm font-medium">
+                    {isFr ? 'Démarrer plus tard (facultatif)' : 'Start later (optional)'}
+                  </label>
+                  <input
+                    id="sub-starts-on"
+                    type="date"
+                    value={subStartsOn}
+                    min={minStartDate}
+                    onChange={(e) => setSubStartsOn(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {subStartsOn
+                      ? (isFr
+                        ? `Ta carte est enregistrée aujourd'hui, mais rien n'est prélevé avant le ${new Date(subStartsOn).toLocaleDateString('fr-BE')}. Tes crédits arrivent à cette date : aucune séance n'est réservable avant.`
+                        : `Your card is saved today, but nothing is charged before ${new Date(subStartsOn).toLocaleDateString('en-GB')}. Your credits arrive on that date: no session can be booked before.`)
+                      : (isFr
+                        ? 'Laisse vide pour commencer tout de suite. Une date au moins 48 h plus tard décale le premier prélèvement.'
+                        : 'Leave empty to start now. A date at least 48 h from now defers the first charge.')}
+                  </p>
+                </div>
+
                 <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-500/40 p-3">
                   <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-amber-900 dark:text-amber-200">
                     {isFr
-                      ? `Ce montant sera prélevé automatiquement ${formatRecurrence(pendingSubscription, true)}, jusqu'à résiliation. Tu peux résilier à tout moment depuis « Mes packs » : tes droits restent acquis jusqu'à la fin de la période déjà payée.`
-                      : `This amount will be charged automatically ${formatRecurrence(pendingSubscription, false)} until you cancel. You can cancel at any time from "My packs": your access remains valid until the end of the period already paid.`}
+                      ? `Ce montant sera prélevé automatiquement ${formatRecurrence(pendingSubscription, true)}${subStartsOn ? `, à partir du ${new Date(subStartsOn).toLocaleDateString('fr-BE')}` : ''}, jusqu'à résiliation. Tu peux résilier à tout moment depuis « Mes packs » : tes droits restent acquis jusqu'à la fin de la période déjà payée.`
+                      : `This amount will be charged automatically ${formatRecurrence(pendingSubscription, false)}${subStartsOn ? `, starting ${new Date(subStartsOn).toLocaleDateString('en-GB')}` : ''} until you cancel. You can cancel at any time from "My packs": your access remains valid until the end of the period already paid.`}
                   </p>
                 </div>
               </div>
 
               <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => setPendingSubscription(null)}>
+                <Button variant="outline" onClick={() => { setPendingSubscription(null); setSubStartsOn('') }}>
                   {isFr ? 'Annuler' : 'Cancel'}
                 </Button>
                 <Button
                   onClick={() => {
                     const pack = pendingSubscription
                     const noteId = useCreditNote && bestNote ? bestNote.id : undefined
+                    const startsOn = subStartsOn || undefined
                     setPendingSubscription(null)
-                    startCheckout(pack, noteId)
+                    setSubStartsOn('')
+                    startCheckout(pack, noteId, startsOn)
                   }}
                 >
                   {isFr ? 'Je m\'abonne' : 'Subscribe'}

@@ -38,6 +38,24 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ---
 
+## Session du 2026-08-09
+
+### Vendre en août un abonnement qui commence en septembre
+
+Besoin commercial : rencontrer un client le 15/08 et lui vendre un pack qui démarre le 01/09.
+
+**Pour l'abonnement, Stripe fait tout le travail** — via `trial_end`, qui décale la première facture sans rien changer d'autre. Un champ « Démarrer plus tard » a été ajouté à la confirmation d'abonnement ; vide, le comportement ne change pas.
+
+Le point qui rendait la chose sûre existait déjà : le webhook **ignore les factures à 0 €**, celles que Stripe émet à la souscription. Ce filtre avait été écrit le 5 août contre le bug du second pack lors d'un report d'échéance — le démarrage différé en hérite gratuitement. **Rien n'est crédité avant le paiement**, donc un client qui achète en août ne peut pas s'entraîner avant septembre.
+
+Seule la notification a dû changer : elle annonçait « Abonnement activé » même quand rien ne démarrait, ce qui aurait fait chercher au membre des crédits inexistants. Elle dit maintenant « Abonnement enregistré » avec la date de début.
+
+**Éprouvé au test clock** sur un cycle de 4 semaines avec `trial_end` à J+7 : aucun pack à la souscription (seulement la facture à 0 € correctement ignorée), pack de 4 crédits créé au jour dit avec `expires_at` calé sur la fin du cycle facturé, et cycle suivant enchaîné **à la seconde près** — la fin du premier pack est exactement le début du second.
+
+> **Le pack ponctuel n'a pas d'équivalent, et Stripe n'y peut rien.** `pack_purchases` n'a pas de `starts_at` : un pack est consommable dès qu'il existe. Prolonger la validité à la main donne la bonne durée mais n'empêche pas le client de venir avant. Il faudrait une colonne `starts_at` ajoutée au filtre de `get_available_credits` — chantier ouvert, non engagé.
+
+---
+
 ## Session du 2026-08-08 — après-midi
 
 ### Le quota : trois versions avant la bonne

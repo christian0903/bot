@@ -43,7 +43,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
-    const { type, pack_type_id, coupon_code, credit_note_id, success_url, cancel_url } = await req.json()
+    const { type, pack_type_id, coupon_code, credit_note_id, success_url, cancel_url, starts_on } = await req.json()
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -399,6 +399,41 @@ serve(async (req) => {
 
       const appliedCoupon = stripeCouponId ?? noteCouponId
 
+      // ---- Démarrage différé ------------------------------------------------
+      // Vendre le 15/08 un abonnement qui commence le 01/09 : la carte est
+      // enregistrée tout de suite, le premier prélèvement attend la date.
+      //
+      // C'est `trial_end` qui porte ce report — pas une période d'essai
+      // gratuite au sens commercial, mais le mécanisme Stripe qui décale la
+      // première facture. L'abonnement passe en statut `trialing` jusque-là,
+      // que le webhook traite déjà comme actif.
+      //
+      // Rien n'est crédité avant le paiement : le webhook ne crédite que sur
+      // `invoice.paid`, et il ignore les factures à 0 € que Stripe émet en fin
+      // d'essai. Le membre voit donc son abonnement souscrit, sans crédits,
+      // jusqu'à la date choisie.
+      let trialEnd: number | undefined
+      if (starts_on) {
+        const start = new Date(starts_on)
+        if (isNaN(start.getTime())) {
+          return json({ error: 'Date de démarrage invalide' }, 400)
+        }
+        // Stripe impose au moins 48 h et refuse au-delà de 2 ans. On borne un
+        // peu plus court côté studio : au-delà d'un an, c'est une erreur de
+        // saisie bien plus probablement qu'une intention.
+        const minStart = new Date(Date.now() + 48 * 3600 * 1000)
+        const maxStart = new Date(Date.now() + 365 * 24 * 3600 * 1000)
+        if (start < minStart) {
+          return json({
+            error: 'Le démarrage différé doit être fixé à au moins 48 h. Pour commencer maintenant, laissez la date vide.',
+          }, 400)
+        }
+        if (start > maxStart) {
+          return json({ error: 'Le démarrage ne peut pas être différé de plus d\'un an' }, 400)
+        }
+        trialEnd = Math.floor(start.getTime() / 1000)
+      }
+
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
         line_items: [{ price: priceId, quantity: 1 }],
@@ -409,7 +444,10 @@ serve(async (req) => {
         metadata: { ...metadata, kind: 'subscription', credit_note_id: creditNote?.id ?? '' },
         // Recopiées sur l'abonnement lui-même : les factures de renouvellement
         // ne portent pas les métadonnées de la session de checkout.
-        subscription_data: { metadata: { ...metadata, kind: 'subscription' } },
+        subscription_data: {
+          metadata: { ...metadata, kind: 'subscription' },
+          ...(trialEnd ? { trial_end: trialEnd } : {}),
+        },
       })
 
       return json({ url: session.url, session_id: session.id })

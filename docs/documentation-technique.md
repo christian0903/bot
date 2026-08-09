@@ -126,6 +126,35 @@ Stripe refuse une session de paiement à 0 €. Quand un bon couvre la totalité
 
 C'est la seule exception au principe « seul le webhook écrit », et elle est sûre : il n'y a pas de paiement à attendre.
 
+### Abonnement à démarrage différé
+
+Vendre le 15 août un abonnement qui commence le 1er septembre : la carte est enregistrée tout de suite, le premier prélèvement attend la date.
+
+C'est **`trial_end`** qui porte ce report — le nom trompe, il ne s'agit pas d'une période d'essai commerciale mais du mécanisme Stripe qui décale la première facture. Le champ « Démarrer plus tard » de la confirmation d'abonnement envoie une date à `create-checkout-session`, qui la pose en `subscription_data.trial_end`.
+
+**Rien n'est crédité avant le paiement.** C'est la propriété qui compte commercialement : un client qui achète en août ne peut pas venir s'entraîner avant septembre. Elle tient à deux mécanismes déjà en place :
+
+- le webhook ne crédite que sur `invoice.paid` ;
+- il **ignore les factures à 0 €**, or Stripe en émet une à la souscription (`billing_reason: subscription_create`, montant 0). Sans ce filtre, elle passerait pour un cycle payé et créerait le pack un mois trop tôt.
+
+> Ce filtre existait déjà, écrit le 5 août après le bug du second pack créé lors d'un report d'échéance. Le démarrage différé en hérite sans une ligne de code supplémentaire.
+
+Pendant l'attente, l'abonnement est en statut `trialing`, que le webhook traite comme actif. La notification distingue les deux cas : « Abonnement enregistré » avec la date de début si le démarrage est différé, « Abonnement activé » sinon. Annoncer « actif » ferait chercher au membre des crédits qui n'existent pas encore.
+
+**Bornes de saisie** : au moins 48 h (contrainte Stripe, sous laquelle le report est refusé), au plus un an (garde-fou maison — au-delà, c'est une faute de frappe plus probablement qu'une intention). Le champ du front porte le même minimum, pour que l'erreur se voie à la saisie plutôt qu'au retour serveur.
+
+**Vérifié au test clock le 2026-08-09**, sur un abonnement de 4 semaines souscrit avec `trial_end` à J+7 :
+
+| Moment | Facture | Pack en base |
+|---|---|---|
+| Souscription | 0 €, `subscription_create` | **aucun** |
+| À `trial_end` | 100 €, `subscription_cycle`, période J+7 → J+35 | créé, 4 crédits, expire à la fin du cycle |
+| Cycle suivant | 100 €, période J+35 → J+63 | créé, enchaîné **sans trou** — `expires_at` du premier = `purchased_at` du second |
+
+> **Point de vigilance** : la carte est validée à la souscription mais débitée à la date de début. Si elle expire entre-temps, on l'apprend le jour du prélèvement. L'e-mail « paiement refusé » couvre ce cas.
+
+**Le pack ponctuel n'a pas d'équivalent.** `pack_purchases` porte un `expires_at` mais pas de `starts_at`, et `get_available_credits` ne filtre que sur l'expiration : un pack est consommable dès qu'il existe. Prolonger la validité à la main donne bien la durée voulue, mais n'empêche pas le client de venir avant la date. Un vrai démarrage différé sur un pack ponctuel demanderait une colonne `starts_at` et son ajout au filtre de `get_available_credits`. Côté Stripe il n'y a rien à attendre : un paiement ponctuel est encaissé ou ne l'est pas, la notion de date d'entrée en vigueur n'existe pas.
+
 ---
 
 ## Modèle de données

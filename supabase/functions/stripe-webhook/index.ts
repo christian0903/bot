@@ -366,12 +366,23 @@ serve(async (req) => {
             // duration:once) : on le consomme ici, où les métadonnées de la
             // session le portent encore.
             await consumeCreditNote(md.credit_note_id, md.user_id, 'subscription')
+
+            // Démarrage différé : Stripe met l'abonnement en `trialing` et
+            // n'émettra la première facture qu'à `trial_end`. Annoncer
+            // « abonnement actif » serait faux — le membre chercherait des
+            // crédits qui n'arriveront qu'à cette date.
+            const startsLater = sub.status === 'trialing' && sub.trial_end
+              ? new Date(sub.trial_end * 1000)
+              : null
+
             await notify(
               md.user_id,
-              'Abonnement activé',
-              period.end
-                ? `Votre abonnement est actif. Prochaine échéance le ${new Date(period.end).toLocaleDateString('fr-BE')}.`
-                : 'Votre abonnement est actif.',
+              startsLater ? 'Abonnement enregistré' : 'Abonnement activé',
+              startsLater
+                ? `Votre abonnement débutera le ${startsLater.toLocaleDateString('fr-BE')}. Vos crédits seront disponibles à cette date, au premier prélèvement. Aucun montant n'est débité d'ici là.`
+                : period.end
+                  ? `Votre abonnement est actif. Prochaine échéance le ${new Date(period.end).toLocaleDateString('fr-BE')}.`
+                  : 'Votre abonnement est actif.',
             )
           }
           break
