@@ -80,6 +80,27 @@ Seuils réglables dans les Réglages (3 / 6 / 10 semaines par défaut, calés su
 
 **Données de démonstration ajustées** pour que la page montre quelque chose : taux de pointage porté à ~95 % (conforme au réel, où les absences sont rares), et dernières séances étalées sur trois membres. Les quatre états sont représentés — 6 actifs, 1 ralentit, 1 décroché, 2 perdus.
 
+### Les guides disaient où aller, mais avec les mauvais noms
+
+Demande de Christian : indiquer le chemin d'accès de chaque fonction. Les deux guides s'ouvrent désormais sur un **tableau d'orientation** listant les entrées du menu dans l'ordre où elles apparaissent, avec un lien vers la section détaillée.
+
+En confrontant les libellés au code, **six entrées étaient nommées autrement dans l'application** : « Membres » est *Utilisateurs*, « Réglages » est *Paramètres*, « Planning » est *Gestion du planning*, « Catégories » est *Catégories de membres*, « Demandes de facture » prend un s, « Journal » est *Journal d'activité*. Côté membre, « Mes cours » est *Mes réservations* et « Packs » est *Acheter un pack*.
+
+> Un guide qui nomme un menu inexistant fait chercher au mauvais endroit — c'est plus coûteux qu'une absence d'indication.
+
+### Le piège de la double copie
+
+**La page `/help` ne lit pas `docs/`.** Les guides vivent à deux endroits sans aucune synchronisation :
+
+- `docs/guide-admin.md` et `docs/guide-membre.md` — la version de travail ;
+- `public/guide-admin.md` et `public/guide-**utilisateur**.md` — ce que l'application affiche.
+
+J'éditais `docs/` depuis deux jours : **la page d'aide servait donc une version antérieure de 62 lignes**, sans le suivi des clients, sans le démarrage différé, sans les tableaux d'orientation. Personne n'aurait rien vu.
+
+Corrigé, et consigné dans la documentation technique avec les deux `cp` à passer après chaque édition. Noter le renommage : `guide-membre.md` devient `guide-utilisateur.md` dans `public/`.
+
+> **Les versions anglaises restent en retard.** Traduites à la main, elles ignorent le suivi des clients, le démarrage différé, la séance d'essai, la suppression de compte et les tableaux d'orientation. Signalé, non traité — c'est un chantier de traduction à part entière.
+
 ---
 
 ## Session du 2026-08-08 — après-midi
