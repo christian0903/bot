@@ -299,6 +299,9 @@
     "reviews": {
       "title": "Reviews"
     },
+    "clientTracking": {
+      "title": "Client tracking"
+    },
     "announcements": {
       "title": "Announcements",
       "content": "Content",

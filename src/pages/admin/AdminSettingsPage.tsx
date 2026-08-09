@@ -125,13 +125,18 @@ export function AdminSettingsPage() {
   const [reviewHoursBefore, setReviewHoursBefore] = useState(0)
   /** Heures après la fin du cours au-delà desquelles l'avis se ferme. */
   const [reviewHoursTo, setReviewHoursTo] = useState(168)
+  // Seuils du suivi des clients, en semaines depuis la dernière séance.
+  const [trackRalentit, setTrackRalentit] = useState(3)
+  const [trackDecroche, setTrackDecroche] = useState(6)
+  const [trackPerdu, setTrackPerdu] = useState(10)
+  const [trackFenetre, setTrackFenetre] = useState(8)
 
   useEffect(() => {
     const fetchData = async () => {
       const { data } = await supabase
         .from('app_settings')
         .select('*')
-        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert', 'class_given_rule', 'referral_rules', 'class_reviews'])
+        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert', 'class_given_rule', 'referral_rules', 'class_reviews', 'client_tracking'])
 
       for (const setting of data ?? []) {
         if (setting.key === 'stripe_mode') {
@@ -173,6 +178,16 @@ export function AdminSettingsPage() {
           setReviewsEnabled(v.enabled ?? true)
           setReviewHoursBefore(v.hours_before_review ?? 0)
           setReviewHoursTo(v.hours_to_review ?? 168)
+        }
+        if (setting.key === 'client_tracking') {
+          const v = setting.value as {
+            ralentit_semaines?: number; decroche_semaines?: number
+            perdu_semaines?: number; fenetre_comparaison_semaines?: number
+          }
+          setTrackRalentit(v.ralentit_semaines ?? 3)
+          setTrackDecroche(v.decroche_semaines ?? 6)
+          setTrackPerdu(v.perdu_semaines ?? 10)
+          setTrackFenetre(v.fenetre_comparaison_semaines ?? 8)
         }
         if (setting.key === 'cancellation_alert') {
           const val = setting.value as { threshold_per_cycle?: number }
@@ -868,6 +883,87 @@ export function AdminSettingsPage() {
             })}
           >
             {saving === 'class_reviews' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Suivi des clients — seuils de relance */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            {isFr ? 'Suivi des clients' : 'Client tracking'}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {isFr
+              ? 'À partir de combien de temps sans venir un client est signalé, dans Administration → Suivi clients.'
+              : 'How long without coming before a client is flagged, in Administration → Client tracking.'}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label>{isFr ? 'Ralentit (semaines)' : 'Slowing (weeks)'}</Label>
+              <Input
+                type="number" min={1} max={52}
+                value={trackRalentit}
+                onChange={e => setTrackRalentit(Math.max(1, parseInt(e.target.value) || 1))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isFr ? 'Décroche (semaines)' : 'Dropping (weeks)'}</Label>
+              <Input
+                type="number" min={1} max={52}
+                value={trackDecroche}
+                onChange={e => setTrackDecroche(Math.max(1, parseInt(e.target.value) || 1))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isFr ? 'Perdu (semaines)' : 'Lost (weeks)'}</Label>
+              <Input
+                type="number" min={1} max={104}
+                value={trackPerdu}
+                onChange={e => setTrackPerdu(Math.max(1, parseInt(e.target.value) || 1))}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{isFr ? 'Fenêtre de comparaison (semaines)' : 'Comparison window (weeks)'}</Label>
+            <Input
+              type="number" min={1} max={52}
+              value={trackFenetre}
+              onChange={e => setTrackFenetre(Math.max(1, parseInt(e.target.value) || 1))}
+              className="sm:max-w-[200px]"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              {isFr
+                ? `La tendance compare les ${trackFenetre} dernières semaines aux ${trackFenetre} précédentes. Une fenêtre trop courte réagit au moindre congé ; trop longue, elle masque un décrochage récent.`
+                : `The trend compares the last ${trackFenetre} weeks to the ${trackFenetre} before. Too short and it reacts to any holiday; too long and it hides a recent drop.`}
+            </p>
+          </div>
+
+          {/* Des seuils désordonnés rendraient le classement incohérent :
+              un client « perdu » doit l'être depuis plus longtemps qu'un
+              client qui « décroche ». */}
+          {!(trackRalentit < trackDecroche && trackDecroche < trackPerdu) && (
+            <p className="text-[11px] text-destructive">
+              {isFr
+                ? 'Les seuils doivent aller croissant : ralentit < décroche < perdu.'
+                : 'Thresholds must increase: slowing < dropping < lost.'}
+            </p>
+          )}
+
+          <Button
+            size="sm"
+            disabled={saving === 'client_tracking' || !(trackRalentit < trackDecroche && trackDecroche < trackPerdu)}
+            onClick={() => saveSetting('client_tracking', {
+              ralentit_semaines: trackRalentit,
+              decroche_semaines: trackDecroche,
+              perdu_semaines: trackPerdu,
+              fenetre_comparaison_semaines: trackFenetre,
+            })}
+          >
+            {saving === 'client_tracking' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
           </Button>
         </CardContent>
       </Card>

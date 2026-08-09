@@ -379,6 +379,66 @@ Sept liens configurables (Instagram, Facebook, site web, et autres). Renseignés
 
 ---
 
+## Suivi des clients — Administration → Suivi clients
+
+La page qui répond à « qui faut-il relancer ». Elle classe chaque client selon le temps écoulé depuis sa dernière séance, et montre s'il vient moins qu'avant.
+
+### Les quatre états
+
+| État | Ce que ça veut dire |
+|---|---|
+| **Actif** | Venu récemment, rien à signaler |
+| **Ralentit** | Premier signal — un cycle presque manqué |
+| **Décroche** | Absent depuis un moment, c'est le bon moment pour appeler |
+| **Perdu** | Longue absence, la reconquête sera plus difficile |
+| **Jamais venu** | Inscrit mais jamais présent — un accueil, pas une relance |
+
+L'onglet **À relancer** réunit les trois états du milieu. Les « jamais venus » en sont exclus volontairement : ce n'est pas le même geste commercial.
+
+Le tri place les **décrochés récents en premier** — ceux qu'on peut encore rattraper — avant les perdus de longue date.
+
+### Réservé / pointé — pourquoi deux colonnes
+
+La première compte les séances **réservées et non annulées**, la seconde celles qui ont été **pointées**.
+
+Les deux figurent parce qu'aucune n'est fiable seule. Le pointage dit la vérité du terrain, mais il dépend de la rigueur avec laquelle on le fait : une séance oubliée ferait passer un présent pour un absent. La réservation, elle, est toujours enregistrée — et elle a consommé un crédit, donc elle compte commercialement.
+
+**L'écart entre les deux se lit** : soit un membre réserve sans venir, soit le pointage a été négligé sur ces cours. À vous de savoir lequel des deux.
+
+> Le classement s'appuie sur la **réservation**, la donnée toujours présente. Fonder l'alerte sur le pointage produirait de faux décrocheurs.
+
+### La tendance
+
+Elle compare la période récente à la précédente, de même durée : « 2/5 » signifie deux séances récemment contre cinq avant.
+
+C'est cette comparaison qui révèle un ralentissement — **un total cumulé reste élevé chez quelqu'un qui a cessé de venir**, et ne dit donc rien.
+
+Une flèche descendante rouge signale une baisse, une flèche montante verte une hausse.
+
+### Le chiffre d'affaires
+
+**CA** additionne ce que le client a réellement payé — packs et cycles d'abonnement.
+
+**€ / séance** divise ce total par les séances consommées. C'est ce chiffre qui dit si un client est rentable, pas le total : quelqu'un qui achète un pack illimité et vient trois fois vous rapporte plus par séance que celui qui vient quinze fois.
+
+### Régler les seuils
+
+Dans **Réglages → Suivi des clients** : trois durées en semaines, plus la fenêtre de comparaison de la tendance.
+
+Les valeurs par défaut (3, 6, 10 semaines) sont calées sur un cycle d'abonnement de 4 semaines. Ajustez selon ce que vous observez — un studio où l'on vient trois fois par semaine détecte un décrochage plus vite qu'un studio à une séance hebdomadaire.
+
+> **La fenêtre de comparaison mérite réflexion.** Trop courte, elle réagit au moindre congé ; trop longue, elle masque un décrochage récent. Huit semaines par défaut.
+
+Les seuils doivent aller croissant — l'écran refuse d'enregistrer sinon.
+
+### Ce que la page ne fait pas
+
+Elle **ne relance personne**. Elle signale, vous décidez. Un clic sur un nom ouvre la fiche du membre, où vous trouverez son téléphone et son historique complet.
+
+Le staff n'apparaît pas dans la liste : coachs et administrateurs ne sont pas une clientèle et fausseraient les moyennes.
+
+---
+
 ## Suivre l'activité
 
 ### Tableau de bord — Administration → Tableau de bord

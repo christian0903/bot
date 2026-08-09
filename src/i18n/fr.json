@@ -299,6 +299,9 @@
     "reviews": {
       "title": "Évaluations"
     },
+    "clientTracking": {
+      "title": "Suivi clients"
+    },
     "announcements": {
       "title": "Annonces",
       "content": "Contenu",

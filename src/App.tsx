@@ -60,6 +60,7 @@ const ReferralPage = lazy(() => import('@/pages/ReferralPage').then(m => ({ defa
 const StatsPage = lazy(() => import('@/pages/StatsPage').then(m => ({ default: m.StatsPage })))
 const AdminReferralsPage = lazy(() => import('@/pages/admin/AdminReferralsPage').then(m => ({ default: m.AdminReferralsPage })))
 const AdminReviewsPage = lazy(() => import('@/pages/admin/AdminReviewsPage').then(m => ({ default: m.AdminReviewsPage })))
+const AdminClientTrackingPage = lazy(() => import('@/pages/admin/AdminClientTrackingPage').then(m => ({ default: m.AdminClientTrackingPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>
@@ -129,6 +130,7 @@ function App() {
                     <Route path="invoice-requests" element={<Lazy><AdminInvoiceRequestsPage /></Lazy>} />
                     <Route path="referrals" element={<Lazy><AdminReferralsPage /></Lazy>} />
                     <Route path="reviews" element={<Lazy><AdminReviewsPage /></Lazy>} />
+                    <Route path="client-tracking" element={<Lazy><AdminClientTrackingPage /></Lazy>} />
                   </Route>
                 </Route>
               </Routes>
