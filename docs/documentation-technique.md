@@ -394,6 +394,31 @@ La coupure se fait à **l'heure près**, pas à la journée : un membre dont l'a
 
 ---
 
+## Les guides existent en double — et divergent
+
+Les guides membre et administrateur vivent à **deux endroits**, et rien ne les synchronise :
+
+| Emplacement | Rôle |
+|---|---|
+| `docs/guide-admin.md`, `docs/guide-membre.md` | La version de travail, celle qu'on édite |
+| `public/guide-admin.md`, `public/guide-utilisateur.md` | **Ce que la page `/help` affiche réellement** |
+
+Noter le renommage : `guide-membre.md` devient `guide-utilisateur.md` dans `public/`.
+
+> **Éditer `docs/` sans recopier dans `public/` ne change rien pour l'utilisateur.** Constaté le 2026-08-09 : deux journées de documentation étaient invisibles dans l'application, la page d'aide servant une version antérieure de 62 lignes.
+
+Après toute modification d'un guide :
+
+```bash
+cp docs/guide-admin.md   public/guide-admin.md
+cp docs/guide-membre.md  public/guide-utilisateur.md
+npm run build
+```
+
+**Les versions anglaises** (`public/guide-admin-en.md`, `public/guide-utilisateur-en.md`) sont traduites à la main et **accusent du retard** : au 2026-08-09, elles ignorent le suivi des clients, le démarrage différé, la séance d'essai, la suppression de compte et les tableaux d'orientation.
+
+---
+
 ## Déploiement
 
 ### Migrations

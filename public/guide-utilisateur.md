@@ -19,6 +19,14 @@ Réserver, payer, suivre tes entraînements.
 
 > **Code de parrainage oublié ?** Ce n'est pas perdu : tu pourras le saisir au moment de ton premier paiement, ou demander au studio de le rattacher après coup.
 
+### Ta séance d'essai
+
+À la création de ton compte, **une séance d'essai gratuite t'est offerte**. Elle apparaît en tête de ton accueil, et se réserve comme n'importe quel cours : depuis le planning, sans rien payer.
+
+Elle vaut pour un cours **semi-privé**, et reste disponible un temps limité — la durée exacte est indiquée sur ton accueil.
+
+> Une fois réservée, elle devient une réservation ordinaire : tu la retrouves dans « Mes réservations », et le coach t'attend sur sa liste de présence.
+
 ### Mot de passe oublié
 
 Sur la page de connexion, onglet **Mot de passe oublié** : tu reçois un lien pour en choisir un nouveau.
@@ -26,18 +34,6 @@ Sur la page de connexion, onglet **Mot de passe oublié** : tu reçois un lien p
 ---
 
 ## Au quotidien
-
-### Ta page d'accueil
-
-Tout ce que tu dois savoir s'y trouve, en haut :
-
-- **Ta séance d'essai** si tu y as droit — elle est offerte, il suffit de choisir un cours dans le planning
-- **Tes communications** : confirmations, annulations, échéances. Ce qui est parti aussi par e-mail porte une petite enveloppe — c'est normal de le retrouver dans ta boîte mail
-- **Ton avis** sur ta dernière séance, s'il en manque un
-
-Une communication lue s'efface visuellement mais reste consultable. Tu peux en retirer une avec la croix, ou effacer toutes les lues d'un coup. Les non lues résistent : mieux vaut ne pas les perdre par mégarde.
-
-> **Ton QR code de check-in est en bas de la page d'accueil**, à présenter en arrivant au studio. Il est aussi sur ta fiche profil.
 
 ### Réserver un cours
 
@@ -54,7 +50,7 @@ Avec une seule source, rien à choisir : la fenêtre indique ce qui sera décomp
 
 ### Annuler une réservation
 
-Va dans **Mes cours**, ouvre la réservation, clique sur **Annuler**.
+Va dans **Mes réservations**, ouvre la réservation, clique sur **Annuler**.
 
 - **À temps** : ton crédit revient, la place est libérée
 - **Trop tard** : la séance est décomptée — la place n'a plus le temps d'être reprise
@@ -65,9 +61,11 @@ Le délai est indiqué dans l'application. Préviens dès que tu sais : c'est ce
 
 ### Voir mes cours et mes crédits
 
-**Mes cours** — tes réservations à venir et passées.
+**Mes réservations** — tes cours à venir et passés.
 
 **Mes packs** — ton abonnement s'il y en a un, avec sa prochaine échéance, et tes packs avec leurs crédits restants et leur date d'expiration.
+
+Si ton pack a un **plafond de fréquentation**, tu y vois où tu en es : « 3 / 10 cours sur 7 jours ». Le compte se fait autour de la séance visée, pas sur une semaine fixe — décaler ta réservation de quelques jours suffit souvent à libérer une place.
 
 ### Quand le studio modifie un cours
 
@@ -75,27 +73,29 @@ Tu reçois un message qui **dit ce qui change** : nouveau coach, nouvelle salle,
 
 Si c'est l'horaire ou le type de cours qui change, le message te propose explicitement d'annuler avec restitution de ton crédit — libre à toi de rester ou de réserver autre chose.
 
-### Si ton pack limite le nombre de cours
+### Tes messages, sur l'accueil
 
-Certains packs ont un **plafond de fréquentation** — par exemple 10 cours par 7 jours. Tu le vois dans **Mes packs** : « 3 / 10 cours sur 7 jours ».
+**Tout ce que le studio t'envoie par e-mail apparaît aussi sur ton accueil.** Si tu ne lis pas tes e-mails, ou qu'un message part dans les indésirables, tu le retrouves en te connectant.
 
-Le compte se fait autour de la séance que tu veux réserver, pas sur une semaine fixe. Si une date est refusée, décaler ta réservation de quelques jours suffit souvent à libérer une place.
+Une coche sur chaque ligne permet de la marquer lue sans l'ouvrir, et un filtre n'affiche que les non lues. Le bouton **Écarter** retire un message de ton écran — il n'est pas supprimé pour autant, le studio en garde la trace.
 
-### Donner ton avis sur un cours
+### Si un cours est complet
 
-Après une séance, ta page d'accueil te propose de la noter de 1 à 5 étoiles, avec un commentaire si tu veux — il reste facultatif.
+Depuis **Planning**, clique sur **Liste d'attente**. Dès qu'une place se libère, elle t'est proposée — par notification **et** par e-mail.
 
-Une seule séance t'est proposée à la fois, la plus récente. Les autres reviendront à ta prochaine visite. Tu peux aussi cliquer sur **Plus tard**.
+> **Tu as deux heures pour la prendre.** Passé ce délai, elle passe à la personne suivante. C'est court, d'où l'e-mail en plus de la notification.
 
-**Tu peux revenir dessus.** Pendant une semaine, retrouve ton avis dans **Mes cours**, sous la séance concernée : tu peux le **modifier** ou le **supprimer**. Passé ce délai, il se fige.
+### Donner mon avis sur un cours
 
-**Ton coach ne voit pas qui a écrit quoi.** C'est ce qui permet d'être franc : dis ce que tu as pensé, pas ce qui ferait plaisir. Le studio, lui, y a accès de manière nominative — c'est ce qui lui permet de te recontacter si quelque chose s'est mal passé.
+Après une séance, une demande d'avis apparaît **sur ta page d'accueil**, parmi tes messages : une note de 1 à 5 étoiles, et un commentaire si tu veux en laisser un. Le commentaire est facultatif — une note seule suffit.
 
-La proposition disparaît d'elle-même après quelques jours. Si tu ne veux pas répondre, ignore-la simplement.
+Une seule séance t'est proposée à la fois, la plus récente. Les autres reviendront à ta prochaine visite. Tu peux aussi cliquer sur **Plus tard** : la demande réapparaîtra.
 
-### Liste d'attente
+Tu ne peux noter que les cours auxquels tu étais inscrit, et seulement une fois qu'ils sont terminés.
 
-Cours complet ? Clique sur **Liste d'attente**. Si une place se libère, tu es prévenu et tu as un délai pour confirmer. Passé ce délai, elle passe au suivant.
+**Tu as une semaine.** Pendant ce délai, retrouve ton avis dans **Mes réservations**, sous la séance concernée : tu peux le **modifier** ou le **supprimer** librement. Passé la semaine, il se fige et n'est plus modifiable.
+
+**Qui voit quoi ?** Ton coach voit les avis de ses cours **sans savoir qui les a écrits**. Le studio, lui, y a accès de manière nominative — c'est ce qui lui permet de te recontacter si quelque chose s'est mal passé.
 
 ---
 
@@ -103,13 +103,13 @@ Cours complet ? Clique sur **Liste d'attente**. Si une place se libère, tu es p
 
 ### Payer mes frais d'inscription
 
-Ils se règlent une fois et débloquent l'achat de packs. Va dans **Packs** → **Payer les frais d'inscription**.
+Ils se règlent une fois et débloquent l'achat de packs. Va dans **Acheter un pack** → **Payer les frais d'inscription**.
 
 Si tu as un code de parrainage, c'est le bon moment : tes frais peuvent être entièrement couverts.
 
 ### Acheter un pack ou m'abonner
 
-Va dans **Packs**. Les formules sont classées **par type de crédit** (semi-privé, personal training…), et dans chaque type tu trouves d'abord les abonnements, puis les packs à l'unité.
+Va dans **Acheter un pack**. Les formules sont classées **par type de crédit** (semi-privé, personal training…), et dans chaque type tu trouves d'abord les abonnements, puis les packs à l'unité.
 
 > **Vérifie le type de crédit avant d'acheter** : c'est lui qui détermine les cours que tu pourras réserver. Il est rappelé sur chaque carte.
 
@@ -119,21 +119,25 @@ Va dans **Packs**. Les formules sont classées **par type de crédit** (semi-pri
 
 **Une formule illimitée** ne décompte rien : tu réserves autant de cours que tu veux pendant sa durée de validité. Le compteur ne bouge pas, c'est normal. En contrepartie, annuler ne « rend » rien — il n'y a rien à rendre.
 
-### Quand tu n'as plus de crédits
+### M'abonner maintenant, commencer plus tard
 
-Si tu essaies de réserver sans crédit disponible, l'application te propose directement les formules qui débloquent **ce cours-là** — pas toutes, seulement celles du bon type. Tu peux payer sans quitter la page.
+Sur la fenêtre de confirmation d'un abonnement, un champ **« Démarrer plus tard »** permet de choisir une date de début. Utile si tu t'engages en août pour une reprise en septembre.
 
-Si ton abonnement est simplement épuisé pour le cycle en cours, elle te propose une carte ou un pack pour te dépanner en attendant le renouvellement.
+Laisse-le vide pour commencer tout de suite. Si tu mets une date :
 
-### Supprimer ton compte
+- ta carte est enregistrée aujourd'hui, mais **rien n'est prélevé avant la date choisie** ;
+- **tes crédits arrivent à cette date**, pas avant — aucun cours n'est réservable d'ici là ;
+- les échéances suivantes partent de cette date.
 
-Depuis **Profil**, tout en bas.
+> La date doit être au moins 48 heures plus tard. En dessous, l'abonnement démarre immédiatement.
 
-Tes données personnelles sont effacées : nom, coordonnées, date de naissance, contact d'urgence, informations de santé, performances, notifications. Tes réservations à venir sont annulées.
+### Utiliser un code promo
 
-> **Ce qui est conservé** : les justificatifs de paiement, **sans lien avec ton identité**. La loi comptable l'impose, nous ne pouvons pas y déroger.
+Le studio peut diffuser un **code promo** — lors d'une opération, d'un événement. Il se saisit sur la fenêtre de confirmation, au moment de payer : tape le code, la remise s'affiche avant que tu valides.
 
-Si tu as un abonnement en cours, résilie-le d'abord — sans compte, tu ne pourrais plus le faire et les prélèvements continueraient.
+Si le code est refusé, la raison est indiquée — expiré, déjà utilisé, ou non applicable à ce type de pack.
+
+> **Code promo et bon d'achat ne se cumulent pas** : c'est l'un ou l'autre sur un même achat.
 
 ### Utiliser un bon d'achat
 
@@ -165,16 +169,6 @@ Dans **Mes packs**, ton abonnement affiche son état et sa prochaine échéance.
 
 **Demande de facture** : indique tes coordonnées de facturation et l'achat concerné. Le studio s'en occupe.
 
-### Suivre mes performances
-
-Dans **Performances**, tes mesures pour chaque mouvement, avec une courbe de progression.
-
-La saisie s'adapte à ce qu'on mesure : deux cases minutes/secondes pour un chrono, un champ chiffré pour une charge. Tu n'as pas de format à retenir.
-
-Au-dessus de la courbe, ta progression en clair — « +12,5 kg depuis mars », « −20 s » — et un repère quand ta dernière mesure est ton record.
-
-> Sur un chrono, la courbe **monte** quand tu progresses, même si le temps baisse. C'est voulu : « ça monte » veut toujours dire « je m'améliore ».
-
 ### Mon profil, mes performances
 
 **Profil** — coordonnées, photo, langue, thème de l'application, et le choix de recevoir ou non un e-mail à chaque réservation.
@@ -183,13 +177,35 @@ Au-dessus de la courbe, ta progression en clair — « +12,5 kg depuis mars », 
 
 **Stats** — nombre de séances, régularité, types de cours.
 
+### Supprimer mon compte
+
+Depuis **Profil**, en bas de page. La demande est définitive et prend effet immédiatement.
+
+**Ce qui disparaît** : ton nom, ton e-mail, tes coordonnées, ta photo. Tu ne peux plus te connecter, et le studio ne te retrouve plus dans ses listes.
+
+**Ce qui reste** : les traces comptables de tes paiements, sans ton identité. La loi belge impose de les conserver sept ans — elles ne permettent plus de remonter jusqu'à toi.
+
+> **Un abonnement en cours bloque la suppression.** Résilie-le d'abord : sans compte, tu ne pourrais plus l'arrêter et les prélèvements continueraient.
+
 ---
 
 ## Où trouver quoi
 
-**Sur mobile**, la barre du bas : Accueil · Planning · Mes cours · Mes packs. Le reste est dans le menu, en haut.
+| Entrée du menu | Ce que tu y fais |
+|---|---|
+| **Accueil** | Ta séance d'essai, tes messages, tes prochains cours |
+| **Planning** | Voir les cours et **réserver** |
+| **Mes réservations** | Tes cours à venir et passés, **annuler** |
+| **Mes packs** | Tes crédits, ton abonnement, sa prochaine échéance |
+| **Acheter un pack** | Les formules, les abonnements, les frais d'inscription |
+| **Performances** | Tes mesures et leur évolution |
+| **Profil** | Coordonnées, photo, langue, thème, **supprimer ton compte** |
+| **Parrainage** | Ton code à partager et tes bons d'achat |
+| **Aide** | Ce guide |
 
-**Sur ordinateur**, tout est dans le menu du haut.
+**Sur mobile** : la barre du bas donne Accueil · Planning · Mes réservations · Mes packs. Le reste est dans le menu, en haut à droite.
+
+**Sur ordinateur** : tout est dans le menu du haut ; Profil et Parrainage sont sous ton nom, à droite.
 
 ---
 
