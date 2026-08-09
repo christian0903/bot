@@ -15,7 +15,7 @@
 **Communications** : **livrées** — tout e-mail laisse une trace dans l'application.
 **Parrainage & bons d'achat** : livré, **toujours non testé de bout en bout**.
 **Avis sur les cours** : **livré et vu à l'écran** — étoiles et commentaire, consultation admin nominative, correction et suppression par le membre. 67 avis de démonstration en base depuis le 2026-08-08.
-**Plafond de fréquentation** : **livré** — N cours par D jours, fenêtre glissante centrée, D borné à 14. **Actif sur quatre formules** (vérifié le 2026-08-09) — posé pour la démonstration, à retirer après validation.
+**Plafond de fréquentation** : **livré** — N cours par D jours, fenêtre glissante centrée, D borné à 14. Actif à 10 cours / 7 jours sur « abonnement mini » et « Pack illimité » (vérifié le 2026-08-09). **Rien à défaire** : la base ne contient que des données de test, ce réglage en fait partie.
 **Clients professionnels** : **livré** — commande sur facture, suivi des encaissements.
 **Performances** : étapes 1 et 2 livrées (valeurs comparables, courbes). Paliers et régularité à faire.
 **Démarrage différé d'abonnement** : **livré et éprouvé au test clock** (2026-08-09) — vendre en août ce qui commence en septembre, via `trial_end`.
@@ -146,7 +146,7 @@ Ce que chaque cas a révélé :
 
 ### Point de vigilance
 
-**Le plafond 10 cours / 7 jours est actif** sur « abonnement mini » et « Pack illimité » — donc pour *tous* leurs détenteurs, pas seulement les quatre clients de test. À retirer après validation par les coachs.
+**Le plafond 10 cours / 7 jours est actif** sur « abonnement mini » et « Pack illimité » — donc pour tous leurs détenteurs, pas seulement les quatre clients de test. Sans conséquence : la base est une base de test, et ces valeurs en font partie au même titre que le reste. Les quatre clients de test restent également en place.
 
 Un document de validation est dans le vault : `_cowork-atelier-pnl/drafts/2026-08-08-reservations-regles-et-cas-de-test.md`.
 
