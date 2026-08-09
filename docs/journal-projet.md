@@ -1,13 +1,13 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-08**
+> Dernière mise à jour : **2026-08-09**
 
 ---
 
 ## Où en est le projet
 
-**Phases 1 à 10 livrées** (v2.0.0 et suivantes, jusqu'à v2.53.0) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
+**Phases 1 à 10 livrées** (v2.0.0 et suivantes ; **v2.62.0** au 2026-08-09) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
 
 **Phase 11** (admin avancé) : **largement livrée** — rôles, statuts de cours, espace coach autonome.
 **Phase 12** (abonnements récurrents) : **livrée et éprouvée**. Renouvellement vérifié au *test clock* Stripe le 2026-08-07.
@@ -15,9 +15,11 @@
 **Communications** : **livrées** — tout e-mail laisse une trace dans l'application.
 **Parrainage & bons d'achat** : livré, **toujours non testé de bout en bout**.
 **Avis sur les cours** : **livré et vu à l'écran** — étoiles et commentaire, consultation admin nominative, correction et suppression par le membre. 67 avis de démonstration en base depuis le 2026-08-08.
-**Plafond de fréquentation** : **livré** — N cours par D jours, fenêtre glissante centrée, D borné à 14. **Actif sur deux formules pour la démonstration**, à retirer après validation.
+**Plafond de fréquentation** : **livré** — N cours par D jours, fenêtre glissante centrée, D borné à 14. **Actif sur quatre formules** (vérifié le 2026-08-09) — posé pour la démonstration, à retirer après validation.
 **Clients professionnels** : **livré** — commande sur facture, suivi des encaissements.
 **Performances** : étapes 1 et 2 livrées (valeurs comparables, courbes). Paliers et régularité à faire.
+**Démarrage différé d'abonnement** : **livré et éprouvé au test clock** (2026-08-09) — vendre en août ce qui commence en septembre, via `trial_end`.
+**Suivi des clients** : **livré** (2026-08-09) — page admin qui classe les clients par fréquentation (actif / ralentit / décroche / perdu) et calcule le revenu par séance. Seuils réglables.
 **Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter. **Deux de ses éléments deviennent bloquants pour l'App Store** — voir ci-dessous.
 **Rémunération des coachs** : reportée — module à part, la gestion se fait hors application (décision du 2026-08-06).
 
@@ -31,10 +33,10 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 **La commission de 30 % ne s'applique pas** : règle 3.1.3(e), biens et services physiques. Un cours se consomme au studio, pas dans l'application. Les packs et abonnements restent vendus par Stripe.
 
-**Deux prérequis bloquants avant toute soumission :**
+**Les deux prérequis bloquants sont levés** (2026-08-07) :
 
-1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. La fonction doit **anonymiser** plutôt qu'effacer : les données comptables se conservent.
-2. **Politique de confidentialité avec URL publique** — à créer sur le modèle de `public/cgv.md`.
+1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
+2. **Politique de confidentialité avec URL publique** — livrée, page `/privacy`.
 
 ---
 
@@ -53,6 +55,30 @@ Seule la notification a dû changer : elle annonçait « Abonnement activé » m
 **Éprouvé au test clock** sur un cycle de 4 semaines avec `trial_end` à J+7 : aucun pack à la souscription (seulement la facture à 0 € correctement ignorée), pack de 4 crédits créé au jour dit avec `expires_at` calé sur la fin du cycle facturé, et cycle suivant enchaîné **à la seconde près** — la fin du premier pack est exactement le début du second.
 
 > **Le pack ponctuel se règle sans code.** `pack_purchases` n'a pas de `starts_at` : un pack est consommable dès qu'il existe. Décision de Christian le même jour : **on choisit un pack dont la durée de validité couvre la période visée** — trois mois achetés le 15/08 portent jusqu'à mi-novembre. Rien à développer. La seule limite, assumée, est que le client peut consommer avant la date prévue ; elle ne gêne que sur un pack vendu au tarif d'une période précise, cas rare qu'une phrase au client règle mieux qu'une colonne en base.
+
+### Guides membre et administrateur : six jours d'écart comblés
+
+Quatre fonctions livrées et utilisées n'étaient documentées nulle part côté utilisateur : la **séance d'essai** offerte à l'inscription, la **suppression de compte**, la **saisie d'un code promo**, et le **démarrage différé** livré le matin même. Ajoutés aussi le bloc communications de l'accueil, la liste d'attente et son délai de deux heures, et côté admin les coordonnées légales — qui bloquent CGV, confidentialité et facturation tant qu'elles sont vides.
+
+> **Une affirmation était devenue fausse.** Le guide annonçait qu'un coupon créé n'était pas utilisable, faute d'écran de saisie. Le champ existe depuis le 7 août. Une documentation qui dit « ça ne marche pas » quand ça marche empêche de vendre — c'est pire qu'un manque. Les deux autres mentions « pas encore » ont été vérifiées contre le code : elles sont exactes, elles restent.
+
+### Suivi des clients — repérer qui ralentit avant de le perdre
+
+Nouvelle page admin (`/admin/client-tracking`) qui répond à une question commerciale : **qui faut-il relancer ?** Chaque client est classé selon le temps écoulé depuis sa dernière séance — actif, ralentit, décroche, perdu, jamais venu — et l'onglet « À relancer » réunit les trois états qui appellent une action.
+
+**Les « jamais venus » en sont exclus volontairement** : un inscrit jamais présent appelle un accueil, pas une relance. Ce n'est pas le même geste commercial.
+
+**La tendance plutôt que le total.** Un total cumulé reste élevé chez quelqu'un qui a cessé de venir — il ne dit donc rien. La page compare la période récente à la précédente, de même durée : c'est cette comparaison qui révèle le ralentissement.
+
+**Deux colonnes de présence, côte à côte.** « Réservé » est toujours fiable — la réservation a consommé un crédit, donc elle compte commercialement même si la personne n'est pas venue. « Pointé » dit la venue réelle mais dépend de la rigueur du pointage. Aucune des deux n'est suffisante seule, et **l'écart entre elles est lui-même une information** : sur un membre qui réserve sans venir, ou sur un pointage négligé. Le classement s'appuie sur la réservation, la donnée toujours présente — fonder l'alerte sur le pointage produirait de faux décrocheurs.
+
+**Le revenu par séance, pas le total.** `booking_revenue()` existait déjà et gère le cas délicat du pack illimité, où le prix se répartit entre les séances réservées : réutilisée plutôt que recalculée. Quelqu'un qui achète un illimité et vient trois fois rapporte plus par séance que celui qui vient quinze fois — c'est ce chiffre qui dit la rentabilité.
+
+Seuils réglables dans les Réglages (3 / 6 / 10 semaines par défaut, calés sur le cycle d'abonnement de 4 semaines), avec refus des valeurs non croissantes. Le staff est exclu de la liste : il fausserait les moyennes.
+
+> **Le piège du jour, propre à PL/pgSQL.** La fonction se créait sans erreur et échouait au premier appel : `column reference "user_id" is ambiguous`. Les noms déclarés dans `RETURNS TABLE` deviennent des **variables** dans tout le corps, résolues **avant** les colonnes — et mes CTE exposaient une colonne portant exactement le nom d'un paramètre de sortie. L'erreur ne se déclenche qu'à l'exécution, jamais à la création : le SQL passe, la fonction existe, rien ne signale le problème avant le premier appel. Les CTE sortent désormais sous l'alias `uid`.
+
+**Données de démonstration ajustées** pour que la page montre quelque chose : taux de pointage porté à ~95 % (conforme au réel, où les absences sont rares), et dernières séances étalées sur trois membres. Les quatre états sont représentés — 6 actifs, 1 ralentit, 1 décroché, 2 perdus.
 
 ---
 
