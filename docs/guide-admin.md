@@ -4,6 +4,36 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 
 ---
 
+## Où trouver quoi
+
+Tout passe par le **menu Administration**, dans la barre latérale à gauche (sur mobile, par le bouton menu en haut). Les entrées apparaissent dans cet ordre :
+
+| Entrée du menu | À quoi ça sert | Détail |
+|---|---|---|
+| **Utilisateurs** | La fiche de chaque membre : packs, réservations, abonnement, rôles | [§](#les-membres--administration--utilisateurs) |
+| **Coaches & Admins** | Les membres du staff et leurs cours | [§](#lespace-coach) |
+| **Catégories de membres** | Qui a droit à quels packs | [§](#catégories-de-membres--administration--catégories-de-membres) |
+| **Types de crédits** | La brique de base : semi-privé, personal training… | [§](#types-de-crédit--administration--types-de-crédits) |
+| **Types de packs** | Les formules vendues, leur prix, leur durée | [§](#types-de-packs--administration--types-de-packs) |
+| **Types de cours** | Les cours proposés et leur type de crédit | [§](#types-de-cours--administration--types-de-cours) |
+| **Types de perfs** | Les mesures suivies (charge, temps, répétitions…) | — |
+| **Gestion du planning** | Créer, modifier, annuler les cours | [§](#le-planning--administration--gestion-du-planning) |
+| **Réservations** | Toutes les réservations, tous membres confondus | — |
+| **Coupons** | Codes de réduction collectifs | [§](#coupons--administration--coupons) |
+| **Annonces** | Messages diffusés aux membres | — |
+| **Journal d'activité** | Qui a fait quoi, quand | — |
+| **Demandes de factures** | Les demandes des membres à traiter | — |
+| **Parrainages** | Qui a parrainé qui, et les bons émis | — |
+| **Évaluations** | Les avis laissés sur les cours | [§](#évaluations--administration--évaluations) |
+| **Suivi clients** | **Qui vient moins, qui ne vient plus, qui rapporte quoi** | [§](#suivi-des-clients--administration--suivi-clients) |
+| **Tableau de bord** | Les chiffres de l'activité | [§](#tableau-de-bord--administration--tableau-de-bord) |
+| **Paramètres** | Tous les réglages du studio | [§](#réglages--administration--paramètres) |
+| **Aide** | Ce guide, consultable dans l'application | — |
+
+> **Le menu s'adapte au rôle.** Un coach ne voit que ses cours et son planning ; les entrées de configuration et de vente sont réservées aux administrateurs.
+
+---
+
 ## Qui peut faire quoi
 
 | | Coach | Admin |
@@ -32,7 +62,7 @@ Le **super admin** a tous les droits d'un admin, plus la configuration technique
 
 ## Au quotidien
 
-### Le planning — Administration → Planning
+### Le planning — Administration → Gestion du planning
 
 C'est l'écran le plus utilisé. Chaque cours peut être ouvert pour :
 
@@ -101,7 +131,7 @@ Ces données alimentent le taux de présence et les statistiques d'annulation.
 
 Un coach y trouve ses cours et ses chiffres.
 
-**Un admin y accède aussi**, par le lien **Coach** du menu principal — au même titre qu'un coach simple. Il y voit les cours dont **il est lui-même le coach**, pas ceux de toute l'équipe : pour la vue d'ensemble, c'est Administration → Planning. Utile quand on cumule les deux casquettes et qu'on donne des cours.
+**Un admin y accède aussi**, par le lien **Coach** du menu principal — au même titre qu'un coach simple. Il y voit les cours dont **il est lui-même le coach**, pas ceux de toute l'équipe : pour la vue d'ensemble, c'est Administration → Gestion du planning. Utile quand on cumule les deux casquettes et qu'on donne des cours.
 
 ### Le menu du staff n'affiche pas les écrans membres
 
@@ -109,7 +139,7 @@ Un coach ou un admin ne voit ni *Mes cours*, ni *Mes packs*, ni *Performances*, 
 
 Le **planning** reste dans son menu — c'est aussi son outil de travail : lui seul y voit les cours à surveiller et les décisions en attente.
 
-**Pour consulter les réservations ou les packs d'un membre**, passez par Administration → Membres → sa fiche. Les onglets *Packs*, *Réservations*, *Annulations*, *Abonnement* et *Crédits* montrent tout ce que le membre voit de son côté — et davantage, puisqu'on peut aussi l'inscrire à un cours ou lui créditer un geste commercial. Aucune raison de se connecter à sa place.
+**Pour consulter les réservations ou les packs d'un membre**, passez par Administration → Utilisateurs → sa fiche. Les onglets *Packs*, *Réservations*, *Annulations*, *Abonnement* et *Crédits* montrent tout ce que le membre voit de son côté — et davantage, puisqu'on peut aussi l'inscrire à un cours ou lui créditer un geste commercial. Aucune raison de se connecter à sa place.
 
 **Ses chiffres, sur 30 jours** : cours donnés sur planifiés (avec le détail des cours sans inscrit et annulés), participants venus, et deux taux distincts — **remplissage** (inscrits sur places) et, entre parenthèses, **présence** (venus sur inscrits). Le second tourne autour de 100 % en temps normal ; s'en écarter signale des absences répétées.
 
@@ -128,7 +158,7 @@ Chaque ligne affiche `2/5` pour un cours à venir, `3/4/5` pour un cours passé 
 
 ---
 
-## Les membres — Administration → Membres
+## Les membres — Administration → Utilisateurs
 
 La fiche d'un membre regroupe tout ce qui le concerne, en plusieurs onglets.
 
@@ -178,6 +208,8 @@ La liste montre tous ses bons, leur origine, leur état et leur expiration.
 
 ### Désigner un coach ou un admin
 
+> **Où** : **Administration → Utilisateurs**, ouvrir la fiche du membre. Les boutons sont sous son statut.
+
 Les boutons sont sur la fiche membre, sous le statut. Les rôles actuels s'affichent en badges à côté.
 
 - Un **admin** désigne ou retire un **coach**
@@ -188,6 +220,8 @@ Le membre reçoit une notification quand il devient coach, et chaque changement 
 > **Plusieurs super admins sont possibles**, et c'est prudent : si l'un perd l'accès à son compte, l'autre peut le rétablir. Deux garde-fous : on ne retire pas ses propres droits d'admin, et le dernier super admin ne peut pas être retiré — sinon le studio se verrouillerait.
 
 ### Supprimer un compte
+
+> **Où** : **Administration → Utilisateurs**, ouvrir la fiche, en bas de page. Le membre peut aussi le faire lui-même depuis son profil.
 
 Deux chemins mènent au même résultat : le membre le fait depuis son profil, ou vous depuis sa fiche.
 
@@ -213,7 +247,7 @@ En mode test uniquement, un bouton de **remise à zéro** efface tous les achats
 
 C'est la brique de base : « semi-privé », « personal training »… **Un crédit d'un type ne paie que les cours du même type.** Tout part de là.
 
-### Plafond de fréquentation — Types de packs
+### Plafond de fréquentation — Administration → Types de packs
 
 Sur n'importe quel pack, deux champs facultatifs limitent le rythme : **N cours par D jours**. Laissés vides, aucun plafond ne s'applique — c'est le cas de tous les packs aujourd'hui.
 
@@ -230,6 +264,8 @@ Exemples : *2 cours par 1 jour*, *10 cours par 7 jours*, *12 cours par 14 jours*
 Le membre voit sa consommation dans *Mes packs* (« 3 / 10 cours sur 7 jours »), et un message explicite s'il tente de dépasser.
 
 ### Vendre en août un abonnement qui commence en septembre
+
+> **Où** : le membre (ou vous avec lui) passe par **Packs**, choisit un abonnement, et le champ « Démarrer plus tard » apparaît dans la fenêtre de confirmation.
 
 Le cas commercial classique : vous rencontrez un prospect à la mi-août, il signe, mais il ne reprendra qu'à la rentrée.
 
@@ -249,6 +285,8 @@ Ce qui se passe alors :
 **Pour un pack ponctuel, il n'y a pas d'équivalent** — et ce n'est pas nécessaire : vendez un pack dont la durée de validité couvre la période. Trois mois achetés le 15 août portent jusqu'à mi-novembre. Seule limite, rien n'empêche le client de consommer des séances avant la date prévue ; si cela compte, dites-le-lui.
 
 ### La séance d'essai
+
+> **Où** : rien à faire, elle est attribuée automatiquement à l'inscription. Le réglage de sa durée est dans **Administration → Paramètres**.
 
 Tout nouveau compte reçoit **une séance d'essai gratuite**, attribuée automatiquement à l'inscription. Le membre la voit en tête de son accueil et la réserve depuis le planning, sans payer.
 
@@ -310,7 +348,7 @@ Pour chaque pack :
 
 Nom, description, couleur, nombre de places par défaut, image, et **type de crédit exigé**. La description longue accepte le Markdown et s'affiche aux membres.
 
-### Catégories de membres — Administration → Catégories
+### Catégories de membres — Administration → Catégories de membres
 
 Servent à réserver certains packs à certains publics.
 
@@ -326,7 +364,7 @@ Le champ n'apparaît pas chez un client professionnel — non par une règle dé
 
 ---
 
-## Réglages — Administration → Réglages
+## Réglages — Administration → Paramètres
 
 ### Règles de réservation
 
@@ -357,6 +395,8 @@ Ces montants s'appliquent aux futurs parrainages ; les bons déjà créés garde
 
 ### Coordonnées légales du studio — à remplir en premier
 
+> **Où** : **Administration → Paramètres**, section Informations du studio.
+
 Nom, forme juridique, adresse, numéro d'entreprise, TVA, e-mail et téléphone de contact.
 
 **Ces champs bloquent trois choses tant qu'ils sont vides** : les conditions générales, la politique de confidentialité et les factures. Un document dont le champ manque affiche « (à compléter dans les Réglages) », et l'écran liste ce qui reste à saisir.
@@ -364,6 +404,8 @@ Nom, forme juridique, adresse, numéro d'entreprise, TVA, e-mail et téléphone 
 Ils ne sont écrits qu'ici. Les documents portent des repères qui vont chercher la valeur au moment de l'affichage — une adresse qui change se corrige **à un seul endroit**.
 
 ### Conditions générales et confidentialité
+
+> **Où** : les pages publiques sont à `/cgv` et `/privacy`. Leur contenu s'édite dans les fichiers du site, les coordonnées viennent des Paramètres.
 
 Les CGV sont publiques, à l'adresse `/cgv`, et le lien figure en pied de page. Leur contenu vit dans un fichier texte éditable sans développeur.
 
@@ -374,6 +416,8 @@ L'inscription **exige déjà** que le membre les accepte, et la date est enregis
 La politique de confidentialité suit le même principe. Elle a une URL publique, condition posée par Apple pour publier l'application.
 
 ### Réseaux sociaux
+
+> **Où** : **Administration → Paramètres**.
 
 Sept liens configurables (Instagram, Facebook, site web, et autres). Renseignés, ils s'affichent sur les deux pages d'accueil — celle des visiteurs et celle des membres. Laissés vides, rien n'apparaît.
 
@@ -473,11 +517,11 @@ Les avis laissés par les membres après leurs séances : une note de 1 à 5 ét
 
 Qui a parrainé qui, et où en est chaque parrainage.
 
-### Demandes de facture — Administration → Demandes de facture
+### Demandes de facture — Administration → Demandes de factures
 
 Les demandes des membres, à traiter et à marquer comme traitées.
 
-### Journal d'activité — Administration → Journal
+### Journal d'activité — Administration → Journal d'activité
 
 Tout ce qui a été fait : achats, réservations, annulations, gestes commerciaux, changements de rôle. Utile pour retrouver qui a fait quoi, et quand.
 

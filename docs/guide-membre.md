@@ -50,7 +50,7 @@ Avec une seule source, rien à choisir : la fenêtre indique ce qui sera décomp
 
 ### Annuler une réservation
 
-Va dans **Mes cours**, ouvre la réservation, clique sur **Annuler**.
+Va dans **Mes réservations**, ouvre la réservation, clique sur **Annuler**.
 
 - **À temps** : ton crédit revient, la place est libérée
 - **Trop tard** : la séance est décomptée — la place n'a plus le temps d'être reprise
@@ -61,7 +61,7 @@ Le délai est indiqué dans l'application. Préviens dès que tu sais : c'est ce
 
 ### Voir mes cours et mes crédits
 
-**Mes cours** — tes réservations à venir et passées.
+**Mes réservations** — tes cours à venir et passés.
 
 **Mes packs** — ton abonnement s'il y en a un, avec sa prochaine échéance, et tes packs avec leurs crédits restants et leur date d'expiration.
 
@@ -81,13 +81,9 @@ Une coche sur chaque ligne permet de la marquer lue sans l'ouvrir, et un filtre 
 
 ### Si un cours est complet
 
-Inscris-toi sur la **liste d'attente**. Dès qu'une place se libère, elle t'est proposée — par notification **et** par e-mail.
+Depuis **Planning**, clique sur **Liste d'attente**. Dès qu'une place se libère, elle t'est proposée — par notification **et** par e-mail.
 
 > **Tu as deux heures pour la prendre.** Passé ce délai, elle passe à la personne suivante. C'est court, d'où l'e-mail en plus de la notification.
-
-### Liste d'attente
-
-Cours complet ? Clique sur **Liste d'attente**. Si une place se libère, tu es prévenu et tu as un délai pour confirmer. Passé ce délai, elle passe au suivant.
 
 ### Donner mon avis sur un cours
 
@@ -97,7 +93,7 @@ Une seule séance t'est proposée à la fois, la plus récente. Les autres revie
 
 Tu ne peux noter que les cours auxquels tu étais inscrit, et seulement une fois qu'ils sont terminés.
 
-**Tu as une semaine.** Pendant ce délai, retrouve ton avis dans **Mes cours**, sous la séance concernée : tu peux le **modifier** ou le **supprimer** librement. Passé la semaine, il se fige et n'est plus modifiable.
+**Tu as une semaine.** Pendant ce délai, retrouve ton avis dans **Mes réservations**, sous la séance concernée : tu peux le **modifier** ou le **supprimer** librement. Passé la semaine, il se fige et n'est plus modifiable.
 
 **Qui voit quoi ?** Ton coach voit les avis de ses cours **sans savoir qui les a écrits**. Le studio, lui, y a accès de manière nominative — c'est ce qui lui permet de te recontacter si quelque chose s'est mal passé.
 
@@ -107,13 +103,13 @@ Tu ne peux noter que les cours auxquels tu étais inscrit, et seulement une fois
 
 ### Payer mes frais d'inscription
 
-Ils se règlent une fois et débloquent l'achat de packs. Va dans **Packs** → **Payer les frais d'inscription**.
+Ils se règlent une fois et débloquent l'achat de packs. Va dans **Acheter un pack** → **Payer les frais d'inscription**.
 
 Si tu as un code de parrainage, c'est le bon moment : tes frais peuvent être entièrement couverts.
 
 ### Acheter un pack ou m'abonner
 
-Va dans **Packs**. Les formules sont classées **par type de crédit** (semi-privé, personal training…), et dans chaque type tu trouves d'abord les abonnements, puis les packs à l'unité.
+Va dans **Acheter un pack**. Les formules sont classées **par type de crédit** (semi-privé, personal training…), et dans chaque type tu trouves d'abord les abonnements, puis les packs à l'unité.
 
 > **Vérifie le type de crédit avant d'acheter** : c'est lui qui détermine les cours que tu pourras réserver. Il est rappelé sur chaque carte.
 
@@ -195,9 +191,21 @@ Depuis **Profil**, en bas de page. La demande est définitive et prend effet imm
 
 ## Où trouver quoi
 
-**Sur mobile**, la barre du bas : Accueil · Planning · Mes cours · Mes packs. Le reste est dans le menu, en haut.
+| Entrée du menu | Ce que tu y fais |
+|---|---|
+| **Accueil** | Ta séance d'essai, tes messages, tes prochains cours |
+| **Planning** | Voir les cours et **réserver** |
+| **Mes réservations** | Tes cours à venir et passés, **annuler** |
+| **Mes packs** | Tes crédits, ton abonnement, sa prochaine échéance |
+| **Acheter un pack** | Les formules, les abonnements, les frais d'inscription |
+| **Performances** | Tes mesures et leur évolution |
+| **Profil** | Coordonnées, photo, langue, thème, **supprimer ton compte** |
+| **Parrainage** | Ton code à partager et tes bons d'achat |
+| **Aide** | Ce guide |
 
-**Sur ordinateur**, tout est dans le menu du haut.
+**Sur mobile** : la barre du bas donne Accueil · Planning · Mes réservations · Mes packs. Le reste est dans le menu, en haut à droite.
+
+**Sur ordinateur** : tout est dans le menu du haut ; Profil et Parrainage sont sous ton nom, à droite.
 
 ---
 
