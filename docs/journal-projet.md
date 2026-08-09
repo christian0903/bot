@@ -52,7 +52,7 @@ Seule la notification a dû changer : elle annonçait « Abonnement activé » m
 
 **Éprouvé au test clock** sur un cycle de 4 semaines avec `trial_end` à J+7 : aucun pack à la souscription (seulement la facture à 0 € correctement ignorée), pack de 4 crédits créé au jour dit avec `expires_at` calé sur la fin du cycle facturé, et cycle suivant enchaîné **à la seconde près** — la fin du premier pack est exactement le début du second.
 
-> **Le pack ponctuel n'a pas d'équivalent, et Stripe n'y peut rien.** `pack_purchases` n'a pas de `starts_at` : un pack est consommable dès qu'il existe. Prolonger la validité à la main donne la bonne durée mais n'empêche pas le client de venir avant. Il faudrait une colonne `starts_at` ajoutée au filtre de `get_available_credits` — chantier ouvert, non engagé.
+> **Le pack ponctuel se règle sans code.** `pack_purchases` n'a pas de `starts_at` : un pack est consommable dès qu'il existe. Décision de Christian le même jour : **on choisit un pack dont la durée de validité couvre la période visée** — trois mois achetés le 15/08 portent jusqu'à mi-novembre. Rien à développer. La seule limite, assumée, est que le client peut consommer avant la date prévue ; elle ne gêne que sur un pack vendu au tarif d'une période précise, cas rare qu'une phrase au client règle mieux qu'une colonne en base.
 
 ---
 

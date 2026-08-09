@@ -153,7 +153,13 @@ Pendant l'attente, l'abonnement est en statut `trialing`, que le webhook traite 
 
 > **Point de vigilance** : la carte est validée à la souscription mais débitée à la date de début. Si elle expire entre-temps, on l'apprend le jour du prélèvement. L'e-mail « paiement refusé » couvre ce cas.
 
-**Le pack ponctuel n'a pas d'équivalent.** `pack_purchases` porte un `expires_at` mais pas de `starts_at`, et `get_available_credits` ne filtre que sur l'expiration : un pack est consommable dès qu'il existe. Prolonger la validité à la main donne bien la durée voulue, mais n'empêche pas le client de venir avant la date. Un vrai démarrage différé sur un pack ponctuel demanderait une colonne `starts_at` et son ajout au filtre de `get_available_credits`. Côté Stripe il n'y a rien à attendre : un paiement ponctuel est encaissé ou ne l'est pas, la notion de date d'entrée en vigueur n'existe pas.
+**Le pack ponctuel n'a pas d'équivalent, et n'en a pas besoin.** `pack_purchases` porte un `expires_at` mais pas de `starts_at`, et `get_available_credits` ne filtre que sur l'expiration : un pack est consommable dès qu'il existe.
+
+La réponse est commerciale, pas technique : **vendre un pack dont la durée de validité couvre la période visée**. Un pack de trois mois acheté le 15 août reste valable jusqu'à mi-novembre — le client a sa période de septembre-octobre sans qu'on ait rien à décaler. Décision du 2026-08-09.
+
+> La limite est connue et assumée : rien n'empêche le client de consommer des séances en août. Elle ne gêne que si le pack est vendu au tarif d'une période précise et que la consommation anticipée doit être exclue — cas rare, qu'une phrase au client règle mieux qu'une colonne en base.
+
+Si ce besoin devenait réel, il faudrait une colonne `starts_at` ajoutée au filtre de `get_available_credits`. Côté Stripe il n'y a de toute façon rien à attendre : un paiement ponctuel est encaissé ou ne l'est pas, la notion de date d'entrée en vigueur n'existe pas.
 
 ---
 
