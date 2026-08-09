@@ -3765,6 +3765,13 @@ DROP FUNCTION IF EXISTS client_tracking_stats();
 -- du schéma : elle expose e-mail, téléphone et chiffre d'affaires de toute la
 -- clientèle. Un GRANT à `authenticated` sans ce garde ouvrirait la porte à
 -- n'importe quel membre connecté appelant l'API directement.
+--
+-- ⚠ Piège PL/pgSQL : les noms déclarés dans `RETURNS TABLE (...)` sont des
+-- variables dans tout le corps de la fonction, et PL/pgSQL les résout AVANT
+-- les colonnes. Toute colonne de CTE portant le même nom — ici `user_id` —
+-- déclenche « column reference is ambiguous » à l'exécution, jamais à la
+-- création. D'où les alias `uid` dans les CTE : aucune ne porte le nom d'un
+-- paramètre de sortie.
 CREATE FUNCTION client_tracking_stats()
 RETURNS TABLE (
   user_id UUID,
@@ -3818,7 +3825,7 @@ s AS (
 -- rien de la fréquentation, et fausserait la date de dernière séance.
 seances AS (
   SELECT
-    b.user_id,
+    b.user_id AS uid,
     b.id            AS booking_id,
     sc.starts_at,
     b.checked_in_at
@@ -3830,7 +3837,7 @@ seances AS (
 ),
 par_membre AS (
   SELECT
-    se.user_id,
+    se.uid,
     MAX(se.starts_at)                                   AS derniere_seance,
     COUNT(*)                                            AS reservations_total,
     COUNT(se.checked_in_at)                             AS pointages_total,
@@ -3847,24 +3854,27 @@ par_membre AS (
     )                                                   AS reservations_precedentes,
     COALESCE(SUM(booking_revenue(se.booking_id)), 0)    AS revenu_seances
   FROM seances se
-  GROUP BY se.user_id
+  GROUP BY se.uid
 ),
 -- Ce qui a été encaissé, indépendamment de la consommation. Un membre qui
 -- achète un pack et ne vient pas a rapporté de l'argent : le total d'achats
 -- le dit, le revenu par séance ne le dirait pas.
 achats AS (
   SELECT
-    pp.user_id,
+    pp.user_id AS uid,
     COALESCE(SUM(pp.price_paid_cents), 0)::NUMERIC / 100 AS ca_total,
     BOOL_OR(pp.credits_remaining > 0 AND pp.expires_at > NOW()) AS a_pack_actif
   FROM pack_purchases pp
   GROUP BY pp.user_id
 ),
 abos AS (
-  SELECT user_id, TRUE AS a_abonnement
-  FROM subscriptions
-  WHERE status IN ('active', 'past_due', 'paused')
-  GROUP BY user_id
+  -- Qualifier `s2.user_id` n'est pas cosmétique : `user_id` est aussi un
+  -- paramètre de sortie de la fonction, et PL/pgSQL le résout en priorité.
+  -- Non qualifié, il provoque « column reference user_id is ambiguous ».
+  SELECT s2.user_id AS uid, TRUE AS a_abonnement
+  FROM subscriptions s2
+  WHERE s2.status IN ('active', 'past_due', 'paused')
+  GROUP BY s2.user_id
 )
 SELECT
   p.id,
@@ -3910,9 +3920,9 @@ SELECT
   COALESCE(a.a_pack_actif, FALSE),
   COALESCE(ab.a_abonnement, FALSE)
 FROM profiles p
-LEFT JOIN par_membre pm ON pm.user_id = p.id
-LEFT JOIN achats a      ON a.user_id  = p.id
-LEFT JOIN abos ab       ON ab.user_id = p.id
+LEFT JOIN par_membre pm ON pm.uid = p.id
+LEFT JOIN achats a      ON a.uid  = p.id
+LEFT JOIN abos ab       ON ab.uid = p.id
 WHERE p.deleted_at IS NULL
   -- Le staff n'est pas une clientèle : il fausserait les moyennes.
   AND NOT EXISTS (
