@@ -10,10 +10,14 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from '@/components/ui/select'
-import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag, UserPlus, Receipt, LogIn, Star, ScanLine, AlertTriangle } from 'lucide-react'
+import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag, UserPlus, Receipt, LogIn, Star, ScanLine, AlertTriangle, Download, Trash2, Eraser } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { downloadCsv } from '@/lib/csv'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { useAuth } from '@/contexts/AuthContext'
+import { toast } from 'sonner'
 import type { Profile } from '@/types'
 
 interface ActivityEntry {
@@ -44,6 +48,7 @@ const ACTION_CONFIG: Record<string, { icon: typeof Gift; color: string; label_fr
   trial_booked: { icon: Star, color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950', label_fr: 'Séance d\'essai', label_en: 'Trial session' },
   check_in: { icon: ScanLine, color: 'text-green-600 bg-green-50 dark:bg-green-950', label_fr: 'Check-in', label_en: 'Check-in' },
   no_show: { icon: AlertTriangle, color: 'text-red-600 bg-red-50 dark:bg-red-950', label_fr: 'No-show', label_en: 'No-show' },
+  activity_log_purged: { icon: Eraser, color: 'text-slate-600 bg-slate-100 dark:bg-slate-800', label_fr: 'Journal purgé', label_en: 'Log purged' },
 }
 
 const ACTION_TYPES = Object.keys(ACTION_CONFIG)
@@ -63,6 +68,14 @@ export function AdminActivityLogPage() {
   const [filterAction, setFilterAction] = useState('all')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+
+  // Export et purge
+  const { hasRole } = useAuth()
+  const isSuperAdmin = hasRole('super_admin')
+  const [exporting, setExporting] = useState(false)
+  const [purgeMonths, setPurgeMonths] = useState('12')
+  const [purgeConfirm, setPurgeConfirm] = useState<{ count: number } | null>(null)
+  const [purging, setPurging] = useState(false)
 
   const fetchEntries = async (pageNum: number, append = false) => {
     setLoading(true)
@@ -123,6 +136,118 @@ export function AdminActivityLogPage() {
     fetchEntries(nextPage, true)
   }
 
+  /**
+   * Exporter TOUT ce que les filtres retiennent, pas seulement l'écran.
+   *
+   * La page n'affiche que 50 entrées à la fois ; exporter cet échantillon
+   * donnerait un fichier qui a l'air complet sans l'être. On relit donc avec
+   * les mêmes filtres, sans pagination.
+   */
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      let query = supabase
+        .from('activity_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50000)
+
+      if (filterAction !== 'all') query = query.eq('action', filterAction)
+      if (filterDateFrom) query = query.gte('created_at', filterDateFrom + 'T00:00:00')
+      if (filterDateTo) query = query.lte('created_at', filterDateTo + 'T23:59:59')
+
+      const { data, error } = await query
+      if (error) { toast.error(error.message); return }
+
+      const lignes = (data as ActivityEntry[]) ?? []
+      if (lignes.length === 0) {
+        toast.info(isFr ? 'Aucune entrée à exporter.' : 'Nothing to export.')
+        return
+      }
+
+      // Les noms manquants : l'export couvre plus large que ce qui est à
+      // l'écran, donc plus large que les profils déjà chargés.
+      const ids = [...new Set([
+        ...lignes.map(e => e.actor_id).filter(Boolean) as string[],
+        ...lignes.map(e => e.target_user_id).filter(Boolean),
+      ])]
+      const noms = new Map(profiles)
+      const manquants = ids.filter(id => !noms.has(id))
+      for (let i = 0; i < manquants.length; i += 500) {
+        const { data: p } = await supabase
+          .from('profiles').select('id, display_name')
+          .in('id', manquants.slice(i, i + 500))
+        for (const prof of p ?? []) noms.set(prof.id, prof as Profile)
+      }
+
+      downloadCsv(
+        lignes.map(e => ({
+          [isFr ? 'Date' : 'Date']: format(new Date(e.created_at), 'dd/MM/yyyy HH:mm:ss'),
+          [isFr ? 'Action' : 'Action']: isFr
+            ? (ACTION_CONFIG[e.action]?.label_fr ?? e.action)
+            : (ACTION_CONFIG[e.action]?.label_en ?? e.action),
+          [isFr ? 'Code action' : 'Action code']: e.action,
+          [isFr ? 'Par' : 'By']: e.actor_id ? (noms.get(e.actor_id)?.display_name ?? '') : (isFr ? 'Système' : 'System'),
+          [isFr ? 'Concerne' : 'Target']: e.target_user_id ? (noms.get(e.target_user_id)?.display_name ?? '') : '',
+          [isFr ? 'Type' : 'Type']: e.entity_type ?? '',
+          [isFr ? 'Description' : 'Description']: e.description ?? '',
+          [isFr ? 'Détails' : 'Details']: e.details ? JSON.stringify(e.details) : '',
+        })),
+        `journal-activite_${format(new Date(), 'yyyy-MM-dd')}`,
+      )
+      toast.success(isFr
+        ? `${lignes.length} entrée${lignes.length > 1 ? 's' : ''} exportée${lignes.length > 1 ? 's' : ''}.`
+        : `${lignes.length} entr${lignes.length > 1 ? 'ies' : 'y'} exported.`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  /** Combien serait effacé — on l'annonce avant de demander confirmation. */
+  const demanderPurge = async () => {
+    const mois = parseInt(purgeMonths, 10)
+    const { data, error } = await supabase.rpc('count_activity_log_before', { p_months: mois })
+    if (error) { toast.error(error.message); return }
+    if (data === null) { toast.error(isFr ? 'Réservé au super admin.' : 'Super admin only.'); return }
+    if (data === 0) {
+      toast.info(isFr
+        ? `Aucune entrée n'a plus de ${mois} mois.`
+        : `No entries older than ${mois} months.`)
+      return
+    }
+    setPurgeConfirm({ count: data as number })
+  }
+
+  const purger = async () => {
+    setPurging(true)
+    try {
+      const { data, error } = await supabase.rpc('purge_activity_log', {
+        p_months: parseInt(purgeMonths, 10),
+      })
+      if (error) { toast.error(error.message); return }
+
+      if (!data?.ok) {
+        const causes: Record<string, string> = {
+          forbidden: isFr ? 'Réservé au super admin.' : 'Super admin only.',
+          too_recent: isFr
+            ? 'On ne purge pas en deçà de 6 mois.'
+            : 'Cannot purge under 6 months.',
+        }
+        toast.error(causes[data?.reason as string] ?? t('common.error'))
+        return
+      }
+
+      toast.success(isFr
+        ? `${data.deleted} entrée(s) effacée(s).`
+        : `${data.deleted} entr${data.deleted > 1 ? 'ies' : 'y'} deleted.`)
+      setPurgeConfirm(null)
+      setPage(0)
+      fetchEntries(0)
+    } finally {
+      setPurging(false)
+    }
+  }
+
   const getProfileName = (id: string | null) => {
     if (!id) return isFr ? 'Système' : 'System'
     return profiles.get(id)?.display_name ?? '...'
@@ -132,10 +257,18 @@ export function AdminActivityLogPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold flex items-center gap-2">
-        <ScrollText className="h-6 w-6 text-primary" />
-        {isFr ? 'Journal d\'activité' : 'Activity Log'}
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <ScrollText className="h-6 w-6 text-primary" />
+          {isFr ? 'Journal d\'activité' : 'Activity Log'}
+        </h1>
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+          <Download className="h-4 w-4 mr-1.5" />
+          {exporting
+            ? (isFr ? 'Préparation…' : 'Preparing…')
+            : (isFr ? 'Exporter (.csv)' : 'Export (.csv)')}
+        </Button>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg border bg-muted/30">
@@ -173,6 +306,46 @@ export function AdminActivityLogPage() {
           {isFr ? 'Réinitialiser' : 'Reset'}
         </Button>
       </div>
+
+      {/* L'effacement est réservé au super admin. Le bouton masqué n'est PAS
+          la sécurité — `purge_activity_log` refuse elle-même tout appelant
+          qui n'a pas le rôle. Ici on évite seulement de proposer à un admin
+          une action qu'il ne peut pas faire. */}
+      {isSuperAdmin && (
+        <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+          <div>
+            <Label className="text-xs flex items-center gap-1.5">
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              {isFr ? 'Effacer les entrées de plus de' : 'Delete entries older than'}
+            </Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="number"
+                min={6}
+                max={120}
+                className="h-8 text-xs w-20"
+                value={purgeMonths}
+                onChange={(e) => setPurgeMonths(e.target.value)}
+              />
+              <span className="text-xs text-muted-foreground">{isFr ? 'mois' : 'months'}</span>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="text-xs"
+                disabled={purging || parseInt(purgeMonths, 10) < 6 || !purgeMonths}
+                onClick={demanderPurge}
+              >
+                {isFr ? 'Effacer…' : 'Delete…'}
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground pb-1.5 max-w-md">
+            {isFr
+              ? 'Irréversible. Six mois au minimum. Exportez avant, si ces traces doivent être conservées — l\'effacement lui-même reste inscrit au journal.'
+              : 'Irreversible. Six months minimum. Export first if these records must be kept — the deletion itself stays in the log.'}
+          </p>
+        </div>
+      )}
 
       {/* Entries */}
       {entries.length === 0 ? (
@@ -219,6 +392,19 @@ export function AdminActivityLogPage() {
           )}
         </div>
       )}
+
+      {/* Le décompte figure dans la question : « effacer 1 240 entrées » et
+          « effacer 3 entrées » n'appellent pas la même réponse. */}
+      <ConfirmDialog
+        open={purgeConfirm !== null}
+        onOpenChange={(o) => { if (!o) setPurgeConfirm(null) }}
+        title={isFr ? 'Effacer ces entrées du journal ?' : 'Delete these log entries?'}
+        description={isFr
+          ? `${purgeConfirm?.count ?? 0} entrée(s) antérieure(s) à ${purgeMonths} mois seront définitivement effacées. Cette opération est irréversible.`
+          : `${purgeConfirm?.count ?? 0} entr${(purgeConfirm?.count ?? 0) > 1 ? 'ies' : 'y'} older than ${purgeMonths} months will be permanently deleted. This cannot be undone.`}
+        onConfirm={purger}
+        variant="destructive"
+      />
     </div>
   )
 }
