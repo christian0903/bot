@@ -87,7 +87,37 @@ pour trier les seize fichiers.
   `guide-admin.md`, qui s'intitule déjà « Guide coach & administrateur ».
 - **Handoffs du projet** écrits ici, dans `docs/handoffs/`, plus dans le vault.
 
-## Prochaine action à la reprise
+## Prochaine action à la reprise — 2026-08-24
+
+**Préparer la publication sur l'App Store.** Décidé en fin de session du 23.
+
+Le compte Apple Developer se prend **au nom propre de Christian** (99 $/an),
+décision du 2026-08-07 confirmée le 23 : un compte Organization exigerait un
+numéro D-U-N-S, dont l'obtention prend de quelques jours à deux semaines — hors
+délai à une semaine du lancement.
+
+Ce qui est **déjà acquis** :
+
+- Suppression de compte depuis l'application (motif de rejet automatique
+  depuis 2022) — livrée
+- Politique de confidentialité avec URL publique — page `/privacy`
+- **Pas de commission de 30 %** : règle 3.1.3(e), biens et services physiques.
+  Un cours se consomme au studio. Les packs et abonnements restent vendus par
+  Stripe.
+
+Ce qui **reste à produire** — du travail de préparation, pas de développement :
+
+- La fiche App Store : description, mots-clés, **captures d'écran** aux formats
+  imposés par Apple
+- Une icône en 1024 × 1024
+- Le questionnaire « App Privacy » : quelles données sont collectées et pourquoi
+- La classification d'âge
+
+> **Une conséquence à peser** : l'éditeur affiché sur l'App Store sera
+> « Christian Vanhenten », pas le nom du studio. Le transfert vers un compte
+> entreprise reste possible plus tard, mais ni instantané ni sans conditions.
+
+## L'autre chantier en attente
 
 **Éprouver le verrou de concurrence** : deux téléphones, deux membres, la
 dernière place d'un cours. C'est le seul test qui n'a pas pu être fait — le SQL

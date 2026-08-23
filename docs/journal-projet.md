@@ -309,6 +309,17 @@ essai dont la suite n'est pas décidée ; le mettre en veille ramène la facture
 
 ### Ce qui reste ouvert
 
+**Prochaine session (2026-08-24) : préparer la publication sur l'App Store.**
+Compte Apple Developer **au nom propre** — un compte Organization exigerait un
+numéro D-U-N-S, dont l'obtention prend une à deux semaines, hors délai. Les deux
+prérequis bloquants sont levés depuis le 7 août ; restent la fiche App Store
+(description, mots-clés, captures aux formats imposés), l'icône 1024 × 1024, le
+questionnaire « App Privacy » et la classification d'âge. Du travail de
+préparation, pas de développement. À peser : l'éditeur affiché sera « Christian
+Vanhenten », pas le studio.
+
+Puis, dans l'ordre :
+
 1. **Le verrou de concurrence**, à éprouver sur deux téléphones.
 2. **Essayer dans l'application** : réserver, annuler, re-réserver, réserver
    sans crédit, ouvrir un export dans Excel.
