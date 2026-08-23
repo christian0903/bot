@@ -65,9 +65,13 @@ Le délai est indiqué dans l'application. Préviens dès que tu sais : c'est ce
 
 **Mes packs** — ton abonnement s'il y en a un, et tes packs avec leurs crédits restants.
 
-Pour un **abonnement**, la carte annonce le **prochain paiement** et rappelle qu'il se reconduit tout seul. Le bouton **Arrêter la reconduction** met fin au renouvellement : tu gardes tes droits jusqu'au bout de la période déjà payée, la date te sera confirmée avant validation. Tu peux souscrire à nouveau quand tu veux.
+Pour un **abonnement**, la carte annonce le **prochain paiement** et rappelle qu'il se reconduit tout seul. Le bouton **Résilier à la fin de la période** arrête le renouvellement — et rien d'autre : rien ne s'interrompt le jour du clic, tu gardes tes droits jusqu'au bout de la période déjà payée. La date te sera confirmée avant validation, et tu peux souscrire à nouveau quand tu veux.
+
+Pour un **pack d'abonnement**, la date affichée est celle du **cycle en cours**, pas une fin : « Cycle en cours jusqu'au 3 novembre ». Le cycle suivant prendra le relais.
 
 Pour un **pack acheté à l'unité**, c'est une vraie date d'expiration : passée cette date, les crédits restants sont perdus.
+
+> **« Offert par le studio — non reconduit automatiquement »** : cette mention signale un pack d'abonnement que le studio t'a attribué directement, sans paiement récurrent. Il vaut pour sa durée, puis s'arrête — il n'y a rien à résilier.
 
 Si ton pack a un **plafond de fréquentation**, tu y vois où tu en es : « 3 / 10 cours sur 7 jours ». Le compte se fait autour de la séance visée, pas sur une semaine fixe — décaler ta réservation de quelques jours suffit souvent à libérer une place.
 
@@ -163,7 +167,7 @@ Tu peux parrainer autant de personnes que tu veux — un bon par filleul, utilis
 
 Dans **Mes packs**, ton abonnement affiche son état et sa prochaine échéance.
 
-**Résilier** : le renouvellement s'arrête, mais **tu gardes tes droits jusqu'à la fin de la période déjà payée**. Tu peux te réabonner quand tu veux.
+**Résilier à la fin de la période** : le renouvellement s'arrête, mais **tu gardes tes droits jusqu'à la fin de la période déjà payée**. Rien ne se coupe le jour où tu cliques. Tu peux te réabonner quand tu veux.
 
 **Paiement échoué ?** L'application te le signale. Contacte le studio — ton abonnement n'est pas résilié pour autant.
 

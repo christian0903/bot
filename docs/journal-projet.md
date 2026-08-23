@@ -23,6 +23,8 @@
 **Réservation atomique** : **livrée** (2026-08-23) — `book_class` décide et écrit dans une seule transaction, sous verrou du cours. Ferme le dépassement de capacité et la réservation sans débit. Neuf cas éprouvés en base ; le verrou lui-même reste à voir en conditions réelles.
 **Exports CSV** : **livrés** (2026-08-23) — page dédiée, huit sorties, plus l'export du journal d'activité et sa purge réservée au super admin.
 **Index** : **posés** (2026-08-23) — `bookings` et `scheduled_classes` n'en avaient aucun. L'archivage n'est pas nécessaire : la base pèse 1,1 Mo pour 8 Go disponibles.
+**Documentation** : **à jour au 2026-08-23** en français, `public/` compris. Les versions **anglaises accusent un retard important** et attendent un chantier à part.
+**Durée d'abonnement** : **libre** — jours, semaines ou mois, un nombre au choix. Un garde-fou infondé qui bloquait les durées non multiples de 7 a été levé.
 **Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter. **Deux de ses éléments deviennent bloquants pour l'App Store** — voir ci-dessous.
 **Rémunération des coachs** : reportée — module à part, la gestion se fait hors application (décision du 2026-08-06).
 
@@ -199,6 +201,83 @@ nettoyage de lint.
   même à vérifier que `book_class` ne contredit aucune règle convenue.
 - **Les handoffs** s'écrivent désormais dans `docs/handoffs/`.
 
+### Fin de session — l'écran, et ce qu'il dit
+
+Quatre corrections nées de l'essai réel, toutes du même ordre : le code faisait
+ce qu'il fallait, l'écran disait autre chose.
+
+**La pop-up de réservation restait ouverte** sur une réservation pourtant
+enregistrée. La fermeture était la DERNIÈRE instruction, après le journal
+d'activité et la notification : il suffisait qu'un de ces deux appels
+accessoires échoue pour que tout ce qui suit soit abandonné. Le membre voyait
+un bouton figé et pouvait cliquer deux fois.
+
+> **Ce qui est acquis s'affiche d'abord.** La trace et l'e-mail suivent,
+> isolés dans un `try`. Une réservation est en base : l'écran n'a pas à
+> attendre l'envoi d'un e-mail pour le dire. Le même défaut existait sur trois
+> autres chemins — liste d'attente, inscription en attente, séance d'essai.
+
+**« Mes réservations » s'ouvrait sur tout l'historique.** Un membre de longue
+date devait chercher sa prochaine séance au milieu de ses mois passés. Par
+défaut : les séances à venir. Le reste est à un clic.
+
+**« Expire le » s'affichait sur un abonnement reconduit.** Le mot laissait
+croire à une fin. Deux corrections successives ont été nécessaires : la
+première se fiait à `subscription_id`, qui reste vide sur un pack attribué à la
+main — elle ne couvrait donc pas le cas réel. La seconde se fonde sur
+`pack_type.is_recurring`, la nature de la formule.
+
+**Le bouton de résiliation « manquant ».** Il ne manquait pas : sur un pack
+attribué à la main, il n'y a rien à résilier. `subscriptions` n'est alimentée
+que par le webhook Stripe, après un vrai paiement. Le silence était le
+problème — ces packs portent maintenant « Offert par le studio — non reconduit
+automatiquement ».
+
+Et le libellé dit enfin **quand** l'arrêt prend effet : « Résilier à la fin de
+la période », avec un dialogue qui s'ouvre sur « Rien ne s'arrête aujourd'hui ».
+C'est la seule question qu'on se pose devant ce bouton.
+
+### La durée d'un abonnement est libre
+
+Question des coachs : 28 jours ne conviennent pas toujours, parfois 72 seraient
+mieux. **Rien ne s'y oppose** — le formulaire accepte un nombre libre en jours,
+semaines ou mois, et Stripe suit (maximum 365 jours, 52 semaines ou 12 mois,
+sans dépasser un an au total).
+
+Un obstacle a été levé au passage : le formulaire exigeait que la validité des
+crédits corresponde au cycle de prélèvement. **Exigence infondée** — sur un
+abonnement, `validity_days` n'est jamais lu, l'expiration suit `periodEnd`. Et
+**insoluble** pour 72 jours, la validité se saisissant en semaines : 70 ou 77,
+jamais 72. Un coach serait tombé dessus dès sa première tentative.
+
+> À signaler aux coachs avant qu'ils tranchent : **72 jours ≈ 5 prélèvements
+> par an** contre 13 à 28 jours, ce qui change la marge de chaque formule. Et
+> **un prix Stripe est immuable** : mieux vaut trancher avant les premières
+> ventes, les abonnés existants gardant leur cycle d'origine.
+
+### Documentation — vérification d'ensemble
+
+`docs/README.md` **créé** : il trie les seize fichiers en trois catégories — à
+jour, références valables, traces du passé. Savoir lequel fait autorité n'était
+plus évident.
+
+**Supprimé** : `guide-coach.md`, qui décrivait en style technique (avec des URL
+plutôt que des noms de menu) ce que `guide-admin.md` couvre déjà mieux, et qui
+n'était accessible nulle part dans l'application. Son contenu unique a été
+rapatrié.
+
+**Annotés** : quatre documents périmés. `plan-implementation-v2.md` mentionne
+Mollie cinquante fois pour une migration abandonnée le 3 août ;
+`regles-coupons-parrainage.md` décrit des règles jamais implémentées ainsi. Les
+garder se justifie — ils disent POURQUOI certaines décisions ont été prises —
+les laisser passer pour des références, non.
+
+**Corrigé** : le guide d'installation listait six migrations et s'arrêtait en
+mai. Toute énumération vieillit en quelques jours ; remplacée par la règle.
+
+**La documentation française est à jour au 2026-08-23**, `public/` compris —
+c'est-à-dire ce que la page d'aide sert réellement.
+
 ### Ce qui reste ouvert
 
 1. **Le verrou de concurrence**, à éprouver sur deux téléphones.
@@ -208,6 +287,12 @@ nettoyage de lint.
    journal documente déjà. Repérées, non corrigées : chantier d'après
    lancement.
 4. **Le parrainage n'est toujours pas testé** de bout en bout.
+5. **Les guides anglais accusent un retard important** — 15 Ko contre 41 en
+   français côté admin, 7,5 contre 12 côté membre. Ils ignorent le suivi
+   clients, la séance d'essai, la suppression de compte, les exports et tout ce
+   qui précède. **Reporté sciemment le 2026-08-23** : le studio est
+   francophone, et l'écart est trop large pour une traduction faite à la
+   sauvette. À reprendre comme un chantier à part entière.
 
 ---
 

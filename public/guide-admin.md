@@ -194,6 +194,10 @@ Tous ses packs, actifs et expirés. Chacun peut être **modifié** : nombre de c
 
 **Attribuer un pack** sans paiement : le bouton est là. À utiliser pour un paiement reçu en espèces, par virement, ou pour offrir des séances.
 
+> **Attribuer une formule d'abonnement ne crée pas d'abonnement.** Le pack est bien crédité et utilisable, mais **aucun prélèvement n'est programmé** : Stripe n'en sait rien. Le membre voit son pack avec la mention « Offert par le studio — non reconduit automatiquement », et n'a ni carte d'abonnement ni bouton de résiliation — il n'y a rien à résilier.
+>
+> C'est le comportement voulu : seul un vrai paiement crée un abonnement récurrent. Mais il faut le savoir avant de promettre une reconduction à un membre. **Pour un abonnement qui se renouvelle, le membre doit souscrire lui-même** depuis la page Packs.
+
 ### Onglet Réservations et onglet Annulations
 
 L'historique du membre. Les annulations sont comptées **par cycle**, pas sur tout l'historique : sur un abonnement reconduit treize fois par an, un cumul ne dirait rien d'utile.
