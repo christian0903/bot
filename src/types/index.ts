@@ -211,8 +211,24 @@ export interface ScheduledClass {
   created_at: string
   updated_at: string
   class_type?: ClassType
-  coach?: Profile
+  /**
+   * Coach du cours, rattaché après coup.
+   *
+   * PostgREST ne peut pas joindre `profiles` ici — `coach_id` pointe vers une
+   * table protégée par RLS. Les pages chargent donc les profils à part et les
+   * accrochent au cours, en ne demandant que ce qu'elles affichent. Ce type
+   * décrit cet extrait, et non le `Profile` entier : l'annoncer complet
+   * obligeait chaque affectation à passer par un cast.
+   */
+  coach?: CoachRef
   bookings_count?: number
+}
+
+/** Ce qu'une page affiche d'un coach : son nom, et son portrait s'il existe. */
+export interface CoachRef {
+  id: string
+  display_name: string
+  avatar_url?: string | null
 }
 
 export interface Booking {

@@ -39,11 +39,23 @@ const json = (body: unknown, status = 200) =>
  * l'abonnement vers ses items : lire la racine seule produisait « Invalid
  * Date » dans les messages de confirmation.
  */
+
+/**
+ * Lecture d'un champ que le typage du SDK Stripe ne déclare pas.
+ *
+ * Les API récentes ont déplacé `current_period_end` de la racine de
+ * l'abonnement vers ses items, alors que les types embarqués dans le SDK
+ * décrivent encore l'ancienne forme. On lit donc l'objet comme un
+ * enregistrement ouvert : la valeur ressort en `unknown` et reste vérifiée
+ * avant usage.
+ */
+const field = (v: unknown, key: string): unknown =>
+  v !== null && typeof v === 'object' ? (v as Record<string, unknown>)[key] : undefined
+
 function periodEndLabel(sub: Stripe.Subscription): string | null {
-  // deno-lint-ignore no-explicit-any
-  const item = (sub.items?.data?.[0] ?? {}) as any
-  // deno-lint-ignore no-explicit-any
-  const ts = item.current_period_end ?? (sub as any).current_period_end
+  const ts =
+    field(sub.items?.data?.[0], 'current_period_end') ??
+    field(sub, 'current_period_end')
   if (typeof ts !== 'number' || !Number.isFinite(ts)) return null
   const d = new Date(ts * 1000)
   return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-BE')

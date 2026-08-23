@@ -231,13 +231,13 @@ export function AdminUserDetailPage() {
 
     // Resolve coaches for bookings
     const rawBookings = (bookingsRes.data as Booking[]) ?? []
-    const coachIds = [...new Set(rawBookings.map(b => (b.scheduled_class as any)?.coach_id).filter(Boolean))]
+    const coachIds = [...new Set(rawBookings.map(b => b.scheduled_class?.coach_id).filter(Boolean))]
     if (coachIds.length > 0) {
       const { data: coaches } = await supabase.from('profiles').select('id, display_name').in('id', coachIds)
       const coachMap = new Map((coaches ?? []).map(c => [c.id, c]))
       for (const b of rawBookings) {
-        if (b.scheduled_class) {
-          (b.scheduled_class as any).coach = coachMap.get((b.scheduled_class as any).coach_id)
+        if (b.scheduled_class?.coach_id) {
+          b.scheduled_class.coach = coachMap.get(b.scheduled_class.coach_id)
         }
       }
     }
@@ -633,7 +633,7 @@ export function AdminUserDetailPage() {
       const { data: coaches } = await supabase.from('profiles').select('id, display_name').in('id', coachIds)
       const coachMap = new Map((coaches ?? []).map(c => [c.id, c]))
       for (const sc of rawClasses) {
-        sc.coach = coachMap.get(sc.coach_id) as any
+        if (sc.coach_id) sc.coach = coachMap.get(sc.coach_id)
       }
     }
 
@@ -2331,7 +2331,7 @@ export function AdminUserDetailPage() {
                 <SelectTrigger className="h-auto min-h-[2.5rem] whitespace-normal text-left">
                   <span className="text-sm">
                     {selectedClass
-                      ? `${selectedClass.class_type?.name} — ${format(new Date(selectedClass.starts_at), 'EEE dd/MM HH:mm', { locale })} — ${(selectedClass.coach as any)?.display_name ?? ''}`
+                      ? `${selectedClass.class_type?.name} — ${format(new Date(selectedClass.starts_at), 'EEE dd/MM HH:mm', { locale })} — ${selectedClass.coach?.display_name ?? ''}`
                       : i18n.language === 'fr' ? 'Choisir un cours' : 'Choose a class'
                     }
                   </span>
@@ -2342,7 +2342,7 @@ export function AdminUserDetailPage() {
                       <div className="flex flex-col">
                         <span className="font-medium">{sc.class_type?.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(sc.starts_at), 'EEEE dd/MM HH:mm', { locale })} — {(sc.coach as any)?.display_name}
+                          {format(new Date(sc.starts_at), 'EEEE dd/MM HH:mm', { locale })} — {sc.coach?.display_name}
                         </span>
                       </div>
                     </SelectItem>
@@ -2723,7 +2723,7 @@ function BookingRow({ booking, locale, t, isPast }: {
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           <Clock className="h-3 w-3" />
           {format(startsAt, 'HH:mm', { locale })} · {sc?.duration_minutes} min
-          {(sc as any)?.coach?.display_name && ` · ${(sc as any).coach.display_name}`}
+          {sc?.coach?.display_name && ` · ${sc.coach.display_name}`}
         </p>
       </div>
     </div>

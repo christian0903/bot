@@ -66,13 +66,13 @@ export function MyBookingsPage() {
       const rawBookings = (data as Booking[]) ?? []
 
       // Resolve coach profiles
-      const coachIds = [...new Set(rawBookings.map(b => (b.scheduled_class as any)?.coach_id).filter(Boolean))]
+      const coachIds = [...new Set(rawBookings.map(b => b.scheduled_class?.coach_id).filter(Boolean))]
       if (coachIds.length > 0) {
         const { data: coaches } = await supabase.from('profiles').select('id, display_name').in('id', coachIds)
         const coachMap = new Map((coaches ?? []).map(c => [c.id, c]))
         for (const b of rawBookings) {
-          if (b.scheduled_class) {
-            (b.scheduled_class as any).coach = coachMap.get((b.scheduled_class as any).coach_id)
+          if (b.scheduled_class?.coach_id) {
+            b.scheduled_class.coach = coachMap.get(b.scheduled_class.coach_id)
           }
         }
       }

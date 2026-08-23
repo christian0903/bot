@@ -116,7 +116,7 @@ export function DashboardPage() {
 
         // Attach classes to bookings
         for (const b of rawBookings) {
-          (b as any).scheduled_class = classMap.get(b.scheduled_class_id)
+          b.scheduled_class = classMap.get(b.scheduled_class_id)
         }
 
         // Filter future bookings
@@ -130,8 +130,8 @@ export function DashboardPage() {
           const { data: coaches } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', coachIds)
           const coachMap = new Map((coaches ?? []).map(c => [c.id, c]))
           for (const b of futureBookings) {
-            if (b.scheduled_class) {
-              (b.scheduled_class as any).coach = coachMap.get(b.scheduled_class.coach_id)
+            if (b.scheduled_class?.coach_id) {
+              b.scheduled_class.coach = coachMap.get(b.scheduled_class.coach_id)
             }
           }
         }
@@ -272,7 +272,7 @@ export function DashboardPage() {
                     <p className="font-semibold text-sm truncate">{sc?.class_type?.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {format(startsAt, 'HH:mm')} · {sc?.duration_minutes}min
-                      {(sc as any)?.coach?.display_name && ` · ${(sc as any).coach.display_name}`}
+                      {sc?.coach?.display_name && ` · ${sc.coach.display_name}`}
                     </p>
                   </div>
                   <div className="text-right shrink-0">

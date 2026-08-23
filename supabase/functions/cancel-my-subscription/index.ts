@@ -29,6 +29,18 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 
+/**
+ * Lecture d'un champ que le typage du SDK Stripe ne déclare pas.
+ *
+ * Les API récentes ont déplacé `current_period_end` de la racine de
+ * l'abonnement vers ses items, alors que les types embarqués dans le SDK
+ * décrivent encore l'ancienne forme. On lit donc l'objet comme un
+ * enregistrement ouvert : la valeur ressort en `unknown` et reste vérifiée
+ * avant usage.
+ */
+const field = (v: unknown, key: string): unknown =>
+  v !== null && typeof v === 'object' ? (v as Record<string, unknown>)[key] : undefined
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -91,10 +103,9 @@ serve(async (req) => {
     // Les API Stripe récentes portent la fin de période sur les items, pas sur
     // la racine de l'abonnement. On lit les deux, et on retombe sur la valeur
     // déjà connue en base si Stripe ne la donne pas.
-    // deno-lint-ignore no-explicit-any
-    const item = (updated.items?.data?.[0] ?? {}) as any
-    // deno-lint-ignore no-explicit-any
-    const rawEnd = item.current_period_end ?? (updated as any).current_period_end
+    const rawEnd =
+      field(updated.items?.data?.[0], 'current_period_end') ??
+      field(updated, 'current_period_end')
     let endsAt: Date | null = null
     if (typeof rawEnd === 'number' && Number.isFinite(rawEnd)) {
       const d = new Date(rawEnd * 1000)

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
 import { formatEuros, creditValueCents } from '@/lib/utils'
+import { one, type ToOne } from '@/lib/supabase-joins'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +20,22 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarte
 import { fr, enUS } from 'date-fns/locale'
 
 type PeriodPreset = 'week' | 'month' | 'quarter' | 'year' | 'custom'
+
+/**
+ * Une réservation telle que la renvoie la requête de cette page — le pack
+ * acheté et son type sont ramenés par jointure, pour valoriser la séance.
+ */
+interface BookingRow {
+  id: string
+  scheduled_class_id: string
+  user_id: string
+  pack_purchase_id: string | null
+  status: string
+  pack_purchase: ToOne<{
+    price_paid_cents: number
+    pack_type: ToOne<{ name: string; credit_count: number; is_unlimited: boolean }>
+  }>
+}
 
 interface PackSale {
   id: string
@@ -149,9 +166,9 @@ export function AdminDashboardPage() {
     const sales: PackSale[] = (purchasesData ?? []).map(p => ({
       id: p.id,
       user_name: profileMap.get(p.user_id) ?? '-',
-      pack_name: (p.pack_type as any)?.name ?? '-',
+      pack_name: one(p.pack_type)?.name ?? '-',
       price_paid_cents: p.price_paid_cents,
-      credits: (p.pack_type as any)?.credit_count ?? 0,
+      credits: one(p.pack_type)?.credit_count ?? 0,
       purchased_at: p.purchased_at,
     }))
     setPackSales(sales)
@@ -170,7 +187,7 @@ export function AdminDashboardPage() {
     const classesInPeriod = (allClassesInPeriod ?? []).filter(c => !c.is_cancelled)
 
     const classIds = classesInPeriod.map(c => c.id)
-    let allBookings: any[] = []
+    let allBookings: BookingRow[] = []
     if (classIds.length > 0) {
       const { data: bookingsData } = await supabase
         .from('bookings')
@@ -178,10 +195,10 @@ export function AdminDashboardPage() {
         .in('scheduled_class_id', classIds)
         .eq('status', 'confirmed')
 
-      allBookings = bookingsData ?? []
+      allBookings = (bookingsData ?? []) as BookingRow[]
 
       // Resolve user names for bookings
-      const bookingUserIds = [...new Set(allBookings.map((b: any) => b.user_id))]
+      const bookingUserIds = [...new Set(allBookings.map(b => b.user_id))]
       const missingIds = bookingUserIds.filter(id => !profileMap.has(id))
       if (missingIds.length > 0) {
         const { data: extraProfiles } = await supabase.from('profiles').select('id, display_name').in('id', missingIds)
@@ -199,23 +216,23 @@ export function AdminDashboardPage() {
 
     // Build booking details
     const classMap = new Map((classesInPeriod ?? []).map(c => [c.id, c]))
-    const bookingDetails: BookingDetail[] = allBookings.map((b: any) => {
+    const bookingDetails: BookingDetail[] = allBookings.map(b => {
       const sc = classMap.get(b.scheduled_class_id)
-      const pp = b.pack_purchase
+      const pp = one(b.pack_purchase)
       return {
         id: b.id,
         user_name: profileMap.get(b.user_id) ?? '-',
-        class_name: (sc?.class_type as any)?.name ?? '-',
-        class_title: (sc as any)?.title ?? '',
+        class_name: one(sc?.class_type)?.name ?? '-',
+        class_title: sc?.title ?? '',
         coach_name: sc?.coach_id ? (profileMap.get(sc.coach_id) ?? '-') : '',
         starts_at: sc?.starts_at ?? '',
-        pack_name: pp?.pack_type?.name ?? '-',
+        pack_name: one(pp?.pack_type)?.name ?? '-',
         price_paid_cents: pp?.price_paid_cents ?? 0,
         // Valeur de la séance, calculée une seule fois ici : prix / crédits,
         // ou le coût moyen paramétré si le pack est illimité.
         credit_value_cents: creditValueCents(
           pp?.price_paid_cents ?? 0,
-          pp?.pack_type,
+          one(pp?.pack_type),
           unlimitedSessionCost,
         ) ?? 0,
       }
@@ -254,15 +271,15 @@ export function AdminDashboardPage() {
       if (sc.is_cancelled) continue
 
       // allBookings est déjà filtré sur status='confirmed' à la requête.
-      const classBookings = allBookings.filter((b: any) => b.scheduled_class_id === sc.id)
+      const classBookings = allBookings.filter(b => b.scheduled_class_id === sc.id)
       let classRevenue = 0
       for (const b of classBookings) {
-        const pp = b.pack_purchase
+        const pp = one(b.pack_purchase)
         // Sur un illimité, credit_count n'est pas un diviseur valable :
         // on retombe sur le coût moyen paramétré dans les Réglages.
         classRevenue += creditValueCents(
           pp?.price_paid_cents ?? 0,
-          pp?.pack_type,
+          one(pp?.pack_type),
           unlimitedSessionCost,
         ) ?? 0
       }
@@ -275,7 +292,7 @@ export function AdminDashboardPage() {
       stat.total_revenue_cents += classRevenue
       stat.classes.push({
         id: sc.id,
-        class_name: (sc.class_type as any)?.name ?? '-',
+        class_name: one(sc.class_type)?.name ?? '-',
         starts_at: sc.starts_at,
         bookings: classBookings.length,
         revenue_cents: classRevenue,

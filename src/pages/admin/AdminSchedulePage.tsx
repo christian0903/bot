@@ -558,6 +558,10 @@ export function AdminSchedulePage() {
       const skipped = candidates.filter(c => existingKeys.has(toMinuteKey(c.starts_at, c.floor)))
 
       // Remove internal field before insert
+      // `_original_name` sert à l'aperçu écran ; la colonne n'existe pas en
+      // base. On l'écarte par destructuration — d'où une variable déclarée
+      // mais jamais lue, qui est ici tout l'intérêt de la ligne.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const rows = toInsert.map(({ _original_name, ...row }) => row)
 
       if (rows.length > 0) {

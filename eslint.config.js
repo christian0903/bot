@@ -20,4 +20,24 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // `react-refresh/only-export-components` veut qu'un fichier n'exporte que
+    // des composants, pour que le rechargement à chaud sache quoi remplacer.
+    //
+    // Deux familles de fichiers dérogent à cette règle par convention, et non
+    // par négligence :
+    //   - les primitives shadcn/ui, qui exportent leurs `variants` à côté du
+    //     composant — c'est la forme livrée en amont, que les mises à jour du
+    //     générateur réécrivent ;
+    //   - les contextes, qui exposent leur hook `useXxx` juste après le
+    //     Provider, là où on le cherche.
+    //
+    // Les séparer coûterait un fichier de plus par composant pour un confort
+    // de développement, jamais pour la justesse du code. La règle est donc
+    // éteinte ici, et nulle part ailleurs.
+    files: ['src/components/ui/**/*.tsx', 'src/contexts/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

@@ -30,6 +30,37 @@ const admin = createClient(
 )
 
 /**
+ * Lecture d'un champ que le typage du SDK Stripe ne déclare pas.
+ *
+ * Les objets renvoyés par l'API portent plus de champs que la version des
+ * types embarquée dans le SDK : les périodes ont migré vers les items, le
+ * lien vers l'abonnement vers `parent`. On lit donc ces objets comme des
+ * enregistrements ouverts, sans renoncer au contrôle de type — chaque valeur
+ * ressort en `unknown` et doit être vérifiée avant usage.
+ */
+type Loose = Record<string, unknown>
+
+/** Vue ouverte d'un objet Stripe, pour atteindre les champs non typés. */
+const loose = (v: unknown): Loose => (v ?? {}) as Loose
+
+/** Champ imbriqué lu en profondeur, `undefined` dès qu'un maillon manque. */
+function dig(v: unknown, ...path: string[]): unknown {
+  let cur: unknown = v
+  for (const key of path) {
+    if (cur === null || typeof cur !== 'object') return undefined
+    cur = (cur as Loose)[key]
+  }
+  return cur
+}
+
+/** Identifiant Stripe, qu'il arrive en clair ou dans un objet étendu. */
+function idOf(v: unknown): string | null {
+  if (typeof v === 'string') return v
+  const nested = dig(v, 'id')
+  return typeof nested === 'string' ? nested : null
+}
+
+/**
  * Bornes du cycle courant d'un abonnement.
  *
  * Les versions récentes de l'API Stripe (à partir de 2025-03) ont déplacé
@@ -41,10 +72,8 @@ const admin = createClient(
  * On lit donc les deux emplacements, en préférant l'item quand il est présent.
  */
 function periodOf(sub: Stripe.Subscription): { start: string | null; end: string | null } {
-  // deno-lint-ignore no-explicit-any
-  const item = (sub.items?.data?.[0] ?? {}) as any
-  // deno-lint-ignore no-explicit-any
-  const anySub = sub as any
+  const item = loose(sub.items?.data?.[0])
+  const anySub = loose(sub)
 
   const toIso = (ts: unknown): string | null => {
     if (typeof ts !== 'number' || !Number.isFinite(ts)) return null
@@ -66,30 +95,29 @@ function periodOf(sub: Stripe.Subscription): { start: string | null; end: string
  * Sans cette lecture double, invoice.paid sortait sans rien créditer.
  */
 function subscriptionIdOf(invoice: Stripe.Invoice): string | null {
-  // deno-lint-ignore no-explicit-any
-  const inv = invoice as any
-  const direct = inv.subscription
-  if (typeof direct === 'string') return direct
-  if (direct?.id) return direct.id
+  const inv = loose(invoice)
 
-  const nested = inv.parent?.subscription_details?.subscription
-  if (typeof nested === 'string') return nested
-  if (nested?.id) return nested.id
+  const direct = idOf(inv.subscription)
+  if (direct) return direct
+
+  const nested = idOf(dig(inv, 'parent', 'subscription_details', 'subscription'))
+  if (nested) return nested
 
   // Dernier recours : la ligne de facture porte aussi le lien.
-  const line = inv.lines?.data?.[0]
-  const fromLine = line?.subscription ?? line?.parent?.subscription_item_details?.subscription
-  if (typeof fromLine === 'string') return fromLine
-  if (fromLine?.id) return fromLine.id
+  const line = dig(inv, 'lines', 'data', '0')
+  const fromLine = idOf(
+    dig(line, 'subscription') ??
+      dig(line, 'parent', 'subscription_item_details', 'subscription'),
+  )
+  if (fromLine) return fromLine
 
   return null
 }
 
 /** Bornes de période portées par une facture (racine ou première ligne). */
 function invoicePeriod(invoice: Stripe.Invoice): { start: string | null; end: string | null } {
-  // deno-lint-ignore no-explicit-any
-  const inv = invoice as any
-  const line = inv.lines?.data?.[0]
+  const inv = loose(invoice)
+  const line = dig(inv, 'lines', 'data', '0')
 
   const toIso = (ts: unknown): string | null => {
     if (typeof ts !== 'number' || !Number.isFinite(ts)) return null
@@ -109,8 +137,8 @@ function invoicePeriod(invoice: Stripe.Invoice): { start: string | null; end: st
   // Le piège est que `??` ne bascule que sur null/undefined : `period_end`
   // étant un nombre valide, la ligne n'était jamais consultée.
   return {
-    start: toIso(line?.period?.start ?? inv.period_start),
-    end: toIso(line?.period?.end ?? inv.period_end),
+    start: toIso(dig(line, 'period', 'start') ?? inv.period_start),
+    end: toIso(dig(line, 'period', 'end') ?? inv.period_end),
   }
 }
 
