@@ -160,6 +160,18 @@ déployer quoi que ce soit — fonctions, migrations, front.
 
 ---
 
+## Handoffs
+
+Les passages de relais entre sessions (Mac mini ↔ MacBook) s'écrivent dans
+`docs/handoffs/` — plus dans le vault Obsidian, depuis le 2026-08-23. Le skill
+`handoff` connaît l'exception. Dire « handoff » à la clôture, « handoff
+reprise » au démarrage.
+
+La daily note du vault garde un résumé de la journée, mais renvoie ici par un
+chemin plutôt que par un `[[wikilink]]`.
+
+---
+
 ## Tenir le journal
 
 `docs/journal-projet.md` est ce qui rend le projet reprenable après une
