@@ -1,3 +1,18 @@
+> ⚠️ **DOCUMENT PÉRIMÉ — ne pas s'y fier.**
+>
+> Ce texte est une note de travail envoyée aux coachs pour recueillir leur
+> avis. Les règles qu'il décrit **ne sont pas celles qui tournent** : il parle
+> encore d'un seuil « pack ≥ 10 séances » et d'une qualification qui n'a jamais
+> été implémentée ainsi.
+>
+> Pour les règles réelles : `docs/cadrage-bons-achat.md`, et le code de
+> `supabase/functions/stripe-webhook/index.ts`.
+>
+> Conservé pour mémoire des échanges, à supprimer une fois le parrainage
+> testé de bout en bout.
+
+---
+
 Idem pour coupons et parrainage
 
 Ci dessous les règles implémentés et qui seront modifiées en fonction de vos retours.

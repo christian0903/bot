@@ -3,6 +3,21 @@
 **Version 2.0 - Avril 2026**
 **Document destiné aux coaches pour validation**
 
+> ⚠️ **Document d'avril 2026 — dépassé sur plusieurs points.**
+>
+> Conservé comme trace du cadrage initial, pas comme référence.
+>
+> - **Le paiement passe par Stripe, pas par Mollie.** La migration vers Mollie
+>   inscrite ici a été **abandonnée le 2026-08-03**. Toutes les mentions de
+>   Mollie sont caduques.
+> - Les phases 1 à 12 sont livrées, avec des écarts par rapport au plan.
+>
+> Pour l'état réel : `docs/journal-projet.md` (ce qui a été fait et pourquoi),
+> `docs/documentation-technique.md` (comment ça marche),
+> `docs/guide-admin.md` (ce que voit l'utilisateur).
+
+
+
 > Ce document décrit ce que l'application fait et comment elle se comporte dans chaque situation.
 > Lisez-le, annotez-le, et dites-nous si quelque chose ne correspond pas à votre façon de travailler.
 

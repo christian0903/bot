@@ -40,8 +40,15 @@ export function MyBookingsPage() {
   const [loading, setLoading] = useState(true)
   const [cancelId, setCancelId] = useState<string | null>(null)
   const [cancellationHours, setCancellationHours] = useState(12)
-  /** Natures affichées. Les trois par défaut : la liste montre tout. */
-  const [filters, setFilters] = useState<BookingKind[]>(['upcoming', 'past', 'cancelled'])
+  /**
+   * Natures affichées. **Les séances à venir seulement**, au départ.
+   *
+   * Les trois natures étaient cochées d'entrée, si bien qu'un membre de longue
+   * date ouvrait sa page sur des mois d'historique et devait chercher sa
+   * prochaine séance au milieu. Or c'est elle qu'on vient voir. Le passé et
+   * les annulations restent à un clic.
+   */
+  const [filters, setFilters] = useState<BookingKind[]>(['upcoming'])
   /** Les avis déposés, par réservation — pour les relire depuis l'historique. */
   const [myReviews, setMyReviews] = useState<Map<string, MyReview>>(new Map())
   /** Avis en cours de correction. */

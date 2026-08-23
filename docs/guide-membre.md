@@ -61,7 +61,7 @@ Le délai est indiqué dans l'application. Préviens dès que tu sais : c'est ce
 
 ### Voir mes cours et mes crédits
 
-**Mes réservations** — tes cours à venir et passés.
+**Mes réservations** — la page s'ouvre sur tes **séances à venir**, celles que tu viens vérifier. Trois boutons en haut permettent d'afficher aussi le **passé** et les **annulations** ; le nombre inscrit sur chacun dit ce qu'il contient. Ils se cumulent — tu peux voir à venir et passé ensemble.
 
 **Mes packs** — ton abonnement s'il y en a un, avec sa prochaine échéance, et tes packs avec leurs crédits restants et leur date d'expiration.
 
@@ -195,7 +195,7 @@ Depuis **Profil**, en bas de page. La demande est définitive et prend effet imm
 |---|---|
 | **Accueil** | Ta séance d'essai, tes messages, tes prochains cours |
 | **Planning** | Voir les cours et **réserver** |
-| **Mes réservations** | Tes cours à venir et passés, **annuler** |
+| **Mes réservations** | Tes séances à venir (et, au choix, le passé et les annulations), **annuler** |
 | **Mes packs** | Tes crédits, ton abonnement, sa prochaine échéance |
 | **Acheter un pack** | Les formules, les abonnements, les frais d'inscription |
 | **Performances** | Tes mesures et leur évolution |

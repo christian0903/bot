@@ -378,6 +378,67 @@ La coupure se fait à **l'heure près**, pas à la journée : un membre dont l'a
 
 ---
 
+## Réserver : une seule transaction
+
+`book_class(p_class_id, p_pack_purchase_id)` décide **et** écrit, sous verrou du cours. C'est le pendant membre de `book_member_by_staff`.
+
+**Ce qu'elle remplace** (jusqu'au 2026-08-23) : quatre allers-retours depuis le navigateur — vérifier les places, choisir la source, insérer, décompter. Entre le premier et le troisième, rien ne tenait. Deux conséquences, jamais constatées faute de trafic simultané mais bien réelles :
+
+- **Dépassement de capacité.** Le compteur de places venait d'un état React chargé à l'ouverture de la page. Deux membres cliquant sur la dernière place à la même seconde passaient tous les deux. `UNIQUE(scheduled_class_id, user_id)` protège de la double inscription d'un **même** membre, pas du dépassement.
+- **Réservation sans débit.** `consume_credit` renvoie `VOID` et porte `AND credits_remaining > 0` : à zéro crédit, elle ne touche aucune ligne et **ne lève aucune erreur**. Tester `error` n'y aurait rien changé.
+
+**Comment elle s'y prend :**
+
+```
+pg_advisory_xact_lock(cours)        -- sérialise les réservations de CE cours
+  → can_book_class()                -- passé, annulé, complet, déjà inscrit, fermé
+  → contrôles directs               -- les quatre qui ne se négocient pas
+  → get_available_credits()         -- la source, avec sa couverture et son quota
+  → décompte du crédit, CONTRÔLÉ    -- ROW_COUNT vérifié
+  → écriture de la réservation
+```
+
+Trois choix à connaître :
+
+- **Le verrou est consultatif**, pas un `SELECT FOR UPDATE` : il ne sérialise que les réservations du même cours, sans bloquer un admin qui modifierait l'horaire au même moment. Il tombe avec la transaction, quoi qu'il arrive.
+- **Le décompte précède l'écriture.** L'ordre inverse obligerait à lever une exception pour annuler une réservation déjà écrite, et le front devrait gérer deux formes de refus. L'atomicité garantit qu'un crédit ne peut pas partir sans réservation : si l'INSERT échoue ensuite, tout est annulé.
+- **Elle réutilise `can_book_class` et `get_available_credits`** au lieu de réécrire leurs règles. Dupliquer garantissait qu'un jour les copies divergeraient.
+
+**Deux chemins ne passent pas par elle, volontairement** : la séance d'essai (doit poser `is_trial`, et son pack ne remonte pas par `get_available_credits`) et l'inscription par le staff (`book_class` réserve pour `auth.uid()` — elle inscrirait l'admin au lieu du membre).
+
+> **Les contrôles du front restent utiles**, mais ils ont changé de rôle : ils **expliquent** au membre ce qui bloque (« vos crédits se rechargent le 3 », « ce pack ne couvre pas ce type de cours »). Ils ne sont plus ce sur quoi repose la justesse.
+
+**Éprouvée** : `supabase/test-book-class.sql` joue neuf cas dans une transaction annulée — rien ne persiste, relançable. Le verrou lui-même demande deux sessions simultanées, que le SQL Editor ne sait pas tenir : voir `test-book-class-concurrence.sql`.
+
+---
+
+## Index — ce qui rend les requêtes rapides
+
+`bookings` et `scheduled_classes` n'avaient **aucun index** jusqu'au 2026-08-23, en dehors de leur clé primaire et d'une contrainte d'unicité. Ce sont pourtant les deux tables que tout interroge : 65 requêtes dans les fonctions de la base.
+
+Invisible sur les données de test. À 10 000 réservations, chaque affichage du planning aurait lu les 10 000 lignes pour en retenir quatre.
+
+**Huit index posés**, chacun répondant à des requêtes relevées une par une :
+
+| Table | Index | Sert |
+|---|---|---|
+| bookings | `(scheduled_class_id, status)` | « combien d'inscrits sur ce cours » |
+| bookings | `(user_id, status, created_at DESC)` | les réservations d'un membre |
+| bookings | `(pack_purchase_id)` | la valorisation d'une séance |
+| scheduled_classes | `(starts_at)` | planning, exports, statistiques |
+| scheduled_classes | `(coach_id, starts_at)` | l'espace coach |
+| scheduled_classes | `(class_type_id, starts_at)` | le filtre par type |
+| pack_purchases | `(user_id, expires_at DESC)` | les crédits, lus avant chaque réservation |
+| waitlist | `(user_id, status)` | la liste d'attente d'un membre |
+
+> **Faut-il archiver les vieilles données ?** Non. Mesuré le 2026-08-23 : la base entière pèse **1,1 Mo**, quand le plan Pro en offre 8 Go. Même dix fois plus dense, une année réelle tiendrait dans 10–15 Mo — le plan gratuit suffirait trente ans. Le volume n'a jamais été le problème de performance ; l'absence d'index l'était. Et archiver amputerait le suivi clients et l'historique des revenus, quand l'obligation comptable belge est de sept ans.
+
+**Avant d'ajouter un index**, vérifier qu'il n'est pas déjà servi par une contrainte `UNIQUE` — celle-ci crée son propre index. Un neuvième index a été écarté pour cette raison : la recherche par cours dans `waitlist` était déjà couverte.
+
+**Après toute création d'index**, exécuter `ANALYZE` sur les tables concernées : sans statistiques à jour, le planificateur peut ignorer un index tout neuf.
+
+---
+
 ## Sécurité
 
 **Row Level Security actif sur toutes les tables.** Un membre ne voit que ses données, un coach voit les achats et les réservations, un admin voit tout.
@@ -391,6 +452,14 @@ La coupure se fait à **l'heure près**, pas à la journée : un membre dont l'a
 > **Toute fonction `SECURITY DEFINER` doit vérifier le rôle de l'appelant.** Elle contourne RLS par construction : sans ce contrôle, elle devient une porte ouverte. Deux fonctions ont été trouvées sans vérification et corrigées le 6 août.
 
 **Les clés secrètes** ne sont jamais dans le front. Le navigateur ne connaît que l'URL Supabase et la clé publique, dont les droits sont bornés par RLS.
+
+> **`REVOKE ... FROM PUBLIC` ne fait rien sur une fonction Supabase.** Le projet applique des `ALTER DEFAULT PRIVILEGES` qui accordent `EXECUTE` **nommément** à `anon`, `authenticated` et `service_role` sur toute fonction créée dans `public`. Le droit ne vient donc pas de `PUBLIC`, et le révoquer ne l'atteint pas. Les ACL le disent sans ambiguïté : `anon=X/postgres`.
+>
+> La forme qui fonctionne : `REVOKE EXECUTE ON FUNCTION nom(args) FROM anon;`
+>
+> Vérifier avec `has_function_privilege('anon', 'nom(args)', 'EXECUTE')` — et non en supposant. Constaté le 2026-08-23 : trois fonctions portaient un `REVOKE` inopérant depuis leur création.
+>
+> **Ce n'est jamais la barrière principale.** Le contrôle de rôle à l'intérieur de la fonction l'est. Le `REVOKE` évite seulement qu'un appel anonyme atteigne le corps.
 
 ---
 
@@ -537,6 +606,10 @@ npm run cap:android    # application Android
 **Un timestamp Stripe ne dit pas toujours ce que son nom suggère.** `invoice.period_start` / `period_end` datent la facture, pas le cycle d'abonnement — le cycle vit sur `lines.data[0].period`. De même, `current_period_*` a migré de la racine de l'abonnement vers ses items. **Vérifier sur un objet réel plutôt que se fier au nom du champ**, surtout quand une durée calculée tombe à zéro.
 
 > Corollaire : `??` ne bascule que sur `null`/`undefined`. Mettre le mauvais champ en premier dans un `a ?? b` suffit à ce que `b` ne soit **jamais** lu, si `a` est renseigné mais faux sémantiquement. C'est ce qui a masqué le bug de cycle.
+
+**L'écran ne doit jamais attendre un appel accessoire.** `confirmBooking` fermait sa pop-up en DERNIER, après le journal d'activité et la notification. Il suffisait que l'un des deux échoue pour que la fenêtre reste ouverte sur une réservation pourtant enregistrée — le membre voyait un bouton figé et pouvait cliquer deux fois. **Ce qui est acquis s'affiche d'abord ; la trace et l'e-mail suivent, isolés dans un `try`.** Le même défaut existait sur trois autres chemins (liste d'attente, inscription en attente, séance d'essai).
+
+**Une validité de pack ne veut rien dire sur un abonnement.** `validity_days` n'est lu que pour un achat ponctuel : sur un abonnement, `creditPack` cale l'expiration sur `periodEnd`, la fin du cycle facturé par Stripe. Un avertissement du formulaire exigeait pourtant que les deux concordent — il annonçait un problème impossible, et devenait insoluble sur un cycle qui n'est pas un multiple de 7 jours, la validité se saisissant en semaines. Un abonnement de 72 jours ne pouvait donc jamais le satisfaire.
 
 **Le temps du serveur n'est pas celui de la facturation.** Un pack d'abonnement doit couvrir la période payée, pas les N jours qui suivent l'instant où le webhook s'exécute. Un événement rejoué avec retard produit sinon un pack décalé — voire, sous *test clock*, des crédits qui expirent avant le cycle qu'ils couvrent.
 

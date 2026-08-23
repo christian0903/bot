@@ -195,14 +195,16 @@ const USERS = rows.map(row => ({
 | `scripts/import-demo.ts` | Import users via API Admin (coaches + clients + packs) |
 | `supabase/seed-demo-part2.sql` | Cours planifiés + réservations passées/futures |
 | `supabase/seed-demo-performances.sql` | Performances démo pour ingrid, thomas, marie |
-| `supabase/migrations/20260421_email_notifications.sql` | Colonne `email_on_self_booking` sur profiles |
-| `supabase/migrations/20260511_password_reset_action.sql` | Ajoute `password_reset_by_admin` à l'enum `activity_action` |
-| `supabase/migrations/20260511_sync_profile_email.sql` | Trigger : sync `profiles.email` ↔ `auth.users.email` |
-| `supabase/migrations/20260511_backfill_profile_email.sql` | Backfill ponctuel pour rattraper d'éventuels desyncs |
-| `supabase/migrations/20260511_performances.sql` | Tables `performance_types` + `performances` avec RLS |
-| `supabase/migrations/20260511_perf_rls_coach_update.sql` | Étend UPDATE/DELETE perfs au coach (aligné sur INSERT) |
+| `supabase/check-policies.sql` | Compare les policies attendues à celles réellement en base |
+| `supabase/test-book-class.sql` | Éprouve la réservation atomique — transaction annulée, rien ne persiste |
 
-Toutes les migrations sont déjà intégrées dans `install.sql`. Pour une base existante, ne lancer que les migrations correspondant aux fonctionnalités ajoutées depuis votre dernier déploiement.
+**Les migrations** vivent dans `supabase/migrations/`, nommées par date. Ce guide n'en tient plus la liste : elles se comptent par dizaines et toute énumération vieillit en quelques jours. `ls supabase/migrations/` donne l'état réel.
+
+**Sur une base neuve** : `install.sql` suffit, il les contient toutes. Ne pas rejouer les migrations par-dessus.
+
+**Sur une base existante** : n'appliquer que celles postérieures à votre dernier déploiement, dans l'ordre chronologique de leur nom.
+
+> **Ne pas se fier au fichier pour savoir ce qui est en base.** `install.sql` a déjà décrit des policies jamais appliquées — trois bugs du 6 août avaient cette cause. Contrôler avec `check-policies.sql` et `check-schema.sql`, ou en interrogeant `information_schema`.
 
 ---
 

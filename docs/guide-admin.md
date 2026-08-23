@@ -27,6 +27,7 @@ Tout passe par le **menu Administration**, dans la barre latérale à gauche (su
 | **Évaluations** | Les avis laissés sur les cours | [§](#évaluations--administration--évaluations) |
 | **Suivi clients** | **Qui vient moins, qui ne vient plus, qui rapporte quoi** | [§](#suivi-des-clients--administration--suivi-clients) |
 | **Tableau de bord** | Les chiffres de l'activité | [§](#tableau-de-bord--administration--tableau-de-bord) |
+| **Exports** | **Sortir les données en CSV pour un tableur** | [§](#exports--administration--exports) |
 | **Paramètres** | Tous les réglages du studio | [§](#réglages--administration--paramètres) |
 | **Aide** | Ce guide, consultable dans l'application | — |
 
@@ -51,12 +52,13 @@ Tout passe par le **menu Administration**, dans la barre latérale à gauche (su
 | **Désigner un admin ou un super admin** | — | super admin |
 | Tableau de bord financier et exports | — | ✅ |
 | Gestes commerciaux (remises, bons, reports) | — | ✅ |
+| **Effacer les entrées anciennes du journal d'activité** | — | super admin |
 
 Un coach n'agit que sur **ses propres cours** : il ne peut ni inscrire ni annuler dans le cours d'un collègue.
 
 Un coach qui n'est pas admin ne voit pas le menu Administration. S'il tente d'y accéder, il est renvoyé à l'accueil.
 
-Le **super admin** a tous les droits d'un admin, plus la configuration technique (mode Stripe, changement de mot de passe d'un membre).
+Le **super admin** a tous les droits d'un admin, plus la configuration technique (mode Stripe, changement de mot de passe d'un membre) et l'**effacement des entrées anciennes du journal d'activité**.
 
 ---
 
@@ -154,7 +156,23 @@ Chaque ligne affiche `2/5` pour un cours à venir, `3/4/5` pour un cours passé 
 
 **Sur la fiche d'un cours**, le coach pointe les présences, ajoute ou retire un membre, et peut annuler le cours entier. L'annulation demande confirmation et **nomme les inscrits concernés** avant de valider.
 
-> **Le pointage se fait à la main.** Le lecteur de code QR est une option à côté, ignorable : avec peu de participants qu'on connaît, cocher une liste va plus vite.
+> **Le pointage se fait à la main.** Le lecteur de code QR est une option à côté, ignorable : avec peu de participants qu'on connaît, cocher une liste va plus vite. (Le code d'un membre s'affiche dans son profil.)
+
+**Pointer les absents.** Après l'heure de début, chaque inscrit non pointé porte un bouton *Absent*. Un bouton **« Marquer absents les restants »** règle le cas courant en une fois : tout le monde est arrivé sauf deux personnes, on coche les présents et on clôture d'un clic. Chaque absence part au journal d'activité.
+
+**Modifier le nombre de places** d'un cours se fait depuis sa fiche, bouton *Places*.
+
+**Les avis de ses cours** apparaissent en bas de la fiche d'un cours passé, s'il y en a : moyenne, répartition par note, puis les commentaires. **Anonymes**, et limités à ses propres cours — les avis d'un cours donné par un collègue ne lui sont pas accessibles. Une moyenne peut encore bouger quelques jours après la séance : les membres notent dans la semaine qui suit et peuvent se corriger.
+
+### Types de performances — menu Types de perfs
+
+Le catalogue des mesures que les membres peuvent encoder : `Rameur 500m`, `Squat`, `Développé couché`… **Page partagée entre coachs et admins.**
+
+Pour chaque type : un nom, une unité indicative (`kg`, `min`, `répétitions`), une couleur, un ordre d'affichage. Un type devenu inutile s'archive plutôt qu'il ne se supprime — les mesures déjà enregistrées gardent leur sens.
+
+Les types sont visibles par tous les membres dès leur création.
+
+> Un coach peut **corriger ou supprimer n'importe quelle performance**, y compris celles saisies par un membre. C'est voulu : une faute de frappe dans une charge fausse une courbe, et c'est le coach qui la repère.
 
 ---
 
@@ -493,7 +511,7 @@ Sur une période au choix (semaine, mois, trimestre, année, ou dates libres) :
 - **Crédits consommés** et leur valeur
 - **Cours donnés / planifiés**
 - **Cours par coach** — seuls les cours **déjà donnés** sont comptés
-- **Exports CSV** : ventes de packs, et cours avec leurs réservations
+- **Exports CSV** : ventes de packs, et cours avec leurs réservations — sur ce que la page affiche. Pour des extractions plus larges, voir **Administration → Exports**.
 
 > Sur un pack illimité, aucun crédit n'est décompté : la valeur d'une séance vient du réglage « coût moyen d'une séance illimitée ».
 
@@ -521,9 +539,56 @@ Qui a parrainé qui, et où en est chaque parrainage.
 
 Les demandes des membres, à traiter et à marquer comme traitées.
 
+### Exports — Administration → Exports
+
+Sortir les données du studio au format CSV, pour un tableur ou un autre outil. **Huit exports**, chacun avec un sélecteur de période commun (le mois en cours par défaut) :
+
+| Export | Ce qu'on y trouve |
+|---|---|
+| **Réservations** | Une ligne par inscription : date du cours, type, coach, membre, e-mail, pack utilisé, statut, présence pointée, absence, essai |
+| **Cours** | Une ligne par cours : date, type, coach, salle, capacité, inscrits, présents, absents, **statut** et revenu |
+| **Membres** | Nom, e-mail, téléphone, catégorie, date d'inscription, crédits restants, abonnement |
+| **Achats de packs** | Date, client, pack, prix payé, crédits, validité, origine (achat ou abonnement) |
+| **Abonnements** | Membre, formule, statut, cycle en cours, résiliation prévue, mode test/live |
+| **Présences par membre** | Réservations, présences, absences, annulations, dernière venue, revenu par séance |
+| **Avis** | Note, commentaire, cours, coach, membre |
+| **Journal d'activité** | Date, action, auteur, personne concernée, description |
+
+**Deux d'entre eux ignorent la période** — *Membres* et *Abonnements* — parce qu'ils donnent l'état courant, pas une tranche d'histoire. Une étiquette « état courant » le signale sur leur carte.
+
+**L'export le plus polyvalent est *Réservations*** : tout se recoupe depuis là. **Le plus demandé sera *Cours*** : il porte le coach, l'effectif et le statut (exécuté, non donné, effectif insuffisant, annulé), calculé exactement comme à l'écran.
+
+> **Les fichiers s'ouvrent directement dans Excel**, colonnes séparées et accents corrects, sans passer par l'assistant d'importation. Le séparateur est le point-virgule, celui qu'attend un Excel configuré en français.
+
+Un export ne se charge qu'au clic : rien n'est rapatrié tant qu'on ne demande rien.
+
+**Les comptes supprimés figurent dans l'export des membres**, avec la date de leur suppression. Les masquer ferait mentir un état des lieux comptable — leurs achats existent toujours. Leurs données personnelles ayant été anonymisées, il n'y a rien à protéger de plus.
+
+> Les pages **Membres** et **Tableau de bord** gardent leurs propres boutons d'export : ceux-là sortent **ce qu'on regarde**, filtres compris. La page Exports sert à venir chercher des données pour les emporter.
+
 ### Journal d'activité — Administration → Journal d'activité
 
 Tout ce qui a été fait : achats, réservations, annulations, gestes commerciaux, changements de rôle. Utile pour retrouver qui a fait quoi, et quand.
+
+**Filtrer** par type d'action et par période. **Exporter** : le bouton en haut à droite sort en CSV **tout ce que les filtres retiennent**, et non les cinquante entrées affichées à l'écran.
+
+#### Effacer les entrées anciennes — super admin seulement
+
+Un bloc encadré de rouge, visible du seul **super admin**, efface les entrées antérieures à un nombre de mois choisi.
+
+1. Saisir le nombre de mois — **six au minimum**
+2. Cliquer sur **Effacer…**
+3. Une confirmation annonce **combien d'entrées** seront supprimées
+4. Confirmer
+
+**Ce qu'il faut savoir avant de s'en servir :**
+
+- **C'est irréversible.** Exporter d'abord si ces traces doivent être conservées.
+- **On n'efface que par ancienneté, jamais une ligne précise.** C'est délibéré : un journal dont on pourrait retirer une entrée gênante ne prouverait plus rien.
+- **L'effacement lui-même est inscrit au journal** — qui l'a fait, quand, combien de lignes, jusqu'à quelle date. Sans cette trace, un trou dans l'historique serait indiscernable d'une panne.
+- **Six mois est un plancher**, pour qu'un « 0 » saisi par mégarde n'efface pas l'historique récent, justement celui qui sert à comprendre ce qui vient de se passer.
+
+> **Rien n'oblige à purger.** Le journal ne pèse presque rien — quelques centaines de kilo-octets par an — et la place n'est pas un problème. Cette fonction existe pour le jour où l'historique deviendra encombrant à consulter, pas pour économiser de l'espace.
 
 ### Annonces — Administration → Annonces
 

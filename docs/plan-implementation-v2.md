@@ -2,6 +2,21 @@
 
 **Avril 2026 - Document de développement**
 
+> ⚠️ **Document d'avril 2026 — dépassé sur plusieurs points.**
+>
+> Conservé comme trace du cadrage initial, pas comme référence.
+>
+> - **Le paiement passe par Stripe, pas par Mollie.** La migration vers Mollie
+>   inscrite ici a été **abandonnée le 2026-08-03**. Toutes les mentions de
+>   Mollie sont caduques.
+> - Les phases 1 à 12 sont livrées, avec des écarts par rapport au plan.
+>
+> Pour l'état réel : `docs/journal-projet.md` (ce qui a été fait et pourquoi),
+> `docs/documentation-technique.md` (comment ça marche),
+> `docs/guide-admin.md` (ce que voit l'utilisateur).
+
+
+
 > Ce plan est à exécuter une fois la description fonctionnelle validée par les coaches.
 > Chaque phase est indépendante et peut être livrée et testée séparément.
 
