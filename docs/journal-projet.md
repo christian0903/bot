@@ -278,6 +278,35 @@ mai. Toute énumération vieillit en quelques jours ; remplacée par la règle.
 **La documentation française est à jour au 2026-08-23**, `public/` compris —
 c'est-à-dire ce que la page d'aide sert réellement.
 
+### Supabase passe en Pro — 25 $/mois
+
+Souscription au plan Pro le 2026-08-23, en prévision de la mise en production.
+Ce qu'il apporte, et qui manquait :
+
+- **Sauvegardes quotidiennes automatiques**, 7 jours de rétention
+- **Pas de mise en veille** après une semaine d'inactivité — le plan gratuit
+  suspend les projets dormants, ce qui serait fâcheux pour une application que
+  des clients utilisent
+- 8 Go de base, quand la nôtre en pèse 1,1 Mo
+
+**La facture annonçait 35 $, pas 25.** Le plan Pro inclut 25 $ d'abonnement et
+10 $ de crédit *compute*, mais ce crédit ne couvre **qu'un seul projet** — tout
+projet supplémentaire coûte 10 $/mois, *regardless of activity*, qu'il serve ou
+non. L'organisation en portait deux : `bot` et `nlp-lab-pnl`.
+
+**`nlp-lab-pnl` a donc été mis en pause**, après export complet. Ce lab était un
+essai dont la suite n'est pas décidée ; le mettre en veille ramène la facture à
+25 $ sans rien détruire — un projet en pause se réveille d'un clic, intact.
+
+> **La sauvegarde vit dans `~/backup-nlp-lab-pnl`**, dépôt Git local :
+> `schema.sql` (18 tables, 59 fonctions, 68 policies) et `data.sql` (95 lignes,
+> 8 comptes utilisateurs). **Contient des données personnelles — jamais sur un
+> dépôt public.** Le Storage a été vérifié : rien à télécharger.
+>
+> Exporté avec `pg_dump` et non la CLI Supabase : `supabase db dump` exige
+> Docker, absent de cette machine. `brew install libpq` suffit, et le plan
+> gratuit n'y fait pas obstacle.
+
 ### Ce qui reste ouvert
 
 1. **Le verrou de concurrence**, à éprouver sur deux téléphones.
