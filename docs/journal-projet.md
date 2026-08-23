@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-09**
+> Dernière mise à jour : **2026-08-23**
 
 ---
 
@@ -20,6 +20,9 @@
 **Performances** : étapes 1 et 2 livrées (valeurs comparables, courbes). Paliers et régularité à faire.
 **Démarrage différé d'abonnement** : **livré et éprouvé au test clock** (2026-08-09) — vendre en août ce qui commence en septembre, via `trial_end`.
 **Suivi des clients** : **livré** (2026-08-09) — page admin qui classe les clients par fréquentation (actif / ralentit / décroche / perdu) et calcule le revenu par séance. Seuils réglables.
+**Réservation atomique** : **livrée** (2026-08-23) — `book_class` décide et écrit dans une seule transaction, sous verrou du cours. Ferme le dépassement de capacité et la réservation sans débit. Neuf cas éprouvés en base ; le verrou lui-même reste à voir en conditions réelles.
+**Exports CSV** : **livrés** (2026-08-23) — page dédiée, huit sorties, plus l'export du journal d'activité et sa purge réservée au super admin.
+**Index** : **posés** (2026-08-23) — `bookings` et `scheduled_classes` n'en avaient aucun. L'archivage n'est pas nécessaire : la base pèse 1,1 Mo pour 8 Go disponibles.
 **Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter. **Deux de ses éléments deviennent bloquants pour l'App Store** — voir ci-dessous.
 **Rémunération des coachs** : reportée — module à part, la gestion se fait hors application (décision du 2026-08-06).
 
@@ -37,6 +40,174 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
 2. **Politique de confidentialité avec URL publique** — livrée, page `/privacy`.
+
+---
+
+## Session du 2026-08-23
+
+Reprise du projet après deux semaines. Session de **fiabilisation** avant mise
+en production : rien de neuf côté métier, mais deux trous fermés et de quoi
+sortir les données.
+
+### La réservation membre n'était pas atomique
+
+Trouvé en cherchant, pas en corrigeant un bug signalé. `confirmBooking`
+enchaînait quatre allers-retours depuis le navigateur — vérifier les places,
+choisir la source, insérer, décompter. Entre le premier et le troisième, rien
+ne tenait.
+
+**Deux conséquences réelles**, jamais constatées faute de trafic simultané :
+
+- **Dépassement de capacité.** Le compteur de places venait d'un état React
+  chargé à l'ouverture de la page. Deux membres cliquant sur la dernière place
+  à la même seconde passaient tous les deux. Rien en base ne s'y opposait :
+  `UNIQUE(scheduled_class_id, user_id)` protège de la double inscription d'un
+  même membre, pas du dépassement.
+- **Réservation sans débit.** `consume_credit` renvoie `VOID` et porte
+  `AND credits_remaining > 0` : à zéro crédit, elle ne touche aucune ligne et
+  ne lève **aucune erreur**. Tester `error` n'aurait rien changé.
+
+Le projet connaissait déjà ce raisonnement — le commentaire du trigger de quota
+dit « les réservations partent d'un INSERT direct depuis le front, donc un
+contrôle appelé côté client serait décoratif ». La leçon avait été appliquée au
+quota, jamais à la capacité ni aux crédits.
+
+**`book_class`** applique la même méthode que `book_member_by_staff`, son
+pendant staff qui existait déjà et faisait les choses correctement : décider et
+écrire dans une seule transaction, sous `pg_advisory_xact_lock` posé sur le
+cours. Elle réutilise `can_book_class` et `get_available_credits` au lieu de
+réécrire leurs règles — dupliquer garantissait qu'un jour les copies
+divergeraient.
+
+Deux points de conception :
+
+- **Le décompte précède l'écriture.** L'ordre inverse obligerait à lever une
+  exception pour annuler une réservation déjà écrite, et le front devrait alors
+  gérer deux formes de refus. L'atomicité garantit qu'un crédit ne peut pas
+  être consommé sans réservation : si l'INSERT échoue ensuite, tout est annulé.
+- **Verrou consultatif** plutôt que `SELECT FOR UPDATE` : il ne sérialise que
+  les réservations du même cours, sans bloquer un admin qui modifierait
+  l'horaire au même moment.
+
+**Éprouvée en base** : neuf cas passés, dont les trois qui comptent — refus
+sans crédit avec **zéro réservation écrite**, pack d'autrui inconsommable,
+refus qui ne décompte rien.
+
+> **Le verrou lui-même n'est pas encore éprouvé.** Il faudrait deux
+> transactions simultanées, que le SQL Editor ne sait pas tenir : il referme la
+> sienne dès qu'une requête rend la main. `supabase/test-book-class-concurrence.sql`
+> décrit la manipulation à deux onglets ; à défaut, deux téléphones sur la
+> dernière place d'un cours le diront.
+
+**Deux chemins volontairement laissés en l'état** : la séance d'essai (doit
+poser `is_trial`, et son pack ne remonte pas par `get_available_credits`) et
+l'inscription par le staff (`book_class` réserve pour `auth.uid()`, elle
+inscrirait l'admin au lieu du membre).
+
+### Les deux tables les plus lues n'avaient aucun index
+
+Question posée : faut-il archiver au-delà de six mois, pour la performance ?
+**Non** — et la vraie réponse était ailleurs.
+
+Les chiffres de la base, relevés le jour même : **1,1 Mo au total**, 454 cours,
+120 réservations, 257 lignes de journal. Le plan Pro offre 8 Go. Même en
+supposant une année réelle dix fois plus dense, on serait à 10–15 Mo par an :
+le plan gratuit tiendrait trente ans. Archiver aurait amputé le suivi clients
+et l'historique des revenus pour économiser quelques mégaoctets — quand
+l'obligation comptable belge est de sept ans.
+
+Le vrai défaut : **`bookings` et `scheduled_classes` n'avaient pas un seul
+index** hors clé primaire et contrainte d'unicité, alors que 65 requêtes des
+fonctions de la base les interrogent. Invisible sur les données de test ;
+à 10 000 réservations, chaque affichage du planning aurait lu les 10 000 lignes
+pour en retenir quatre.
+
+Huit index posés, chacun répondant à des requêtes relevées une par une. Un
+neuvième a été écarté en cours de route : la recherche par cours dans
+`waitlist` est déjà servie par l'index de sa contrainte d'unicité.
+
+### Exports CSV
+
+**Une page dédiée** (`Administration → Exports`), huit sorties : réservations,
+cours, membres, achats de packs, abonnements, présences par membre, avis,
+journal d'activité. La liste des cours porte le coach, l'effectif, les
+présences et le **statut dérivé**, calculé par la même fonction que l'écran.
+
+Chaque export se charge à la demande — une année de réservations serait absurde
+à rapatrier pour un bouton qu'on ne cliquera peut-être pas.
+
+**Deux défauts corrigés au passage.** Le projet portait deux implémentations
+CSV divergentes : virgule d'un côté, point-virgule de l'autre, et celle des
+membres **n'échappait pas les guillemets** — un nom contenant `"` cassait le
+fichier en silence. `src/lib/csv.ts` tranche : point-virgule (la virgule est le
+séparateur décimal d'un Excel français, qui ouvrirait tout en une colonne) et
+BOM UTF-8 (sans lui, « Rémi » devient « RÃ©mi »).
+
+Les exports des pages Membres et Tableau de bord restent en place : ils
+exportent ce qu'on regarde, filtres compris.
+
+### Journal d'activité : export et purge
+
+Export CSV portant sur **tout ce que les filtres retiennent**, pas sur les
+cinquante entrées affichées.
+
+Purge réservée au **super admin**, par ancienneté, six mois minimum. Elle passe
+par une fonction plutôt que par une policy `DELETE`, et la distinction est le
+cœur du sujet : ouvrir cette policy autoriserait à supprimer **n'importe
+quelle** ligne, une par une — un journal d'audit que son lecteur peut trafiquer
+ligne par ligne ne vaut plus rien. La fonction n'autorise qu'un effacement en
+bloc, et **se journalise elle-même**.
+
+### Le `REVOKE` qui ne révoquait rien
+
+Mes migrations finissaient par `REVOKE ALL ... FROM PUBLIC`. **Sans effet** :
+vérification faite, `anon` gardait son droit d'exécution. Les ACL le disent —
+`anon=X/postgres` : Supabase accorde EXECUTE **nommément** à `anon` via ses
+`ALTER DEFAULT PRIVILEGES`, le droit ne vient donc pas de `PUBLIC`.
+
+Aucune fonction n'était exposée pour autant — le contrôle d'identité est dans
+leur corps, et `purge_activity_log(12)` sans identité renvoie bien
+`not_authenticated` sans rien effacer. Mais la seconde barrière annoncée
+n'existait pas. Corrigé en visant `anon` ; `book_member_by_staff` en bénéficie,
+elle n'avait aucun `REVOKE` depuis sa création.
+
+> **À retenir** : sur Supabase, `REVOKE ... FROM PUBLIC` sur une fonction du
+> schéma `public` ne fait rien. Il faut `REVOKE EXECUTE ... FROM anon`.
+
+### Lint : de 77 à 38 signalements
+
+Les 32 `any` supprimés **en typant**, jamais en désactivant une règle. Trois
+causes : les jointures PostgREST (helper `one()` dans
+`src/lib/supabase-joins.ts`), `ScheduledClass.coach` annoncé `Profile` complet
+alors que les pages n'attachent que trois champs (type `CoachRef`), et les
+objets Stripe dont le SDK décrit une forme périmée.
+
+Le typage retrouvé a **immédiatement trouvé un défaut** : deux `pack_type`
+passés bruts à `creditValueCents`, que le cast masquait.
+
+Les 38 restants sont tous du React Compiler, sur du code validé à l'écran. Les
+corriger change le comportement au runtime : chantier page par page, **pas** un
+nettoyage de lint.
+
+### Documentation
+
+- **`CLAUDE.md` créé** à la racine : les règles qui ne se devinent pas en
+  lisant le code, chacune avec l'incident qui la justifie.
+- **Neuf documents rapatriés du vault** dans `docs/vault-import/`, dont
+  `reservations-regles-et-cas-de-test.md` — le seul endroit où les règles de
+  réservation sont écrites telles que présentées aux coachs. Il a servi le jour
+  même à vérifier que `book_class` ne contredit aucune règle convenue.
+- **Les handoffs** s'écrivent désormais dans `docs/handoffs/`.
+
+### Ce qui reste ouvert
+
+1. **Le verrou de concurrence**, à éprouver sur deux téléphones.
+2. **Essayer dans l'application** : réserver, annuler, re-réserver, réserver
+   sans crédit, ouvrir un export dans Excel.
+3. **28 écritures Supabase ne testent toujours pas `error`** — le bug que le
+   journal documente déjà. Repérées, non corrigées : chantier d'après
+   lancement.
+4. **Le parrainage n'est toujours pas testé** de bout en bout.
 
 ---
 
