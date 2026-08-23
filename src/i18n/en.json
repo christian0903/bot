@@ -327,6 +327,9 @@
       "packSales": "Pack Sales",
       "revenue": "Revenue",
       "classesByCoach": "Classes by Coach"
+    },
+    "exports": {
+      "title": "Exports"
     }
   },
   "coach": {

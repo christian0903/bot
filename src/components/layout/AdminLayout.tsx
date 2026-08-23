@@ -19,6 +19,7 @@ import {
   Gift,
   MessageSquare,
   UserSearch,
+  Download,
   HelpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -41,6 +42,7 @@ const adminNav = [
   { path: '/admin/reviews', icon: MessageSquare, labelKey: 'admin.reviews.title' },
   { path: '/admin/client-tracking', icon: UserSearch, labelKey: 'admin.clientTracking.title' },
   { path: '/admin/dashboard', icon: BarChart3, labelKey: 'admin.dashboard.title' },
+  { path: '/admin/exports', icon: Download, labelKey: 'admin.exports.title' },
   { path: '/admin/settings', icon: Settings, labelKey: 'admin.settings.title' },
   // L'aide vit hors de /admin (page publique aux membres) : le lien y mène
   // directement, l'onglet « Guide coach & admin » s'y affiche selon le rôle.
