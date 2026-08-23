@@ -63,7 +63,11 @@ Le délai est indiqué dans l'application. Préviens dès que tu sais : c'est ce
 
 **Mes réservations** — la page s'ouvre sur tes **séances à venir**, celles que tu viens vérifier. Trois boutons en haut permettent d'afficher aussi le **passé** et les **annulations** ; le nombre inscrit sur chacun dit ce qu'il contient. Ils se cumulent — tu peux voir à venir et passé ensemble.
 
-**Mes packs** — ton abonnement s'il y en a un, avec sa prochaine échéance, et tes packs avec leurs crédits restants et leur date d'expiration.
+**Mes packs** — ton abonnement s'il y en a un, et tes packs avec leurs crédits restants.
+
+Pour un **abonnement**, la carte annonce le **prochain paiement** et rappelle qu'il se reconduit tout seul. Le bouton **Arrêter la reconduction** met fin au renouvellement : tu gardes tes droits jusqu'au bout de la période déjà payée, la date te sera confirmée avant validation. Tu peux souscrire à nouveau quand tu veux.
+
+Pour un **pack acheté à l'unité**, c'est une vraie date d'expiration : passée cette date, les crédits restants sont perdus.
 
 Si ton pack a un **plafond de fréquentation**, tu y vois où tu en es : « 3 / 10 cours sur 7 jours ». Le compte se fait autour de la séance visée, pas sur une semaine fixe — décaler ta réservation de quelques jours suffit souvent à libérer une place.
 

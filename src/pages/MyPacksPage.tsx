@@ -236,8 +236,8 @@ export function MyPacksPage() {
                       ? `Tes droits sont conservés jusqu'au ${format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale })}. Aucun nouveau prélèvement ne sera effectué.`
                       : `Your access remains valid until ${format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale })}. No further charges will be made.`)
                   : (isFr
-                      ? `Prochaine échéance le ${format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale })}`
-                      : `Next payment on ${format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale })}`)}
+                      ? `Prochain paiement le ${format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale })} — ton abonnement se reconduit automatiquement.`
+                      : `Next payment on ${format(new Date(subscription.current_period_end), 'dd MMMM yyyy', { locale })} — your subscription renews automatically.`)}
               </p>
             )}
 
@@ -351,7 +351,10 @@ export function MyPacksPage() {
                 size="sm"
                 onClick={() => setCancelDialogOpen(true)}
               >
-                {isFr ? 'Résilier mon abonnement' : 'Cancel subscription'}
+                {/* « Résilier » est le terme du contrat ; « arrêter la
+                    reconduction » est ce que le membre cherche à faire. Le
+                    second dit aussi que rien n'est perdu tout de suite. */}
+                {isFr ? 'Arrêter la reconduction' : 'Stop auto-renewal'}
               </Button>
             )}
           </CardContent>
@@ -407,8 +410,16 @@ export function MyPacksPage() {
                         ? t('packs.unlimited')
                         : t('packs.creditsRemaining', { count: pack.credits_remaining })}
                     </p>
+                    {/* « Expire le » ferait croire à une fin sur un pack
+                        d'abonnement encore reconduit : ce n'est pas une
+                        échéance de fin, c'est celle du cycle en cours. Le mot
+                        n'est juste que sur un pack acheté à l'unité. */}
                     <p className="text-muted-foreground">
-                      {t('packs.expiresAt', { date: format(new Date(pack.expires_at), 'dd MMM yyyy', { locale }) })}
+                      {pack.subscription_id && !isExpired
+                        ? (isFr
+                          ? `Cycle en cours jusqu'au ${format(new Date(pack.expires_at), 'dd MMM yyyy', { locale })}`
+                          : `Current cycle until ${format(new Date(pack.expires_at), 'dd MMM yyyy', { locale })}`)
+                        : t('packs.expiresAt', { date: format(new Date(pack.expires_at), 'dd MMM yyyy', { locale }) })}
                     </p>
                     <p className="text-muted-foreground">
                       {(pack.price_paid_cents / 100).toFixed(2).replace('.', ',')} €
@@ -530,7 +541,7 @@ export function MyPacksPage() {
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{isFr ? 'Résilier mon abonnement' : 'Cancel subscription'}</DialogTitle>
+            <DialogTitle>{isFr ? 'Arrêter la reconduction ?' : 'Stop auto-renewal?'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 text-sm">
