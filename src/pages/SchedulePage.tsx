@@ -502,22 +502,54 @@ export function SchedulePage() {
     const scheduledClass = classes.find((c) => c.id === classId)
     if (!scheduledClass?.class_type) { setBookingInProgress(null); return }
 
-    // Reactivate cancelled booking if one exists, else insert new
-    const { data: reactivated } = await supabase
-      .from('bookings')
-      .update({ status: 'confirmed', pack_purchase_id: packPurchaseId, cancelled_at: null })
-      .eq('scheduled_class_id', classId)
-      .eq('user_id', user.id)
-      .eq('status', 'cancelled')
-      .select()
-      .maybeSingle()
+    // Une seule opération : `book_class` vérifie et écrit dans la même
+    // transaction, sous verrou du cours.
+    //
+    // Elle remplace quatre allers-retours — réactivation d'une annulation,
+    // insertion, décompte du crédit — qui laissaient deux trous. Entre le
+    // contrôle des places et l'écriture, rien ne tenait : deux membres sur la
+    // dernière place passaient tous les deux. Et `consume_credit` renvoyant
+    // VOID, un décompte qui ne trouvait plus de crédit ne remontait aucune
+    // erreur : la réservation existait, rien n'était débité.
+    //
+    // Les contrôles faits plus haut dans `handleBook` restent utiles — ils
+    // expliquent au membre CE QUI bloque. Ils ne sont simplement plus ce sur
+    // quoi repose la justesse.
+    const { data: booked, error: bookError } = await supabase.rpc('book_class', {
+      p_class_id: classId,
+      p_pack_purchase_id: packPurchaseId,
+    })
 
-    if (!reactivated) {
-      const { error } = await supabase.from('bookings').insert({ scheduled_class_id: classId, user_id: user.id, pack_purchase_id: packPurchaseId })
-      if (error) { toast.error(error.message); setBookingInProgress(null); return }
+    if (bookError) { toast.error(bookError.message); setBookingInProgress(null); return }
+
+    if (!booked?.ok) {
+      // Le cours a pu se remplir, ou le crédit disparaître, pendant que la
+      // pop-up était ouverte. Nommer la cause plutôt qu'un « erreur » opaque.
+      const causes: Record<string, string> = {
+        class_full: isFr
+          ? 'Ce cours vient d\'afficher complet.'
+          : 'This class has just filled up.',
+        already_booked: isFr ? 'Vous êtes déjà inscrit à ce cours.' : 'You are already booked for this class.',
+        class_cancelled: isFr ? 'Ce cours a été annulé.' : 'This class has been cancelled.',
+        class_past: isFr ? 'Ce cours est déjà passé.' : 'This class has already passed.',
+        booking_closed: isFr
+          ? 'Les réservations sont fermées pour ce cours.'
+          : 'Bookings are closed for this class.',
+        no_credit: isFr
+          ? 'Aucun crédit disponible pour ce cours.'
+          : 'No credit available for this class.',
+      }
+      toast.error(causes[booked?.reason as string] ?? t('common.error'))
+      setBookingInProgress(null)
+      // Refermer la pop-up : son bouton ne peut plus aboutir, le laisser
+      // cliquable inviterait à réessayer indéfiniment.
+      setBookingConfirm(null)
+      // Le refus vient d'un état qui a changé depuis l'affichage : on relit,
+      // sinon l'écran continuerait d'annoncer une place qui n'existe plus.
+      fetchData()
+      return
     }
 
-    await supabase.rpc('consume_credit', { p_pack_purchase_id: packPurchaseId })
     await logActivity({
       action: 'booking_created', actor_id: user.id, target_user_id: user.id, entity_type: 'booking',
       details: { class_name: scheduledClass.class_type?.name, starts_at: scheduledClass.starts_at },
@@ -606,21 +638,26 @@ export function SchedulePage() {
     }
     const packPurchaseId = credits[0].pack_purchase_id
 
-    const { data: reactivated } = await supabase
-      .from('bookings')
-      .update({ status: 'confirmed', pack_purchase_id: packPurchaseId, cancelled_at: null })
-      .eq('scheduled_class_id', classId)
-      .eq('user_id', user.id)
-      .eq('status', 'cancelled')
-      .select()
-      .maybeSingle()
+    // Même passage par `book_class` que la réservation ordinaire. Le besoin y
+    // est encore plus net : accepter une place de liste d'attente, c'est se
+    // précipiter sur une place qui vient de se libérer — la situation même où
+    // deux personnes cliquent en même temps.
+    const { data: booked, error: bookError } = await supabase.rpc('book_class', {
+      p_class_id: classId,
+      p_pack_purchase_id: packPurchaseId,
+    })
 
-    if (!reactivated) {
-      const { error } = await supabase.from('bookings').insert({ scheduled_class_id: classId, user_id: user.id, pack_purchase_id: packPurchaseId })
-      if (error) { toast.error(error.message); setBookingInProgress(null); return }
+    if (bookError) { toast.error(bookError.message); setBookingInProgress(null); return }
+
+    if (!booked?.ok) {
+      toast.error(booked?.reason === 'class_full'
+        ? (isFr ? 'La place vient d\'être prise.' : 'The spot has just been taken.')
+        : t('common.error'))
+      setBookingInProgress(null)
+      fetchData()
+      return
     }
 
-    await supabase.rpc('consume_credit', { p_pack_purchase_id: packPurchaseId })
     await supabase.from('waitlist').update({ status: 'confirmed' }).eq('scheduled_class_id', classId).eq('user_id', user.id)
     setUserBookings((prev) => new Set([...prev, classId]))
     setUserWaitlist(prev => { const n = new Map(prev); n.delete(classId); return n })
