@@ -351,10 +351,10 @@ export function MyPacksPage() {
                 size="sm"
                 onClick={() => setCancelDialogOpen(true)}
               >
-                {/* « Résilier » est le terme du contrat ; « arrêter la
-                    reconduction » est ce que le membre cherche à faire. Le
-                    second dit aussi que rien n'est perdu tout de suite. */}
-                {isFr ? 'Arrêter la reconduction' : 'Stop auto-renewal'}
+                {/* « Résilier » seul fait craindre une coupure immédiate.
+                    Le libellé dit donc QUAND l'arrêt prend effet — c'est la
+                    seule question que se pose quelqu'un devant ce bouton. */}
+                {isFr ? 'Résilier à la fin de la période' : 'Cancel at period end'}
               </Button>
             )}
           </CardContent>
@@ -411,11 +411,15 @@ export function MyPacksPage() {
                         : t('packs.creditsRemaining', { count: pack.credits_remaining })}
                     </p>
                     {/* « Expire le » ferait croire à une fin sur un pack
-                        d'abonnement encore reconduit : ce n'est pas une
-                        échéance de fin, c'est celle du cycle en cours. Le mot
-                        n'est juste que sur un pack acheté à l'unité. */}
+                        d'abonnement : ce n'est pas une échéance de fin, c'est
+                        celle du cycle en cours. Le mot n'est juste que sur un
+                        pack acheté à l'unité.
+                        On se fie au TYPE de pack (`is_recurring`) et non à
+                        `subscription_id` : ce dernier reste vide sur un pack
+                        d'abonnement attribué à la main par le studio, qui
+                        affichait donc encore « Expire le ». */}
                     <p className="text-muted-foreground">
-                      {pack.subscription_id && !isExpired
+                      {pack.pack_type?.is_recurring && !isExpired
                         ? (isFr
                           ? `Cycle en cours jusqu'au ${format(new Date(pack.expires_at), 'dd MMM yyyy', { locale })}`
                           : `Current cycle until ${format(new Date(pack.expires_at), 'dd MMM yyyy', { locale })}`)
@@ -424,6 +428,18 @@ export function MyPacksPage() {
                     <p className="text-muted-foreground">
                       {(pack.price_paid_cents / 100).toFixed(2).replace('.', ',')} €
                     </p>
+                    {/* Un pack de formule récurrente SANS abonnement rattaché :
+                        le studio l'a attribué à la main, aucun prélèvement
+                        n'est programmé chez Stripe. Le dire, sinon le membre
+                        attend une reconduction qui ne viendra pas — et cherche
+                        un bouton de résiliation qui n'a rien à résilier. */}
+                    {pack.pack_type?.is_recurring && !pack.subscription_id && !isExpired && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {isFr
+                          ? 'Offert par le studio — non reconduit automatiquement.'
+                          : 'Granted by the studio — not renewed automatically.'}
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -541,14 +557,14 @@ export function MyPacksPage() {
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{isFr ? 'Arrêter la reconduction ?' : 'Stop auto-renewal?'}</DialogTitle>
+            <DialogTitle>{isFr ? 'Résilier à la fin de la période ?' : 'Cancel at period end?'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 text-sm">
             <p>
               {isFr
-                ? 'Le renouvellement automatique sera arrêté.'
-                : 'Automatic renewal will be stopped.'}
+                ? 'Rien ne s\'arrête aujourd\'hui : ton abonnement continue jusqu\'au bout de la période en cours, celle que tu as déjà payée. Seule la reconduction suivante est annulée.'
+                : 'Nothing stops today: your subscription runs to the end of the current period, the one you have already paid for. Only the next renewal is cancelled.'}
             </p>
             {subscription?.current_period_end && (
               <p className="font-medium">
