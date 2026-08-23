@@ -429,15 +429,26 @@ export function AdminPackTypesPage() {
               </div>
             </div>
             <div>
-              <Label>{t('admin.packTypes.validity')}</Label>
+              <Label className={form.is_recurring ? 'text-muted-foreground' : undefined}>
+                {t('admin.packTypes.validity')}
+              </Label>
               <Input
                 type="number"
                 min={1}
                 value={form.validity_weeks}
                 onChange={(e) => setForm(f => ({ ...f, validity_weeks: parseInt(e.target.value) || 1 }))}
+                disabled={form.is_recurring}
               />
+              {/* Grisé sur un abonnement : la fin du cycle facturé fait foi,
+                  ce champ n'y changerait rien. Laissé visible plutôt que
+                  masqué — décocher « Abonnement » le rend aussitôt utile, et
+                  le voir disparaître ferait croire à une perte de réglage. */}
               <p className="text-[11px] text-muted-foreground mt-1">
-                = {weeksToDays(form.validity_weeks)} {isFr ? 'jours' : 'days'}
+                {form.is_recurring
+                  ? (isFr
+                    ? 'Sans effet sur un abonnement — voir plus bas.'
+                    : 'No effect on a subscription — see below.')
+                  : `= ${weeksToDays(form.validity_weeks)} ${isFr ? 'jours' : 'days'}`}
               </p>
             </div>
             {/* Abonnement : renouvellement automatique par Stripe */}
@@ -500,17 +511,21 @@ export function AdminPackTypesPage() {
                     </p>
                   )}
 
-                  {form.validity_weeks * 7 !== (
-                    form.recurring_interval === 'week' ? form.recurring_interval_count * 7
-                      : form.recurring_interval === 'day' ? form.recurring_interval_count
-                        : form.recurring_interval_count * 30
-                  ) && (
-                    <p className="text-[11px] text-destructive">
-                      {isFr
-                        ? `La validité (${form.validity_weeks} sem.) ne correspond pas au cycle de prélèvement : les crédits expireraient avant ou après le renouvellement.`
-                        : `Validity (${form.validity_weeks} wk) does not match the billing cycle: credits would expire before or after renewal.`}
-                    </p>
-                  )}
+                  {/* Sur un abonnement, la validité saisie plus haut ne sert
+                      à RIEN : le webhook cale l'expiration du pack sur la fin
+                      du cycle facturé par Stripe (`periodEnd`), à la seconde
+                      près. `validity_days` n'est lu que pour un pack ponctuel.
+
+                      Un avertissement disait ici que les deux durées devaient
+                      concorder. Il annonçait un problème qui ne peut pas se
+                      produire — et devenait insoluble sur un cycle qui n'est
+                      pas un multiple de 7 jours, la validité se saisissant en
+                      semaines. Remplacé par ce qui est vrai. */}
+                  <p className="text-[11px] text-muted-foreground">
+                    {isFr
+                      ? 'La durée de validité saisie plus haut ne s\'applique pas ici : sur un abonnement, les crédits expirent à la fin du cycle payé, quelle qu\'en soit la durée.'
+                      : 'The validity set above does not apply here: on a subscription, credits expire at the end of the paid cycle, whatever its length.'}
+                  </p>
                 </div>
               )}
             </div>
