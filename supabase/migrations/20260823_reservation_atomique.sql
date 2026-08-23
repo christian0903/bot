@@ -219,5 +219,8 @@ $fn$;
 COMMENT ON FUNCTION book_class(UUID, UUID) IS
   'Réservation d''un membre pour lui-même : contrôles et écriture dans une seule transaction, sous verrou du cours. Pendant de book_member_by_staff. Renvoie {ok, booking_id, pack_purchase_id} ou {ok:false, reason}.';
 
-REVOKE ALL ON FUNCTION book_class(UUID, UUID) FROM PUBLIC;
+-- `FROM PUBLIC` serait sans effet : Supabase accorde EXECUTE NOMMEMENT a
+-- `anon` sur toute fonction du schema public, via ses DEFAULT PRIVILEGES.
+-- Le droit ne vient pas de PUBLIC, il faut donc viser le role lui-meme.
+REVOKE EXECUTE ON FUNCTION book_class(UUID, UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION book_class(UUID, UUID) TO authenticated;

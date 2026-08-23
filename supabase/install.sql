@@ -3331,6 +3331,10 @@ BEGIN
 END;
 $fn$;
 
+-- Inscription d'un tiers par le staff : jamais anonyme. Voir la note sur
+-- `anon` plus bas — `FROM PUBLIC` ne l'atteindrait pas.
+REVOKE EXECUTE ON FUNCTION book_member_by_staff(UUID, UUID, UUID) FROM anon;
+
 -- ============================================================================
 -- Réservation membre atomique : décider et écrire dans la même transaction
 -- ----------------------------------------------------------------------------
@@ -3552,7 +3556,10 @@ $fn$;
 COMMENT ON FUNCTION book_class(UUID, UUID) IS
   'Réservation d''un membre pour lui-même : contrôles et écriture dans une seule transaction, sous verrou du cours. Pendant de book_member_by_staff. Renvoie {ok, booking_id, pack_purchase_id} ou {ok:false, reason}.';
 
-REVOKE ALL ON FUNCTION book_class(UUID, UUID) FROM PUBLIC;
+-- `FROM PUBLIC` serait sans effet : Supabase accorde EXECUTE NOMMEMENT a
+-- `anon` sur toute fonction du schema public, via ses DEFAULT PRIVILEGES.
+-- Le droit ne vient pas de PUBLIC, il faut donc viser le role lui-meme.
+REVOKE EXECUTE ON FUNCTION book_class(UUID, UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION book_class(UUID, UUID) TO authenticated;
 
 -- ============================================================================
@@ -3646,7 +3653,10 @@ $fn$;
 COMMENT ON FUNCTION purge_activity_log(INTEGER) IS
   'Efface les entrées du journal antérieures à N mois (N >= 6). Réservée au super admin, se journalise elle-même. Renvoie {ok, deleted, cutoff} ou {ok:false, reason}.';
 
-REVOKE ALL ON FUNCTION purge_activity_log(INTEGER) FROM PUBLIC;
+-- `FROM PUBLIC` serait sans effet : Supabase accorde EXECUTE NOMMEMENT a
+-- `anon` sur toute fonction du schema public, via ses DEFAULT PRIVILEGES.
+-- Le droit ne vient pas de PUBLIC, il faut donc viser le role lui-meme.
+REVOKE EXECUTE ON FUNCTION purge_activity_log(INTEGER) FROM anon;
 GRANT EXECUTE ON FUNCTION purge_activity_log(INTEGER) TO authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -3679,7 +3689,10 @@ $fn$;
 COMMENT ON FUNCTION count_activity_log_before(INTEGER) IS
   'Nombre d''entrées du journal antérieures à N mois. NULL si l''appelant n''est pas super admin.';
 
-REVOKE ALL ON FUNCTION count_activity_log_before(INTEGER) FROM PUBLIC;
+-- `FROM PUBLIC` serait sans effet : Supabase accorde EXECUTE NOMMEMENT a
+-- `anon` sur toute fonction du schema public, via ses DEFAULT PRIVILEGES.
+-- Le droit ne vient pas de PUBLIC, il faut donc viser le role lui-meme.
+REVOKE EXECUTE ON FUNCTION count_activity_log_before(INTEGER) FROM anon;
 GRANT EXECUTE ON FUNCTION count_activity_log_before(INTEGER) TO authenticated;
 
 CREATE OR REPLACE FUNCTION decline_modified_booking(p_booking_id UUID)
