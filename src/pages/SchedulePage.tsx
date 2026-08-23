@@ -550,36 +550,57 @@ export function SchedulePage() {
       return
     }
 
-    await logActivity({
-      action: 'booking_created', actor_id: user.id, target_user_id: user.id, entity_type: 'booking',
-      details: { class_name: scheduledClass.class_type?.name, starts_at: scheduledClass.starts_at },
-      description: `Réservation: ${scheduledClass.class_type?.name} le ${format(new Date(scheduledClass.starts_at), 'dd/MM/yyyy HH:mm')}`,
-    })
+    // LA PLACE EST PRISE : on rend la main AVANT tout le reste.
+    //
+    // La fermeture de la pop-up venait autrefois en dernier, après le journal
+    // et la notification. Deux appels réseau accessoires suffisaient donc à
+    // laisser la fenêtre ouverte sur une réservation pourtant réussie — le
+    // membre voyait un bouton qui ne répondait plus et pouvait cliquer une
+    // seconde fois. Ce qui est acquis s'affiche maintenant tout de suite ;
+    // la trace et l'e-mail suivent, et leur échec ne concerne plus l'écran.
     setUserBookings((prev) => new Set([...prev, classId]))
     setBookingCounts(prev => { const n = new Map(prev); n.set(classId, (n.get(classId) ?? 0) + 1); return n })
-
-    // `email_on_self_booking` est une préférence d'E-MAIL : elle ne doit pas
-    // priver le membre de la trace dans l'application. Il a refusé un canal,
-    // pas l'information.
-    await notifyMember({
-      userId: user.id,
-      title: isFr ? 'Réservation confirmée' : 'Booking confirmed',
-      message: isFr
-        ? `${scheduledClass.class_type?.name} — ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}`
-        : `${scheduledClass.class_type?.name} — ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'at' HH:mm", { locale })}`,
-      type: 'success',
-      link: '/my-bookings',
-      email: {
-        to: user.email,
-        template: 'booking_confirmed',
-        vars: classEmailVars(scheduledClass, profile?.display_name ?? ''),
-        optOut: !profile?.email_on_self_booking,
-      },
-    })
-
-    toast.success(t('schedule.bookingConfirmed'))
     setBookingInProgress(null)
     setBookingConfirm(null)
+
+    toast.success(
+      isFr
+        ? `Séance réservée — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}`
+        : `Class booked — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'at' HH:mm", { locale })}`,
+    )
+
+    // Journal, notification, e-mail : utiles, jamais bloquants. Un `catch` les
+    // isole — une panne d'envoi ne doit pas faire croire à un échec de la
+    // réservation, qui est déjà enregistrée en base.
+    try {
+      await logActivity({
+        action: 'booking_created', actor_id: user.id, target_user_id: user.id, entity_type: 'booking',
+        details: { class_name: scheduledClass.class_type?.name, starts_at: scheduledClass.starts_at },
+        description: `Réservation: ${scheduledClass.class_type?.name} le ${format(new Date(scheduledClass.starts_at), 'dd/MM/yyyy HH:mm')}`,
+      })
+
+      // `email_on_self_booking` est une préférence d'E-MAIL : elle ne doit pas
+      // priver le membre de la trace dans l'application. Il a refusé un canal,
+      // pas l'information.
+      await notifyMember({
+        userId: user.id,
+        title: isFr ? 'Réservation confirmée' : 'Booking confirmed',
+        message: isFr
+          ? `${scheduledClass.class_type?.name} — ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}`
+          : `${scheduledClass.class_type?.name} — ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'at' HH:mm", { locale })}`,
+        type: 'success',
+        link: '/my-bookings',
+        email: {
+          to: user.email,
+          template: 'booking_confirmed',
+          vars: classEmailVars(scheduledClass, profile?.display_name ?? ''),
+          optOut: !profile?.email_on_self_booking,
+        },
+      })
+    } catch (e) {
+      console.error('[reservation] trace ou notification en echec:', e)
+    }
+
     // Les compteurs ont bougé : on relit pour que la prochaine réservation
     // propose l'état réel des sources.
     fetchData()
@@ -594,13 +615,18 @@ export function SchedulePage() {
     const position = posData ?? 1
     const { error } = await supabase.from('waitlist').insert({ scheduled_class_id: classId, user_id: user.id, position })
     if (error) { toast.error(error.message) } else {
-      await logActivity({
-        action: 'waitlist_joined', actor_id: user.id, target_user_id: user.id, entity_type: 'scheduled_class', entity_id: classId,
-        details: { class_name: sc?.class_type?.name, position },
-        description: `Liste d'attente (position ${position}): ${sc?.class_type?.name} le ${sc ? format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm') : ''}`,
-      })
+      // L'inscription est faite : on l'affiche avant de la journaliser.
       setUserWaitlist(prev => new Map(prev).set(classId, { id: '', position, status: 'waiting' }))
       toast.success(t('schedule.waitlistJoined', { position }))
+      try {
+        await logActivity({
+          action: 'waitlist_joined', actor_id: user.id, target_user_id: user.id, entity_type: 'scheduled_class', entity_id: classId,
+          details: { class_name: sc?.class_type?.name, position },
+          description: `Liste d'attente (position ${position}): ${sc?.class_type?.name} le ${sc ? format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm') : ''}`,
+        })
+      } catch (e) {
+        console.error('[liste attente] trace en echec:', e)
+      }
     }
     setBookingInProgress(null)
   }
@@ -659,27 +685,34 @@ export function SchedulePage() {
     }
 
     await supabase.from('waitlist').update({ status: 'confirmed' }).eq('scheduled_class_id', classId).eq('user_id', user.id)
+
+    // La place est prise : on rend la main tout de suite, comme pour une
+    // réservation ordinaire. La notification qui suit ne doit pas retenir le
+    // bouton si son envoi échoue.
     setUserBookings((prev) => new Set([...prev, classId]))
     setUserWaitlist(prev => { const n = new Map(prev); n.delete(classId); return n })
-
-    await notifyMember({
-      userId: user.id,
-      title: isFr ? 'Place confirmée' : 'Spot confirmed',
-      message: isFr
-        ? `Tu as pris la place libérée — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}`
-        : `You took the freed spot — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'at' HH:mm", { locale })}`,
-      type: 'success',
-      link: '/my-bookings',
-      email: {
-        to: user.email,
-        template: 'booking_confirmed',
-        vars: classEmailVars(scheduledClass, profile?.display_name ?? ''),
-        optOut: !profile?.email_on_self_booking,
-      },
-    })
-
-    toast.success(t('schedule.spotConfirmed'))
     setBookingInProgress(null)
+    toast.success(t('schedule.spotConfirmed'))
+
+    try {
+      await notifyMember({
+        userId: user.id,
+        title: isFr ? 'Place confirmée' : 'Spot confirmed',
+        message: isFr
+          ? `Tu as pris la place libérée — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}`
+          : `You took the freed spot — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'at' HH:mm", { locale })}`,
+        type: 'success',
+        link: '/my-bookings',
+        email: {
+          to: user.email,
+          template: 'booking_confirmed',
+          vars: classEmailVars(scheduledClass, profile?.display_name ?? ''),
+          optOut: !profile?.email_on_self_booking,
+        },
+      })
+    } catch (e) {
+      console.error('[liste attente] notification en echec:', e)
+    }
   }
 
   // ---- Trial session handler ----
@@ -731,17 +764,22 @@ export function SchedulePage() {
       return
     }
 
-    await logActivity({
-      action: 'trial_booked', actor_id: user.id, target_user_id: user.id, entity_type: 'booking',
-      details: { class_name: sc.class_type?.name, starts_at: sc.starts_at },
-      description: `Séance d'essai: ${sc.class_type?.name} le ${format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm')}`,
-    })
-
+    // Réservée : on rend la main, puis on journalise.
     setBookingCounts(prev => { const n = new Map(prev); n.set(classId, (n.get(classId) ?? 0) + 1); return n })
     setUserBookings((prev) => new Set([...prev, classId]))
+    setBookingInProgress(null)
     toast.success(isFr ? 'Séance d\'essai réservée !' : 'Trial session booked!')
     refreshProfile()
-    setBookingInProgress(null)
+
+    try {
+      await logActivity({
+        action: 'trial_booked', actor_id: user.id, target_user_id: user.id, entity_type: 'booking',
+        details: { class_name: sc.class_type?.name, starts_at: sc.starts_at },
+        description: `Séance d'essai: ${sc.class_type?.name} le ${format(new Date(sc.starts_at), 'dd/MM/yyyy HH:mm')}`,
+      })
+    } catch (e) {
+      console.error('[essai] trace en echec:', e)
+    }
   }
 
   // L'essai se propose à qui détient encore son crédit d'essai — c'est la
