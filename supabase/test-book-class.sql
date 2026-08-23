@@ -1,50 +1,74 @@
 -- ============================================================================
--- Éprouver `book_class` — à exécuter dans le SQL Editor, sur la base de TEST
+-- Éprouver `book_class` — SQL Editor de Supabase, sur la base de TEST
 -- ----------------------------------------------------------------------------
+-- COMMENT LIRE LE RÉSULTAT
+--
+-- Le script affiche un TABLEAU à la fin — le SQL Editor de Supabase n'affiche
+-- pas les messages `NOTICE`, seulement les lignes retournées. Une ligne par
+-- cas, avec une colonne `verdict` qui vaut `OK` ou `ECHEC`, et une dernière
+-- ligne de synthèse.
+--
+-- Ce qu'on veut voir : `verdict = OK` partout, et une dernière ligne
+-- « TOUS LES CAS SONT PASSES ».
+--
 -- Tout se déroule dans une transaction terminée par ROLLBACK : rien ne
--- persiste, ni les cours créés, ni les réservations, ni les crédits décomptés.
--- On peut le relancer autant de fois qu'on veut.
+-- persiste — ni les cours créés, ni les réservations, ni les crédits
+-- décomptés. Relançable autant de fois qu'on veut.
 --
--- CE QUE CE SCRIPT NE PEUT PAS FAIRE : `book_class` lit `auth.uid()`, que le
--- SQL Editor ne renseigne pas. On la teste donc en simulant le JWT par
--- `SET LOCAL request.jwt.claims`, ce que fait déjà Supabase en interne.
+-- `book_class` lit `auth.uid()`, que le SQL Editor ne renseigne pas : on
+-- simule le JWT par `set_config('request.jwt.claims', …)`, exactement ce que
+-- fait Supabase en interne.
 --
--- Le vrai test de concurrence (deux membres sur la dernière place) ne se joue
--- pas ici : il demande deux sessions simultanées. Voir la note en fin de
--- fichier.
+-- Le test du VERROU (deux membres sur la dernière place) ne se joue pas ici :
+-- il demande deux sessions simultanées. Procédure en fin de fichier.
 -- ============================================================================
 
 BEGIN;
 
--- ---------------------------------------------------------------------------
--- Décor : un membre, un type de cours, un cours à 1 place, un pack de 1 crédit
--- ---------------------------------------------------------------------------
+-- Les résultats s'accumulent ici, et sont affichés à la fin. Une table
+-- temporaire disparaît d'elle-même avec la transaction.
+CREATE TEMP TABLE resultat (
+  ordre    INTEGER,
+  cas      TEXT,
+  verdict  TEXT,
+  detail   TEXT
+) ON COMMIT DROP;
+
 DO $$
 DECLARE
   v_user       UUID;
+  v_other      UUID;
   v_credit_ty  UUID;
   v_class_ty   UUID;
   v_pack_ty    UUID;
   v_class      UUID;
+  v_class2     UUID;
   v_pack       UUID;
+  v_other_pack UUID;
   v_res        JSONB;
   v_left       INTEGER;
   v_count      INTEGER;
 BEGIN
-  -- Un membre réel de la base de test : on prend le premier venu plutôt que
-  -- d'en créer un (auth.users est géré par Supabase, pas par nous).
-  SELECT id INTO v_user FROM profiles LIMIT 1;
+  -- ---------------------------------------------------------------------
+  -- Décor
+  -- ---------------------------------------------------------------------
+  SELECT id INTO v_user FROM profiles ORDER BY created_at LIMIT 1;
   IF v_user IS NULL THEN
-    RAISE EXCEPTION 'Aucun profil en base : impossible de tester';
+    INSERT INTO resultat VALUES (0, 'Décor', 'ECHEC', 'Aucun profil en base');
+    RETURN;
   END IF;
 
   SELECT id INTO v_credit_ty FROM credit_types LIMIT 1;
+  IF v_credit_ty IS NULL THEN
+    INSERT INTO resultat VALUES (0, 'Décor', 'ECHEC', 'Aucun credit_type en base');
+    RETURN;
+  END IF;
 
   INSERT INTO class_types (name, credit_type_id, default_max_participants)
   VALUES ('TEST book_class', v_credit_ty, 4)
   RETURNING id INTO v_class_ty;
 
-  -- UNE seule place : c'est ce qui rend le test de capacité concluant.
+  -- Une seule place : c'est ce qui rendra le test de capacité concluant.
   INSERT INTO scheduled_classes (class_type_id, starts_at, max_participants)
   VALUES (v_class_ty, NOW() + INTERVAL '7 days', 1)
   RETURNING id INTO v_class;
@@ -57,198 +81,186 @@ BEGIN
   VALUES (v_user, v_pack_ty, 1, 1000, NOW() + INTERVAL '90 days')
   RETURNING id INTO v_pack;
 
-  -- Se faire passer pour ce membre, comme le fait PostgREST.
+  -- Se faire passer pour ce membre, comme PostgREST le fait.
   PERFORM set_config('request.jwt.claims',
                      json_build_object('sub', v_user, 'role', 'authenticated')::TEXT,
                      true);
 
-  RAISE NOTICE '--- Décor posé : membre %, cours % (1 place), pack % (1 crédit)',
-    v_user, v_class, v_pack;
+  INSERT INTO resultat VALUES (0, 'Décor posé', 'OK',
+    'membre ' || LEFT(v_user::TEXT, 8) || ' · cours à 1 place · pack de 1 crédit');
 
-  -- -------------------------------------------------------------------------
+  -- ---------------------------------------------------------------------
   -- 1. Réservation nominale
-  -- -------------------------------------------------------------------------
+  -- ---------------------------------------------------------------------
   v_res := book_class(v_class, v_pack);
-  RAISE NOTICE '1. Réservation nominale       : %', v_res;
-
-  IF (v_res->>'ok')::BOOLEAN IS NOT TRUE THEN
-    RAISE EXCEPTION 'ÉCHEC : la réservation nominale aurait dû réussir (%)', v_res;
-  END IF;
-
   SELECT credits_remaining INTO v_left FROM pack_purchases WHERE id = v_pack;
-  IF v_left <> 0 THEN
-    RAISE EXCEPTION 'ÉCHEC : crédit non décompté (reste %, attendu 0)', v_left;
-  END IF;
-  RAISE NOTICE '   crédit décompté : 1 -> 0                          [OK]';
 
-  -- -------------------------------------------------------------------------
-  -- 2. Deuxième réservation du même membre sur le même cours
-  --    Attendu : refus `already_booked`, et AUCUN crédit reperdu.
-  -- -------------------------------------------------------------------------
+  INSERT INTO resultat VALUES (1, 'Réservation nominale',
+    CASE WHEN (v_res->>'ok')::BOOLEAN AND v_left = 0 THEN 'OK' ELSE 'ECHEC' END,
+    'retour=' || v_res::TEXT || ' · crédits restants=' || v_left || ' (attendu 0)');
+
+  -- ---------------------------------------------------------------------
+  -- 2. Le même membre, le même cours : refus, sans reperdre de crédit
+  -- ---------------------------------------------------------------------
   v_res := book_class(v_class, v_pack);
-  RAISE NOTICE '2. Double réservation         : %', v_res;
+  SELECT credits_remaining INTO v_left FROM pack_purchases WHERE id = v_pack;
 
-  IF (v_res->>'ok')::BOOLEAN IS NOT FALSE OR v_res->>'reason' <> 'already_booked' THEN
-    RAISE EXCEPTION 'ÉCHEC : attendu already_booked, reçu %', v_res;
-  END IF;
-  RAISE NOTICE '   refus already_booked                              [OK]';
+  INSERT INTO resultat VALUES (2, 'Double réservation',
+    CASE WHEN v_res->>'reason' = 'already_booked' AND v_left = 0 THEN 'OK' ELSE 'ECHEC' END,
+    'attendu already_booked · reçu ' || COALESCE(v_res->>'reason', '(ok:true !)'));
 
-  -- -------------------------------------------------------------------------
-  -- 3. Le crédit est à zéro : une réservation sur un AUTRE cours doit être
-  --    refusée, et surtout ne rien écrire.
-  -- -------------------------------------------------------------------------
+  -- ---------------------------------------------------------------------
+  -- 3. Plus de crédit : refus, et SURTOUT aucune réservation écrite
+  -- ---------------------------------------------------------------------
   INSERT INTO scheduled_classes (class_type_id, starts_at, max_participants)
   VALUES (v_class_ty, NOW() + INTERVAL '8 days', 5)
-  RETURNING id INTO v_class;
+  RETURNING id INTO v_class2;
 
-  v_res := book_class(v_class, v_pack);
-  RAISE NOTICE '3. Sans crédit restant        : %', v_res;
-
-  IF (v_res->>'ok')::BOOLEAN IS NOT FALSE OR v_res->>'reason' <> 'no_credit' THEN
-    RAISE EXCEPTION 'ÉCHEC : attendu no_credit, reçu %', v_res;
-  END IF;
+  v_res := book_class(v_class2, v_pack);
 
   SELECT COUNT(*) INTO v_count
-    FROM bookings WHERE scheduled_class_id = v_class AND user_id = v_user;
-  IF v_count <> 0 THEN
-    RAISE EXCEPTION 'ÉCHEC GRAVE : réservation écrite sans crédit (% lignes)', v_count;
-  END IF;
-  RAISE NOTICE '   refus no_credit, aucune réservation écrite        [OK]';
-
+    FROM bookings WHERE scheduled_class_id = v_class2 AND user_id = v_user;
   SELECT credits_remaining INTO v_left FROM pack_purchases WHERE id = v_pack;
-  IF v_left <> 0 THEN
-    RAISE EXCEPTION 'ÉCHEC : crédit passé en négatif ou modifié (%)', v_left;
+
+  INSERT INTO resultat VALUES (3, 'Sans crédit restant',
+    CASE WHEN v_res->>'reason' = 'no_credit' AND v_count = 0 AND v_left = 0
+         THEN 'OK' ELSE 'ECHEC' END,
+    'attendu no_credit · reçu ' || COALESCE(v_res->>'reason', '(ok:true !)')
+      || ' · réservations écrites=' || v_count || ' (attendu 0)'
+      || ' · crédits=' || v_left || ' (attendu 0, jamais négatif)');
+
+  -- ---------------------------------------------------------------------
+  -- 4. Le pack d'un AUTRE membre ne doit jamais être consommable
+  -- ---------------------------------------------------------------------
+  SELECT id INTO v_other FROM profiles WHERE id <> v_user LIMIT 1;
+
+  IF v_other IS NULL THEN
+    INSERT INTO resultat VALUES (4, 'Pack d''un autre membre', 'IGNORE',
+      'un seul profil en base, cas non jouable');
+  ELSE
+    INSERT INTO pack_purchases (user_id, pack_type_id, credits_remaining, price_paid_cents, expires_at)
+    VALUES (v_other, v_pack_ty, 10, 1000, NOW() + INTERVAL '90 days')
+    RETURNING id INTO v_other_pack;
+
+    v_res := book_class(v_class2, v_other_pack);
+    SELECT credits_remaining INTO v_left FROM pack_purchases WHERE id = v_other_pack;
+
+    INSERT INTO resultat VALUES (4, 'Pack d''un autre membre',
+      CASE WHEN (v_res->>'ok')::BOOLEAN IS NOT TRUE AND v_left = 10
+           THEN 'OK' ELSE 'ECHEC' END,
+      'refus attendu · reçu ' || COALESCE(v_res->>'reason', '(ok:true — FAILLE)')
+        || ' · crédits d''autrui=' || v_left || ' (attendu 10, intacts)');
   END IF;
-  RAISE NOTICE '   crédit resté à 0, jamais négatif                  [OK]';
 
-  -- -------------------------------------------------------------------------
-  -- 4. Pack d'un AUTRE membre : ne doit jamais être consommable.
-  -- -------------------------------------------------------------------------
-  DECLARE
-    v_other      UUID;
-    v_other_pack UUID;
-  BEGIN
-    SELECT id INTO v_other FROM profiles WHERE id <> v_user LIMIT 1;
-
-    IF v_other IS NOT NULL THEN
-      INSERT INTO pack_purchases (user_id, pack_type_id, credits_remaining, price_paid_cents, expires_at)
-      VALUES (v_other, v_pack_ty, 10, 1000, NOW() + INTERVAL '90 days')
-      RETURNING id INTO v_other_pack;
-
-      v_res := book_class(v_class, v_other_pack);
-      RAISE NOTICE '4. Pack d''un autre membre     : %', v_res;
-
-      IF (v_res->>'ok')::BOOLEAN IS NOT FALSE THEN
-        RAISE EXCEPTION 'ÉCHEC DE SÉCURITÉ : pack d''autrui consommé (%)', v_res;
-      END IF;
-
-      SELECT credits_remaining INTO v_left FROM pack_purchases WHERE id = v_other_pack;
-      IF v_left <> 10 THEN
-        RAISE EXCEPTION 'ÉCHEC DE SÉCURITÉ : crédits d''autrui touchés (%)', v_left;
-      END IF;
-      RAISE NOTICE '   refusé, crédits d''autrui intacts                  [OK]';
-    ELSE
-      RAISE NOTICE '4. Pack d''un autre membre     : IGNORÉ (un seul profil en base)';
-    END IF;
-  END;
-
-  -- -------------------------------------------------------------------------
-  -- 5. Cours annulé
-  -- -------------------------------------------------------------------------
+  -- ---------------------------------------------------------------------
+  -- 5. Cours annulé : refus, sans décompter
+  -- ---------------------------------------------------------------------
   UPDATE pack_purchases SET credits_remaining = 5 WHERE id = v_pack;
-  UPDATE scheduled_classes SET is_cancelled = TRUE WHERE id = v_class;
+  UPDATE scheduled_classes SET is_cancelled = TRUE WHERE id = v_class2;
 
-  v_res := book_class(v_class, v_pack);
-  RAISE NOTICE '5. Cours annulé               : %', v_res;
-
-  IF (v_res->>'ok')::BOOLEAN IS NOT FALSE OR v_res->>'reason' <> 'class_cancelled' THEN
-    RAISE EXCEPTION 'ÉCHEC : attendu class_cancelled, reçu %', v_res;
-  END IF;
-
+  v_res := book_class(v_class2, v_pack);
   SELECT credits_remaining INTO v_left FROM pack_purchases WHERE id = v_pack;
-  IF v_left <> 5 THEN
-    RAISE EXCEPTION 'ÉCHEC : crédit décompté sur un refus (%)', v_left;
-  END IF;
-  RAISE NOTICE '   refusé, crédit non décompté                       [OK]';
 
-  -- -------------------------------------------------------------------------
+  INSERT INTO resultat VALUES (5, 'Cours annulé',
+    CASE WHEN v_res->>'reason' = 'class_cancelled' AND v_left = 5
+         THEN 'OK' ELSE 'ECHEC' END,
+    'attendu class_cancelled · reçu ' || COALESCE(v_res->>'reason', '(ok:true !)')
+      || ' · crédits=' || v_left || ' (attendu 5, non décomptés)');
+
+  -- ---------------------------------------------------------------------
   -- 6. Cours déjà passé
-  -- -------------------------------------------------------------------------
+  -- ---------------------------------------------------------------------
   UPDATE scheduled_classes
      SET is_cancelled = FALSE, starts_at = NOW() - INTERVAL '1 day'
-   WHERE id = v_class;
+   WHERE id = v_class2;
 
-  v_res := book_class(v_class, v_pack);
-  RAISE NOTICE '6. Cours passé                : %', v_res;
+  v_res := book_class(v_class2, v_pack);
 
-  IF (v_res->>'ok')::BOOLEAN IS NOT FALSE THEN
-    RAISE EXCEPTION 'ÉCHEC : un cours passé ne doit pas être réservable (%)', v_res;
-  END IF;
-  RAISE NOTICE '   refusé                                            [OK]';
+  INSERT INTO resultat VALUES (6, 'Cours passé',
+    CASE WHEN (v_res->>'ok')::BOOLEAN IS NOT TRUE THEN 'OK' ELSE 'ECHEC' END,
+    'refus attendu · reçu ' || COALESCE(v_res->>'reason', '(ok:true !)'));
 
-  -- -------------------------------------------------------------------------
-  -- 7. Sans source imposée : la fonction choisit elle-même le pack
-  -- -------------------------------------------------------------------------
+  -- ---------------------------------------------------------------------
+  -- 7. Sans source imposée : la fonction choisit le pack elle-même
+  -- ---------------------------------------------------------------------
   INSERT INTO scheduled_classes (class_type_id, starts_at, max_participants)
   VALUES (v_class_ty, NOW() + INTERVAL '9 days', 5)
-  RETURNING id INTO v_class;
+  RETURNING id INTO v_class2;
 
-  v_res := book_class(v_class);   -- p_pack_purchase_id omis
-  RAISE NOTICE '7. Choix automatique du pack  : %', v_res;
+  v_res := book_class(v_class2);   -- second paramètre omis
 
-  IF (v_res->>'ok')::BOOLEAN IS NOT TRUE THEN
-    RAISE EXCEPTION 'ÉCHEC : la fonction aurait dû choisir un pack (%)', v_res;
-  END IF;
-  RAISE NOTICE '   pack choisi : %                    [OK]', v_res->>'pack_purchase_id';
+  INSERT INTO resultat VALUES (7, 'Choix automatique du pack',
+    CASE WHEN (v_res->>'ok')::BOOLEAN THEN 'OK' ELSE 'ECHEC' END,
+    'pack choisi=' || COALESCE(LEFT(v_res->>'pack_purchase_id', 8), 'aucun')
+      || ' · ' || COALESCE(v_res->>'reason', 'réservé'));
 
-  -- -------------------------------------------------------------------------
-  -- 8. Réactivation d'une annulation plutôt qu'une deuxième ligne
-  -- -------------------------------------------------------------------------
-  UPDATE bookings
-     SET status = 'cancelled', cancelled_at = NOW()
-   WHERE scheduled_class_id = v_class AND user_id = v_user;
-
+  -- ---------------------------------------------------------------------
+  -- 8. Après annulation : réactiver, pas créer une seconde ligne
+  -- ---------------------------------------------------------------------
+  UPDATE bookings SET status = 'cancelled', cancelled_at = NOW()
+   WHERE scheduled_class_id = v_class2 AND user_id = v_user;
   UPDATE pack_purchases SET credits_remaining = 5 WHERE id = v_pack;
 
-  v_res := book_class(v_class, v_pack);
-  RAISE NOTICE '8. Après annulation           : %', v_res;
-
-  IF (v_res->>'ok')::BOOLEAN IS NOT TRUE THEN
-    RAISE EXCEPTION 'ÉCHEC : la réservation aurait dû être réactivée (%)', v_res;
-  END IF;
+  v_res := book_class(v_class2, v_pack);
 
   SELECT COUNT(*) INTO v_count
-    FROM bookings WHERE scheduled_class_id = v_class AND user_id = v_user;
-  IF v_count <> 1 THEN
-    RAISE EXCEPTION 'ÉCHEC : % lignes au lieu d''une seule (réactivation ratée)', v_count;
-  END IF;
-  RAISE NOTICE '   réactivée, une seule ligne en base                [OK]';
+    FROM bookings WHERE scheduled_class_id = v_class2 AND user_id = v_user;
 
-  RAISE NOTICE '';
-  RAISE NOTICE '=====================================================';
-  RAISE NOTICE '  TOUS LES CAS SONT PASSÉS';
-  RAISE NOTICE '=====================================================';
+  INSERT INTO resultat VALUES (8, 'Réservation après annulation',
+    CASE WHEN (v_res->>'ok')::BOOLEAN AND v_count = 1 THEN 'OK' ELSE 'ECHEC' END,
+    'réactivation attendue · lignes en base=' || v_count || ' (attendu 1)');
+
+EXCEPTION WHEN OTHERS THEN
+  -- Une exception inattendue est un résultat comme un autre : on la consigne
+  -- plutôt que de laisser le SQL Editor afficher une erreur nue.
+  --
+  -- À SAVOIR : un bloc `EXCEPTION` ouvre une sous-transaction. Si on arrive
+  -- ici, tout ce que les cas précédents avaient écrit dans `resultat` est
+  -- annulé avec le reste — le tableau n'affichera donc que CETTE ligne.
+  -- C'est voulu : le message d'erreur est alors la seule chose qui compte,
+  -- et il nomme le cas fautif. Les cas déjà passés se reverront au prochain
+  -- lancement, une fois la cause corrigée.
+  INSERT INTO resultat VALUES (99, 'ERREUR INATTENDUE', 'ECHEC',
+    SQLERRM || ' (SQLSTATE ' || SQLSTATE || ')');
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- LE TABLEAU — c'est ce que le SQL Editor affiche
+-- ---------------------------------------------------------------------------
+SELECT ordre AS "#", cas AS "Cas testé", verdict AS "Verdict", detail AS "Détail"
+FROM resultat
+
+UNION ALL
+
+SELECT 999, '── SYNTHÈSE ──',
+       CASE WHEN EXISTS (SELECT 1 FROM resultat WHERE verdict = 'ECHEC')
+            THEN 'ECHEC'
+            ELSE 'TOUS LES CAS SONT PASSES' END,
+       (SELECT COUNT(*)::TEXT FROM resultat WHERE verdict = 'OK') || ' OK · ' ||
+       (SELECT COUNT(*)::TEXT FROM resultat WHERE verdict = 'ECHEC') || ' échec(s) · ' ||
+       (SELECT COUNT(*)::TEXT FROM resultat WHERE verdict = 'IGNORE') || ' ignoré(s)'
+
+ORDER BY 1;
 
 ROLLBACK;   -- rien ne persiste
 
 -- ============================================================================
 -- LE TEST QUI MANQUE : deux réservations vraiment simultanées
 -- ----------------------------------------------------------------------------
--- Le script ci-dessus vérifie la logique, pas le verrou : une transaction
--- unique ne peut pas entrer en concurrence avec elle-même.
+-- Le script ci-dessus vérifie la logique, pas le verrou : une transaction ne
+-- peut pas entrer en concurrence avec elle-même.
 --
--- Pour éprouver le verrou, il faut DEUX sessions SQL ouvertes en même temps
--- (deux onglets du SQL Editor), sur un cours à UNE place :
+-- Pour éprouver le verrou, il faut DEUX onglets du SQL Editor ouverts en même
+-- temps, sur un cours à UNE place :
 --
---   Session A                          Session B
---   ---------                          ---------
+--   Onglet A                           Onglet B
+--   --------                           --------
 --   BEGIN;
 --   SELECT book_class('<cours>');
 --   -- ne pas valider tout de suite
 --                                      BEGIN;
 --                                      SELECT book_class('<cours>');
---                                      -- ATTEND (verrou pris par A)
+--                                      -- ATTEND (verrou tenu par A)
 --   COMMIT;
 --                                      -- se débloque et répond
 --                                      -- {"ok":false,"reason":"class_full"}
@@ -256,5 +268,5 @@ ROLLBACK;   -- rien ne persiste
 --
 -- Le comportement attendu est que B ATTENDE pendant que A tient le verrou,
 -- puis se voie refuser la place. Sans le verrou, B répondrait immédiatement
--- `ok:true` et le cours partirait à deux inscrits pour une place.
+-- `ok:true` et le cours partirait à deux inscrits pour une seule place.
 -- ============================================================================
