@@ -145,6 +145,62 @@ puis après clic bascule complète, purge de l'ancien cache et rechargement.
 version réellement en attente. La faire disparaître laisserait le membre sur du
 code périmé en croyant l'inverse.
 
+### Confirmation d'inscription : aucun moyen de relancer l'e-mail
+
+Signalé par Christian en préparant la phase de test, et c'est bloquant pour un
+testeur : l'inscription envoie un e-mail de confirmation, la connexion est
+refusée tant qu'il n'est pas cliqué, et **rien nulle part ne permettait d'en
+redemander un**. Un e-mail tombé dans les indésirables et le testeur restait
+dehors, sans recours.
+
+**Deux points d'entrée, parce qu'il y a deux situations.** L'écran affiché juste
+après l'inscription reçoit un bouton « Renvoyer l'e-mail ». Mais celui qui a
+fermé cette page ne la reverra jamais : c'est le cas le plus probable quelques
+heures plus tard. Le refus de connexion pour non-confirmation ouvre donc un
+encart avec le même bouton — jusque-là, ce refus n'affichait qu'un toast, c'est
+à dire une impasse.
+
+**Le message de succès ne dit pas si l'adresse existe.** Supabase répond sans
+erreur pour une adresse inconnue, et c'est volontaire de sa part : distinguer
+les deux cas ici transformerait le bouton en moyen de savoir qui est inscrit au
+studio. D'où « Si un compte existe pour cette adresse… ».
+
+La seule erreur qui mérite d'être montrée est la limite de cadence — Supabase
+impose une minute entre deux envois. Sans ce message, le membre reclique en
+croyant que rien ne part.
+
+**`signUp` ne passait pas `emailRedirectTo`**, contrairement à `resetPassword` et
+au changement d'adresse dans le profil. Le lien de confirmation partait donc vers
+l'URL configurée côté Supabase, qui n'est pas forcément l'origine réelle. Les
+deux e-mails — premier envoi et renvoi — visent maintenant la même destination,
+via un `urlApplication()` qui reprend le motif déjà en place dans `ProfilePage` :
+toujours l'URL de production quand elle est connue, sans quoi une inscription
+faite depuis le serveur de développement enverrait un lien vers `localhost`,
+inutilisable depuis le téléphone qui reçoit l'e-mail.
+
+Éprouvé de bout en bout sur un compte de test jetable, supprimé ensuite : refus
+pour identifiants invalides (pas d'encart), refus pour non-confirmation (encart
+et bouton), renvoi trop rapproché (message de cadence), renvoi accepté.
+
+**Reste ouvert** : une adresse mal saisie à l'inscription n'a pas de rattrapage
+dans l'application — le renvoi repartirait au même endroit. L'écran le dit et
+renvoie vers le studio ; un vrai correctif demanderait de pouvoir changer
+l'adresse d'un compte non confirmé.
+
+### Le numéro de version, visible sans défiler
+
+Il n'était affiché qu'en **pied de page** — hors de vue sur téléphone, où la
+barre de navigation le recouvre en partie. Or c'est le premier renseignement à
+demander à un testeur qui signale un problème : un numéro inférieur à celui
+déployé, et le bug est probablement déjà corrigé.
+
+Déplacé dans l'en-tête, à côté du logo, donc visible sur **toutes** les pages —
+l'espace admin compris, ses routes étant imbriquées dans `Layout`. Il reste
+affiché sous 640 px, là où le nom du studio est masqué : c'est précisément
+l'écran d'un iPhone.
+
+Le pied de page garde le sien : il sert au membre ordinaire, pas au testeur.
+
 ### Ce qu'il reste à savoir sur la PWA
 
 - **Les notifications push** ne fonctionnent sur iOS qu'une fois l'application

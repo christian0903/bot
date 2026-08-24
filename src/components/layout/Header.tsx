@@ -18,6 +18,9 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { Menu, User, LogOut, Settings, Shield, Dumbbell, Gift } from 'lucide-react'
 
+/** Injectée au build depuis package.json (cf. vite.config.ts). */
+declare const __APP_VERSION__: string
+
 const ROLE_COLORS: Record<string, string> = {
   super_admin: 'bg-red-500/15 text-red-600 border-red-500/30',
   admin: 'bg-purple-500/15 text-purple-600 border-purple-500/30',
@@ -92,6 +95,13 @@ export function Header() {
         <Link to="/" className="flex items-center gap-2 mr-6">
           <Dumbbell className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg hidden sm:inline">{t('app.name')}</span>
+          {/* Visible sur toutes les pages, sans défiler : c'est le premier
+              renseignement à demander à un testeur qui signale un problème, et
+              le pied de page est hors de vue sur téléphone. Reste affiché sous
+              640px, où le nom du studio disparaît. */}
+          <span className="text-[11px] font-normal text-muted-foreground tabular-nums">
+            v{__APP_VERSION__}
+          </span>
         </Link>
 
         {/* Desktop nav */}
