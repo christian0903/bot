@@ -474,10 +474,19 @@ donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
 ### Clôture du 2026-08-24 — v3.12.0
 
-Sept commits (`f33de65..52029e9`). Séance ouverte sur une fausse alerte — une
-session bloquée dans un terminal figé, dont tout le travail était en réalité
-commité — puis enchaînée sur sept chantiers, tous nés de l'usage : Christian
-testait sur son iPhone et signalait ce qui coinçait.
+**Trente-deux commits sur la journée**, en deux sessions successives : la
+matinée (`e3af6f5a`, 24 commits, jusqu'à la v3.5.0) puis l'après-midi et la
+soirée (8 commits, `f33de65..9f91f0d`).
+
+La matinée a livré la PWA installable, le renvoi de l'e-mail de confirmation,
+la séparation semi-privé / Personal Training, les catégories attribuées par un
+pack, la documentation du B2B — et l'écran d'inscription qui annonçait un
+e-mail ne partant jamais sur une adresse déjà connue (`358987f`).
+
+L'après-midi a ouvert sur une fausse alerte — une session bloquée dans un
+terminal figé, dont tout le travail était en réalité commité — puis enchaîné
+sept chantiers, tous nés de l'usage : Christian testait sur son iPhone et
+signalait ce qui coinçait.
 
 Appliqué en production : la migration `payment_method` et le webhook Stripe
 (v13). **Le front reste en 3.11.0 en ligne** — la 3.12.0 est compilée dans

@@ -19,9 +19,11 @@ tags:
 
 # Handoff — App Bot : encaissements, calendrier, modes d'utilisation
 
-> Session du 2026-08-24. **v3.12.0 poussée** sur `origin/main` (`f33de65..52029e9`),
-> sept commits. Arbre propre, build vert, lint stable à 37 signalements React
-> Compiler. **`dist/` compilé en 3.12.0 mais non uploadé.**
+> Journée du 2026-08-24, **deux sessions successives** : la matinée (`e3af6f5a`,
+> 24 commits, jusqu'à la v3.5.0) puis l'après-midi et la soirée (8 commits,
+> `f33de65..9f91f0d`). **v3.12.0** au total. Arbre propre, build vert, lint
+> stable à 37 signalements React Compiler.
+> **`dist/` compilé en 3.12.0 mais non uploadé.**
 
 ---
 
@@ -33,10 +35,45 @@ travail était commité et poussé (`f33de65`, la fiche de cours du coach). Rien
 de perdu. Aucune session `tmux` ne tournait — les deux sessions vivaient nues
 dans des onglets Terminal.
 
-La séance a ensuite enchaîné sept chantiers, tous nés d'un usage réel :
-Christian testait l'application sur son iPhone et signalait ce qui coinçait.
+Elle a ensuite enchaîné sept chantiers, tous nés d'un usage réel : Christian
+testait l'application sur son iPhone et signalait ce qui coinçait — c'est aussi
+ce qui avait mené la matinée.
 
-## Ce qui a été livré
+## La matinée — 24 commits, session `e3af6f5a` (08h39 → 16h33)
+
+Cette session-là a tenu le journal projet au fil de l'eau : le détail y est,
+en ordre antéchronologique. Résumé de ce qu'elle a livré, pour que la journée
+se lise d'un bloc :
+
+| Sujet | Commit |
+|---|---|
+| PWA installable sur l'écran d'accueil, bandeau de mise à jour | `6db884a`, `beda56f` |
+| Redemander l'e-mail de confirmation | `511c0c7` |
+| Version visible dans l'en-tête + guide de test iPhone | `3884a65` |
+| Tentatives d'inscription au journal, effacer un parasite | `50e9ed8` |
+| Planning : séparer semi-privé et Personal Training | `aac864f`, `b3a526d` |
+| Filtres du planning lisibles, conflits annoncés | `6b9621e` |
+| Ranger plusieurs membres d'un coup, catégorie dans la liste | `27a23d3`, `fc53370` |
+| Pack qui attribue une catégorie à l'achat, rendue à l'expiration | `80a30de` |
+| **Inscription : cesser d'annoncer un e-mail qui ne part pas** | **`358987f`** |
+| Documentation du B2B, expliquée et non plus mentionnée | `484f288` |
+| Notifications descendues sous l'encoche de l'iPhone | `5331956` |
+| Paiement Stripe qui n'ouvrait rien sur le web | `1f2dd6c` |
+| Abonnements en semaines ou mois, suppression expliquée | `70f1027` |
+| Types de packs : trois statuts, corbeille au super admin | `4d2ae75` |
+| Fiche de cours : liste d'attente, boutons présent/absent | `f33de65` |
+
+**`358987f` mérite d'être retenu** — c'est le défaut le plus visible pour un
+nouveau membre. Sur une adresse déjà inscrite, l'écran affichait « Un e-mail
+vient d'être envoyé à… » **et**, plus bas, « Tu as déjà un compte ». La
+première affirmation était fausse : Supabase n'envoie rien dans ce cas, et la
+personne attendait un message qui ne viendrait jamais. Le front *savait* qu'il
+s'agissait d'un doublon mais jetait l'information. Corrigé sans lever la
+protection anti-énumération : le message devient conditionnel, le bouton
+« Renvoyer l'e-mail » disparaît (Supabase le refuserait), et le bouton
+principal devient « Me connecter ».
+
+## L'après-midi et la soirée — session courante
 
 **`7899ae0` — Encaissement d'un pack : dire d'où vient l'argent.**
 Les boutons « Cadeau » et « Paiement manuel » ne faisaient que préremplir le
@@ -123,7 +160,7 @@ curl -s https://desk.backontrackstudio.be/sw.js | sed -n '3p'   # doit dire 3.12
   compte membre (Ingrid), sans accès aux espaces coach et admin. Prévoir une
   session admin pour les prochaines vérifications visuelles.
 
-## Fichiers créés cette session
+## Fichiers créés dans la session de l'après-midi
 
 - `src/components/admin/WeekGrid.tsx` — la grille hebdomadaire
 - `src/contexts/ModeContext.tsx` — le mode d'utilisation (dérivé, pas d'effet)

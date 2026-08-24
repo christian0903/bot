@@ -4,6 +4,48 @@ Version **3.12**. Voici ce qui bouge pour vous, sans jargon.
 
 ---
 
+## S'inscrire : plus de message contradictoire
+
+Si vous vous inscriviez avec une adresse e-mail **déjà utilisée**, l'écran
+disait deux choses à la fois : « Un e-mail vient d'être envoyé » **et**, plus
+bas, « Tu as déjà un compte ». Le premier message était faux — aucun e-mail ne
+partait — et la personne attendait indéfiniment.
+
+Maintenant l'écran est clair : il propose directement **Me connecter**, et ne
+promet plus d'envoi qui n'aura pas lieu.
+
+**Aussi :** si vous n'avez jamais reçu votre e-mail de confirmation, vous pouvez
+désormais en **redemander un** depuis l'écran d'inscription. Avant, il n'y avait
+aucun moyen — il fallait recommencer.
+
+---
+
+## L'application s'installe vraiment sur l'iPhone
+
+L'installation sur l'écran d'accueil fonctionne maintenant correctement, avec
+une icône propre. Un guide pas-à-pas existe si vous voulez l'installer sur votre
+téléphone.
+
+Et le **numéro de version** est affiché en haut à gauche, à côté du nom : c'est
+le premier renseignement utile quand vous signalez un problème.
+
+---
+
+## Le planning sépare enfin semi-privé et Personal Training
+
+Sur l'écran de réservation, un choix en haut permet de basculer entre
+**Semi-privé** et **Personal Training** — comme sur la page d'achat de packs.
+Vous ne voyez que les cours du type choisi, et les crédits correspondants.
+
+---
+
+## Notifications lisibles sur iPhone
+
+Les messages du type « Connexion réussie » apparaissaient **sous l'encoche** de
+l'iPhone : impossible de les lire. Ils sont descendus.
+
+---
+
 ## Vous avez plusieurs casquettes ? Choisissez-la
 
 En haut à droite de l'écran, un nouveau bouton : **Membre · Coach · Admin**.
@@ -91,6 +133,29 @@ créant une recette que personne n'a jamais encaissée.
 Ces encaissements ressortent ensuite **sur fond orange dans le journal**, avec
 le montant : ce sont les seuls qu'aucun relevé bancaire ne recoupe
 automatiquement, ils doivent se repérer d'un coup d'œil pour la comptabilité.
+
+---
+
+## Côté administration, aussi
+
+*(Pour ceux qui gèrent les membres et les packs.)*
+
+- **Un pack peut attribuer une catégorie** à l'achat, et la reprendre à
+  l'expiration — c'est ce qui ouvre à un abonné l'accès aux cours qui lui sont
+  réservés.
+- **La catégorie d'un membre est visible dans la liste**, sans ouvrir sa fiche.
+  Elle s'affiche aussi sur iPhone en portrait, où elle était invisible.
+- **Ranger plusieurs membres d'un coup** : sélection multiple pour attribuer une
+  catégorie à toute une série.
+- **Les tentatives d'inscription apparaissent au journal**, et un compte
+  parasite — sans aucune réservation ni pack — peut être effacé depuis là.
+- **Types de packs** : trois statuts (actif, inactif, corbeille), la suppression
+  réservée au super-admin, et une explication claire quand elle est refusée.
+- **Abonnements** en semaines ou en mois (les jours ont disparu), l'annuel
+  confirmé possible.
+- **Filtres du planning** rendus lisibles, et les conflits d'horaire annoncés
+  avant d'enregistrer.
+- **Le paiement Stripe** s'ouvre maintenant correctement depuis un navigateur.
 
 ---
 
