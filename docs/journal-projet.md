@@ -472,6 +472,37 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Audit documentaire : le B2B manquait presque partout
+
+Christian demande si la documentation est complète, et cite le B2B en exemple.
+Vérification faite, il avait raison — et le trou était plus large que prévu.
+
+| Document | Avant |
+|---|---|
+| `documentation-technique.md` | Complet (le circuit, les trois colonnes, le garde-fou) |
+| `guide-admin.md` | **Mentionné en passant, jamais expliqué** — rien sur comment qualifier un client, ni sur ce que ça change |
+| `guide-membre.md` | Absent |
+| `guide-admin-en.md` | **Zéro mention** |
+| `guide-utilisateur-en.md` | **Zéro mention** |
+
+La partie technique était donc juste, mais **personne ne savait s'en servir** :
+le guide admin citait « client professionnel » deux fois sans jamais dire où se
+trouve l'interrupteur.
+
+Ajouté dans les quatre guides : qualifier un client, le tableau de ce qui change
+(paiement, crédit immédiat, abonnements masqués, code promo absent), le circuit
+des factures en trois moments, et le fait que **le studio porte le risque
+d'impayé** — décision assumée, sans relance ni suspension automatique.
+
+> **L'audit a révélé un manque plus large.** Le parrainage, les bons d'achat et
+> le suivi des clients sont **totalement absents des guides anglais** : zéro
+> mention pour des mécanismes commerciaux complets. Le guide FR compte 40
+> sections détaillées, l'anglais en couvre une fraction.
+>
+> Ce n'est pas un oubli de cette session : c'est le retard de fond signalé depuis
+> le 23 août. Le combler est un **chantier de traduction à part entière**, pas
+> une passe de complétion — il n'a pas été entamé ici.
+
 ### L'écran d'inscription annonçait un e-mail qui ne partait pas
 
 Signalé par Christian : sur une adresse déjà inscrite, l'écran affichait « Un

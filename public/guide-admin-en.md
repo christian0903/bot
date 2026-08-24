@@ -260,6 +260,67 @@ Read-only view of all bookings:
 
 ---
 
+### Business Clients (B2B) — ordering on invoice
+
+A company does not pay by card: it orders, receives an invoice, and settles on
+its own terms. That is what business mode allows.
+
+#### Marking a client as a business
+
+On their profile (**Admin → Users**, open the member), a **Business client**
+toggle and a **Company name** field — required as soon as the toggle is on.
+
+> **Only an admin can flag a profile as B2B**, and the check is server-side: a
+> private client calling the function directly would be refused.
+
+#### What changes for them
+
+| | Regular client | Business client |
+|---|---|---|
+| Buying a pack | Immediate Stripe payment | **Order on invoice** |
+| Pack credited | After payment | **Immediately** |
+| Subscriptions | Offered | **Hidden** — a recurring charge makes no sense on invoice |
+| Promo code | Field visible | Absent — they pay on invoice, they never reach that screen |
+
+**The pack is credited right away**, before any payment. This is deliberate: the
+employee must be able to train without waiting for their employer's accounting
+cycle.
+
+> **The studio therefore carries the risk of non-payment.** Accepted decision:
+> there is no automatic reminder or suspension. It is payment on terms, the norm
+> in B2B.
+
+Switching a client back from B2B breaks nothing: packs stay valid, invoices stay
+due, only the payment method for future orders changes. A warning flags open
+invoices without blocking — locking would have prevented fixing a simple typo.
+
+### Invoice Requests — Admin → Invoice Requests
+
+Tracking business orders: who ordered what, what is invoiced, what is collected.
+
+> **Invoices are not created here. They are created in Odoo**, which holds the
+> accounts. The app records the order, credits the pack, and keeps track of the
+> number and date **you** give it. It computes no number and generates no
+> document.
+
+Three moments, which do not coincide:
+
+1. **The order** — recorded at purchase, automatically
+2. **Issuing in Odoo** — you enter the invoice **number** and **date**
+3. **Collection** — you mark the invoice **paid** when the money arrives
+
+Number and date can be entered **at any time**: they are known at issuing, often
+weeks before settlement.
+
+The filter separates **paid / unpaid**, not “processed” — that is what matters
+when invoicing.
+
+> **An invoice number cannot be used twice.** A duplicate is refused: it is a
+> typo, never a valid situation.
+
+**Note**: nothing in the database tells a paid pack from an invoiced unpaid one.
+Settlement is tracked **here**, not in the member's packs.
+
 ### Discount Coupons
 
 **Admin → Coupons**

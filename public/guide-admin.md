@@ -641,9 +641,72 @@ Les avis laissés par les membres après leurs séances : une note de 1 à 5 ét
 
 Qui a parrainé qui, et où en est chaque parrainage.
 
+### Clients professionnels (B2B) — commander sur facture
+
+Une entreprise ne paie pas par carte : elle commande, reçoit une facture, règle
+selon ses délais. C'est ce que permet le mode professionnel.
+
+#### Qualifier un client en professionnel
+
+Sur sa fiche (**Administration → Utilisateurs**, ouvrir le membre), un
+interrupteur **Client professionnel** et un champ **Raison sociale** — obligatoire
+dès que l'interrupteur est actif.
+
+> **Seul un admin peut qualifier un profil en B2B**, et le contrôle est côté
+> serveur : un particulier qui tenterait de commander sur facture par un autre
+> chemin serait refusé.
+
+#### Ce que ça change pour lui
+
+| | Client ordinaire | Client professionnel |
+|---|---|---|
+| Achat d'un pack | Paiement Stripe immédiat | **Commande sur facture** |
+| Crédit du pack | Après paiement | **Immédiatement** |
+| Abonnements | Proposés | **Masqués** — un prélèvement automatique n'a pas de sens sur facture |
+| Code promo | Champ visible | Absent — il paie sur facture, il ne passe pas par cet écran |
+
+**Le pack est crédité tout de suite**, avant tout paiement. C'est délibéré :
+l'employé doit pouvoir s'entraîner sans attendre le circuit comptable de son
+employeur.
+
+> **Le studio porte donc le risque d'impayé.** Décision assumée : il n'existe
+> aucune relance ni suspension automatique. C'est un paiement à terme, la norme
+> en B2B.
+
+**Basculer un client de B2B à ordinaire ne casse rien** : ses packs restent
+valides, ses factures restent dues, seul le mode de paiement des futures
+commandes change. Un avertissement signale les factures ouvertes, sans bloquer —
+verrouiller aurait empêché de corriger une simple erreur de saisie.
+
 ### Demandes de facture — Administration → Demandes de factures
 
-Les demandes des membres, à traiter et à marquer comme traitées.
+Le suivi des commandes professionnelles : qui a commandé quoi, qu'est-ce qui est
+facturé, qu'est-ce qui est encaissé.
+
+> **La facture ne se crée pas ici. Elle se crée dans Odoo**, qui tient la
+> comptabilité. L'application enregistre la commande, crédite le pack, et garde
+> trace du numéro et de la date que **vous** lui donnez. Elle ne calcule aucun
+> numéro et ne génère aucun document.
+
+Trois moments, qui ne coïncident pas :
+
+1. **La commande** — enregistrée à l'achat, automatiquement
+2. **L'émission dans Odoo** — vous saisissez le **numéro** et la **date de
+   facture**
+3. **L'encaissement** — vous marquez la facture **payée** quand l'argent arrive
+
+Le numéro et la date se saisissent **à tout moment** : ils sont connus à
+l'émission, souvent des semaines avant le règlement. Attendre le paiement pour
+noter une information déjà disponible n'aurait pas de sens.
+
+Le filtre distingue **payée / non payée**, pas « traitée » : c'est ce qui compte
+quand on facture.
+
+> **Un numéro de facture ne peut pas servir deux fois.** Un doublon est refusé —
+> c'est une erreur de saisie, jamais une situation valable.
+
+**Attention** : rien ne distingue en base un pack payé d'un pack facturé impayé.
+Le suivi du règlement se fait **ici**, pas dans les packs du membre.
 
 ### Exports — Administration → Exports
 

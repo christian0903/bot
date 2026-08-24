@@ -166,6 +166,12 @@ You can only rate classes you were booked on, and only once they have finished.
 
 ## My Packs and Credits
 
+> **Does your company pay for you?** If the studio registered your account as a
+> business one, you won't see card payment: you **place an order**, and the
+> invoice goes to your employer. **Your sessions are credited straight away** —
+> you don't wait for the invoice to be settled. Subscriptions are not offered to
+> you: a recurring charge makes no sense on invoice.
+
 ### View Your Packs
 The **My Packs** page shows all your packs:
 - **Pack name** and credit type

@@ -178,6 +178,12 @@ Si tu as un code de parrainage, c'est le bon moment : tes frais peuvent être en
 
 Va dans **Acheter un pack**. Les formules sont classées **par type de crédit** (semi-privé, personal training…), et dans chaque type tu trouves d'abord les abonnements, puis les packs à l'unité.
 
+> **Ton entreprise paie pour toi ?** Si le studio a enregistré ton compte comme
+> professionnel, tu ne verras pas de paiement par carte : tu **commandes**, et la
+> facture part à ton employeur. **Tes séances sont créditées tout de suite**, tu
+> n'attends pas que la facture soit réglée. Les abonnements ne te sont pas
+> proposés — un prélèvement automatique n'a pas de sens sur facture.
+
 > **Vérifie le type de crédit avant d'acheter** : c'est lui qui détermine les cours que tu pourras réserver. Il est rappelé sur chaque carte.
 
 **Un abonnement** se renouvelle tout seul, à échéance fixe. Le prix et la périodicité sont affichés, et une fenêtre te le rappelle avant de valider. Résiliable à tout moment.
