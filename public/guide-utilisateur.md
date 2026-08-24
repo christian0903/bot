@@ -27,6 +27,30 @@ Elle vaut pour un cours **semi-privé**, et reste disponible un temps limité �
 
 > Une fois réservée, elle devient une réservation ordinaire : tu la retrouves dans « Mes réservations », et le coach t'attend sur sa liste de présence.
 
+### Installer l'application sur ton téléphone
+
+Tu peux poser Back on Track sur ton écran d'accueil, comme n'importe quelle
+application : icône, ouverture en plein écran, plus de barre d'adresse. Rien à
+télécharger, rien à payer.
+
+Une invitation apparaît sur ton accueil dès que tu es connecté. Tu peux aussi le
+faire à la main :
+
+**Sur iPhone et iPad** — dans **Safari** (les autres navigateurs ne savent pas le
+faire) :
+
+1. Touche le bouton **Partager**, en bas de l'écran
+2. Fais défiler et choisis **Sur l'écran d'accueil**
+3. Touche **Ajouter**
+
+**Sur Android** — dans **Chrome** :
+
+1. Touche le menu **⋮**, en haut à droite
+2. Choisis **Installer l'application** (ou **Ajouter à l'écran d'accueil**)
+
+> Tu restes connecté d'une fois à l'autre : plus besoin de retaper ton mot de
+> passe à chaque visite.
+
 ### Mot de passe oublié
 
 Sur la page de connexion, onglet **Mot de passe oublié** : tu reçois un lien pour en choisir un nouveau.

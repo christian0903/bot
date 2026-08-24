@@ -6,8 +6,19 @@
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
 
+  # Un fichier statique absent doit répondre 404, pas index.html. Une icône
+  # manquante renvoyait la page d'accueil en 200 : iOS recevait du HTML là où il
+  # attendait une image, et posait une icône générique sans rien signaler.
+  RewriteCond %{REQUEST_URI} !\.(png|jpe?g|gif|webp|svg|ico|css|js|json|woff2?|ttf|map|txt|xml|md)$
+
   # Rediriger tout vers index.html (SPA routing)
   RewriteRule ^ index.html [QSA,L]
+</IfModule>
+
+# Types MIME : sans en-tête correct, un navigateur peut refuser le manifest.
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+  AddType image/webp .webp
 </IfModule>
 
 # Compression gzip
@@ -21,9 +32,19 @@
   ExpiresByType text/css "access plus 1 year"
   ExpiresByType application/javascript "access plus 1 year"
   ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
   ExpiresByType image/svg+xml "access plus 1 year"
   ExpiresByType font/woff2 "access plus 1 year"
   ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# Le service worker et le manifest ne portent pas de hash dans leur nom : mis en
+# cache longtemps, ils figeraient l'application sur une version périmée chez le
+# membre, sans aucun moyen de la corriger à distance.
+<IfModule mod_headers.c>
+  <FilesMatch "^(sw\.js|manifest\.json)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
 </IfModule>
 
 # Sécurité

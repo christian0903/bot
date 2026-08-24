@@ -1,4 +1,7 @@
-const CACHE_NAME = 'bot-v1'
+// La version est réécrite à la construction par le plugin `versionner-le-sw`
+// de vite.config.ts. En développement elle reste à 'dev'.
+const APP_VERSION = '__SW_VERSION__'
+const CACHE_NAME = `bot-${APP_VERSION}`
 const STATIC_ASSETS = ['/', '/index.html']
 
 // Install: cache static assets

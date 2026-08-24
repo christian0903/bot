@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-23**
+> Dernière mise à jour : **2026-08-24**
 
 ---
 
@@ -24,6 +24,7 @@
 **Exports CSV** : **livrés** (2026-08-23) — page dédiée, huit sorties, plus l'export du journal d'activité et sa purge réservée au super admin.
 **Index** : **posés** (2026-08-23) — `bookings` et `scheduled_classes` n'en avaient aucun. L'archivage n'est pas nécessaire : la base pèse 1,1 Mo pour 8 Go disponibles.
 **Documentation** : **à jour au 2026-08-23** en français, `public/` compris. Les versions **anglaises accusent un retard important** et attendent un chantier à part.
+**PWA** : **livrée** (2026-08-24) — l'application s'installe sur l'écran d'accueil iPhone et Android, sans passer par un store. Sert la phase de test avant l'App Store.
 **Durée d'abonnement** : **libre** — jours, semaines ou mois, un nombre au choix. Un garde-fou infondé qui bloquait les durées non multiples de 7 a été levé.
 **Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter. **Deux de ses éléments deviennent bloquants pour l'App Store** — voir ci-dessous.
 **Rémunération des coachs** : reportée — module à part, la gestion se fait hors application (décision du 2026-08-06).
@@ -42,6 +43,76 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
 2. **Politique de confidentialité avec URL publique** — livrée, page `/privacy`.
+
+---
+
+## Session du 2026-08-24
+
+Préparation de la **phase de test** : faire installer l'application par de vrais
+utilisateurs, sur leur téléphone, avant de déposer quoi que ce soit sur l'App
+Store. Pas de développement métier — de la plomberie PWA et de la documentation.
+
+### La PWA existait, mais ne s'installait pas correctement sur iPhone
+
+Le manifest, le service worker et son enregistrement étaient en place depuis
+avril. Ce qui manquait tenait à des détails invisibles depuis un Mac.
+
+**L'icône iPhone n'a jamais fonctionné.** `index.html` déclarait
+`apple-touch-icon` vers `/icons/icon-192.png` — un fichier **absent** : le
+dossier ne contenait que des `.webp`. Et le `.htaccess` renvoyant `index.html`
+pour toute URL inconnue, iOS recevait **du HTML en HTTP 200** là où il attendait
+une image. Aucune erreur nulle part : Safari posait simplement une icône
+générique sur l'écran d'accueil.
+
+> C'est la deuxième fois que ce dépôt rencontre un échec silencieux d'une
+> écriture ou d'une requête qui « répond bien ». Le `.htaccess` exclut désormais
+> les extensions statiques de la réécriture SPA : une image absente répond 404,
+> ce qui se voit.
+
+Les PNG sont générés depuis `resources/icon.png` (1024 × 1024, déjà présent pour
+Capacitor) — la même source servira la fiche App Store.
+
+**Toutes les icônes étaient déclarées `"any maskable"`.** Android applique alors
+un masque circulaire et **rogne** l'icône. Les deux usages sont désormais
+séparés : les tailles en `any`, plus deux entrées `maskable` dédiées.
+
+**Le service worker ne se mettait jamais à jour.** `CACHE_NAME` était figé à
+`'bot-v1'` : un testeur pouvait rester indéfiniment sur une version périmée et
+**signaler un bug déjà corrigé** — exactement ce qu'une phase de test ne peut pas
+se permettre. Le nom du cache porte maintenant la version de `package.json`,
+injectée à la construction par un plugin Vite. Le service worker vit dans
+`public/`, que Vite recopie sans transformer : `__APP_VERSION__` ne l'atteignait
+pas. `sw.js` et `manifest.json`, qui ne portent pas de hash, passent en
+`no-cache`.
+
+### Installer ne se devine pas : il faut le montrer
+
+Sur iPhone, **aucune invite n'existe** — le geste est « Partager » puis « Sur
+l'écran d'accueil », et rien dans Safari ne le suggère. Sans explication, un
+testeur iPhone n'installe jamais.
+
+`useInstallationPWA` (`src/lib/pwa-install.ts`) ramène quatre situations à une
+seule réponse : `prompt` (Chrome sait le faire), `ios-manuel` (montrer le geste),
+`installee`, `impossible`. Deux décisions valent d'être notées :
+
+- **Le hook répond `installee` en natif** (Capacitor). Proposer une installation
+  dans l'app native n'aurait aucun sens — et Apple rejette une app qui pousse
+  vers un autre canal de distribution.
+- **Seul Safari reçoit le mode iOS.** Chrome et Firefox sur iPhone sont des
+  habillages de WebKit et n'exposent pas « Sur l'écran d'accueil » : leur montrer
+  le geste enverrait le membre chercher un bouton inexistant.
+
+La bannière vit sur le **tableau de bord**, pas sur la page publique : installer
+vaut pour un membre qui revient, pas pour un visiteur de passage. Un refus est
+mémorisé **un mois** — une bannière qui revient à chaque page se lit comme une
+publicité et fait fuir au lieu d'installer.
+
+### Ce qu'il reste à savoir sur la PWA
+
+- **Les notifications push** ne fonctionnent sur iOS qu'une fois l'application
+  **installée sur l'écran d'accueil**, et restent moins fiables qu'en natif.
+- **Une PWA ne remplace pas le dépôt App Store** : c'est le canal de test, le
+  temps de préparer la fiche.
 
 ---
 

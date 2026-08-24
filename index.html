@@ -10,7 +10,17 @@
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+
+    <!-- iOS : Safari ignore le manifest pour l'icone et le plein ecran, il lui
+         faut ces balises. L'apple-touch-icon pointait vers un PNG absent, et le
+         .htaccess renvoyait index.html a sa place : iOS recevait du HTML au
+         lieu d'une image et posait une icone generique sur l'ecran d'accueil. -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Back on Track" />
 
     <!-- Umami Analytics (RGPD-compliant, no cookies) -->
     <!-- Remplacer data-website-id par votre ID Umami -->

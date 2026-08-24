@@ -13,6 +13,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { HomeCommunications } from '@/components/common/HomeCommunications'
 import { flushEmailQueue } from '@/lib/flush-email-queue'
 import { SocialLinks } from '@/components/common/SocialLinks'
+import { InstallPrompt } from '@/components/common/InstallPrompt'
 import type { PackPurchase, Booking, ScheduledClass } from '@/types'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
@@ -182,6 +183,12 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Installation sur l'écran d'accueil. Placée ici et pas sur la page
+          publique : l'installation vaut pour un membre qui revient, pas pour un
+          visiteur de passage. Le composant s'efface de lui-même une fois
+          l'application installée. */}
+      <InstallPrompt />
+
       {/* Welcome */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl md:text-3xl font-bold">

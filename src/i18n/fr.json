@@ -384,5 +384,19 @@
     "super_admin": "Super Admin",
     "coach": "Coach",
     "client": "Client"
+  },
+  "install": {
+    "banner": "Installez l'application sur votre téléphone",
+    "bannerHint": "Accès direct depuis l'écran d'accueil, en plein écran.",
+    "button": "Installer l'application",
+    "later": "Plus tard",
+    "iosTitle": "Installer sur votre iPhone",
+    "iosIntro": "Safari n'installe pas tout seul : trois gestes suffisent.",
+    "iosStep1": "Touchez le bouton Partager, en bas de Safari.",
+    "iosStep2": "Faites défiler et choisissez « Sur l'écran d'accueil ».",
+    "iosStep3": "Touchez « Ajouter » : l'icône rejoint vos applications.",
+    "iosNote": "L'application s'ouvrira alors en plein écran, sans la barre d'adresse.",
+    "done": "C'est fait",
+    "success": "Application installée."
   }
 }
