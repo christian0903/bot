@@ -40,7 +40,7 @@ export function MobileBottomNav() {
   // Mode coach : ses cours et le planning. Les écrans d'administration ne s'y
   // trouvent pas, même pour un admin — c'est le sens du mode.
   const coachItems = [
-    { path: '/', icon: Home, label: t('nav.home') },
+    { path: '/dashboard', icon: Home, label: t('nav.home') },
     { path: '/coach/my-classes', icon: Dumbbell, label: isFr ? 'Mes cours' : 'My classes' },
     { path: '/schedule', icon: CalendarDays, label: t('nav.schedule') },
     { path: '/performance-types', icon: ClipboardList, label: isFr ? 'Perfs' : 'Perfs' },
@@ -50,7 +50,9 @@ export function MobileBottomNav() {
   // réservés mais ne les regroupe pas, et savoir quand on s'entraîne est la
   // question la plus fréquente.
   const memberItems = [
-    { path: '/', icon: Home, label: t('nav.home') },
+    // `/dashboard` et non `/` : la racine renvoie un membre du staff vers son
+    // espace d'administration, ce qui annulerait le mode choisi.
+    { path: '/dashboard', icon: Home, label: t('nav.home') },
     { path: '/schedule', icon: CalendarDays, label: t('nav.schedule') },
     { path: '/my-bookings', icon: ClipboardList, label: isFr ? 'Mes cours' : 'My classes' },
     { path: '/my-packs', icon: CreditCard, label: t('packs.myPacks') },

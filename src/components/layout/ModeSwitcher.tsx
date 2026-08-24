@@ -12,9 +12,16 @@ import { cn } from '@/lib/utils'
  * élément de plus à comprendre.
  */
 
-/** Écran d'arrivée de chaque mode : celui qu'on ouvre en premier. */
+/**
+ * Écran d'arrivée de chaque mode : celui qu'on ouvre en premier.
+ *
+ * Le mode membre vise `/dashboard`, pas `/` : la racine renvoie un membre du
+ * staff vers son propre espace (`landingRouteFor`), donc un admin qui cliquait
+ * « Membre » atterrissait sur `/admin/dashboard` — et l'URL, qui fait foi,
+ * le ramenait aussitôt en mode Admin. Le bouton semblait sans effet.
+ */
 const ACCUEIL: Record<ModeApp, string> = {
-  membre: '/',
+  membre: '/dashboard',
   coach: '/coach/my-classes',
   admin: '/admin/dashboard',
 }

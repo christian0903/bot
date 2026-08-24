@@ -71,7 +71,9 @@ export function Header() {
   const enMembre = mode === 'membre'
 
   const navItems = [
-    { label: t('nav.home'), path: '/', show: true },
+    // Connecté, l'accueil est le tableau de bord : la racine renvoie un membre
+    // du staff vers son espace d'administration, annulant le mode choisi.
+    { label: t('nav.home'), path: user ? '/dashboard' : '/', show: true },
     { label: t('nav.schedule'), path: '/schedule', show: !!user },
     { label: t('nav.myBookings'), path: '/my-bookings', show: !!user && enMembre },
     { label: t('nav.myPacks'), path: '/my-packs', show: !!user && enMembre },

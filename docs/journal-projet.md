@@ -472,6 +472,35 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Le bouton « Membre » qui ne faisait rien
+
+Christian, dès le premier essai : « je peux passer à coach mais je ne peux pas
+passer à membre ».
+
+Le sélecteur fonctionnait. C'est la suite qui le défaisait, en trois temps :
+
+1. le clic navigue vers `/` ;
+2. `HomePage` voit un admin connecté et redirige vers `landingRouteFor(roles)`,
+   soit **`/admin/dashboard`** ;
+3. l'URL commence par `/admin` — et dans `ModeContext`, **l'URL fait foi**. Le
+   choix est écrasé dans la milliseconde.
+
+Coach échappait au piège pour une raison sans rapport avec les rôles :
+`/coach/my-classes` est une vraie page, sans redirection. Rien ne venait
+contredire le choix.
+
+Le mode membre vise donc `/dashboard`, pas la racine. Trois entrées « Accueil »
+pointaient aussi vers `/` — deux dans la barre mobile, une dans le menu du
+haut : elles reproduisaient le symptôme par une autre porte, au premier clic.
+
+Le logo garde `/` : « revenir à la racine » y est un geste attendu, et la
+redirection ramène alors chacun à son espace naturel.
+
+À retenir : faire de l'URL la source de vérité est juste, mais cela rend le
+choix vulnérable à **toute** redirection automatique. Une règle d'affichage et
+une règle de navigation qui se contredisent produisent un bouton mort, sans
+erreur ni signal.
+
 ### Ce que pèse vraiment l'administration dans le bundle d'un membre
 
 Question posée après le débat sur Technogym : faut-il séparer l'application
