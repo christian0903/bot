@@ -107,6 +107,17 @@ Le délai est indiqué dans l'application. Préviens dès que tu sais : c'est ce
 
 > **Le cours a été déplacé ou changé après ta réservation ?** Tu peux annuler sans rien perdre, même à la dernière minute : ton crédit t'est rendu. Tu ne t'étais pas inscrit à ce cours-là.
 
+### Mon code de check-in
+
+Le studio peut scanner un code pour valider ta présence à l'arrivée.
+
+Il vit en bas de ton **accueil**, replié : touche **Afficher** pour le faire
+apparaître. Tu le retrouves aussi sur ta page **Profil**, où il est visible en
+permanence.
+
+> Il ne change jamais : c'est ton code, tu peux le montrer autant de fois que
+> nécessaire.
+
 ### Voir mes cours et mes crédits
 
 **Mes réservations** — la page s'ouvre sur tes **séances à venir**, celles que tu viens vérifier. Trois boutons en haut permettent d'afficher aussi le **passé** et les **annulations** ; le nombre inscrit sur chacun dit ce qu'il contient. Ils se cumulent — tu peux voir à venir et passé ensemble.

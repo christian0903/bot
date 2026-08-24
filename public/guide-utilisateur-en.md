@@ -235,6 +235,17 @@ Your choice is saved automatically.
 
 ---
 
+## Your Check-in Code
+
+The studio can scan a code to confirm you attended.
+
+It sits at the bottom of your **dashboard**, collapsed: tap **Show** to reveal
+it. You will also find it on your **Profile** page, where it stays visible.
+
+> It never changes: it's your code, show it as often as needed.
+
+---
+
 ## Install the App (PWA)
 
 Back on Track is a progressive web app. You can install it on your device to access it like a native app:

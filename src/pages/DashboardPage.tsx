@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { CalendarDays, CreditCard, ChevronRight, Dumbbell, ShoppingBag, X, Clock, Megaphone, ScanLine } from 'lucide-react'
+import { CalendarDays, CreditCard, ChevronRight, ChevronDown, Dumbbell, ShoppingBag, X, Clock, Megaphone, ScanLine } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { QRCodeSVG } from 'qrcode.react'
 import { LoadingState } from '@/components/common/LoadingState'
 import { HomeCommunications } from '@/components/common/HomeCommunications'
@@ -44,6 +45,8 @@ export function DashboardPage() {
   const [selectedPack, setSelectedPack] = useState<PackPurchase | null>(null)
   const [packBookings, setPackBookings] = useState<(Booking & { scheduled_class: ScheduledClass })[]>([])
   const [packBookingsLoading, setPackBookingsLoading] = useState(false)
+  /** Code de check-in déployé. Non mémorisé : voir le commentaire du bloc. */
+  const [qrVisible, setQrVisible] = useState(false)
   const [announcement, setAnnouncement] = useState<string | null>(null)
   /** Jours restants sur la séance d'essai, `null` si elle est consommée ou absente. */
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
@@ -415,25 +418,52 @@ export function DashboardPage() {
 
       {/* Code de check-in — en bas de page : c'est le geste de l'arrivée au
           studio, on le cherche sur place, pas en consultant son planning.
-          Il reste aussi sur la fiche profil. */}
+          Il reste aussi sur la fiche profil.
+
+          Replié par défaut : déployé, il occupait le tiers de l'écran sur
+          téléphone pour un usage de quelques secondes par visite. L'état n'est
+          pas mémorisé — on veut le même geste à chaque arrivée, pas un écran
+          qui change d'une fois à l'autre selon ce qu'on a fait la veille. */}
       {profile && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm font-medium mb-3 flex items-center gap-2">
-                <ScanLine className="h-4 w-4" />
-                {t('profile.qrTitle')}
-              </p>
-              <div className="flex justify-center">
-                {/* Fond blanc explicite : en thème sombre, un QR sur fond
-                    transparent devient illisible par le scanner. */}
-                <div className="bg-white p-3 rounded-lg">
-                  <QRCodeSVG value={profile.id} size={160} />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                {t('profile.qrDesc')}
-              </p>
+              <button
+                type="button"
+                className="w-full flex items-center justify-between gap-2 text-sm font-medium"
+                onClick={() => setQrVisible(v => !v)}
+                aria-expanded={qrVisible}
+              >
+                <span className="flex items-center gap-2">
+                  <ScanLine className="h-4 w-4" />
+                  {t('profile.qrTitle')}
+                </span>
+                <span className="flex items-center gap-1 text-xs font-normal text-primary">
+                  {qrVisible
+                    ? (isFr ? 'Masquer' : 'Hide')
+                    : (isFr ? 'Afficher' : 'Show')}
+                  <ChevronDown className={cn('h-4 w-4 transition-transform', qrVisible && 'rotate-180')} />
+                </span>
+              </button>
+
+              {qrVisible && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex justify-center pt-4">
+                    {/* Fond blanc explicite : en thème sombre, un QR sur fond
+                        transparent devient illisible par le scanner. */}
+                    <div className="bg-white p-3 rounded-lg">
+                      <QRCodeSVG value={profile.id} size={160} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    {t('profile.qrDesc')}
+                  </p>
+                </motion.div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

@@ -472,6 +472,22 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Le code de check-in, replié par défaut
+
+Demandé par Christian. Déployé, il occupait environ 250 px en bas du tableau de
+bord — le tiers d'un écran de téléphone — pour un usage de quelques secondes par
+visite. Replié, la carte tient sur une ligne.
+
+Le commentaire du bloc portait déjà la bonne intuition : *« c'est le geste de
+l'arrivée au studio, on le cherche sur place, pas en consultant son planning »*.
+Le replier va dans le même sens.
+
+> **L'état n'est pas mémorisé.** On veut le même geste à chaque arrivée, pas un
+> écran qui change d'une fois à l'autre selon ce qu'on a fait la veille.
+
+Sur la **page Profil**, il reste déployé : on n'y va pas par hasard, c'est
+justement l'endroit où l'on vient chercher son code.
+
 ### Passe documentaire de clôture
 
 Onze chantiers livrés dans la journée, dont la trace était complète dans le
