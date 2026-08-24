@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
-import { CalendarDays, Users, ChevronLeft, ChevronRight} from 'lucide-react'
+import { CalendarDays, Users, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import type { ScheduledClass } from '@/types'
@@ -41,6 +41,20 @@ export function CoachClassesPage() {
   const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
+  /**
+   * Chiffres repliés par défaut. Le coach ouvre cet écran juste avant sa
+   * séance, pour voir ses cours : ses statistiques du mois ne sont pas ce
+   * qu'il vient chercher, et elles occupaient tout l'écran d'un iPhone.
+   * Son choix est retenu — celui qui les consulte souvent les rouvre une fois.
+   */
+  const [statsOuvertes, setStatsOuvertes] = useState(() => {
+    try {
+      return window.localStorage.getItem('bot.coach.stats') === 'ouvert'
+    } catch {
+      return false
+    }
+  })
+
   const [classes, setClasses] = useState<ScheduledClass[]>([])
   /** Inscrits confirmés par cours, pour l'affichage « 2/5 ». */
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
@@ -251,15 +265,38 @@ export function CoachClassesPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{t('coach.myClasses')}</h1>
 
-      {/* Chiffres personnels — ceux de ce coach uniquement */}
+      {/* Chiffres personnels — ceux de ce coach uniquement.
+          Repliés par défaut : sur un téléphone, quatre cartes repoussaient la
+          liste des cours sous la ligne de flottaison, alors que c'est elle
+          qu'un coach vient consulter avant sa séance. */}
       {stats && (
         <div>
-          <div className="flex items-center gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => {
+              const ouvert = !statsOuvertes
+              setStatsOuvertes(ouvert)
+              try {
+                window.localStorage.setItem('bot.coach.stats', ouvert ? 'ouvert' : 'ferme')
+              } catch {
+                // Stockage refusé : le choix vaut pour la session en cours.
+              }
+            }}
+            className="flex items-center gap-2 mb-3 w-full text-left hover:opacity-80 transition-opacity"
+            aria-expanded={statsOuvertes}
+          >
             <CalendarDays className="h-4 w-4 text-primary" />
             <h2 className="text-base font-semibold">
               {isFr ? 'Mes 30 derniers jours' : 'My last 30 days'}
             </h2>
-          </div>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 text-muted-foreground transition-transform',
+                statsOuvertes && 'rotate-180',
+              )}
+            />
+          </button>
+          {statsOuvertes && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-3">
@@ -316,6 +353,7 @@ export function CoachClassesPage() {
               </CardContent>
             </Card>
           </div>
+          )}
         </div>
       )}
 

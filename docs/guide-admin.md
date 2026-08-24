@@ -11,13 +11,13 @@ Tout passe par le **menu Administration**, dans la barre latérale à gauche (su
 | Entrée du menu | À quoi ça sert | Détail |
 |---|---|---|
 | **Utilisateurs** | La fiche de chaque membre : packs, réservations, abonnement, rôles | [§](#les-membres--administration--utilisateurs) |
+| **Gestion du planning** | Créer, modifier, annuler les cours | [§](#le-planning--administration--gestion-du-planning) |
 | **Coaches & Admins** | Les membres du staff et leurs cours | [§](#lespace-coach) |
 | **Catégories de membres** | Qui a droit à quels packs | [§](#catégories-de-membres--administration--catégories-de-membres) |
 | **Types de crédits** | La brique de base : semi-privé, personal training… | [§](#types-de-crédit--administration--types-de-crédits) |
 | **Types de packs** | Les formules vendues, leur prix, leur durée | [§](#types-de-packs--administration--types-de-packs) |
 | **Types de cours** | Les cours proposés et leur type de crédit | [§](#types-de-cours--administration--types-de-cours) |
 | **Types de perfs** | Les mesures suivies (charge, temps, répétitions…) | — |
-| **Gestion du planning** | Créer, modifier, annuler les cours | [§](#le-planning--administration--gestion-du-planning) |
 | **Réservations** | Toutes les réservations, tous membres confondus | — |
 | **Coupons** | Codes de réduction collectifs | [§](#coupons--administration--coupons) |
 | **Annonces** | Messages diffusés aux membres | — |

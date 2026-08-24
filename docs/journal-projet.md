@@ -472,6 +472,25 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Deux ajustements dictés par l'usage réel
+
+Christian, en se servant de l'application sur son iPhone.
+
+**Les chiffres du coach se replient.** Quatre cartes de statistiques occupaient
+le haut de l'écran et repoussaient la liste des cours sous la ligne de
+flottaison. Or un coach ouvre cet écran juste avant sa séance, pour voir ses
+cours — pas pour lire son remplissage du mois. Le bloc est donc **fermé par
+défaut**, et le choix est retenu : celui qui les consulte souvent les rouvre
+une fois.
+
+**Gestion du planning remonte au deuxième rang** du menu d'administration,
+juste après Membres. Elle était en huitième position, au milieu des types de
+crédits et des catégories — des réglages qu'on touche une fois par saison,
+quand le planning s'ouvre plusieurs fois par jour.
+
+Rien de technique dans ces deux changements : ils viennent de l'usage, et
+c'est le genre de réglage qu'aucune relecture de code ne trouve.
+
 ### Le bouton « Membre » qui ne faisait rien
 
 Christian, dès le premier essai : « je peux passer à coach mais je ne peux pas

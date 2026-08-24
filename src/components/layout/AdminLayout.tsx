@@ -26,13 +26,15 @@ import { cn } from '@/lib/utils'
 
 const adminNav = [
   { path: '/admin/users', icon: Users, labelKey: 'admin.users.title' },
+  // Juste après les membres : c'est l'écran le plus ouvert de la journée, il
+  // n'a rien à faire au milieu des réglages qu'on touche une fois par saison.
+  { path: '/admin/schedule', icon: CalendarDays, labelKey: 'admin.schedule.title' },
   { path: '/admin/coaches', icon: UserCog, labelKey: 'admin.coaches.title' },
   { path: '/admin/categories', icon: Tags, labelKey: 'admin.categories.title' },
   { path: '/admin/credit-types', icon: CreditCard, labelKey: 'admin.creditTypes.title' },
   { path: '/admin/pack-types', icon: Package, labelKey: 'admin.packTypes.title' },
   { path: '/admin/class-types', icon: Dumbbell, labelKey: 'admin.classTypes.title' },
   { path: '/performance-types', icon: Activity, labelKey: 'admin.performanceTypes.title' },
-  { path: '/admin/schedule', icon: CalendarDays, labelKey: 'admin.schedule.title' },
   { path: '/admin/bookings', icon: BookOpen, labelKey: 'admin.bookings.title' },
   { path: '/admin/coupons', icon: Ticket, labelKey: 'admin.coupons.title' },
   { path: '/admin/announcements', icon: Megaphone, labelKey: 'admin.announcements.title' },
