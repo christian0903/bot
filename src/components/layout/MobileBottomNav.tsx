@@ -6,27 +6,27 @@ import {
   LayoutDashboard, Users, Dumbbell, Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useMode } from '@/contexts/ModeContext'
 
 /**
- * Barre de navigation mobile, adaptée au rôle.
+ * Barre de navigation mobile, adaptée au **mode choisi**.
  *
  * Quatre entrées au maximum : au-delà, les libellés se coupent sur un petit
- * écran. Chaque rôle voit les quatre écrans qu'il ouvre le plus souvent, le
+ * écran. Chaque mode montre les quatre écrans qu'on y ouvre le plus souvent, le
  * reste passant par le menu du haut.
  *
- * Le staff ne s'entraîne pas au studio : aucun écran membre dans ses barres —
- * ni réservations, ni packs. Le planning, lui, y figure partout : c'est aussi
- * son outil de travail.
+ * Elle suivait le rôle, et supposait que « le staff ne s'entraîne pas au
+ * studio » : un gérant sur téléphone n'avait alors aucun moyen d'atteindre ses
+ * réservations ou ses packs, la barre du bas étant sa seule navigation. Il lui
+ * suffit désormais de passer en mode Membre.
  */
 export function MobileBottomNav() {
   const { t, i18n } = useTranslation()
   const isFr = i18n.language === 'fr'
-  const { user, hasRole } = useAuth()
+  const { user } = useAuth()
+  const { mode } = useMode()
 
   if (!user) return null
-
-  const isAdmin = hasRole('admin') || hasRole('super_admin')
-  const isCoach = hasRole('coach')
 
   // Admin : piloter le studio. Le tableau de bord, les membres, le planning
   // d'ensemble, et les réglages qu'on ajuste souvent en début de cycle.
@@ -37,8 +37,8 @@ export function MobileBottomNav() {
     { path: '/admin/settings', icon: Settings, label: isFr ? 'Réglages' : 'Settings' },
   ]
 
-  // Coach non admin : ses cours et le planning. Il n'a pas accès aux écrans
-  // d'administration, inutile de les lui proposer.
+  // Mode coach : ses cours et le planning. Les écrans d'administration ne s'y
+  // trouvent pas, même pour un admin — c'est le sens du mode.
   const coachItems = [
     { path: '/', icon: Home, label: t('nav.home') },
     { path: '/coach/my-classes', icon: Dumbbell, label: isFr ? 'Mes cours' : 'My classes' },
@@ -56,7 +56,7 @@ export function MobileBottomNav() {
     { path: '/my-packs', icon: CreditCard, label: t('packs.myPacks') },
   ]
 
-  const items = isAdmin ? adminItems : isCoach ? coachItems : memberItems
+  const items = mode === 'admin' ? adminItems : mode === 'coach' ? coachItems : memberItems
 
   return (
     <nav

@@ -472,6 +472,75 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Le planning se lit enfin comme un planning
+
+Christian montre la capture d'une application concurrente : une grille
+hebdomadaire, jours en colonnes, heures en lignes, cartes colorées avec vignette
+et ratio de remplissage. « Plus attractive que la liste qu'on a. »
+
+Le gain n'est pas seulement esthétique. Une liste dit tout mais ne montre rien :
+un trou de deux heures le jeudi matin n'y ressemble à rien, alors qu'il saute
+aux yeux dans une grille. Et surtout, **une liste n'a pas de case vide** — donc
+aucun endroit où cliquer pour créer un cours au bon créneau.
+
+Périmètre volontairement tenu : **l'admin d'abord**, là où le clic sur case vide
+apporte le plus. Le planning membre garde sa vue actuelle, on évalue à l'usage
+avant d'étendre.
+
+Trois bonnes surprises à l'inspection : les données couvrent déjà ±1 à 2 mois
+autour de la période (aucune requête ajoutée), `class_type.color` et `image_url`
+étaient déjà chargés sans être utilisés, et `openAdd` n'avait qu'à devenir
+paramétrable.
+
+Deux pièges évités :
+
+- **Les bornes de période ne s'appliquent pas à la grille.** Elles découpent une
+  liste ; « du 24/08 sans date de fin » n'aurait affiché que la moitié des
+  colonnes. Coach et type, eux, restent des filtres de lecture.
+- **Sur mobile, la flèche avance d'un jour**, pas d'une semaine : sous 768 px la
+  grille se replie sur une seule journée, et un pas de sept sauterait six jours
+  sans qu'on le voie.
+
+L'amplitude horaire va de 7 h à 21 h, élargie d'office si un cours sort de ces
+bornes — afficher minuit à 23 h ferait défiler dans le vide.
+
+### Le mode d'utilisation se choisit, il ne se subit plus
+
+Christian, depuis son téléphone : « quand je suis admin, j'ai du mal à trouver
+les fonctions de menu en mode client ». Il évoque Technogym, qui livre deux
+applications séparées, et demande si le projet devrait en faire autant.
+
+La séparation n'a pas été retenue — ce serait dupliquer types, client Supabase,
+composants, i18n et logique de crédits, ou monter un monorepo, pour un studio
+qui n'en tire aucun bénéfice démontré. Mais le symptôme, lui, était réel, et sa
+cause inscrite en dur : `MobileBottomNav` assumait que « le staff ne s'entraîne
+pas au studio », et l'en-tête portait `show: !!user && !isStaff` sur quatre
+entrées. **Un admin n'atteignait donc ni ses réservations, ni ses packs, ni les
+performances, ni la boutique — sur aucun support.** Sur téléphone, où la barre
+du bas est la seule navigation, la fonction devenait introuvable.
+
+Un sélecteur **Membre / Coach / Admin** dans l'en-tête pilote désormais le menu
+du haut et la barre du bas. Il n'apparaît qu'aux comptes à plusieurs casquettes.
+
+Trois décisions :
+
+- **Le mode ne donne aucun droit**, il choisit l'affichage. Les autorisations
+  restent portées par `RoleGuard` et les policies RLS — basculer en mode Admin
+  sans le rôle ne mène nulle part.
+- **L'URL fait foi** quand elle est explicite : ouvrir un lien direct vers
+  `/admin` bascule l'affichage, sinon la barre du bas proposerait la navigation
+  membre par-dessus un écran d'administration.
+- **Un coach non-admin a Membre + Coach.** L'hypothèse inverse est précisément
+  celle qui a produit le défaut.
+
+Le mode effectif est **dérivé**, pas corrigé dans un effet : une première
+version le rectifiait dans deux `useEffect`, ce qui ajoutait deux signalements
+de lint et un second rendu à chaque changement de page.
+
+Reste ouvert : le bundle contient le code admin pour tous. Le découpage par
+route existe déjà (`Lazy`), mais personne n'a mesuré ce que pèse réellement
+l'administration dans ce que télécharge un membre.
+
 ### Présent et absent ne peuvent plus être vrais ensemble
 
 Christian, en testant la fiche de cours livrée le matin : « je peux appuyer en

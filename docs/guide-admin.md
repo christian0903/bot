@@ -64,9 +64,49 @@ Le **super admin** a tous les droits d'un admin, plus la configuration technique
 
 ## Au quotidien
 
+### Changer de casquette — le sélecteur Membre / Coach / Admin
+
+En haut à droite, un sélecteur **Membre · Coach · Admin**. Il n'apparaît que si
+vous avez plusieurs rôles.
+
+Il ne change **aucun droit** : il choisit ce que l'écran affiche. Passer en mode
+Membre vous rend la navigation d'un client — accueil, planning, vos
+réservations, vos packs, la boutique. Vous vous entraînez au studio comme les
+autres, et c'est là que vous le faites.
+
+> **Surtout utile sur téléphone.** La barre du bas ne tient que quatre entrées :
+> elle suit le mode choisi. Sans ce sélecteur, un gérant n'avait aucun moyen
+> d'atteindre ses propres cours ou ses packs depuis son mobile.
+
+Le mode est retenu d'une visite à l'autre. Et ouvrir un lien direct vers une
+page d'administration bascule l'affichage tout seul.
+
 ### Le planning — Administration → Gestion du planning
 
-C'est l'écran le plus utilisé. Chaque cours peut être ouvert pour :
+C'est l'écran le plus utilisé. Deux façons de le lire, au choix, par la bascule
+**Liste / Calendrier** en haut à droite :
+
+| | Ce qu'elle apporte |
+|---|---|
+| **Liste** | Le tri, les filtres, la sélection multiple et les actions groupées |
+| **Calendrier** | La semaine d'un coup d'œil : jours en colonnes, heures en lignes |
+
+Dans la vue calendrier, chaque cours est une carte colorée — horaire, nom,
+coach, et le ratio d'inscrits : **vert** tant qu'il reste des places, **rouge**
+quand c'est complet. Un clic ouvre le détail du cours, là où l'on pointe les
+présences.
+
+**Cliquer une case vide crée un cours** à ce jour et à cette heure, déjà
+préremplis dans le formulaire. C'est ce que la liste ne permet pas : elle n'a
+pas de case vide.
+
+> Sur téléphone, la grille montre **une seule journée** — sept colonnes ne se
+> lisent pas sur un petit écran. Les flèches avancent alors d'un jour.
+
+Le choix de vue reste dans l'adresse : ouvrir un cours puis revenir ne ramène
+pas à la liste.
+
+Chaque cours peut être ouvert pour :
 
 - **assigner ou changer le coach**
 - **modifier l'horaire, la durée, la salle** (haut ou bas)

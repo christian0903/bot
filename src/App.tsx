@@ -9,6 +9,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard'
 import { RoleGuard } from '@/components/auth/RoleGuard'
 import { Layout } from '@/components/layout/Layout'
 import { AdminLayout } from '@/components/layout/AdminLayout'
+import { ModeProvider } from '@/contexts/ModeContext'
 import { LoadingState } from '@/components/common/LoadingState'
 import { UpdatePrompt } from '@/components/common/UpdatePrompt'
 
@@ -73,6 +74,7 @@ function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
+          <ModeProvider>
           <NotificationProvider>
             <TooltipProvider>
               <Routes>
@@ -156,6 +158,7 @@ function App() {
               <UpdatePrompt />
             </TooltipProvider>
           </NotificationProvider>
+          </ModeProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

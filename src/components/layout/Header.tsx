@@ -17,6 +17,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { Menu, User, LogOut, Settings, Shield, Dumbbell, Gift } from 'lucide-react'
+import { useMode } from '@/contexts/ModeContext'
+import { ModeSwitcher } from '@/components/layout/ModeSwitcher'
 
 /** Injectée au build depuis package.json (cf. vite.config.ts). */
 declare const __APP_VERSION__: string
@@ -56,19 +58,30 @@ export function Header() {
    * historique par une URL directe.
    */
   const isStaff = hasRole('coach') || hasRole('admin')
+  const { mode } = useMode()
+
+  /**
+   * Le menu suit le **mode choisi**, plus le rôle.
+   *
+   * Les écrans membre étaient masqués à tout le staff (`!isStaff`) : un gérant
+   * n'atteignait donc ni ses réservations, ni ses packs, ni la boutique, alors
+   * qu'il s'entraîne au studio comme les autres. Il les retrouve en mode
+   * Membre, et ne les voit plus encombrer son menu en mode Admin.
+   */
+  const enMembre = mode === 'membre'
 
   const navItems = [
     { label: t('nav.home'), path: '/', show: true },
     { label: t('nav.schedule'), path: '/schedule', show: !!user },
-    { label: t('nav.myBookings'), path: '/my-bookings', show: !!user && !isStaff },
-    { label: t('nav.myPacks'), path: '/my-packs', show: !!user && !isStaff },
-    { label: t('nav.performances'), path: '/performances', show: !!user && !isStaff },
-    { label: t('nav.packs'), path: '/packs', show: !!user && !isStaff },
+    { label: t('nav.myBookings'), path: '/my-bookings', show: !!user && enMembre },
+    { label: t('nav.myPacks'), path: '/my-packs', show: !!user && enMembre },
+    { label: t('nav.performances'), path: '/performances', show: !!user && enMembre },
+    { label: t('nav.packs'), path: '/packs', show: !!user && enMembre },
     // L'admin y a droit — la route accepte déjà `['coach', 'admin']`. Sans ce
     // `hasRole('admin')`, un admin qui donne des cours devait taper l'URL à la
     // main pour atteindre un écran qui lui était pourtant ouvert.
-    { label: t('nav.coach'), path: '/coach/my-classes', show: isStaff },
-    { label: t('nav.admin'), path: '/admin/users', show: hasRole('admin') },
+    { label: t('nav.coach'), path: '/coach/my-classes', show: isStaff && mode === 'coach' },
+    { label: t('nav.admin'), path: '/admin/users', show: hasRole('admin') && mode === 'admin' },
   ].filter((item) => item.show)
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
@@ -110,6 +123,9 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-1 ml-auto">
+          {/* Avant les réglages de langue et de thème : c'est le choix qui
+              change le plus l'écran, il mérite la place la plus visible. */}
+          <ModeSwitcher className="mr-1" />
           <LanguageSwitcher />
           <ThemeSwitcher />
 
