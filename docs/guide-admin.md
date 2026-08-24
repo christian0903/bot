@@ -124,6 +124,39 @@ Chaque cours porte un badge qui dit où il en est :
 
 > **« Décision attendue » est le seul badge rouge.** Des membres ont consommé un crédit sans qu'on sache s'ils ont eu leur cours. C'est la seule situation qui exige une intervention.
 
+### La fiche d'un cours
+
+En tête : la vignette du cours, une **jauge de remplissage** et cinq compteurs —
+présents, inscrits, disponibles, absents, en attente. Dessous, un bandeau en
+colonnes : coach, date, horaire, salle.
+
+**Deux boutons sur chaque ligne**, à gauche du nom :
+
+| | Avant le cours | Pendant et après |
+|---|---|---|
+| **✓ Présent** | Grisé | Actif |
+| **✕ Absent** | Grisé | Actif |
+| **Retirer** | Actif | Grisé |
+
+Pointer une présence avant le début n'aurait pas de sens ; retirer quelqu'un
+pendant le cours non plus — c'est « absent » qui sert alors.
+
+### La liste d'attente
+
+Elle apparaît **sous un trait pointillé**, après les inscrits. Ces personnes
+n'ont pas de place : elles portent leur position dans la file, sans bouton de
+pointage.
+
+**Faire entrer quelqu'un.** Le bouton décompte un crédit, comme une réservation
+ordinaire.
+
+> **Si la salle est complète, marquez d'abord un inscrit absent.** C'est son
+> absence qui libère la place — on ne retire pas la réservation de quelqu'un qui
+> a réservé, on constate qu'il n'est pas venu.
+
+La confirmation rappelle l'état du cours — inscrits, présents, absents, places —
+avant de valider.
+
 ### Scanner un code à l'arrivée
 
 Ouvrez le cours depuis **Mes cours**, puis **Scanner QR** : la caméra s'ouvre

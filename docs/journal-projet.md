@@ -472,6 +472,47 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Fiche de cours : la liste d'attente entre en scène
+
+Christian fournit la capture d'une application concurrente à imiter. L'essentiel
+y était déjà chez nous — compteurs, places, salle — sauf **la liste d'attente**,
+qui n'était pas chargée du tout. C'est pourtant l'information qui manque quand
+quelqu'un annule au dernier moment : le coach ignorait que quelqu'un attendait.
+
+Elle s'affiche sous un **trait pointillé ambre**, avec la position dans la file
+et la date d'inscription. Pas de boutons de pointage : on ne pointe pas quelqu'un
+qui n'a pas de place.
+
+**Présent et absent passent à parité**, côte à côte à gauche du nom. « Absent »
+n'était qu'un petit lien à droite, si discret que le coach ne le trouvait pas —
+or c'est lui qui libère une place.
+
+> **Les règles d'activation viennent de Christian**, plus précises que ce que je
+> proposais : avant le cours, on peut retirer un inscrit mais pas pointer ;
+> pendant et après, on pointe mais on ne retire plus. Un clic accidentel avant le
+> début fausserait les statistiques de fréquentation.
+
+`handleUndoNoShow` manquait : on pouvait marquer absent sans pouvoir se dédire.
+
+### Promouvoir depuis la liste d'attente
+
+**Le raisonnement de Christian a tranché une vraie difficulté.** Si la salle est
+complète, faut-il refuser ? Non : *« si j'accepte de promouvoir, c'est parce
+qu'une des personnes qui ont réservé n'est pas présente. Or je ne peux pas
+effacer une personne qui a réservé. »*
+
+D'où la règle : **une place se libère quand un inscrit est marqué absent**, pas
+quand on retire sa réservation. C'est ce qui rend les deux boutons à parité
+nécessaires — sans un « absent » facile à poser, la règle serait inapplicable.
+
+La promotion appelle `book_member_by_staff` : un crédit est décompté comme pour
+toute réservation, et la capacité reste contrôlée côté serveur. Si la salle est
+pleine, le message dit quoi faire — marquer d'abord un inscrit absent.
+
+L'en-tête reprend enfin la maquette : vignette du cours, jauge de remplissage
+noir/ambre, cinq compteurs colorés, et un bandeau en quatre colonnes
+(coach, date, horaire, salle).
+
 ### Passe documentaire sur les trois derniers chantiers
 
 `documentation-technique.md` n'avait rien reçu des trois derniers sujets —

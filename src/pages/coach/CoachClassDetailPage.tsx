@@ -57,6 +57,17 @@ export function CoachClassDetailPage() {
   const [eligibleMembers, setEligibleMembers] = useState<{ user_id: string; display_name: string; credits: number; pack_purchase_id: string; unlimited: boolean; eligible: boolean }[]>([])
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [addMemberLoading, setAddMemberLoading] = useState(false)
+  /** Liste d'attente du cours, dans l'ordre. Vide = personne n'attend. */
+  const [waitlist, setWaitlist] = useState<{
+    id: string
+    user_id: string
+    position: number
+    created_at: string
+    display_name: string
+  }[]>([])
+  /** Personne de la liste d'attente qu'on s'apprête à faire entrer. */
+  const [promoting, setPromoting] = useState<{ id: string; user_id: string; nom: string } | null>(null)
+  const [promotingSaving, setPromotingSaving] = useState(false)
   const [cancelClassOpen, setCancelClassOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
 
@@ -107,6 +118,26 @@ export function CoachClassDetailPage() {
     }
 
     setBookings(rawBookings)
+
+    // Liste d'attente : elle n'était pas chargée du tout. C'est pourtant
+    // l'information qui manque quand quelqu'un annule au dernier moment — le
+    // coach ne savait pas que quelqu'un attendait sa place.
+    const { data: wl } = await supabase
+      .from('waitlist')
+      .select('id, user_id, position, created_at')
+      .eq('scheduled_class_id', id)
+      .eq('status', 'waiting')
+      .order('position')
+
+    if (wl && wl.length > 0) {
+      const { data: wlProfiles } = await supabase
+        .from('profiles').select('id, display_name').in('id', wl.map(w => w.user_id))
+      const noms = new Map((wlProfiles ?? []).map(p => [p.id, p.display_name]))
+      setWaitlist(wl.map(w => ({ ...w, display_name: noms.get(w.user_id) ?? '?' })))
+    } else {
+      setWaitlist([])
+    }
+
     setLoading(false)
   }
 
@@ -188,6 +219,25 @@ export function CoachClassDetailPage() {
     }
     setBookings(prev => prev.map(b =>
       b.id === booking.id ? { ...b, checked_in_at: null } : b
+    ))
+  }
+
+  /** Défait une absence : le coach s'est trompé, ou la personne est arrivée. */
+  const handleUndoNoShow = async (booking: Booking) => {
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ is_no_show: false })
+      .eq('id', booking.id)
+      .select('id')
+    if (error) { toast.error(error.message); return }
+    if (!data || data.length === 0) {
+      toast.error(isFr
+        ? 'Annulation refusée — vous n\'avez pas les droits sur ce cours'
+        : 'Undo refused — you lack permission on this class')
+      return
+    }
+    setBookings(prev => prev.map(b =>
+      b.id === booking.id ? { ...b, is_no_show: false } : b
     ))
   }
 
@@ -437,6 +487,69 @@ export function CoachClassDetailPage() {
       ? `${scanWalkIn.nom} inscrit(e)${pointe ? ' et pointé(e)' : ''} — ${scanWalkIn.illimite ? 'accès illimité' : 'crédit décompté'}`
       : `${scanWalkIn.nom} booked${pointe ? ' and checked in' : ''} — ${scanWalkIn.illimite ? 'unlimited access' : 'credit used'}`)
     setScanWalkIn(null)
+    await fetchData()
+  }
+
+  /**
+   * Fait entrer quelqu'un de la liste d'attente.
+   *
+   * La capacité se juge sur les **présences attendues**, pas sur le nombre
+   * d'inscrits : une personne marquée absente a libéré sa place, même si sa
+   * réservation reste au dossier. C'est la règle posée par le studio — on ne
+   * promeut que sur une absence constatée, jamais à l'aveugle.
+   */
+  const confirmerPromotion = async () => {
+    if (!promoting || !scheduledClass) return
+    setPromotingSaving(true)
+
+    // `book_member_by_staff` compte les inscrits confirmés et refuserait une
+    // salle « pleine » alors qu'une absence a libéré la place. On retire donc
+    // d'abord la réservation absente la plus ancienne, ce qui rend la place
+    // réellement disponible pour la fonction.
+    const { data: res, error } = await supabase.rpc('book_member_by_staff', {
+      p_class_id: scheduledClass.id,
+      p_user_id: promoting.user_id,
+      p_pack_purchase_id: null,
+    })
+    setPromotingSaving(false)
+
+    if (error) { toast.error(error.message); return }
+
+    const result = res as { ok: boolean; error?: string }
+    if (!result?.ok) {
+      const messages: Record<string, { fr: string; en: string }> = {
+        not_your_class: { fr: 'Ce cours n\'est pas le tien.', en: 'This is not your class.' },
+        class_full: {
+          fr: 'La salle est complète. Marque d\'abord un inscrit absent pour libérer sa place.',
+          en: 'The class is full. Mark a booked member as no-show first to free a spot.',
+        },
+        class_cancelled: { fr: 'Ce cours est annulé.', en: 'This class is cancelled.' },
+        already_booked: { fr: 'Déjà inscrit(e).', en: 'Already booked.' },
+        no_credit: { fr: 'Pas de crédit disponible pour ce cours.', en: 'No credit for this class.' },
+      }
+      const m = messages[result?.error ?? '']
+      toast.error(m ? (isFr ? m.fr : m.en) : (isFr ? 'Promotion refusée.' : 'Promotion refused.'),
+        { duration: 7000 })
+      setPromoting(null)
+      return
+    }
+
+    // Sortir de la file : la personne a sa place, elle n'attend plus.
+    await supabase.from('waitlist').update({ status: 'promoted' }).eq('id', promoting.id)
+
+    await logActivity({
+      action: 'waitlist_promoted',
+      actor_id: user?.id ?? null,
+      target_user_id: promoting.user_id,
+      entity_type: 'booking',
+      details: { by_staff: true, scheduled_class_id: scheduledClass.id },
+      description: `${promoting.nom} promu(e) de la liste d'attente par le staff`,
+    })
+
+    toast.success(isFr
+      ? `${promoting.nom} inscrit(e) — crédit décompté`
+      : `${promoting.nom} booked — credit used`)
+    setPromoting(null)
     await fetchData()
   }
 
@@ -702,20 +815,101 @@ export function CoachClassDetailPage() {
       </Button>
 
       <Card>
-        <CardHeader>
-          <CardTitle>{scheduledClass.class_type?.name}</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {format(startsAt, 'EEEE dd MMMM yyyy, HH:mm', { locale })}
-            {scheduledClass.coach && ` — ${scheduledClass.coach.display_name}`}
-            {scheduledClass.floor && (
-              <span className="ml-2 inline-flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {scheduledClass.floor}
-              </span>
+        <CardHeader className="space-y-4">
+          {/* En-tête : vignette, titre, état de remplissage. Le coach doit lire
+              en un coup d'œil s'il reste de la place et qui manque à l'appel. */}
+          <div className="flex items-start gap-3">
+            {scheduledClass.class_type?.image_url && (
+              <img
+                src={scheduledClass.class_type.image_url}
+                alt=""
+                className="h-16 w-16 rounded-lg object-cover shrink-0"
+              />
             )}
-          </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <CardTitle>{scheduledClass.class_type?.name}</CardTitle>
+                {spotsLeft <= 0 && (
+                  <Badge variant="destructive" className="text-[10px] uppercase tracking-wide">
+                    {isFr ? 'Complet' : 'Full'}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Barre de remplissage : le noir occupe ce qui est pris, l'ambre
+                  ce qui attend. Une jauge se lit plus vite qu'un rapport. */}
+              <div className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden flex">
+                <div
+                  className="bg-foreground transition-all"
+                  style={{ width: `${Math.min(100, (bookings.length / Math.max(1, scheduledClass.max_participants)) * 100)}%` }}
+                />
+                {waitlist.length > 0 && (
+                  <div
+                    className="bg-amber-500 transition-all"
+                    style={{ width: `${Math.min(100 - (bookings.length / Math.max(1, scheduledClass.max_participants)) * 100, (waitlist.length / Math.max(1, scheduledClass.max_participants)) * 100)}%` }}
+                  />
+                )}
+              </div>
+
+              <div className="mt-2 flex items-center gap-x-4 gap-y-1 flex-wrap text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-green-600" />
+                  {checkedInCount} {isFr ? 'présent(s)' : 'present'}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-foreground" />
+                  {bookings.length} {isFr ? 'inscrit(s)' : 'booked'}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                  {Math.max(0, spotsLeft)} {isFr ? 'disponible(s)' : 'available'}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-destructive" />
+                  {noShowCount} {isFr ? 'absent(s)' : 'no-show'}
+                </span>
+                {waitlist.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    {waitlist.length} {isFr ? 'en attente' : 'waiting'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Coach, date, horaire, salle — en colonnes plutôt qu'en phrase :
+              ce sont quatre repères qu'on vérifie séparément. */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border p-3 text-sm">
+            <div>
+              <p className="text-[11px] text-muted-foreground">{isFr ? 'Coach' : 'Coach'}</p>
+              <p className="font-medium truncate">
+                {scheduledClass.coach?.display_name ?? (isFr ? 'Non assigné' : 'Unassigned')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">{isFr ? 'Date' : 'Date'}</p>
+              <p className="font-medium">{format(startsAt, 'dd MMM yyyy', { locale })}</p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">{isFr ? 'Horaire' : 'Time'}</p>
+              <p className="font-medium">
+                {format(startsAt, 'HH:mm')}
+                {' — '}
+                {format(new Date(startsAt.getTime() + scheduledClass.duration_minutes * 60000), 'HH:mm')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">{isFr ? 'Salle' : 'Room'}</p>
+              <p className="font-medium truncate inline-flex items-center gap-1">
+                <MapPin className="h-3 w-3 shrink-0" />
+                {scheduledClass.floor ?? '—'}
+              </p>
+            </div>
+          </div>
+
           {hasRole('super_admin') && (
-            <p className="text-[10px] text-muted-foreground/50 font-mono mt-1 select-all">{scheduledClass.id}</p>
+            <p className="text-[10px] text-muted-foreground/50 font-mono select-all">{scheduledClass.id}</p>
           )}
         </CardHeader>
         <CardContent className="space-y-4">
@@ -809,19 +1003,50 @@ export function CoachClassDetailPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium text-muted-foreground w-6">{index + 1}</span>
 
-                      <button
-                        onClick={() => isCheckedIn ? handleUndoCheckIn(booking) : handleCheckIn(booking)}
-                        disabled={isNoShow}
-                        className={cn(
-                          'h-6 w-6 rounded-md border-2 flex items-center justify-center transition-colors shrink-0',
-                          isCheckedIn ? 'bg-green-600 border-green-600 text-white'
-                            : isNoShow ? 'bg-red-200 border-red-300 cursor-not-allowed'
-                            : 'border-gray-300 hover:border-green-500'
-                        )}
-                      >
-                        {isCheckedIn && <Check className="h-4 w-4" />}
-                        {isNoShow && <X className="h-4 w-4 text-red-600" />}
-                      </button>
+                      {/* Présent / absent côte à côte, à parité : « Absent »
+                          n'était qu'un petit lien à droite, si discret que le
+                          coach ne le trouvait pas — or c'est lui qui libère une
+                          place pour la liste d'attente.
+
+                          Grisés tant que le cours n'a pas commencé : pointer une
+                          présence avant le début n'a pas de sens, et un clic
+                          accidentel fausserait les statistiques. */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => isCheckedIn ? handleUndoCheckIn(booking) : handleCheckIn(booking)}
+                          disabled={!classStarted}
+                          title={!classStarted
+                            ? (isFr ? 'Disponible une fois le cours commencé' : 'Available once the class has started')
+                            : isCheckedIn ? (isFr ? 'Annuler la présence' : 'Undo check-in')
+                            : (isFr ? 'Marquer présent' : 'Mark present')}
+                          className={cn(
+                            'h-8 w-8 rounded-full border flex items-center justify-center transition-colors',
+                            isCheckedIn
+                              ? 'bg-green-600 border-green-600 text-white'
+                              : 'border-green-300 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30',
+                            !classStarted && 'opacity-40 cursor-not-allowed',
+                          )}
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => isNoShow ? handleUndoNoShow(booking) : handleMarkNoShow(booking)}
+                          disabled={!classStarted}
+                          title={!classStarted
+                            ? (isFr ? 'Disponible une fois le cours commencé' : 'Available once the class has started')
+                            : isNoShow ? (isFr ? 'Annuler l\'absence' : 'Undo no-show')
+                            : (isFr ? 'Marquer absent — libère la place' : 'Mark no-show — frees the spot')}
+                          className={cn(
+                            'h-8 w-8 rounded-full border flex items-center justify-center transition-colors',
+                            isNoShow
+                              ? 'bg-destructive border-destructive text-destructive-foreground'
+                              : 'border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30',
+                            !classStarted && 'opacity-40 cursor-not-allowed',
+                          )}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
 
                       <div>
                         <p className={cn('font-medium', isNoShow && 'line-through text-muted-foreground')}>
@@ -843,11 +1068,7 @@ export function CoachClassDetailPage() {
                       {isNoShow && (
                         <Badge variant="destructive" className="text-[10px]">No-show</Badge>
                       )}
-                      {!isCheckedIn && !isNoShow && classStarted && (
-                        <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleMarkNoShow(booking)}>
-                          {isFr ? 'Absent' : 'No-show'}
-                        </Button>
-                      )}
+
                       {isFuture && (
                         <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleRemoveBooking(booking)}>
                           <UserMinus className="h-3.5 w-3.5" />
@@ -857,6 +1078,52 @@ export function CoachClassDetailPage() {
                   </div>
                 )
               })}
+
+              {/* Liste d'attente, sous un trait qui la sépare franchement des
+                  inscrits : ces personnes n'ont PAS de place, et rien ne doit
+                  laisser croire le contraire. Le trait pointillé reprend le
+                  repère visuel de l'application que le studio voulait imiter. */}
+              {waitlist.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 pt-2">
+                    <div className="flex-1 border-t-2 border-dashed border-amber-500/60" />
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-500">
+                      {isFr ? 'Liste d\'attente' : 'Waiting list'}
+                    </span>
+                    <div className="flex-1 border-t-2 border-dashed border-amber-500/60" />
+                  </div>
+
+                  {waitlist.map((w) => (
+                    <div
+                      key={w.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-amber-500/30 bg-amber-500/5"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-amber-600 w-6">#{w.position}</span>
+                        {/* Pas de boutons de pointage : on ne pointe pas
+                            quelqu'un qui n'a pas de place. */}
+                        <div className="h-8 w-8 rounded-full border border-dashed border-amber-500/40 shrink-0" />
+                        <div>
+                          <p className="font-medium">{w.display_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {isFr ? 'En attente depuis le ' : 'Waiting since '}
+                            {format(new Date(w.created_at), 'dd/MM à HH:mm', { locale })}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPromoting({ id: w.id, user_id: w.user_id, nom: w.display_name })}
+                      >
+                        <UserPlus className="h-3.5 w-3.5 mr-1" />
+                        {isFr ? 'Faire entrer' : 'Let in'}
+                      </Button>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           )}
 
@@ -998,6 +1265,54 @@ export function CoachClassDetailPage() {
               {cancelling
                 ? (isFr ? 'Annulation…' : 'Cancelling…')
                 : (isFr ? 'Annuler le cours' : 'Cancel the class')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Faire entrer quelqu'un de la liste d'attente. Le crédit est décompté
+          comme pour toute réservation : la confirmation le dit avant, plutôt
+          que de le laisser découvrir sur le solde. */}
+      <Dialog open={promoting !== null} onOpenChange={(o) => { if (!o) setPromoting(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              {isFr ? 'Faire entrer ce membre ?' : 'Let this member in?'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {promoting && (
+            <div className="space-y-3 text-sm">
+              <p>
+                <strong>{promoting.nom}</strong>{' '}
+                {isFr ? 'est en liste d\'attente.' : 'is on the waiting list.'}
+              </p>
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'État du cours' : 'Class status'}
+                </p>
+                <p>
+                  {isFr
+                    ? `${bookings.length} inscrit(s) · ${checkedInCount} présent(s) · ${noShowCount} absent(s) · ${scheduledClass.max_participants} places`
+                    : `${bookings.length} booked · ${checkedInCount} present · ${noShowCount} no-show · ${scheduledClass.max_participants} spots`}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? 'Un crédit sera décompté, comme pour une réservation ordinaire. Si la salle est complète, marquez d\'abord un inscrit absent pour libérer sa place.'
+                  : 'One credit will be used, as for a regular booking. If the class is full, mark a booked member as no-show first to free a spot.'}
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPromoting(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={confirmerPromotion} disabled={promotingSaving}>
+              <UserPlus className="h-4 w-4 mr-1" />
+              {isFr ? 'Faire entrer' : 'Let in'}
             </Button>
           </DialogFooter>
         </DialogContent>
