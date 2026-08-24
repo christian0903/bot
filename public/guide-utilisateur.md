@@ -117,6 +117,10 @@ permanence.
 > Il ne change jamais : c'est ton code, tu peux le montrer autant de fois que
 > nécessaire.
 
+**Tu n'avais pas réservé ?** Présente quand même ton code : si tu as un crédit
+valable pour ce cours, le coach peut t'inscrire sur place. Un crédit sera
+décompté, comme pour une réservation ordinaire — et la place doit être libre.
+
 ### Voir mes cours et mes crédits
 
 **Mes réservations** — la page s'ouvre sur tes **séances à venir**, celles que tu viens vérifier. Trois boutons en haut permettent d'afficher aussi le **passé** et les **annulations** ; le nombre inscrit sur chacun dit ce qu'il contient. Ils se cumulent — tu peux voir à venir et passé ensemble.
@@ -182,6 +186,10 @@ Va dans **Acheter un pack**. Les formules sont classées **par type de crédit**
 > facture part à ton employeur. **Tes séances sont créditées tout de suite**, tu
 > n'attends pas que la facture soit réglée. Les abonnements ne te sont pas
 > proposés — un prélèvement automatique n'a pas de sens sur facture.
+
+> **Une formule porte un bandeau ?** « Recommandé », « Le plus choisi »… c'est
+> une suggestion du studio, mise en avant en tête de liste. Rien ne t'oblige à
+> la prendre : compare les autres, elles restent toutes disponibles.
 
 > **Vérifie le type de crédit avant d'acheter** : c'est lui qui détermine les cours que tu pourras réserver. Il est rappelé sur chaque carte.
 

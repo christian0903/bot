@@ -43,6 +43,30 @@ Click a class to see details.
   - "X spot(s) remaining" badge when almost full
   - Red "Full" badge when full
 
+### Scanning a code on arrival
+
+Open the class from **My Classes**, then **Scan QR**: the camera opens inside the
+page. The member shows their code — found on their dashboard, collapsed behind
+**Show**, or on their Profile page.
+
+| Situation | What happens |
+|---|---|
+| Booked, not yet checked in | Attendance recorded |
+| Already checked in | Flagged, nothing duplicated |
+| **Not booked, but has credits** | **The app offers to add them** — you confirm, one credit is used |
+| Not booked, no credits | Refused, with their name and the reason |
+| Unknown code | Refused |
+
+> **The scanner closes after each read.** For the next person, click **Scan QR**
+> again.
+
+You don't have to scan: every row in the list carries a check-in button, often
+faster for a small group.
+
+> **A member with no credit appears greyed out** in the add list, marked “no
+> credit for this class”. They cannot be selected: assign them a pack from their
+> profile first.
+
 ### Edit Spot Count
 1. On the class detail page, click **Edit spots**
 2. An input field appears with the current number
@@ -157,6 +181,30 @@ Configure pack offerings sold to members:
 - **Price**: in euros (enter 250 for €250, conversion to cents is automatic)
 - **Validity**: duration in days after purchase
 - **Eligible categories**: click category badges to toggle them
+- **Banner text**: shown when the pack is featured. Empty = “Recommended”
+
+**Status is changed by clicking the badge** in the list, which cycles:
+
+| Status | What the member sees |
+|---|---|
+| **Inactive** | Nothing — the pack has left the catalogue |
+| **Active** | The pack, in its usual place |
+| **Featured** | Banner, highlighted card, and **placed first** in its section |
+
+> **Featuring everything means featuring nothing.** Nothing limits how many packs
+> you feature: that's yours to judge.
+
+> **The bin is super-admin only.** An admin removes from the catalogue, they do
+> not erase — the action is irreversible and touches purchase history.
+
+> **A pack already sold cannot be deleted.** The bin will refuse and say why:
+> the purchase would be orphaned and the member would lose track of credits they
+> still hold. Uncheck **Active** instead — the pack leaves the catalogue, nobody
+> is affected.
+
+**Subscription period**: weeks or months. A **yearly subscription** is set as
+“12 months” — it shows as “every year” to the member. The maximums (52 weeks,
+12 months) come from Stripe, not from the app.
 - **Category granted** / **Category after expiry**: what buying this pack gives
   the member, and where they fall back afterwards
 

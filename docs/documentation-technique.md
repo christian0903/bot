@@ -610,6 +610,115 @@ Les deux triggers sont dans un bloc `BEGIN/EXCEPTION` : un classement qui échou
 
 ---
 
+## Check-in — du scan à la présence
+
+Le scanner vit dans la **fiche d'un cours**, pas dans un écran global : il pointe
+des présences *pour ce cours-là*. Le QR d'un membre ne contient que son
+`profile.id` — ni nom, ni e-mail : un code photographié ne révèle rien.
+
+`html5-qrcode` est chargé **en import dynamique** (`await import(...)`) : la
+bibliothèque ne pèse sur aucun autre écran.
+
+### Ce que le code déclenche
+
+```
+code scanné
+  → inscrit à ce cours ?
+      oui, pas pointé  → checked_in_at
+      oui, déjà pointé → signalé, rien d'écrit
+      non              → proposerInscriptionAuScan()
+```
+
+**Le pointage lit ce que la base a écrit.** `.select('id')` après l'`UPDATE`
+n'est pas décoratif : une policy RLS qui refuse une écriture **ne lève aucune
+erreur**, elle touche zéro ligne. Sans cette lecture, l'écran annonçait « pointé »
+sur un pointage qui n'avait pas eu lieu. C'est la règle 5 du `CLAUDE.md`, ici
+appliquée à un cas où elle se voit peu.
+
+Un coach ne pointe que ses propres cours ; le refus est explicite plutôt que
+silencieux.
+
+### Le membre qui se présente sans avoir réservé
+
+Cas courant à l'accueil, pas une erreur. `proposerInscriptionAuScan` cherche le
+membre au-delà des inscrits, puis une source de crédit valable pour **ce type de
+cours** — mêmes règles que la liste d'ajout : pack non expiré, bon
+`credit_type_id`, et consommable (illimité ou `credits_remaining > 0`).
+
+Le coach confirme, avec le solde annoncé **avant**. La confirmation appelle
+`book_member_by_staff` — la fonction de l'ajout manuel, pas une réécriture : elle
+inscrit **et** consomme le crédit dans la même transaction, en appliquant les
+contrôles de capacité, de cours annulé et de double inscription.
+
+> **Elle ne pointe pas la présence.** Le `checked_in_at` est écrit ensuite, sur
+> le `booking_id` qu'elle renvoie — la personne est devant le coach, un second
+> geste serait absurde. Le message ne dit « pointé » que si l'écriture a abouti.
+
+### Pourquoi un membre n'apparaît pas dans la liste d'ajout
+
+Trois filtres cumulés, et c'est voulu : inscrire quelqu'un sans crédit créerait
+une réservation impayée — ce que `book_class` a fermé le 2026-08-23.
+
+Mais l'absence pure et simple ne disait pas s'il fallait attribuer un pack ou si
+l'on cherchait la mauvaise personne. Tous les membres sont donc chargés, les
+non-éligibles restant **visibles et désactivés**, avec leur raison. Les
+inscriptibles passent devant.
+
+---
+
+## Mise en avant d'un pack
+
+`is_featured` et `featured_label` sur `pack_types`. **Un champ à part, pas un
+troisième état de `is_active`** : un pack promu est forcément actif — la
+promotion est une mise en avant, pas un état de vente. Les fondre interdirait de
+dépromouvoir sans désactiver, et un pack désactivé puis réactivé aurait perdu sa
+promotion en silence.
+
+Contrainte `NOT is_featured OR is_active` : promu implique actif, sans quoi
+l'écran afficherait un état que le membre ne voit nulle part.
+
+> C'est le raisonnement du B2B pris à l'envers. Là-bas : *deux marqueurs pour le
+> même fait finiraient par diverger*. Ici, ç'aurait été **un seul marqueur pour
+> deux faits différents**.
+
+L'écran admin présente bien trois choix — le badge de la liste fait tourner
+inactif → actif → promu — mais la base garde les deux notions séparées.
+
+Quatre effets côté membre : bandeau au texte libre (vide = « Recommandé »),
+remontée en tête de section, anneau plus marqué que celui des abonnements — sans
+quoi la mise en avant passerait inaperçue au milieu de cartes déjà encadrées — et
+priorité sur le bandeau « Abonnement ». Le mécanisme `isPopular` de `renderPack`
+existait déjà mais recevait toujours `false` : il n'y avait qu'à le brancher.
+
+### Supprimer un type de pack
+
+Réservé au **super admin**, à l'écran *et en base*. La policy
+`Pack types: admin manage` couvrait `ALL`, donc `DELETE` — masquer le bouton
+n'aurait rien protégé. Elle est découpée en trois : `admin insert`,
+`admin update`, `super admin delete`.
+
+Le front compte par ailleurs les liens **avant** de tenter : un type déjà vendu
+est refusé par la base, et le message nomme la raison plutôt que d'afficher un
+« une erreur est survenue » qui n'explique rien. L'issue est de décocher
+« Actif ».
+
+---
+
+## Périodicité d'un abonnement
+
+Semaines ou mois — les **jours ont été retirés** : « tous les 72 jours » ne se
+dit pas, ne se compare pas, et n'a aucun sens commercial.
+
+Les bornes de Stripe sont une **contrainte en base**, pas seulement un plafond de
+saisie : 52 semaines, 12 mois. Sans elle, un « mois × 24 » passait la création et
+se faisait refuser au premier paiement, sans explication.
+
+Un **abonnement annuel** se règle en `month × 12` — exactement la limite haute.
+`formatRecurrence` l'affiche « chaque année » plutôt que « tous les 12 mois » :
+juste, mais administratif là où l'annuel est un argument de vente.
+
+---
+
 ## Conflits de planning
 
 `analyserConflits` (`src/lib/conflits-planning.ts`) est appelée avant toute écriture en masse — duplication, création avec répétition. Elle sort la logique de la page, où elle était dupliquée à deux endroits.

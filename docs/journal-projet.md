@@ -472,6 +472,27 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Passe documentaire sur les trois derniers chantiers
+
+`documentation-technique.md` n'avait rien reçu des trois derniers sujets —
+check-in par scan, mise en avant des packs, périodicité — alors que c'est la
+source de vérité technique. Trois sections ajoutées (802 → 911 lignes), dont les
+raisonnements qui ne se déduisent pas du code : pourquoi `is_featured` est un
+champ à part, pourquoi `book_member_by_staff` ne pointe pas, pourquoi la policy
+`ALL` devait être découpée.
+
+`guide-admin-en.md` non plus : 524 → 633 lignes. Il ignorait le scan, les trois
+statuts et la restriction super admin.
+
+Côté membre, deux cas manquaient dans les deux langues : **se présenter sans
+avoir réservé** — le coach peut inscrire sur place si un crédit est disponible —
+et **le bandeau d'un pack mis en avant**, qu'il fallait présenter pour ce qu'il
+est : une suggestion du studio, pas une contrainte.
+
+> Le retard de fond des guides anglais **reste entier** : le français compte 40
+> sections détaillées, l'anglais en couvre une fraction. Chantier à part, signalé
+> depuis le 23 août, toujours pas entamé.
+
 ### Accueil au studio : deux écrans qui refusaient sans expliquer
 
 Christian cherchait un membre dans la liste d'ajout d'un cours, sans le trouver.

@@ -172,6 +172,10 @@ You can only rate classes you were booked on, and only once they have finished.
 > you don't wait for the invoice to be settled. Subscriptions are not offered to
 > you: a recurring charge makes no sense on invoice.
 
+> **A pack carries a banner?** “Recommended”, “Most popular”… that's a
+> suggestion from the studio, placed first in the list. Nothing obliges you to
+> take it: compare the others, they all remain available.
+
 ### View Your Packs
 The **My Packs** page shows all your packs:
 - **Pack name** and credit type
@@ -249,6 +253,10 @@ It sits at the bottom of your **dashboard**, collapsed: tap **Show** to reveal
 it. You will also find it on your **Profile** page, where it stays visible.
 
 > It never changes: it's your code, show it as often as needed.
+
+**Didn't book?** Show your code anyway: if you hold a credit valid for that
+class, the coach can add you on the spot. One credit will be used, as for a
+regular booking — and a spot must be free.
 
 ---
 
