@@ -9,7 +9,15 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   )
-  self.skipWaiting()
+  // Pas de skipWaiting() ici : ce service worker attend en réserve, et
+  // l'application propose au membre de recharger. S'activer tout de suite
+  // remplacerait le code sous ses pieds — un formulaire à moitié rempli ou une
+  // réservation en cours de validation partirait avec.
+})
+
+// L'application demande la bascule quand le membre a cliqué « Recharger ».
+self.addEventListener('message', (event) => {
+  if (event.data === 'ACTIVER_MAINTENANT') self.skipWaiting()
 })
 
 // Activate: clean old caches

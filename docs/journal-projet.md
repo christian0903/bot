@@ -24,7 +24,7 @@
 **Exports CSV** : **livrés** (2026-08-23) — page dédiée, huit sorties, plus l'export du journal d'activité et sa purge réservée au super admin.
 **Index** : **posés** (2026-08-23) — `bookings` et `scheduled_classes` n'en avaient aucun. L'archivage n'est pas nécessaire : la base pèse 1,1 Mo pour 8 Go disponibles.
 **Documentation** : **à jour au 2026-08-23** en français, `public/` compris. Les versions **anglaises accusent un retard important** et attendent un chantier à part.
-**PWA** : **livrée** (2026-08-24) — l'application s'installe sur l'écran d'accueil iPhone et Android, sans passer par un store. Sert la phase de test avant l'App Store.
+**PWA** : **livrée** (2026-08-24) — l'application s'installe sur l'écran d'accueil iPhone et Android, sans passer par un store, et annonce ses mises à jour au lieu de les imposer. Sert la phase de test avant l'App Store.
 **Durée d'abonnement** : **libre** — jours, semaines ou mois, un nombre au choix. Un garde-fou infondé qui bloquait les durées non multiples de 7 a été levé.
 **Phase 13** (RGPD & sécurité) : non entamée. Les CGV existent, à compléter. **Deux de ses éléments deviennent bloquants pour l'App Store** — voir ci-dessous.
 **Rémunération des coachs** : reportée — module à part, la gestion se fait hors application (décision du 2026-08-06).
@@ -106,6 +106,44 @@ La bannière vit sur le **tableau de bord**, pas sur la page publique : installe
 vaut pour un membre qui revient, pas pour un visiteur de passage. Un refus est
 mémorisé **un mois** — une bannière qui revient à chaque page se lit comme une
 publicité et fait fuir au lieu d'installer.
+
+### « Nouvelle version disponible » : proposer plutôt qu'imposer
+
+Le mécanisme de mise à jour fonctionnait, mais **sans rien dire**. Un membre qui
+garde l'application ouverte reste sur son code jusqu'à la prochaine ouverture —
+sans jamais savoir qu'une correction existe.
+
+> **La bannière n'est pas réservée au téléphone**, contrairement à l'intuition
+> de départ. Le problème n'est pas « être sur mobile », c'est « garder la page
+> ouverte longtemps » — et c'est précisément le comportement du navigateur de
+> bureau. iOS, lui, décharge régulièrement une PWA installée, ce qui la met à
+> jour de lui-même. La cacher sur le web l'aurait retirée du cas où elle sert le
+> plus. Seule exception : l'application native, dont le code est embarqué.
+
+**`skipWaiting()` a été retiré de `install`.** Il faisait basculer le nouveau
+service worker immédiatement, ce qui remplace le code sous les pieds du membre :
+un formulaire à moitié rempli ou une réservation en cours de validation part
+avec. Le worker attend désormais en réserve, et ne s'active que sur le message
+`ACTIVER_MAINTENANT` — envoyé par le bouton « Recharger ».
+
+Trois détails qui font la différence entre une bannière qui marche et une qui ment :
+
+- **Le rechargement vient de `controllerchange`**, pas du clic. Recharger tout de
+  suite rechargerait l'**ancienne** version : le nouveau worker n'a pas encore
+  pris la main.
+- **Un worker déjà en attente au chargement** est détecté explicitement. Sans ce
+  test, un membre revenu après un déploiement ne verrait la bannière qu'au
+  déploiement *suivant* — `updatefound` s'est déclenché avant que la page existe.
+- **`navigator.serviceWorker.controller` absent = première visite.** Annoncer une
+  « nouvelle version » à quelqu'un qui découvre le site n'aurait aucun sens.
+
+Vérification faite en simulant un déploiement (`sw.js` réécrit sous le serveur de
+preview) : bannière affichée, ancien worker toujours actif pendant l'attente,
+puis après clic bascule complète, purge de l'ancien cache et rechargement.
+
+**Pas de bouton pour fermer la bannière** : elle n'apparaît qu'en présence d'une
+version réellement en attente. La faire disparaître laisserait le membre sur du
+code périmé en croyant l'inverse.
 
 ### Ce qu'il reste à savoir sur la PWA
 

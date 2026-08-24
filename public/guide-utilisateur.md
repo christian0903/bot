@@ -51,6 +51,11 @@ faire) :
 > Tu restes connecté d'une fois à l'autre : plus besoin de retaper ton mot de
 > passe à chaque visite.
 
+**Les mises à jour se font toutes seules.** Rien à télécharger, rien à installer
+à nouveau. Quand une nouvelle version est prête, un bandeau **Nouvelle version
+disponible** apparaît en bas de l'écran : touche **Recharger**, et c'est fait.
+Tu peux aussi l'ignorer et continuer — elle s'appliquera à ta prochaine visite.
+
 ### Mot de passe oublié
 
 Sur la page de connexion, onglet **Mot de passe oublié** : tu reçois un lien pour en choisir un nouveau.

@@ -397,6 +397,9 @@
     "iosStep3": "Tap “Add”: the icon joins your apps.",
     "iosNote": "The app will then open in full screen, without the address bar.",
     "done": "Done",
-    "success": "App installed."
+    "success": "App installed.",
+    "newVersion": "New version available",
+    "newVersionHint": "Reload to get it.",
+    "reload": "Reload"
   }
 }

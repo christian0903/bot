@@ -397,6 +397,9 @@
     "iosStep3": "Touchez « Ajouter » : l'icône rejoint vos applications.",
     "iosNote": "L'application s'ouvrira alors en plein écran, sans la barre d'adresse.",
     "done": "C'est fait",
-    "success": "Application installée."
+    "success": "Application installée.",
+    "newVersion": "Nouvelle version disponible",
+    "newVersionHint": "Rechargez pour en profiter.",
+    "reload": "Recharger"
   }
 }

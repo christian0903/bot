@@ -10,6 +10,7 @@ import { RoleGuard } from '@/components/auth/RoleGuard'
 import { Layout } from '@/components/layout/Layout'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { LoadingState } from '@/components/common/LoadingState'
+import { UpdatePrompt } from '@/components/common/UpdatePrompt'
 
 // Pages publiques (chargées immédiatement)
 import { HomePage } from '@/pages/HomePage'
@@ -137,6 +138,9 @@ function App() {
                 </Route>
               </Routes>
               <Toaster richColors position="top-right" />
+              {/* Hors des routes : un membre peut rester des heures sur le
+                  planning sans jamais naviguer. */}
+              <UpdatePrompt />
             </TooltipProvider>
           </NotificationProvider>
         </AuthProvider>
