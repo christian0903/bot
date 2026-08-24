@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { Dumbbell, ChevronRight, ChevronLeft, Check, MailCheck, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { landingRouteFor } from '@/lib/landing-route'
+import { cn } from '@/lib/utils'
 import type { UserRole } from '@/types'
 
 const NAME_REGEX = /^[a-zA-ZÀ-ÿ\s-]+$/
@@ -45,6 +46,11 @@ export function AuthPage() {
    * relancer l'e-mail.
    */
   const [needsConfirmation, setNeedsConfirmation] = useState(false)
+  /**
+   * L'inscription visait une adresse déjà connue. Supabase n'a alors envoyé
+   * aucun e-mail : l'écran doit cesser d'en annoncer un.
+   */
+  const [signupDuplicate, setSignupDuplicate] = useState(false)
 
   // Login form
   const [loginEmail, setLoginEmail] = useState('')
@@ -248,6 +254,10 @@ export function AuthPage() {
         // d'écriture ne doit pas transformer une inscription en erreur.
         void supabase.rpc('log_duplicate_signup', { p_email: regEmail })
       }
+      // L'écran annonçait « un e-mail vient d'être envoyé » dans tous les cas —
+      // faux sur un doublon, où Supabase n'envoie rien. Le retenir permet de
+      // formuler un message vrai sans révéler que l'adresse existe.
+      setSignupDuplicate(dejaInscrit)
       // Un toast disparaît en quelques secondes : le membre se retrouvait
       // devant le formulaire de connexion sans savoir qu'un e-mail l'attendait,
       // et beaucoup essayaient de se connecter en vain. L'écran de
@@ -287,40 +297,68 @@ export function AuthPage() {
               {isFr ? 'Vérifie ta boîte mail' : 'Check your inbox'}
             </CardTitle>
             <CardDescription>
-              {isFr
-                ? 'Ton compte est créé, il reste une étape.'
-                : 'Your account is created — one step left.'}
+              {/* « Ton compte est créé » serait faux sur un doublon : rien n'a
+                  été créé, l'ancien compte est resté tel quel. */}
+              {signupDuplicate
+                ? (isFr ? 'Il reste une étape avant de pouvoir te connecter.' : 'One step left before you can sign in.')
+                : (isFr ? 'Ton compte est créé, il reste une étape.' : 'Your account is created — one step left.')}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
+            {/* Sur un doublon, Supabase n'envoie RIEN : annoncer un e-mail
+                serait faux, et le membre attendrait un message qui ne viendra
+                jamais. On décrit donc l'adresse visée sans affirmer un envoi —
+                vrai dans les deux cas, et sans révéler que le compte existe,
+                ce qui permettrait de savoir qui fréquente le studio. */}
             <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-              <p>
-                {isFr ? 'Un e-mail vient d\'être envoyé à ' : 'An email was just sent to '}
-                <strong className="break-all">{registeredEmail}</strong>.
-              </p>
-              <p className="mt-2 text-muted-foreground">
-                {isFr
-                  ? 'Clique sur le lien qu\'il contient pour activer ton compte. Sans cette confirmation, la connexion ne fonctionnera pas.'
-                  : 'Click the link inside to activate your account. Until you do, signing in won\'t work.'}
-              </p>
+              {signupDuplicate ? (
+                <>
+                  <p>
+                    {isFr ? 'Ton inscription concerne ' : 'Your sign-up used '}
+                    <strong className="break-all">{registeredEmail}</strong>.
+                  </p>
+                  <p className="mt-2 text-muted-foreground">
+                    {isFr
+                      ? 'Si aucun compte n\'existait pour cette adresse, un e-mail de confirmation vient de partir. S\'il en existait déjà un, rien n\'a été envoyé — utilise alors la connexion ci-dessous.'
+                      : 'If no account existed for this address, a confirmation email has just been sent. If one already existed, nothing was sent — use the sign-in option below instead.'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>
+                    {isFr ? 'Un e-mail vient d\'être envoyé à ' : 'An email was just sent to '}
+                    <strong className="break-all">{registeredEmail}</strong>.
+                  </p>
+                  <p className="mt-2 text-muted-foreground">
+                    {isFr
+                      ? 'Clique sur le lien qu\'il contient pour activer ton compte. Sans cette confirmation, la connexion ne fonctionnera pas.'
+                      : 'Click the link inside to activate your account. Until you do, signing in won\'t work.'}
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Le dossier indésirables est la première cause de « je n'ai rien
-                reçu » : autant le dire tout de suite. */}
-            <p className="text-xs text-muted-foreground">
-              {isFr
-                ? 'Rien reçu après quelques minutes ? Regarde dans les indésirables (spam), ou demande un nouvel envoi ci-dessous.'
-                : 'Nothing after a few minutes? Check your spam folder, or ask for a new email below.'}
-            </p>
+                reçu ». Sans objet sur un doublon, où rien n'est parti. */}
+            {!signupDuplicate && (
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? 'Rien reçu après quelques minutes ? Regarde dans les indésirables (spam), ou demande un nouvel envoi ci-dessous.'
+                  : 'Nothing after a few minutes? Check your spam folder, or ask for a new email below.'}
+              </p>
+            )}
 
             {/* Deuxième cause, invisible pour qui la subit : l'adresse a déjà un
-                compte. Supabase répond alors comme si l'inscription avait
-                réussi, sans envoyer d'e-mail — c'est délibéré de sa part, dire
-                « cette adresse existe » permettrait de savoir qui est inscrit au
-                studio. On ne l'affirme donc pas non plus ici : on décrit le cas
-                et on donne la sortie, ce qui débloque sans rien divulguer. */}
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                compte. Sur un doublon l'encart passe en premier plan, c'est la
+                seule sortie utile ; sinon il reste en repli, pour celui qui a
+                oublié qu'il s'était déjà inscrit. */}
+            <div className={cn(
+              'rounded-lg border p-3',
+              signupDuplicate
+                ? 'border-primary/40 bg-primary/5'
+                : 'border-amber-500/30 bg-amber-500/5',
+            )}>
               <p className="text-xs">
                 {isFr
                   ? 'Tu as déjà un compte avec cette adresse ? Aucun e-mail n\'est envoyé dans ce cas. Connecte-toi directement, ou passe par « Mot de passe oublié ».'
@@ -341,22 +379,33 @@ export function AuthPage() {
               </button>
             </div>
 
+            {/* Sur un doublon, « J'ai confirmé » n'a pas de sens : il n'y a rien
+                à confirmer, l'ancien compte l'est déjà. C'est la connexion qui
+                débloque. */}
             <Button
               className="w-full"
               onClick={() => { setRegisteredEmail(null); setTab('login') }}
             >
-              {isFr ? 'J\'ai confirmé, me connecter' : 'I confirmed, sign in'}
+              {signupDuplicate
+                ? (isFr ? 'Me connecter' : 'Sign in')
+                : (isFr ? 'J\'ai confirmé, me connecter' : 'I confirmed, sign in')}
             </Button>
 
-            <Button
-              variant="outline"
-              className="w-full"
-              disabled={resending}
-              onClick={() => handleResend(registeredEmail)}
-            >
-              <RefreshCw className={`h-4 w-4 ${resending ? 'animate-spin' : ''}`} />
-              {isFr ? 'Renvoyer l\'e-mail' : 'Resend the email'}
-            </Button>
+            {/* Renvoyer n'aurait aucun effet sur une adresse déjà inscrite :
+                Supabase refuse un `resend` de type signup sur un compte
+                confirmé. Proposer le bouton serait promettre un e-mail qui ne
+                partira pas. */}
+            {!signupDuplicate && (
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={resending}
+                onClick={() => handleResend(registeredEmail)}
+              >
+                <RefreshCw className={`h-4 w-4 ${resending ? 'animate-spin' : ''}`} />
+                {isFr ? 'Renvoyer l\'e-mail' : 'Resend the email'}
+              </Button>
+            )}
 
             {/* Une faute de frappe dans l'adresse est l'autre cause de « je n'ai
                 rien reçu », et le renvoi n'y peut rien : il repartirait à la

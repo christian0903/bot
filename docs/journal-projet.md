@@ -472,6 +472,45 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### L'écran d'inscription annonçait un e-mail qui ne partait pas
+
+Signalé par Christian : sur une adresse déjà inscrite, l'écran affichait « Un
+e-mail vient d'être envoyé à… » **et**, quelques lignes plus bas, « Tu as déjà un
+compte avec cette adresse ». La première affirmation était fausse — Supabase
+n'envoie rien dans ce cas — et le membre attendait un message qui ne viendrait
+jamais.
+
+Le front **savait** qu'il s'agissait d'un doublon (`dejaInscrit`), mais jetait
+l'information après l'avoir journalisée. Elle est désormais retenue, ce qui
+permet de formuler un écran **vrai dans les deux cas sans révéler que le compte
+existe** — la protection anti-énumération reste entière.
+
+Sur un doublon :
+
+- Le sous-titre ne dit plus « Ton compte est créé » : rien n'a été créé.
+- Le message devient conditionnel — « si aucun compte n'existait, un e-mail vient
+  de partir ; s'il en existait déjà un, rien n'a été envoyé ».
+- Le rappel des indésirables disparaît : il n'y a rien à y chercher.
+- L'encart « déjà un compte » passe en premier plan, c'est la seule sortie utile.
+- **Le bouton « Renvoyer l'e-mail » disparaît** : Supabase refuse un `resend` de
+  type signup sur un compte confirmé, le proposer promettrait un envoi qui
+  n'aura pas lieu.
+- Le bouton principal devient « Me connecter » plutôt que « J'ai confirmé » — il
+  n'y a rien à confirmer.
+
+### La catégorie invisible sur iPhone en portrait
+
+Signalé par Christian, avec le bon diagnostic : visible en paysage, absente en
+portrait. La colonne était en `hidden sm:table-cell`, soit un seuil de 640 px —
+un iPhone fait 390 à 430 px en portrait, il passait dessous.
+
+Forcer la colonne dans un tableau qui en compte déjà six l'aurait rendu illisible.
+Le badge s'affiche donc **sous le nom** en dessous de 640 px, là où la ligne a de
+la place. Les deux affichages sont complémentaires (`sm:hidden` et
+`hidden sm:table-cell`) : aucune largeur ne montre les deux ni aucun.
+
+C'est le motif déjà employé pour le badge B2B, posé à côté du nom.
+
 ### Le code de check-in, replié par défaut
 
 Demandé par Christian. Déployé, il occupait environ 250 px en bas du tableau de

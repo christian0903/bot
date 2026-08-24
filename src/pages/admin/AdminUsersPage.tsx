@@ -539,6 +539,23 @@ export function AdminUsersPage() {
                       )}
                       <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
+                    {/* Sous le nom en dessous de 640 px, où la colonne dédiée
+                        est masquée : un iPhone en portrait ne la voyait jamais,
+                        et c'est précisément l'information qu'on vérifie avant
+                        de cocher quelqu'un. La ligne du nom a de la place, le
+                        tableau n'en a plus. */}
+                    {(() => {
+                      const cat = categories.find(c => c.id === user.member_category_id)
+                      if (!cat) return null
+                      return (
+                        <Badge
+                          variant="secondary"
+                          className="sm:hidden mt-1 text-[10px] font-normal"
+                        >
+                          {cat.name}
+                        </Badge>
+                      )
+                    })()}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     {(() => {
