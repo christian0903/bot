@@ -389,9 +389,16 @@ Un tiret plutôt qu'une case vide quand il n'y en a pas : sans catégorie est un
 Ajoutée aussi à l'export CSV — une colonne qu'on voit à l'écran et qu'on ne
 retrouve pas dans le fichier se remarque immédiatement.
 
-> **À noter** : la colonne **Rôle** affiche « Client » sur les 16 membres, cette
-> page excluant coachs et admins. Elle occupe de la place sans rien apprendre —
-> candidate à la suppression, non faite ici faute de demande.
+**La colonne Rôle a été retirée** dans la foulée, sur décision de Christian :
+cette page exclut coachs et admins, elle affichait donc « Client » sur les seize
+lignes. La catégorie prend sa place et remonte à 640 px, où elle devient visible
+bien plus tôt.
+
+Le rôle reste utile là où il varie — la **fiche individuelle**, qui portait déjà
+le statut et la catégorie mais pas lui : savoir qu'on regardait un coach exigeait
+de faire défiler jusqu'aux interrupteurs de rôle, tout en bas. Il s'affiche
+désormais en tête, à côté des deux autres. Un membre sans rôle particulier est
+annoncé « Client » plutôt que laissé en blanc.
 
 ### Effacer un membre : la règle était déjà la bonne
 

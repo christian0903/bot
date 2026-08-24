@@ -1025,11 +1025,34 @@ export function AdminUserDetailPage() {
         </Card>
       )}
 
-      {/* Status + Category + Registration fee */}
+      {/* Statut + Rôle + Catégorie + Frais d'inscription */}
       <div className="flex items-center gap-3 flex-wrap">
         <Badge variant="outline" className={profile.member_status === 'active' ? 'border-green-500 text-green-600' : profile.member_status === 'inactive' ? 'border-orange-500 text-orange-600' : profile.member_status === 'former' ? 'border-red-500 text-red-600' : ''}>
           {t(`profile.status.${profile.member_status}`)}
         </Badge>
+
+        {/* Le rôle se réglait plus bas dans la page, sans jamais s'afficher en
+            tête : savoir qu'on regarde un coach demandait de faire défiler
+            jusqu'aux interrupteurs. Un membre sans rôle particulier est un
+            client — le dire plutôt que laisser un blanc. */}
+        {memberRoles.filter(r => r !== 'client').length > 0 ? (
+          memberRoles.filter(r => r !== 'client').map(r => (
+            <Badge
+              key={r}
+              variant="outline"
+              className={r === 'super_admin' ? 'border-red-500 text-red-600'
+                : r === 'admin' ? 'border-purple-500 text-purple-600'
+                : 'border-blue-500 text-blue-600'}
+            >
+              <Shield className="h-3 w-3 mr-1" />
+              {t(`roles.${r}`)}
+            </Badge>
+          ))
+        ) : (
+          <Badge variant="outline" className="text-muted-foreground">
+            {t('roles.client')}
+          </Badge>
+        )}
 
         {/* Category selector */}
         <Select

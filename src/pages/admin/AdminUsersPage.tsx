@@ -491,11 +491,12 @@ export function AdminUsersPage() {
                   />
                 </TableHead>
                 <TableHead>{t('admin.users.name')}</TableHead>
-                <TableHead className="hidden sm:table-cell">{t('admin.users.role')}</TableHead>
-                {/* La catégorie commande les packs qu'un membre peut acheter :
-                    la voir dans la liste évite d'ouvrir chaque fiche, et de
-                    cocher à l'aveugle avant une attribution groupée. */}
-                <TableHead className="hidden lg:table-cell">
+                {/* Pas de colonne Rôle : cette page exclut coachs et admins,
+                    elle aurait affiché « Client » sur chaque ligne. Le rôle
+                    reste visible sur la fiche individuelle, où il peut varier.
+                    La catégorie, elle, commande les packs achetables — la voir
+                    ici évite de cocher à l'aveugle avant une attribution. */}
+                <TableHead className="hidden sm:table-cell">
                   {isFr ? 'Catégorie' : 'Category'}
                 </TableHead>
                 <TableHead className="text-center">
@@ -540,15 +541,6 @@ export function AdminUsersPage() {
                     </button>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
-                    <div className="flex gap-1 flex-wrap">
-                      {user.roles.map(r => (
-                        <Badge key={r} variant="outline" className="text-[10px]">
-                          {t(`roles.${r}`)}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
                     {(() => {
                       const cat = categories.find(c => c.id === user.member_category_id)
                       // Un tiret plutôt qu'une case vide : sans catégorie est un

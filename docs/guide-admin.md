@@ -197,12 +197,15 @@ La fiche d'un membre regroupe tout ce qui le concerne, en plusieurs onglets.
 
 ### Ce que montre la liste
 
-Nom, rôle, **catégorie**, crédits restants, dernière connexion. Un tiret dans la
+Nom, **catégorie**, crédits restants, dernière connexion. Un tiret dans la
 colonne Catégorie signifie qu'aucune ne lui est attribuée — c'est un état
 normal, pas un oubli.
 
-Sur un écran étroit, les colonnes secondaires se masquent progressivement :
-la catégorie apparaît à partir d'un écran d'ordinateur.
+Pas de colonne Rôle : cette page ne montre que des clients, coachs et admins ont
+la leur. Le rôle figure en tête de la **fiche individuelle**, avec le statut et
+la catégorie.
+
+Sur un écran étroit, les colonnes secondaires se masquent progressivement.
 
 L'export CSV reprend toutes ces colonnes, pour l'ensemble de ce que les filtres
 retiennent.
@@ -225,7 +228,7 @@ L'opération est inscrite au journal d'activité.
 
 ### Ce qu'on voit en tête
 
-Statut, catégorie, frais d'inscription, et trois compteurs : crédits restants, packs actifs, réservations.
+Statut, **rôle**, catégorie, frais d'inscription, et trois compteurs : crédits restants, packs actifs, réservations.
 
 **La catégorie** détermine les packs auxquels le membre a droit. Un membre a une seule catégorie. Pour en attribuer une à plusieurs membres d'un coup, voir *Ranger plusieurs membres à la fois* ci-dessous.
 
