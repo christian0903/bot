@@ -377,6 +377,22 @@ avoir filtré ne doit pas embarquer ce qu'on ne voit pas.
 Retirer la catégorie est proposé au même endroit : sans cette entrée, un membre
 mal rangé le resterait.
 
+### La catégorie, visible dans la liste
+
+Signalé par Christian juste après l'attribution groupée : sans la voir, on coche
+à l'aveugle. Colonne ajoutée entre le rôle et les crédits, masquée sous 1024 px
+comme les autres colonnes secondaires du tableau.
+
+Un tiret plutôt qu'une case vide quand il n'y en a pas : sans catégorie est un
+état légitime, pas une donnée manquante.
+
+Ajoutée aussi à l'export CSV — une colonne qu'on voit à l'écran et qu'on ne
+retrouve pas dans le fichier se remarque immédiatement.
+
+> **À noter** : la colonne **Rôle** affiche « Client » sur les 16 membres, cette
+> page excluant coachs et admins. Elle occupe de la place sans rien apprendre —
+> candidate à la suppression, non faite ici faute de demande.
+
 ### Effacer un membre : la règle était déjà la bonne
 
 Christian a proposé qu'un membre ayant une réservation ou un pack ne puisse pas

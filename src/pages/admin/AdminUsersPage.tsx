@@ -233,6 +233,9 @@ export function AdminUsersPage() {
       name: u.display_name,
       email: u.email ?? '',
       role: u.role,
+      // Visible à l'écran, donc attendue dans le fichier : une colonne qu'on
+      // voit et qu'on ne retrouve pas à l'export se remarque tout de suite.
+      category: categories.find(c => c.id === u.member_category_id)?.name ?? '',
       credits: u.hasUnlimited ? (isFr ? 'Illimité' : 'Unlimited') : u.credits,
       joined: u.created_at,
     }))
@@ -489,6 +492,12 @@ export function AdminUsersPage() {
                 </TableHead>
                 <TableHead>{t('admin.users.name')}</TableHead>
                 <TableHead className="hidden sm:table-cell">{t('admin.users.role')}</TableHead>
+                {/* La catégorie commande les packs qu'un membre peut acheter :
+                    la voir dans la liste évite d'ouvrir chaque fiche, et de
+                    cocher à l'aveugle avant une attribution groupée. */}
+                <TableHead className="hidden lg:table-cell">
+                  {isFr ? 'Catégorie' : 'Category'}
+                </TableHead>
                 <TableHead className="text-center">
                   <span className="flex items-center gap-1 justify-center">
                     <CreditCard className="h-3 w-3" />
@@ -538,6 +547,19 @@ export function AdminUsersPage() {
                         </Badge>
                       ))}
                     </div>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    {(() => {
+                      const cat = categories.find(c => c.id === user.member_category_id)
+                      // Un tiret plutôt qu'une case vide : sans catégorie est un
+                      // état légitime, pas une donnée manquante.
+                      if (!cat) return <span className="text-xs text-muted-foreground">—</span>
+                      return (
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          {cat.name}
+                        </Badge>
+                      )
+                    })()}
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge

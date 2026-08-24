@@ -195,6 +195,18 @@ Les types sont visibles par tous les membres dès leur création.
 
 La fiche d'un membre regroupe tout ce qui le concerne, en plusieurs onglets.
 
+### Ce que montre la liste
+
+Nom, rôle, **catégorie**, crédits restants, dernière connexion. Un tiret dans la
+colonne Catégorie signifie qu'aucune ne lui est attribuée — c'est un état
+normal, pas un oubli.
+
+Sur un écran étroit, les colonnes secondaires se masquent progressivement :
+la catégorie apparaît à partir d'un écran d'ordinateur.
+
+L'export CSV reprend toutes ces colonnes, pour l'ensemble de ce que les filtres
+retiennent.
+
 ### Ranger plusieurs membres à la fois
 
 Une **case à cocher** ouvre chaque ligne de la liste, et une case en tête de
