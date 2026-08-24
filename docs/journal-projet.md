@@ -472,6 +472,28 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Les notifications passaient sous l'encoche
+
+Signalé par Christian : sur iPhone, « Connexion réussie » s'affichait trop haut
+pour être lisible.
+
+En PWA installée, l'application occupe **tout** l'écran — barre d'état comprise.
+Un toast calé en `top-right` sans marge se glissait donc sous l'encoche.
+
+`sonner` expose une prop `mobileOffset` prévue pour ce cas, appliquée sous
+600 px. Elle reçoit `calc(env(safe-area-inset-top) + 1rem)` : la valeur vaut 0
+sur un appareil sans encoche, et l'affichage sur ordinateur ne change pas.
+
+> **`src/components/ui/sonner.tsx` n'a pas été touché** — c'est du shadcn
+> généré, qu'une régénération écraserait. Vérification faite, ce composant n'est
+> d'ailleurs utilisé nulle part : `App.tsx` importe `Toaster` directement depuis
+> `sonner`.
+
+Vérifié dans le CSS de la bibliothèque plutôt qu'à l'écran : sous 600 px, la
+règle est `top: var(--mobile-offset-top)`, soit exactement la variable que la
+prop alimente. En paysage l'iPhone dépasse le seuil et garde l'offset bureau —
+correct, il n'y a pas d'encoche en haut dans ce sens.
+
 ### Audit documentaire : le B2B manquait presque partout
 
 Christian demande si la documentation est complète, et cite le B2B en exemple.

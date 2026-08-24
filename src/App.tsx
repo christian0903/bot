@@ -137,7 +137,20 @@ function App() {
                   </Route>
                 </Route>
               </Routes>
-              <Toaster richColors position="top-right" />
+              {/* En PWA installée, l'application occupe tout l'écran : un toast
+                  calé en haut passait sous la barre d'état de l'iPhone, et son
+                  texte devenait illisible. `mobileOffset` le descend sous
+                  l'encoche — la valeur vaut 0 sur les appareils qui n'en ont
+                  pas, et l'affichage sur ordinateur ne change pas. */}
+              <Toaster
+                richColors
+                position="top-right"
+                mobileOffset={{
+                  top: 'calc(env(safe-area-inset-top) + 1rem)',
+                  right: '1rem',
+                  left: '1rem',
+                }}
+              />
               {/* Hors des routes : un membre peut rester des heures sur le
                   planning sans jamais naviguer. */}
               <UpdatePrompt />
