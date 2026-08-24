@@ -472,6 +472,48 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Ce que pèse vraiment l'administration dans le bundle d'un membre
+
+Question posée après le débat sur Technogym : faut-il séparer l'application
+cliente de l'application staff pour alléger ce que télécharge un membre ?
+
+**Mesure faite. La réponse est non.** Le découpage par route fait déjà son
+travail : aucun chunk `Admin*` ni `Coach*` n'est chargé au démarrage.
+
+| | Gzip | Au démarrage |
+|---|---|---|
+| 20 pages `Admin*` | 90,2 ko | non |
+| 2 pages `Coach*` | 11,8 ko | non |
+| Scanner QR + markdown | 104 ko | non |
+| Recharts | 92 ko | non |
+| Clés i18n `admin` | 2,2 ko | **oui** |
+
+Séparer l'application économiserait donc **2,2 ko** — les libellés admin,
+chargés avec le reste des traductions. Sans commune mesure avec le coût.
+
+Une erreur au passage, corrigée : recharts avait d'abord été annoncé comme
+présent dans le chunk d'entrée. La sonde cherchait le mot « recharts » dans le
+fichier, et l'unique occurrence était un nom de fichier dans la table de
+preload — pas du code. Vérification refaite sur des marqueurs réels
+(`ResponsiveContainer`, `d3-scale`) : recharts est correctement isolé.
+
+**Mais la mesure a trouvé autre chose.** `HomePage` est la seule page non
+différée — c'est l'accueil — et elle importait `react-markdown` et `remark-gfm`
+en statique, pour une annonce qui n'est affichée que si elle existe. Rendu
+conditionnel, chargement inconditionnel.
+
+Deux composants : `AnnonceMarkdown` (la frontière `lazy` + `Suspense`) et
+`RenduMarkdown` (le rendu isolé, ce qui rend le découpage possible).
+`DashboardPage` est harmonisée — déjà différée, elle partage maintenant le même
+chunk.
+
+**Chargement initial : 349,6 → 305,0 ko gzip, soit 44,6 ko de moins (12,8 %).**
+Vérifié à l'écran avec une annonce contenant gras, italique, lien, liste et
+tableau : le tableau prouve que `remark-gfm` arrive bien par le chunk différé.
+
+Reste ouvert : le bloc d'annonce est très peu contrasté en thème sombre — il
+faut zoomer pour le voir. Sans rapport avec ce chantier.
+
 ### Le planning se lit enfin comme un planning
 
 Christian montre la capture d'une application concurrente : une grille

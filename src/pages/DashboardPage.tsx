@@ -19,9 +19,7 @@ import type { PackPurchase, Booking, ScheduledClass } from '@/types'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { MarkdownLink } from '@/components/common/MarkdownLink'
+import { AnnonceMarkdown } from '@/components/common/AnnonceMarkdown'
 
 const CREDIT_COLORS: Record<string, string> = {
   semi_prive: 'bg-blue-500',
@@ -213,7 +211,7 @@ export function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{announcement}</ReactMarkdown>
+                    <AnnonceMarkdown contenu={announcement} />
                   </div>
                 </div>
               </div>
