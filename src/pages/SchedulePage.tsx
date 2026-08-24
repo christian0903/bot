@@ -134,6 +134,8 @@ export function SchedulePage() {
   const [reviewDismissed, setReviewDismissed] = useState<string[]>([])
 
   // Filters
+  /** Onglet de type de crédit. 'all' = tout le planning, la vue d'ensemble. */
+  const [filterCreditType, setFilterCreditType] = useState<string>('all')
   const [filterClassType, setFilterClassType] = useState<string>('all')
   const [filterCoach, setFilterCoach] = useState<string>('all')
 
@@ -184,14 +186,44 @@ export function SchedulePage() {
   const canGoBack = isStaff || startOfWeek(addDays(currentDate, -7), { weekStartsOn: 1 })
     >= startOfWeek(new Date(), { weekStartsOn: 1 })
 
+  /**
+   * Types de crédit présents au planning : semi-privé, personal training…
+   *
+   * Le type de crédit commande la réservation — un crédit Personal Training ne
+   * paie pas un cours semi-privé. Mélangés dans une même grille, les deux
+   * obligeaient le membre à lire chaque carte pour savoir laquelle le concerne.
+   * `PacksPage` a réglé le même problème par des onglets ; le planning suit,
+   * pour que la lecture soit la même des deux côtés.
+   *
+   * Déduits des cours affichés, comme les autres filtres : un type sans cours
+   * programmé n'a rien à proposer, son onglet serait un cul-de-sac.
+   */
+  const creditTypeTabs = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const sc of classes) {
+      const id = sc.class_type?.credit_type_id
+      if (!id || map.has(id)) continue
+      const ct = sc.class_type?.credit_type
+      const label = (isFr ? ct?.label_fr : ct?.label_en) ?? ct?.name
+      if (label) map.set(id, label)
+    }
+    return [...map.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [classes, isFr])
+
   // Extract unique class types and coaches for filters
   const classTypes = useMemo(() => {
     const types = new Map<string, { id: string; name: string; color: string }>()
     for (const sc of classes) {
+      // Restreint à l'onglet actif : proposer un cours semi-privé alors qu'on
+      // regarde le Personal Training donnerait un planning vide sans que rien
+      // ne l'explique — deux filtres qui se contredisent en silence.
+      if (filterCreditType !== 'all' && sc.class_type?.credit_type_id !== filterCreditType) continue
       if (sc.class_type) types.set(sc.class_type.id, { id: sc.class_type.id, name: sc.class_type.name, color: sc.class_type.color })
     }
     return [...types.values()]
-  }, [classes])
+  }, [classes, filterCreditType])
 
   const coaches = useMemo(() => {
     const coachMap = new Map<string, string>()
@@ -204,11 +236,12 @@ export function SchedulePage() {
   // Filtered classes
   const filteredClasses = useMemo(() => {
     return classes.filter(sc => {
+      if (filterCreditType !== 'all' && sc.class_type?.credit_type_id !== filterCreditType) return false
       if (filterClassType !== 'all' && sc.class_type_id !== filterClassType) return false
       if (filterCoach !== 'all' && sc.coach_id !== filterCoach) return false
       return true
     })
-  }, [classes, filterClassType, filterCoach])
+  }, [classes, filterCreditType, filterClassType, filterCoach])
 
   const fetchData = async () => {
     setLoading(true)
@@ -1569,6 +1602,49 @@ export function SchedulePage() {
         </div>
       )}
 
+      {/* Semi-privé / Personal Training — même lecture que dans « Acheter un
+          pack ». Le type de crédit décide de ce que le membre peut réserver :
+          le mettre au premier niveau évite de lire chaque carte pour trier.
+          Un seul type au planning ne justifie pas d'onglets. */}
+      {creditTypeTabs.length > 1 && (
+        <div className="flex justify-center">
+          <div className="inline-flex rounded-lg border bg-muted/30 p-1 max-w-full overflow-x-auto">
+            {/* « Tout » n'existe pas dans PacksPage, où l'on achète une formule
+                à la fois. Ici le membre vient d'abord voir sa semaine : lui
+                imposer un type lui ferait perdre la vue d'ensemble. */}
+            <button
+              type="button"
+              onClick={() => { setFilterCreditType('all'); setFilterClassType('all') }}
+              className={cn(
+                'px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
+                filterCreditType === 'all'
+                  ? 'bg-background shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {isFr ? 'Tout' : 'All'}
+            </button>
+            {creditTypeTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                // Le type de cours choisi appartient peut-être à l'autre
+                // onglet : le garder viderait le planning sans raison visible.
+                onClick={() => { setFilterCreditType(tab.id); setFilterClassType('all') }}
+                className={cn(
+                  'px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
+                  filterCreditType === tab.id
+                    ? 'bg-background shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Week nav + view toggle */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
@@ -1634,7 +1710,11 @@ export function SchedulePage() {
 
       {/* Filters — single button opens popup */}
       {(() => {
-        const activeCount = (filterClassType !== 'all' ? 1 : 0) + (filterCoach !== 'all' ? 1 : 0)
+        // L'onglet de type de crédit compte comme un filtre : sans lui, un
+        // planning vidé par l'onglet actif n'aurait aucune explication visible.
+        const activeCount = (filterCreditType !== 'all' ? 1 : 0)
+          + (filterClassType !== 'all' ? 1 : 0)
+          + (filterCoach !== 'all' ? 1 : 0)
         return (
           <div className="flex items-center gap-2">
             <Button
@@ -1654,7 +1734,7 @@ export function SchedulePage() {
                 variant="ghost"
                 size="sm"
                 className="h-9 text-xs text-muted-foreground"
-                onClick={() => { setFilterClassType('all'); setFilterCoach('all') }}
+                onClick={() => { setFilterCreditType('all'); setFilterClassType('all'); setFilterCoach('all') }}
               >
                 <X className="h-3.5 w-3.5 mr-1" />
                 {isFr ? 'Réinitialiser' : 'Reset'}

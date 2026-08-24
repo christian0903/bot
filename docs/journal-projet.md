@@ -266,6 +266,43 @@ La présence de `?ref=` ouvre désormais l'onglet Inscription, et un bandeau dit
 pourquoi le code est déjà rempli et ce qu'il rapporte. Sans `?ref=`, rien ne
 change.
 
+### Planning : séparer semi-privé et Personal Training
+
+Demandé par Christian, sur le modèle de « Acheter un pack » où la séparation
+existait déjà. Le motif est repris tel quel — même balisage, même logique — pour
+que la lecture soit identique des deux côtés de l'application.
+
+Le raisonnement est celui qui avait conduit aux onglets dans `PacksPage` : **le
+type de crédit commande la réservation**, un crédit Personal Training ne paie pas
+un cours semi-privé. Mélangés dans une même grille, les deux obligeaient le
+membre à lire chaque carte pour savoir laquelle le concerne.
+
+**Une différence assumée avec `PacksPage` : un onglet « Tout ».** On achète une
+formule à la fois, mais on vient d'abord au planning pour voir sa semaine —
+imposer un type ferait perdre la vue d'ensemble. C'est donc le choix par défaut.
+
+Trois cohérences qu'il fallait tenir, chacune correspondant à un planning qui se
+serait vidé sans explication :
+
+- **Les onglets sont déduits des cours affichés**, comme les autres filtres : un
+  type sans cours programmé n'a rien à proposer, son onglet serait un cul-de-sac.
+  Conséquence à connaître : un seul type au planning et les onglets disparaissent.
+- **Le filtre « type de cours » se restreint à l'onglet actif.** Proposer un
+  cours semi-privé alors qu'on regarde le Personal Training donnerait un planning
+  vide — deux filtres qui se contredisent en silence.
+- **Changer d'onglet remet le type de cours à zéro**, pour la même raison : le
+  type choisi appartient peut-être à l'autre onglet.
+
+L'onglet compte enfin dans le décompte des filtres actifs et dans
+« Réinitialiser » — sans quoi un planning vidé par l'onglet n'aurait aucune
+explication visible.
+
+> **À savoir sur les données de test** : les 9 cours Personal Training sont tous
+> **passés** (13-20 août), les 107 cours à venir sont tous semi-privés. Un membre
+> ne verra donc aucun onglet sur la semaine en cours — c'est le comportement
+> voulu, pas un défaut. Le staff, qui peut reculer, les verra sur la semaine du
+> 17 août : Personal Training (6) et Semi-privé (19).
+
 ### Ce qu'il reste à savoir sur la PWA
 
 - **Les notifications push** ne fonctionnent sur iOS qu'une fois l'application
