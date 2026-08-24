@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Dumbbell, ChevronRight, ChevronLeft, Check, MailCheck } from 'lucide-react'
+import { Dumbbell, ChevronRight, ChevronLeft, Check, MailCheck, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { landingRouteFor } from '@/lib/landing-route'
 import type { UserRole } from '@/types'
@@ -19,7 +19,7 @@ const VERIFICATION_ANSWER = '7'
 export function AuthPage() {
   const { t, i18n } = useTranslation()
   const isFr = i18n.language === 'fr'
-  const { signIn, signUp, resetPassword } = useAuth()
+  const { signIn, signUp, resetPassword, resendConfirmation } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   // `null` quand l'utilisateur n'a pas été renvoyé ici depuis une page
@@ -31,6 +31,14 @@ export function AuthPage() {
   const [regStep, setRegStep] = useState(1) // 1: infos perso, 2: compte + legal
   /** Adresse à laquelle l'e-mail de confirmation vient de partir. Non nul = inscription aboutie. */
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
+  /** Renvoi de confirmation en cours : évite qu'un double clic parte deux fois. */
+  const [resending, setResending] = useState(false)
+  /**
+   * Connexion refusée faute de confirmation. C'est le cas de celui qui a fermé
+   * l'écran d'inscription : sans cet état, il n'aurait plus aucun moyen de
+   * relancer l'e-mail.
+   */
+  const [needsConfirmation, setNeedsConfirmation] = useState(false)
 
   // Login form
   const [loginEmail, setLoginEmail] = useState('')
@@ -58,6 +66,38 @@ export function AuthPage() {
   // Forgot password
   const [forgotEmail, setForgotEmail] = useState('')
 
+  /**
+   * Renvoie l'e-mail de confirmation à l'adresse donnée.
+   *
+   * Le message de succès ne dit pas si l'adresse existe : Supabase répond sans
+   * erreur pour une adresse inconnue, et distinguer les deux cas ici
+   * transformerait ce bouton en moyen de savoir qui est inscrit au studio.
+   */
+  const handleResend = async (email: string) => {
+    setResending(true)
+    const { error } = await resendConfirmation(email)
+    setResending(false)
+    if (error) {
+      // Supabase impose une minute entre deux envois. Le dire, sinon le membre
+      // reclique en croyant que rien ne part.
+      const tropTot = error.message?.toLowerCase().includes('security purposes')
+        || error.message?.toLowerCase().includes('rate limit')
+      toast.error(
+        tropTot
+          ? (isFr
+            ? 'Un e-mail vient déjà de partir. Patiente une minute avant d\'en redemander un.'
+            : 'An email was just sent. Please wait a minute before asking for another.')
+          : (isFr ? `Erreur : ${error.message}` : `Error: ${error.message}`),
+      )
+      return
+    }
+    toast.success(
+      isFr
+        ? 'Si un compte existe pour cette adresse, un nouvel e-mail vient de partir.'
+        : 'If an account exists for this address, a new email has been sent.',
+    )
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!loginEmail) { toast.error(t('auth.emailRequired')); return }
@@ -66,9 +106,13 @@ export function AuthPage() {
     const { error } = await signIn(loginEmail, loginPassword)
     setLoading(false)
     if (error) {
+      const nonConfirme = error.message?.includes('Email not confirmed')
+      // Le refus pour non-confirmation ouvre un encart avec un bouton de renvoi :
+      // un simple toast laissait le membre sans aucune issue.
+      setNeedsConfirmation(!!nonConfirme)
       const msg = error.message?.includes('Invalid login')
         ? (isFr ? 'Email ou mot de passe incorrect.' : 'Invalid email or password.')
-        : error.message?.includes('Email not confirmed')
+        : nonConfirme
           ? (isFr ? 'Veuillez confirmer votre email avant de vous connecter.' : 'Please confirm your email before signing in.')
           : (isFr ? `Erreur : ${error.message}` : `Error: ${error.message}`)
       toast.error(msg)
@@ -251,8 +295,8 @@ export function AuthPage() {
                 reçu » : autant le dire tout de suite. */}
             <p className="text-xs text-muted-foreground">
               {isFr
-                ? 'Rien reçu après quelques minutes ? Regarde dans les indésirables (spam), ou contacte le studio.'
-                : 'Nothing after a few minutes? Check your spam folder, or contact the studio.'}
+                ? 'Rien reçu après quelques minutes ? Regarde dans les indésirables (spam), ou demande un nouvel envoi ci-dessous.'
+                : 'Nothing after a few minutes? Check your spam folder, or ask for a new email below.'}
             </p>
 
             <Button
@@ -261,6 +305,25 @@ export function AuthPage() {
             >
               {isFr ? 'J\'ai confirmé, me connecter' : 'I confirmed, sign in'}
             </Button>
+
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={resending}
+              onClick={() => handleResend(registeredEmail)}
+            >
+              <RefreshCw className={`h-4 w-4 ${resending ? 'animate-spin' : ''}`} />
+              {isFr ? 'Renvoyer l\'e-mail' : 'Resend the email'}
+            </Button>
+
+            {/* Une faute de frappe dans l'adresse est l'autre cause de « je n'ai
+                rien reçu », et le renvoi n'y peut rien : il repartirait à la
+                même adresse fausse. */}
+            <p className="text-xs text-muted-foreground text-center">
+              {isFr
+                ? 'Adresse erronée ? Recommence l\'inscription avec la bonne, ou contacte le studio.'
+                : 'Wrong address? Sign up again with the correct one, or contact the studio.'}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -311,6 +374,36 @@ export function AuthPage() {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {t('auth.loginButton')}
                 </Button>
+
+                {/* La connexion a été refusée faute de confirmation. C'est le
+                    seul point de passage de celui qui a fermé l'écran
+                    d'inscription : sans ce bouton, il reste bloqué dehors. */}
+                {needsConfirmation && (
+                  <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+                    <p className="text-sm">
+                      {isFr
+                        ? 'Ton compte attend encore la confirmation de ton adresse e-mail.'
+                        : 'Your account is still waiting for you to confirm your email address.'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isFr
+                        ? 'Regarde dans les indésirables (spam) avant de demander un nouvel envoi.'
+                        : 'Check your spam folder before asking for a new email.'}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      disabled={resending || !loginEmail}
+                      onClick={() => handleResend(loginEmail)}
+                    >
+                      <RefreshCw className={`h-4 w-4 ${resending ? 'animate-spin' : ''}`} />
+                      {isFr ? 'Renvoyer l\'e-mail de confirmation' : 'Resend confirmation email'}
+                    </Button>
+                  </div>
+                )}
+
                 <p className="text-center text-sm text-muted-foreground">
                   {t('auth.noAccount')}{' '}
                   <button type="button" className="text-primary underline" onClick={() => setTab('register')}>

@@ -15,7 +15,15 @@ Réserver, payer, suivre tes entraînements.
 5. Clique sur **S'inscrire**
 6. **Va voir ta boîte mail** : ton compte n'est actif qu'après avoir cliqué sur le lien de confirmation
 
-> Pas d'e-mail reçu ? Regarde dans les indésirables.
+> **Pas d'e-mail reçu ?** Regarde d'abord dans les indésirables (spam). Si tu ne
+> trouves rien, un bouton **Renvoyer l'e-mail** est proposé juste sous le
+> message de confirmation. Compte une minute entre deux demandes.
+>
+> Tu as fermé la page entre-temps ? Essaie simplement de te connecter : le
+> refus t'expliquera qu'il manque la confirmation, et te proposera le renvoi.
+>
+> **Adresse mal saisie ?** Le renvoi repartirait au même endroit : recommence
+> l'inscription avec la bonne adresse, ou demande au studio.
 
 > **Code de parrainage oublié ?** Ce n'est pas perdu : tu pourras le saisir au moment de ton premier paiement, ou demander au studio de le rattacher après coup.
 

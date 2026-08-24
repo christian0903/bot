@@ -28,12 +28,25 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: Error | null }>
+  resendConfirmation: (email: string) => Promise<{ error: Error | null }>
   updatePassword: (password: string) => Promise<{ error: Error | null }>
   refreshProfile: () => Promise<void>
   hasRole: (role: UserRole) => boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+/**
+ * Origine à viser dans les liens envoyés par e-mail.
+ *
+ * Toujours l'URL de production quand elle est connue : le lien doit fonctionner
+ * quel que soit l'endroit d'où la demande est partie — une inscription faite
+ * depuis un serveur de développement enverrait sinon un lien vers `localhost`,
+ * inutilisable depuis le téléphone qui reçoit l'e-mail.
+ */
+function urlApplication(): string {
+  return import.meta.env.VITE_APP_URL ?? window.location.origin
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -146,6 +159,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
       options: {
+        // Même destination que `resendConfirmation` : les deux e-mails doivent
+        // mener au même écran, sinon le second lien renverrait ailleurs que le
+        // premier selon l'origine depuis laquelle l'inscription a été faite.
+        emailRedirectTo: `${urlApplication()}/auth/confirm`,
         data: {
           display_name: metadata.display_name,
           first_name: metadata.first_name,
@@ -187,6 +204,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null }
   }
 
+  /**
+   * Renvoie l'e-mail de confirmation d'inscription.
+   *
+   * Supabase répond **sans erreur** pour une adresse inconnue ou déjà
+   * confirmée : c'est délibéré de sa part, et cela nous arrange — répondre
+   * différemment selon le cas transformerait ce formulaire en moyen de
+   * découvrir qui est inscrit au studio. L'appelant affiche donc toujours le
+   * même message.
+   *
+   * Une erreur remonte malgré tout quand Supabase limite la cadence (une
+   * minute entre deux envois) : c'est la seule qui mérite d'être montrée, sans
+   * quoi le membre reclique en croyant que rien ne part.
+   */
+  const resendConfirmation = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: `${urlApplication()}/auth/confirm` },
+    })
+    return { error: error as Error | null }
+  }
+
   const updatePassword = async (password: string) => {
     const { error } = await supabase.auth.updateUser({ password })
     return { error: error as Error | null }
@@ -213,6 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         resetPassword,
+        resendConfirmation,
         updatePassword,
         refreshProfile,
         hasRole,
