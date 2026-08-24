@@ -166,7 +166,7 @@ export function SchedulePage() {
    * n'ont rien à faire là.
    */
   const creditSummary = useMemo(() => {
-    if (isStaff || creditsByType.size === 0) return []
+    if (isStaff) return []
     const labels = new Map<string, string>()
     for (const sc of classes) {
       const ct = sc.class_type?.credit_type
@@ -175,9 +175,15 @@ export function SchedulePage() {
       const label = (isFr ? ct?.label_fr : ct?.label_en) ?? ct?.name
       if (label) labels.set(id, label)
     }
-    return [...creditsByType.entries()]
-      .filter(([id]) => labels.has(id))
-      .map(([id, v]) => ({ id, label: labels.get(id)!, count: v.count, unlimited: v.unlimited }))
+    // On part des types PRÉSENTS AU PLANNING, pas des packs détenus : sans pack
+    // Personal Training, `creditsByType` n'a aucune entrée pour ce type, et le
+    // membre ne voyait alors rien — ni solde, ni zéro. Or « 0 crédit » est
+    // précisément ce qu'il doit lire avant de tenter une réservation.
+    return [...labels.entries()]
+      .map(([id, label]) => {
+        const v = creditsByType.get(id)
+        return { id, label, count: v?.count ?? 0, unlimited: v?.unlimited ?? false }
+      })
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [creditsByType, classes, isFr, isStaff])
 

@@ -472,6 +472,29 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Deux défauts d'affichage signalés depuis l'iPhone
+
+**« 0 crédit » ne s'affichait pas.** La liste des soldes partait de
+`creditsByType`, qui ne contient que les types **dont le membre possède un
+pack** : sans pack Personal Training, aucune entrée, donc aucune pastille — ni
+solde, ni zéro. Or « 0 crédit » est précisément ce qu'il faut lire avant de
+tenter une réservation.
+
+Le sens de lecture est inversé : on part désormais des types **présents au
+planning**, et on y cherche le solde. Absent, il vaut zéro. Trois membres de la
+base sont dans ce cas — semi-privé seulement, aucun pack PT.
+
+**Le pied de page passait sous la barre de navigation mobile.** Le `<main>`
+portait bien une marge basse pour la dégager, mais **le `<Footer>` est en dehors
+du main** : il n'en bénéficiait pas et se retrouvait masqué par la barre fixe.
+Il fallait forcer le défilement pour l'atteindre — y compris son lien vers
+l'aide.
+
+La marge a été déplacée du `main` vers un conteneur du pied de page. Elle vaut
+`4rem + safe-area-inset-bottom`, exactement la hauteur de la barre (`h-16` plus
+la même safe-area). Sur ordinateur, `md:pb-0` la supprime : la barre mobile
+n'existe pas à cette largeur.
+
 ### Planning : le type de crédit devient le premier choix
 
 Quatre ajustements demandés par Christian, qui vont tous dans le même sens : on
