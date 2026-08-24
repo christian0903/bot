@@ -195,11 +195,32 @@ Les types sont visibles par tous les membres dès leur création.
 
 La fiche d'un membre regroupe tout ce qui le concerne, en plusieurs onglets.
 
+### Ranger plusieurs membres à la fois
+
+Une **case à cocher** ouvre chaque ligne de la liste, et une case en tête de
+colonne sélectionne tout. Dès qu'un membre est coché, une barre apparaît avec le
+bouton **Attribuer une catégorie**.
+
+C'est ce qui permet de ranger une saison entière d'anciens membres en
+« archives » sans ouvrir chaque fiche. Le menu propose aussi **Aucune
+catégorie**, pour défaire un rangement.
+
+> **La case « tout cocher » ne prend que ce qui est affiché.** Filtrez d'abord
+> (par catégorie, par recherche), cochez ensuite : vous n'emporterez jamais des
+> membres que vous ne voyez pas.
+
+L'opération est inscrite au journal d'activité.
+
 ### Ce qu'on voit en tête
 
 Statut, catégorie, frais d'inscription, et trois compteurs : crédits restants, packs actifs, réservations.
 
-**La catégorie** détermine les packs auxquels le membre a droit. Un membre a une seule catégorie.
+**La catégorie** détermine les packs auxquels le membre a droit. Un membre a une seule catégorie. Pour en attribuer une à plusieurs membres d'un coup, voir *Ranger plusieurs membres à la fois* ci-dessous.
+
+> **Le statut, lui, ne se règle pas à la main** : il est recalculé à partir des
+> faits — frais payés, pack encore valide, ancienneté du dernier pack expiré.
+> Le forcer ne servirait à rien, la valeur serait écrasée au recalcul suivant.
+> Pour mettre de côté d'anciens membres, utiliser la **catégorie** « archives ».
 
 **Les frais d'inscription** se valident ou se retirent à la main — utile quand quelqu'un a payé autrement que par l'application.
 
@@ -269,6 +290,26 @@ Concrètement : le membre ne peut plus se connecter, il sort de vos listes, mais
 > **Un abonnement actif bloque l'opération.** Il faut le résilier d'abord — sans compte, le membre ne pourrait plus l'arrêter et continuerait d'être prélevé.
 
 L'opération est tracée au journal d'activité.
+
+#### Le cas particulier du compte parasite
+
+Un compte inscrit par erreur ou par un robot — **jamais confirmé, sans le
+moindre achat ni réservation** — s'efface pour de bon, depuis le **journal
+d'activité** et non depuis la fiche. Il n'y a là rien à conserver : aucune
+écriture comptable n'a été produite, et l'anonymiser laisserait une ligne
+« Membre supprimé #a1b2c3d4 » à vie.
+
+Le serveur refuse dès que le compte est autre chose qu'un parasite :
+
+| Refus | Raison |
+|---|---|
+| Adresse confirmée | La personne est allée au bout de sa démarche |
+| Un pack payé, un abonnement, des frais | La loi impose de conserver |
+| Une réservation | Le compte a servi |
+| Coach ou admin | Jamais effaçable ainsi |
+
+> La **séance d'essai offerte** ne compte pas : attribuée à toute inscription,
+> elle bloquerait sinon chaque effacement.
 
 ### Autres actions sur la fiche
 

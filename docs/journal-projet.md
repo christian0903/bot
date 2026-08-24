@@ -344,6 +344,50 @@ Deux natures de conflit, qui n'appellent pas la même réponse :
 Sept cas de test couvrent la logique : salle occupée, deux salles, salle vide,
 conflit de coach, candidats entre eux, précision à la minute, cas nominal.
 
+### Catégories de membres : attribuer à plusieurs d'un coup
+
+Demandé par Christian : ranger les anciens membres sans les effacer, et sans
+ouvrir chaque fiche une par une.
+
+**La demande initiale portait sur le statut. Elle a été redirigée vers la
+catégorie**, et c'est le point qui méritait d'être creusé : `member_status` est
+**calculé** par `update_member_status` à partir des faits — frais payés, pack
+actif, ancienneté du dernier pack expiré. Un statut posé à la main y serait
+écrasé au prochain recalcul : le studio croirait avoir rangé ses anciens membres
+et les retrouverait actifs, sans comprendre pourquoi.
+
+C'est le principe que le projet applique déjà au statut d'un cours — *toujours
+dérivé, jamais stocké*. Proposer « changer le statut en masse » aurait été
+vendre un bouton qui ment.
+
+`member_category_id`, lui, est un champ **choisi** : rien ne le recalcule. La
+catégorie « archives » y trouve donc sa place, à côté d'abonné, ponctuel et
+standard.
+
+> **Effet de bord à connaître** : la catégorie commande les packs proposés à
+> l'achat (`pack_type_categories`). Un membre archivé ne verra que les packs
+> ouverts à sa catégorie — aucun, tant qu'aucun pack ne la déclare. Cohérent
+> avec un archivage, mais à savoir avant d'archiver quelqu'un qui reviendrait.
+
+La sélection multiple reprend le motif de `AdminSchedulePage` : cases à cocher,
+barre d'actions qui n'apparaît qu'une fois quelque chose de sélectionné, et
+« tout cocher » qui ne porte **que sur les membres affichés** — cocher après
+avoir filtré ne doit pas embarquer ce qu'on ne voit pas.
+
+Retirer la catégorie est proposé au même endroit : sans cette entrée, un membre
+mal rangé le resterait.
+
+### Effacer un membre : la règle était déjà la bonne
+
+Christian a proposé qu'un membre ayant une réservation ou un pack ne puisse pas
+être effacé. C'est exactement ce que `purge_parasite_account` applique depuis le
+matin même — plus l'e-mail confirmé et le staff.
+
+Un seul écart, délibéré : **le pack de séance d'essai ne bloque pas**. Offert
+d'office à toute inscription, il est présent sur tous les comptes ; le prendre
+en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
+donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
+
 ### Ce qu'il reste à savoir sur la PWA
 
 - **Les notifications push** ne fonctionnent sur iOS qu'une fois l'application

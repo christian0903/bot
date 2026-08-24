@@ -4266,6 +4266,13 @@ INSERT INTO credit_types (name, label_fr, label_en) VALUES
   ('semi_prive', 'Semi-privé', 'Semi-private'),
   ('personal_training', 'Personal Training', 'Personal Training');
 
+-- Ranger un ancien membre sans l'effacer. Une catégorie et non un statut :
+-- `member_status` est recalculé par `update_member_status` à partir des faits,
+-- un archivage posé à la main y serait écrasé sans prévenir. Les autres
+-- catégories restent à la main du studio, celle-ci sert l'archivage.
+INSERT INTO member_categories (name, description) VALUES
+  ('archives', 'Anciens membres, conservés pour l''historique mais plus actifs');
+
 -- Le pack d'essai : gratuit, hors catalogue, attribué à la création du profil
 -- par le trigger on_profile_created_grant_trial.
 --

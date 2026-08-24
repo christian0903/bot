@@ -88,6 +88,22 @@ export function AdminUsersPage() {
   const [categories, setCategories] = useState<MemberCategory[]>([])
   const [filterCategory, setFilterCategory] = useState<string>('all')
 
+  // Sélection multiple. Les catégories et statuts se changeaient un membre à la
+  // fois, depuis sa fiche : ranger une saison entière d'anciens membres
+  // demandait autant d'allers-retours que de personnes.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  /**
+   * Attribution groupée de catégorie. Non nul = le dialogue est ouvert.
+   *
+   * Seule la **catégorie** se règle ici, pas `member_status` : ce dernier est
+   * calculé par `update_member_status` à partir des faits (frais payés, pack
+   * actif, ancienneté du dernier pack). Un statut posé à la main serait écrasé
+   * au prochain recalcul — un bouton qui ment vaut moins que pas de bouton.
+   */
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false)
+  const [bulkCategoryId, setBulkCategoryId] = useState<string>('')
+  const [bulkSaving, setBulkSaving] = useState(false)
+
   const fetchUsers = async () => {
     const [profilesRes, rolesRes, packsRes, catRes] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
@@ -316,6 +332,66 @@ export function AdminUsersPage() {
 
   const selectedPack = packTypes.find(p => p.id === selectedPackTypeId)
 
+  // La sélection ne porte que sur ce qui est affiché : cocher « tout » après
+  // avoir filtré ne doit pas embarquer des membres qu'on ne voit pas.
+  const allSelected = filteredUsers.length > 0
+    && filteredUsers.every(u => selectedIds.has(u.id))
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(filteredUsers.map(u => u.id)))
+  }
+
+  const toggleOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  /** Attribue — ou retire — une catégorie aux membres sélectionnés. */
+  const appliquerCategorie = async () => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    setBulkSaving(true)
+
+    // Chaîne vide = retirer la catégorie. Un `null` explicite, pas un oubli.
+    const valeur = bulkCategoryId === '__none__' ? null : bulkCategoryId
+    const { error } = await supabase
+      .from('profiles')
+      .update({ member_category_id: valeur })
+      .in('id', ids)
+
+    if (error) {
+      toast.error(error.message)
+      setBulkSaving(false)
+      return
+    }
+
+    const nomCategorie = valeur
+      ? categories.find(c => c.id === valeur)?.name ?? ''
+      : (isFr ? 'aucune' : 'none')
+
+    await logActivity({
+      action: 'role_changed',
+      actor_id: currentUser?.id ?? null,
+      target_user_id: ids[0],
+      entity_type: 'profile',
+      details: { bulk_category: nomCategorie, count: ids.length, user_ids: ids },
+      description: `Catégorie « ${nomCategorie} » attribuée à ${ids.length} membre(s)`,
+    })
+
+    toast.success(isFr
+      ? `${ids.length} membre(s) rangé(s) en « ${nomCategorie} »`
+      : `${ids.length} member(s) set to “${nomCategorie}”`)
+
+    setBulkCategoryOpen(false)
+    setSelectedIds(new Set())
+    setBulkCategoryId('')
+    setBulkSaving(false)
+    await fetchUsers()
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -377,6 +453,25 @@ export function AdminUsersPage() {
         ))}
       </div>
 
+      {/* Actions groupées : n'apparaît qu'une fois quelque chose de sélectionné,
+          sinon elle occupe la place sans rien proposer. */}
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
+          <Badge variant="default">{selectedIds.size}</Badge>
+          <span className="text-sm font-medium">
+            {isFr ? 'membre(s) sélectionné(s)' : 'member(s) selected'}
+          </span>
+          <div className="flex-1" />
+          <Button size="sm" variant="outline" onClick={() => setBulkCategoryOpen(true)}>
+            <Users className="h-4 w-4 mr-1.5" />
+            {isFr ? 'Attribuer une catégorie' : 'Set category'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+            {isFr ? 'Désélectionner' : 'Clear'}
+          </Button>
+        </div>
+      )}
+
       {filteredUsers.length === 0 ? (
         <EmptyState icon={Users} message={t('common.noResults')} />
       ) : (
@@ -384,6 +479,14 @@ export function AdminUsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                  />
+                </TableHead>
                 <TableHead>{t('admin.users.name')}</TableHead>
                 <TableHead className="hidden sm:table-cell">{t('admin.users.role')}</TableHead>
                 <TableHead className="text-center">
@@ -399,6 +502,14 @@ export function AdminUsersPage() {
             <TableBody>
               {filteredUsers.map((user) => (
                 <TableRow key={user.id} className="group">
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(user.id)}
+                      onChange={() => toggleOne(user.id)}
+                      className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                    />
+                  </TableCell>
                   <TableCell>
                     <button
                       className="font-medium text-left hover:text-primary hover:underline transition-colors flex items-center gap-1"
@@ -667,6 +778,55 @@ export function AdminUsersPage() {
         description={t('admin.users.deleteConfirm')}
         onConfirm={handleDelete}
       />
+
+      {/* Attribution groupée de catégorie. */}
+      <Dialog open={bulkCategoryOpen} onOpenChange={setBulkCategoryOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {isFr ? 'Attribuer une catégorie' : 'Set a category'}
+            </DialogTitle>
+            <DialogDescription>
+              {isFr
+                ? `${selectedIds.size} membre(s) sélectionné(s). La catégorie détermine les packs qui leur sont proposés à l'achat.`
+                : `${selectedIds.size} member(s) selected. The category determines which packs they are offered.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label>{isFr ? 'Catégorie' : 'Category'}</Label>
+            <Select value={bulkCategoryId} onValueChange={(v) => setBulkCategoryId(v ?? '')}>
+              <SelectTrigger>
+                <span>
+                  {bulkCategoryId === '__none__'
+                    ? (isFr ? 'Aucune catégorie' : 'No category')
+                    : categories.find(c => c.id === bulkCategoryId)?.name
+                      ?? (isFr ? 'Choisir…' : 'Choose…')}
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+                {/* Retirer la catégorie est une décision comme une autre : sans
+                    cette entrée, un membre mal rangé le resterait. */}
+                <SelectItem value="__none__">
+                  {isFr ? 'Aucune catégorie' : 'No category'}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkCategoryOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={appliquerCategorie} disabled={bulkSaving || !bulkCategoryId}>
+              {t('common.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
