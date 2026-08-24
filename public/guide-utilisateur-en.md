@@ -88,9 +88,9 @@ After logging in, your dashboard shows:
 Click **Schedule** in the navigation or the "View Schedule" card on your dashboard.
 
 **Semi-private or Personal Training?** When both are on the schedule, tabs at the
-top separate them, just like in “Buy a pack”. **All** shows the full week.
-Choosing a tab keeps only the classes that credit type can book — handy so you
-don't scan through classes your pack doesn't cover.
+**very top of the page** separate them. Semi-private opens by default. The title
+and your credits follow your choice: on the Personal Training tab you see your
+Personal Training credits, not the others.
 
 ### Navigate the Schedule
 - Use the **◀ ▶ arrows** to change weeks

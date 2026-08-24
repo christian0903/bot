@@ -472,6 +472,43 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Planning : le type de crédit devient le premier choix
+
+Quatre ajustements demandés par Christian, qui vont tous dans le même sens : on
+ne consulte pas « le planning », on consulte le planning **d'une prestation**.
+
+**Plus d'onglet « Tout ».** Il avait été ajouté en pensant qu'un membre veut
+d'abord voir sa semaine entière. C'est faux : mélangés, les deux types
+obligeaient à lire chaque carte pour trier. On regarde un type à la fois.
+
+**Les onglets passent au-dessus du titre.** C'est le premier choix, celui qui
+commande tout le reste de la page.
+
+**Le semi-privé s'ouvre par défaut.** Le tri était alphabétique, ce qui plaçait
+« Personal Training » en tête — sans rapport avec l'usage. Il suit désormais le
+nom technique du type de crédit : `semi_prive`, puis `personal_training`, puis le
+reste par ordre alphabétique.
+
+**Le titre porte le type affiché** : « Planning Personal Training » quand on
+filtre. L'écran dit ce qu'il montre sans qu'on ait à remonter aux onglets.
+
+**Les crédits suivent l'onglet.** Afficher le solde semi-privé sous un planning
+Personal Training donnait un compte que ces cours ne peuvent pas consommer.
+
+`ongletActif` est calculé au rendu et non posé dans un effet — c'est le motif
+retenu dans `PacksPage`. Le repli sur le premier onglet couvre le cas où le type
+regardé disparaît : changer de semaine peut le retirer du planning.
+
+> **Un incident de découpage** mérite d'être noté : une première tentative de
+> déplacement du bloc a emporté toute la barre de navigation — flèches,
+> « Aujourd'hui », sélecteur jour/semaine/liste. Détecté au build, annulé par
+> `git checkout`, repris avec des bornes vérifiées ligne à ligne. Déplacer un
+> bloc JSX au jugé ne marche pas.
+
+> **À savoir sur les données de test** : aucun cours Personal Training n'est
+> programmé à venir. Les onglets ne s'affichent donc pas sur la semaine en
+> cours — comportement voulu, un onglet unique n'apporte rien.
+
 ### Les notifications passaient sous l'encoche
 
 Signalé par Christian : sur iPhone, « Connexion réussie » s'affichait trop haut

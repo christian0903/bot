@@ -85,10 +85,9 @@ Sur la page de connexion, onglet **Mot de passe oublié** : tu reçois un lien p
 4. Clique sur **Je réserve**
 
 **Semi-privé ou Personal Training ?** Quand les deux sont au planning, des
-onglets les séparent en haut de la page, comme dans « Acheter un pack ».
-**Tout** affiche la semaine complète. Choisir un onglet ne garde que les cours
-que ce type de crédit permet de réserver — pratique pour ne pas chercher parmi
-des cours que ton pack ne couvre pas.
+onglets les séparent **tout en haut de la page**. Le semi-privé s'ouvre par
+défaut. Le titre et tes crédits suivent ton choix : sur l'onglet Personal
+Training, tu vois tes crédits Personal Training, pas les autres.
 
 **Si tu as plusieurs façons de payer la séance** — par exemple un abonnement et un pack à côté — la fenêtre te demande laquelle utiliser. Ton abonnement est proposé en premier. Tu peux choisir le pack si tu préfères, par exemple pour inviter quelqu'un.
 

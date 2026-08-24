@@ -200,17 +200,41 @@ export function SchedulePage() {
    */
   const creditTypeTabs = useMemo(() => {
     const map = new Map<string, string>()
+    /** Nom technique (`semi_prive`, `personal_training`) : sert au tri. */
+    const nomsInternes = new Map<string, string>()
     for (const sc of classes) {
       const id = sc.class_type?.credit_type_id
       if (!id || map.has(id)) continue
       const ct = sc.class_type?.credit_type
       const label = (isFr ? ct?.label_fr : ct?.label_en) ?? ct?.name
-      if (label) map.set(id, label)
+      if (label) {
+        map.set(id, label)
+        if (ct?.name) nomsInternes.set(id, ct.name)
+      }
+    }
+    // Le semi-privé d'abord : c'est la prestation courante du studio, donc
+    // l'onglet ouvert par défaut. Un tri alphabétique aurait mis « Personal
+    // Training » en tête, ce qui n'a rien à voir avec l'usage.
+    const rang = (id: string) => {
+      const nom = nomsInternes.get(id)
+      return nom === 'semi_prive' ? 0 : nom === 'personal_training' ? 1 : 2
     }
     return [...map.entries()]
       .map(([id, label]) => ({ id, label }))
-      .sort((a, b) => a.label.localeCompare(b.label))
+      .sort((a, b) => rang(a.id) - rang(b.id) || a.label.localeCompare(b.label))
   }, [classes, isFr])
+
+  /**
+   * Onglet réellement affiché : le choix du membre, ou le premier de la liste.
+   *
+   * Calculé au rendu plutôt que posé dans un effet — écrire un état depuis un
+   * effet provoque un second rendu pour un résultat qu'on sait déduire. Le
+   * repli couvre aussi le cas où l'onglet choisi disparaît : changer de semaine
+   * peut retirer du planning le seul type qu'on regardait.
+   */
+  const ongletActif = creditTypeTabs.some(t => t.id === filterCreditType)
+    ? filterCreditType
+    : creditTypeTabs[0]?.id ?? 'all'
 
   // Extract unique class types and coaches for filters
   const classTypes = useMemo(() => {
@@ -219,11 +243,11 @@ export function SchedulePage() {
       // Restreint à l'onglet actif : proposer un cours semi-privé alors qu'on
       // regarde le Personal Training donnerait un planning vide sans que rien
       // ne l'explique — deux filtres qui se contredisent en silence.
-      if (filterCreditType !== 'all' && sc.class_type?.credit_type_id !== filterCreditType) continue
+      if (ongletActif !== 'all' && sc.class_type?.credit_type_id !== ongletActif) continue
       if (sc.class_type) types.set(sc.class_type.id, { id: sc.class_type.id, name: sc.class_type.name, color: sc.class_type.color })
     }
     return [...types.values()]
-  }, [classes, filterCreditType])
+  }, [classes, ongletActif])
 
   const coaches = useMemo(() => {
     const coachMap = new Map<string, string>()
@@ -236,12 +260,12 @@ export function SchedulePage() {
   // Filtered classes
   const filteredClasses = useMemo(() => {
     return classes.filter(sc => {
-      if (filterCreditType !== 'all' && sc.class_type?.credit_type_id !== filterCreditType) return false
+      if (ongletActif !== 'all' && sc.class_type?.credit_type_id !== ongletActif) return false
       if (filterClassType !== 'all' && sc.class_type_id !== filterClassType) return false
       if (filterCoach !== 'all' && sc.coach_id !== filterCoach) return false
       return true
     })
-  }, [classes, filterCreditType, filterClassType, filterCoach])
+  }, [classes, ongletActif, filterClassType, filterCoach])
 
   const fetchData = async () => {
     setLoading(true)
@@ -1471,11 +1495,48 @@ export function SchedulePage() {
 
   return (
     <div className="space-y-6">
-      {/* Title */}
+      {/* Semi-privé / Personal Training — au-dessus du titre : c'est le
+          premier choix, celui qui commande tout le reste de la page. Un crédit
+          Personal Training ne paie pas un cours semi-privé.
+
+          Pas d'onglet « Tout » : mélangés, les deux obligeaient à lire chaque
+          carte pour trier. On regarde un type à la fois, et le semi-privé
+          s'ouvre par défaut — c'est la prestation courante du studio. */}
+      {creditTypeTabs.length > 1 && (
+        <div className="flex justify-center">
+          <div className="inline-flex rounded-lg border bg-muted/30 p-1 max-w-full overflow-x-auto">
+            {creditTypeTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                // Le type de cours choisi appartient peut-être à l'autre onglet :
+                // le garder viderait le planning sans raison visible.
+                onClick={() => { setFilterCreditType(tab.id); setFilterClassType('all') }}
+                className={cn(
+                  'px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
+                  ongletActif === tab.id
+                    ? 'bg-background shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Title — porte le type affiché : « Planning des cours » quand on voit
+          tout, « Planning Personal Training » quand on filtre. L'écran dit
+          alors ce qu'il montre, sans qu'on ait à remonter aux onglets. */}
       <div>
         <h1 className="text-3xl font-bold">
           {isFr ? 'Planning ' : 'Class '}
-          <span className="text-primary">{isFr ? 'des cours' : 'Schedule'}</span>
+          <span className="text-primary">
+            {creditTypeTabs.length > 1 && ongletActif !== 'all'
+              ? (creditTypeTabs.find(t => t.id === ongletActif)?.label ?? (isFr ? 'des cours' : 'Schedule'))
+              : (isFr ? 'des cours' : 'Schedule')}
+          </span>
         </h1>
         <p className="text-muted-foreground mt-1">
           {isFr ? 'Réserve ta place et viens transpirer' : 'Book your spot and come sweat'}
@@ -1577,9 +1638,12 @@ export function SchedulePage() {
 
       {/* Crédits restants — « combien de réservations puis-je encore faire ? »
           Il fallait aller dans « Mes packs » pour le savoir. */}
-      {creditSummary.length > 0 && (
+      {creditSummary.some(c => ongletActif === 'all' || c.id === ongletActif) && (
         <div className="flex items-center gap-2 flex-wrap text-xs">
-          {creditSummary.map((c) => (
+          {/* Les crédits suivent l'onglet : afficher le solde semi-privé sous un
+              planning Personal Training donnerait un compte que ces cours ne
+              peuvent pas consommer. */}
+          {creditSummary.filter(c => ongletActif === 'all' || c.id === ongletActif).map((c) => (
             <span
               key={c.id}
               className={cn(
@@ -1599,49 +1663,6 @@ export function SchedulePage() {
               </span>
             </span>
           ))}
-        </div>
-      )}
-
-      {/* Semi-privé / Personal Training — même lecture que dans « Acheter un
-          pack ». Le type de crédit décide de ce que le membre peut réserver :
-          le mettre au premier niveau évite de lire chaque carte pour trier.
-          Un seul type au planning ne justifie pas d'onglets. */}
-      {creditTypeTabs.length > 1 && (
-        <div className="flex justify-center">
-          <div className="inline-flex rounded-lg border bg-muted/30 p-1 max-w-full overflow-x-auto">
-            {/* « Tout » n'existe pas dans PacksPage, où l'on achète une formule
-                à la fois. Ici le membre vient d'abord voir sa semaine : lui
-                imposer un type lui ferait perdre la vue d'ensemble. */}
-            <button
-              type="button"
-              onClick={() => { setFilterCreditType('all'); setFilterClassType('all') }}
-              className={cn(
-                'px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
-                filterCreditType === 'all'
-                  ? 'bg-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {isFr ? 'Tout' : 'All'}
-            </button>
-            {creditTypeTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                // Le type de cours choisi appartient peut-être à l'autre
-                // onglet : le garder viderait le planning sans raison visible.
-                onClick={() => { setFilterCreditType(tab.id); setFilterClassType('all') }}
-                className={cn(
-                  'px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
-                  filterCreditType === tab.id
-                    ? 'bg-background shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
