@@ -638,6 +638,59 @@ appliquée à un cas où elle se voit peu.
 Un coach ne pointe que ses propres cours ; le refus est explicite plutôt que
 silencieux.
 
+### Présent et absent s'excluent — dans le même UPDATE
+
+Deux colonnes indépendantes portent l'état : `checked_in_at` et `is_no_show`.
+Rien dans le schéma ne les empêche d'être vraies ensemble, et chaque bouton
+n'écrivait d'abord que la sienne — les deux s'allumaient donc côte à côte, et
+les compteurs de l'en-tête comptaient la même personne deux fois.
+
+Chaque geste écrit **les deux champs en un seul `UPDATE`** :
+
+| Geste | `checked_in_at` | `is_no_show` |
+|---|---|---|
+| Marquer présent | horodatage | `false` |
+| Marquer absent | `null` | `true` |
+
+En deux `UPDATE` successifs, il existerait un instant où les deux sont vrais —
+et une erreur sur le second laisserait la ligne dans cet état.
+
+> La garde d'entrée de `handleCheckIn` teste `checked_in_at && !is_no_show`, pas
+> `checked_in_at` seul : sinon quelqu'un marqué absent par erreur ne pourrait
+> plus être pointé présent, la fonction sortant avant d'écrire quoi que ce soit.
+
+Le scan QR échappe à cette règle : il pointe une inscription qu'il vient de
+créer, `is_no_show` y est faux par construction.
+
+## Mode de paiement d'un pack
+
+`pack_purchases.payment_method` — `stripe`, `cash`, `transfer` ou `gift`.
+
+**Pourquoi une colonne plutôt qu'une déduction.** Le prix ne dit pas d'où vient
+l'argent : un pack offert au tarif plein passe pour une recette, et 139 € en
+espèces ne se distinguent pas de 139 € par virement au rapprochement. Les
+boutons « Cadeau » et « Paiement manuel » ne faisaient que préremplir le champ
+prix — l'information existait au moment du clic et était jetée.
+
+**Pourquoi pas le journal d'activité seul.** Il est purgeable à partir de six
+mois (`purge_activity_log`). La colonne, elle, survit.
+
+**Qui l'écrit :**
+
+| Origine | Valeur |
+|---|---|
+| `stripe-webhook` → `creditPack()` | `stripe`, en dur — c'est Stripe qui appelle |
+| Attribution admin (`handleAssignPack`) | le choix de l'admin |
+
+**Les `NULL` sont voulus.** La migration ne devine que le certain : un
+identifiant Stripe prouve un paiement en ligne, un prix nul un cadeau. Les
+autres lignes antérieures restent `NULL` — les marquer « espèces » aurait
+fabriqué des recettes en caisse qui n'ont peut-être jamais existé. Sur la base
+de test, 8 lignes sur 31 (2 125 €) sont dans ce cas.
+
+Un index partiel sur `(payment_method, purchased_at)` couvre `cash` et
+`transfer` : ce sont les seules lignes qu'on va chercher par ce critère.
+
 ### Le membre qui se présente sans avoir réservé
 
 Cas courant à l'accueil, pas une erreur. `proposerInscriptionAuScan` cherche le

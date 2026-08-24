@@ -472,6 +472,78 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Présent et absent ne peuvent plus être vrais ensemble
+
+Christian, en testant la fiche de cours livrée le matin : « je peux appuyer en
+même temps sur Présent et Absent ».
+
+`checked_in_at` et `is_no_show` sont deux colonnes indépendantes, et chaque
+bouton n'écrivait que la sienne. Les deux s'allumaient donc côte à côte, et les
+compteurs de l'en-tête comptaient la même personne deux fois.
+
+Chaque geste écrit désormais **les deux champs dans le même `UPDATE`** — pas
+deux `UPDATE` successifs, qui laisseraient un instant où les deux sont vrais, et
+un état incohérent si le second échoue.
+
+Effet de bord repéré en corrigeant : la garde d'entrée de `handleCheckIn`
+sortait dès que `checked_in_at` existait. Quelqu'un marqué absent par erreur ne
+pouvait donc plus être pointé présent. Elle teste maintenant l'état complet.
+
+Les lignes créées avant ce correctif, avec les deux champs remplis, restent
+incohérentes jusqu'à ce qu'on reclique dessus — aucune reprise automatique n'a
+été faite, le cas étant limité aux essais de Christian.
+
+### Le mode de paiement cesse de se déduire du prix
+
+Christian s'inquiète : « si c'est paiement manuel, il faut vérifier que c'est
+bien inscrit dans le journal, sinon ces 139 euros risquent de disparaître ».
+
+Vérification faite, l'argent ne disparaissait pas — aucun écran ne filtre sur
+`stripe_payment_intent_id`, les 139 € entraient bien dans les recettes du
+tableau de bord. Le vrai défaut était ailleurs : **rien ne distinguait un
+encaissement d'un cadeau**. Les deux boutons « Cadeau » et « Paiement manuel »
+ne faisaient que préremplir le champ prix ; l'information mourait à l'écran.
+Un pack offert au tarif plein ressemblait donc à une recette, et 139 € en
+espèces ne se distinguaient pas de 139 € par virement au rapprochement.
+
+**Colonne `payment_method`** sur `pack_purchases` (`stripe`, `cash`,
+`transfer`, `gift`), choisie explicitement. La reprise des lignes existantes ne
+devine que le certain : un identifiant Stripe prouve un paiement en ligne, un
+prix nul un cadeau — le reste **reste `NULL`** plutôt que de fabriquer une
+recette en espèces qui n'a peut-être jamais existé.
+
+Trois décisions, prises avec Christian :
+
+- **Espèces et virement séparés**, pas un « manuel » unique : la caisse et le
+  compte bancaire se rapprochent séparément.
+- **Confirmation avant tout encaissement** — le montant répété seul, en gros,
+  parce que c'est lui qu'on ne relit pas. Motif visé, dans ses mots : « oh,
+  j'ai fait un cadeau et j'ai mal encodé le paiement manuel ».
+- **Fond ambre dans le journal d'activité**, badge avec le montant, et la
+  description préfixée `ENCAISSEMENT ESPÈCES —`. Sans quoi, dit-il, « ça sera
+  oublié pour la comptabilité ».
+
+Le défaut par défaut est le cadeau : hériter d'un « espèces » de l'attribution
+précédente déclarerait une recette que personne n'a encaissée.
+
+Deux défauts corrigés au passage sur le même écran : l'`INSERT` n'avait pas de
+`select()` — le journal ne pointait donc vers aucune ligne d'achat, et un refus
+RLS serait passé pour un succès (règle n°5).
+
+Reste ouvert : le journal d'activité est **purgeable à partir de six mois**. La
+colonne en base, elle, survit — c'est précisément pourquoi le mode de paiement
+n'a pas été confié au seul journal.
+
+**Appliqué le jour même**, dans cet ordre — la colonne d'abord, sans quoi le
+webhook aurait écrit dans une colonne inexistante :
+
+1. Migration sur la base (31 lignes reprises : 8 `stripe`, 15 `gift`, 8 `NULL`).
+2. `stripe-webhook` redéployé en version 13, `verify_jwt` contrôlé à `false`.
+
+Le front n'est pas déployé : base et webhook sont donc en avance sur la
+production. Sans risque — l'ancien front ignore cette colonne — mais l'écran
+d'attribution à trois modes n'existe pas encore pour le studio.
+
 ### Fiche de cours : la liste d'attente entre en scène
 
 Christian fournit la capture d'une application concurrente à imiter. L'essentiel

@@ -188,6 +188,9 @@ async function creditPack(opts: {
     subscription_id: opts.subscriptionId ?? null,
     stripe_invoice_id: opts.stripeInvoiceId ?? null,
     stripe_payment_intent_id: opts.stripePaymentIntentId ?? null,
+    // Tout ce qui passe par ce webhook est encaissé en ligne, par
+    // construction : c'est Stripe qui l'appelle.
+    payment_method: 'stripe',
   })
 
   // 23505 = violation d'unicité : l'événement a déjà été traité. Ce n'est pas

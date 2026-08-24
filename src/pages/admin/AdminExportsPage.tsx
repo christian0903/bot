@@ -328,7 +328,7 @@ export function AdminExportsPage() {
       charger: async (from, to) => {
         const { data } = await supabase
           .from('pack_purchases')
-          .select('user_id, purchased_at, expires_at, price_paid_cents, credits_remaining, subscription_id, stripe_invoice_id, pack_type:pack_types(name, credit_count, is_unlimited)')
+          .select('user_id, purchased_at, expires_at, price_paid_cents, credits_remaining, subscription_id, stripe_invoice_id, payment_method, pack_type:pack_types(name, credit_count, is_unlimited)')
           .gte('purchased_at', from)
           .lte('purchased_at', to)
           .order('purchased_at')
@@ -351,6 +351,14 @@ export function AdminExportsPage() {
             [isFr ? 'Origine' : 'Source']: p.subscription_id
               ? (isFr ? 'abonnement' : 'subscription')
               : (isFr ? 'achat ponctuel' : 'one-off'),
+            // La colonne que cherche le comptable : « Facture Stripe » vide ne
+            // discriminait rien, un achat en ligne ponctuel l'ayant vide aussi.
+            [isFr ? 'Mode de paiement' : 'Payment method']: ({
+              stripe: isFr ? 'en ligne' : 'online',
+              cash: isFr ? 'ESPÈCES' : 'CASH',
+              transfer: isFr ? 'VIREMENT' : 'TRANSFER',
+              gift: isFr ? 'offert' : 'gift',
+            } as Record<string, string>)[p.payment_method ?? ''] ?? (isFr ? 'non renseigné' : 'unknown'),
             [isFr ? 'Facture Stripe' : 'Stripe invoice']: p.stripe_invoice_id ?? '',
           }
         })

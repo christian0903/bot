@@ -10,10 +10,10 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from '@/components/ui/select'
-import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag, UserPlus, Receipt, LogIn, Star, ScanLine, AlertTriangle, Download, Trash2, Eraser, UserRoundPlus, UserRoundX } from 'lucide-react'
+import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag, UserPlus, Receipt, LogIn, Star, ScanLine, AlertTriangle, Download, Trash2, Eraser, UserRoundPlus, UserRoundX, Banknote } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { cn } from '@/lib/utils'
+import { cn, formatEuros } from '@/lib/utils'
 import { downloadCsv } from '@/lib/csv'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useAuth } from '@/contexts/AuthContext'
@@ -428,8 +428,23 @@ export function AdminActivityLogPage() {
             const config = ACTION_CONFIG[entry.action] ?? ACTION_CONFIG.booking_created
             const Icon = config.icon
 
+            // Un encaissement hors ligne n'a aucun relevé Stripe pour le
+            // recouper : s'il se lit comme une ligne parmi d'autres, il sort
+            // du journal sans être repris en comptabilité.
+            const mode = (entry.details as { payment_method?: string } | null)?.payment_method
+            const horsLigne = mode === 'cash' || mode === 'transfer'
+            const montantCents = (entry.details as { price_paid_cents?: number } | null)?.price_paid_cents
+
             return (
-              <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+              <div
+                key={entry.id}
+                className={cn(
+                  'flex items-start gap-3 p-3 rounded-lg border transition-colors',
+                  horsLigne
+                    ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 hover:bg-amber-100/70 dark:hover:bg-amber-950/60'
+                    : 'hover:bg-muted/30',
+                )}
+              >
                 <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', config.color)}>
                   <Icon className="h-4 w-4" />
                 </div>
@@ -438,6 +453,15 @@ export function AdminActivityLogPage() {
                     <Badge variant="outline" className="text-[10px] h-5">
                       {isFr ? config.label_fr : config.label_en}
                     </Badge>
+                    {horsLigne && (
+                      <Badge className="text-[10px] h-5 bg-amber-500 hover:bg-amber-500 text-white border-transparent gap-1">
+                        <Banknote className="h-3 w-3" />
+                        {mode === 'cash'
+                          ? (isFr ? 'ESPÈCES' : 'CASH')
+                          : (isFr ? 'VIREMENT' : 'TRANSFER')}
+                        {typeof montantCents === 'number' && ` · ${formatEuros(montantCents, 0)} €`}
+                      </Badge>
+                    )}
                     <span className="text-[11px] text-muted-foreground">
                       {format(new Date(entry.created_at), 'dd/MM/yyyy HH:mm', { locale })}
                     </span>

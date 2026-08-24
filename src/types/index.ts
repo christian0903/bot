@@ -122,7 +122,18 @@ export interface PackPurchase {
   /** Rempli quand la ligne provient d'une échéance d'abonnement. */
   subscription_id?: string | null
   stripe_invoice_id?: string | null
+  /** Canal d'encaissement. `null` sur les lignes antérieures à la colonne. */
+  payment_method?: PaymentMethod | null
 }
+
+/**
+ * Canal par lequel l'argent est entré. Déduire le canal du prix ne suffisait
+ * pas : un pack offert au tarif plein passait pour une recette.
+ */
+export type PaymentMethod = 'stripe' | 'cash' | 'transfer' | 'gift'
+
+/** Encaissements hors ligne : ceux qu'aucun relevé Stripe ne recoupe. */
+export const MODES_HORS_LIGNE: PaymentMethod[] = ['cash', 'transfer']
 
 /**
  * Abonnement Stripe. Reflet local de l'objet distant : c'est le webhook qui

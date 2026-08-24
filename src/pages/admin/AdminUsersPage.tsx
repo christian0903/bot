@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { formatEuros, formatPackCredits, formatValidity } from '@/lib/utils'
 import { logActivity } from '@/lib/activity-log'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Profile, UserRole, PackType, MemberCategory } from '@/types'
+import type { Profile, UserRole, PackType, MemberCategory, PaymentMethod } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -36,7 +36,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Download, Trash2, Users, Gift, ChevronRight, CreditCard, Plus } from 'lucide-react'
+import { Download, Trash2, Users, Gift, ChevronRight, CreditCard, Plus, Banknote, Landmark, AlertTriangle } from 'lucide-react'
 import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 
@@ -83,6 +83,14 @@ export function AdminUsersPage() {
   const [packTypes, setPackTypes] = useState<PackType[]>([])
   const [selectedPackTypeId, setSelectedPackTypeId] = useState('')
   const [packPriceOverride, setPackPriceOverride] = useState('')
+  /**
+   * Canal d'encaissement, choisi et non déduit. Le prix ne suffit pas : un pack
+   * offert au tarif plein passerait pour une recette, et l'argent d'une caisse
+   * ne se distinguerait pas d'un virement au moment du rapprochement.
+   */
+  const [packPaymentMethod, setPackPaymentMethod] = useState<PaymentMethod>('gift')
+  /** Non nul = le garde-fou d'encaissement est affiché, en attente de réponse. */
+  const [confirmEncaissement, setConfirmEncaissement] = useState<PaymentMethod | null>(null)
   const [packSaving, setPackSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState<MemberCategory[]>([])
@@ -246,6 +254,10 @@ export function AdminUsersPage() {
     setPackTarget(user)
     setSelectedPackTypeId('')
     setPackPriceOverride('')
+    // Le cadeau est le défaut : hériter d'un « espèces » de l'attribution
+    // précédente déclarerait une recette que personne n'a encaissée.
+    setPackPaymentMethod('gift')
+    setConfirmEncaissement(null)
     setPackDialogOpen(true)
   }
 
@@ -263,17 +275,26 @@ export function AdminUsersPage() {
     const now = new Date()
     const expiresAt = addDays(now, packType.validity_days)
 
-    const { error } = await supabase.from('pack_purchases').insert({
+    // `select()` : sans l'identifiant créé, l'entrée de journal ne pointerait
+    // vers aucune ligne d'achat, et un refus RLS passerait pour un succès.
+    const { data: creee, error } = await supabase.from('pack_purchases').insert({
       user_id: packTarget.id,
       pack_type_id: packType.id,
       price_paid_cents: priceCents,
       credits_remaining: packType.credit_count,
       purchased_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
-    })
+      payment_method: packPaymentMethod,
+    }).select('id')
 
     setPackSaving(false)
     if (error) { toast.error(error.message); return }
+    if (!creee || creee.length === 0) {
+      toast.error(isFr
+        ? 'Attribution refusée — vous n\'avez pas les droits'
+        : 'Assignment refused — you lack permission')
+      return
+    }
 
     await supabase.from('notifications').insert({
       user_id: packTarget.id,
@@ -286,18 +307,33 @@ export function AdminUsersPage() {
     })
 
     // Log activity
+    //
+    // La description est ce que lit un comptable, et c'est parfois la seule
+    // chose qu'il lit : l'encaissement hors ligne s'y annonce en premier mot,
+    // avant même le nom du pack, pour ne pas se noyer dans la ligne.
+    const libelleMode: Record<PaymentMethod, string> = {
+      cash: 'ESPÈCES',
+      transfer: 'VIREMENT',
+      gift: 'offert',
+      stripe: 'en ligne',
+    }
+    const horsLigne = packPaymentMethod === 'cash' || packPaymentMethod === 'transfer'
+    const prefixe = horsLigne ? `ENCAISSEMENT ${libelleMode[packPaymentMethod]} — ` : ''
+
     await logActivity({
       action: 'pack_assigned',
       actor_id: currentUser?.id ?? null,
       target_user_id: packTarget.id,
       entity_type: 'pack_purchase',
+      entity_id: creee[0].id,
       details: {
         pack_name: packType.name,
         credits: packType.credit_count,
         price_paid_cents: priceCents,
         expires_at: expiresAt.toISOString(),
+        payment_method: packPaymentMethod,
       },
-      description: `Pack "${packType.name}" (${formatPackCredits(packType, true)}, ${formatEuros(priceCents, 0)}) attribué à ${packTarget.display_name}`,
+      description: `${prefixe}Pack "${packType.name}" (${formatPackCredits(packType, true)}, ${formatEuros(priceCents, 0)}${horsLigne ? '' : `, ${libelleMode[packPaymentMethod]}`}) attribué à ${packTarget.display_name}`,
     })
 
     // Update local credits count (un illimité n'ajoute aucun credit au total)
@@ -764,27 +800,45 @@ export function AdminUsersPage() {
                       value={packPriceOverride}
                       onChange={(e) => setPackPriceOverride(e.target.value)}
                     />
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => setPackPriceOverride('0')}
-                      >
-                        <Gift className="h-3 w-3 mr-1" />
-                        {t('admin.users.freeGift')}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => setPackPriceOverride(formatEuros(selectedPack.price_cents, 0))}
-                      >
-                        {t('admin.users.manualPayment')} ({formatEuros(selectedPack.price_cents, 0)}€)
-                      </Button>
+                    {/* Le canal se choisit, il ne se déduit plus du prix : un
+                        pack offert au tarif plein passait pour une recette, et
+                        l'espèces ne se distinguait pas du virement. */}
+                    <div className="grid grid-cols-3 gap-2 pt-1">
+                      {([
+                        { mode: 'gift' as const, icone: Gift, libelle: isFr ? 'Cadeau / offert' : 'Gift', prix: 0 },
+                        { mode: 'cash' as const, icone: Banknote, libelle: isFr ? 'Espèces' : 'Cash', prix: selectedPack.price_cents },
+                        { mode: 'transfer' as const, icone: Landmark, libelle: isFr ? 'Virement' : 'Transfer', prix: selectedPack.price_cents },
+                      ]).map(({ mode, icone: Icone, libelle, prix }) => (
+                        <Button
+                          key={mode}
+                          type="button"
+                          variant={packPaymentMethod === mode ? 'default' : 'outline'}
+                          size="sm"
+                          className="text-xs h-auto py-2 flex-col gap-1"
+                          onClick={() => {
+                            setPackPriceOverride(prix === 0 ? '0' : formatEuros(prix, 0))
+                            // Un encaissement se confirme avant d'être retenu :
+                            // c'est le clic distrait qu'on cherche à casser.
+                            if (mode === 'gift') setPackPaymentMethod('gift')
+                            else setConfirmEncaissement(mode)
+                          }}
+                        >
+                          <Icone className="h-3.5 w-3.5" />
+                          <span>{libelle}</span>
+                        </Button>
+                      ))}
                     </div>
+
+                    {(packPaymentMethod === 'cash' || packPaymentMethod === 'transfer') && (
+                      <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-2.5">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-900 dark:text-amber-200">
+                          {isFr
+                            ? `Vous déclarez avoir encaissé ${packPriceOverride || formatEuros(selectedPack.price_cents, 0)} € ${packPaymentMethod === 'cash' ? 'en espèces' : 'par virement'}. Cette somme comptera dans les recettes.`
+                            : `You declare having collected €${packPriceOverride || formatEuros(selectedPack.price_cents, 0)} ${packPaymentMethod === 'cash' ? 'in cash' : 'by transfer'}. This will count as revenue.`}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -809,6 +863,57 @@ export function AdminUsersPage() {
         description={t('admin.users.deleteConfirm')}
         onConfirm={handleDelete}
       />
+
+      {/* Garde-fou d'encaissement.
+          Le motif est toujours le même : « j'ai offert le pack, j'ai cliqué
+          Paiement manuel sans réfléchir » — et le studio se retrouve avec une
+          recette fantôme qu'aucune caisse ne recoupe. Le montant est répété en
+          gros, seul, parce que c'est lui qu'on ne relit pas. */}
+      <Dialog open={!!confirmEncaissement} onOpenChange={(open) => !open && setConfirmEncaissement(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+              {isFr ? 'Encaissement déclaré' : 'Declared payment'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {isFr ? 'Vous déclarez avoir reçu' : 'You declare having received'}
+            </p>
+            <p className="text-3xl font-semibold text-center py-2">
+              {selectedPack ? formatEuros(selectedPack.price_cents, 0) : '—'} €
+            </p>
+            <p className="text-sm">
+              {isFr
+                ? `${confirmEncaissement === 'cash' ? 'en espèces' : 'par virement'} de ${packTarget?.display_name ?? ''}.`
+                : `${confirmEncaissement === 'cash' ? 'in cash' : 'by bank transfer'} from ${packTarget?.display_name ?? ''}.`}
+            </p>
+            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-2.5">
+              <p className="text-xs text-amber-900 dark:text-amber-200">
+                {isFr
+                  ? 'Cette somme sera comptée dans les recettes. S\'il s\'agit d\'un cadeau, annulez et choisissez « Cadeau / offert ».'
+                  : 'This will count as revenue. If it is a gift, cancel and pick “Gift”.'}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmEncaissement(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                if (confirmEncaissement) setPackPaymentMethod(confirmEncaissement)
+                setConfirmEncaissement(null)
+              }}
+            >
+              {isFr ? 'Je confirme' : 'I confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Attribution groupée de catégorie. */}
       <Dialog open={bulkCategoryOpen} onOpenChange={setBulkCategoryOpen}>

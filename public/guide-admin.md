@@ -296,7 +296,19 @@ Statut, **rôle**, catégorie, frais d'inscription, et trois compteurs : crédit
 
 Tous ses packs, actifs et expirés. Chacun peut être **modifié** : nombre de crédits restants, date d'expiration. Sert à corriger une erreur ou à faire un geste.
 
-**Attribuer un pack** sans paiement : le bouton est là. À utiliser pour un paiement reçu en espèces, par virement, ou pour offrir des séances.
+**Attribuer un pack** hors Stripe : le bouton est là. À utiliser pour un paiement reçu en espèces, par virement, ou pour offrir des séances.
+
+**Le mode de paiement se choisit, il ne se devine pas.** Trois boutons :
+
+| | Prix prérempli | Compté en recettes |
+|---|---|---|
+| **Cadeau / offert** | 0 € | non |
+| **Espèces** | tarif plein | **oui** |
+| **Virement** | tarif plein | **oui** |
+
+Espèces et Virement ouvrent une **fenêtre de confirmation** qui rappelle le montant : « vous déclarez avoir reçu 139 € ». C'est volontaire — l'erreur classique est d'offrir un pack et de cliquer machinalement sur un encaissement, créant une recette que rien ne recoupe. Le prix reste modifiable après le choix, pour un montant négocié.
+
+Ces encaissements ressortent ensuite **sur fond ambre dans le journal d'activité**, avec le montant dans le badge : ce sont les seuls qu'aucun relevé Stripe ne recoupe, ils doivent se repérer d'un coup d'œil. L'export **Achats de packs** porte une colonne « Mode de paiement » pour la comptabilité.
 
 > **Attribuer une formule d'abonnement ne crée pas d'abonnement.** Le pack est bien crédité et utilisable, mais **aucun prélèvement n'est programmé** : Stripe n'en sait rien. Le membre voit son pack avec la mention « Offert par le studio — non reconduit automatiquement », et n'a ni carte d'abonnement ni bouton de résiliation — il n'y a rien à résilier.
 >

@@ -313,11 +313,19 @@ CREATE TABLE pack_purchases (
   -- Facture Stripe à l'origine du cycle. L'index unique ci-dessous garantit
   -- qu'un même événement rejoué ne crédite pas deux fois.
   stripe_invoice_id TEXT,
+  -- Canal d'encaissement. Le montant seul ne dit pas d'où vient l'argent :
+  -- 139 € en espèces et 139 € par carte seraient sinon indiscernables.
+  payment_method TEXT CHECK (payment_method IN ('stripe', 'cash', 'transfer', 'gift')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX pack_purchases_stripe_invoice_uniq
   ON pack_purchases(stripe_invoice_id) WHERE stripe_invoice_id IS NOT NULL;
+
+-- Retrouver les encaissements hors ligne d'une période sans balayer la table.
+CREATE INDEX pack_purchases_payment_method_idx
+  ON pack_purchases(payment_method, purchased_at)
+  WHERE payment_method IN ('cash', 'transfer');
 
 -- Types de cours
 CREATE TABLE class_types (

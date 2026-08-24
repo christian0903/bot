@@ -168,7 +168,9 @@ export function CoachClassDetailPage() {
 
   // ---- Check-in ----
   const handleCheckIn = async (booking: Booking) => {
-    if (booking.checked_in_at) return
+    // On ne sort que si l'état est déjà exactement celui visé : quelqu'un
+    // marqué absent par erreur doit pouvoir être pointé présent d'un clic.
+    if (booking.checked_in_at && !booking.is_no_show) return
 
     // `select()` n'est pas décoratif : une policy RLS qui refuse un UPDATE ne
     // renvoie AUCUNE erreur, elle met simplement à jour zéro ligne. Sans lire
@@ -176,7 +178,9 @@ export function CoachClassDetailPage() {
     // pointage qui n'a pas eu lieu.
     const { data, error } = await supabase
       .from('bookings')
-      .update({ checked_in_at: new Date().toISOString() })
+      // Les deux champs partent ensemble : présent et absent s'excluent, et
+      // deux UPDATE séparés laisseraient une fenêtre où les deux sont vrais.
+      .update({ checked_in_at: new Date().toISOString(), is_no_show: false })
       .eq('id', booking.id)
       .select('id')
 
@@ -199,7 +203,9 @@ export function CoachClassDetailPage() {
     })
 
     setBookings(prev => prev.map(b =>
-      b.id === booking.id ? { ...b, checked_in_at: new Date().toISOString() } : b
+      b.id === booking.id
+        ? { ...b, checked_in_at: new Date().toISOString(), is_no_show: false }
+        : b
     ))
     toast.success(isFr ? `${booking.user?.display_name} pointé(e) !` : `${booking.user?.display_name} checked in!`)
   }
@@ -244,7 +250,8 @@ export function CoachClassDetailPage() {
   const handleMarkNoShow = async (booking: Booking) => {
     const { data, error } = await supabase
       .from('bookings')
-      .update({ is_no_show: true })
+      // Même exclusion en sens inverse : marquer absent efface le pointage.
+      .update({ is_no_show: true, checked_in_at: null })
       .eq('id', booking.id)
       .select('id')
     if (error) { toast.error(error.message); return }
@@ -266,7 +273,9 @@ export function CoachClassDetailPage() {
     })
 
     setBookings(prev => prev.map(b =>
-      b.id === booking.id ? { ...b, is_no_show: true } : b
+      b.id === booking.id
+        ? { ...b, is_no_show: true, checked_in_at: null }
+        : b
     ))
     toast.warning(isFr ? `${booking.user?.display_name} marqué(e) absent(e)` : `${booking.user?.display_name} marked as no-show`)
   }
