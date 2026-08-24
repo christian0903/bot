@@ -24,6 +24,11 @@ Réserver, payer, suivre tes entraînements.
 >
 > **Adresse mal saisie ?** Le renvoi repartirait au même endroit : recommence
 > l'inscription avec la bonne adresse, ou demande au studio.
+>
+> **Tu avais déjà un compte avec cette adresse ?** Aucun e-mail n'est envoyé
+> dans ce cas — c'est normal, et c'est la cause la plus fréquente d'un e-mail
+> qui n'arrive jamais. Connecte-toi directement, ou passe par « Mot de passe
+> oublié » si tu ne t'en souviens plus.
 
 > **Code de parrainage oublié ?** Ce n'est pas perdu : tu pourras le saisir au moment de ton premier paiement, ou demander au studio de le rattacher après coup.
 

@@ -37,7 +37,7 @@ CREATE TYPE activity_action AS ENUM (
   'pack_purchased', 'pack_assigned', 'pack_modified',
   'booking_created', 'booking_cancelled', 'booking_assigned',
   'role_changed', 'waitlist_joined', 'waitlist_promoted',
-  'user_created', 'registration_fee_paid', 'user_login',
+  'user_created', 'signup_attempt', 'registration_fee_paid', 'user_login',
   'trial_booked', 'check_in', 'no_show', 'account_deleted',
   'password_reset_by_admin',
   'email_change_by_admin',
@@ -1608,6 +1608,146 @@ $fn$;
 
 REVOKE ALL ON FUNCTION delete_member_account(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION delete_member_account(UUID) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Inscriptions : tracer les tentatives, effacer les parasites
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION log_duplicate_signup(p_email TEXT)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  SELECT id INTO v_user_id FROM auth.users WHERE email = lower(trim(p_email));
+
+  -- Adresse inconnue : rien à tracer. Sortir en silence, sans rien signaler à
+  -- l'appelant — la différence de comportement serait elle-même une réponse.
+  IF v_user_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- Une seule trace par heure et par adresse. Sans cette borne, un formulaire
+  -- soumis en boucle remplirait le journal et noierait le reste.
+  IF EXISTS (
+    SELECT 1 FROM activity_log
+    WHERE action = 'signup_attempt'
+      AND target_user_id = v_user_id
+      AND details->>'duplicate' = 'true'
+      AND created_at > NOW() - INTERVAL '1 hour'
+  ) THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO activity_log (action, actor_id, target_user_id, entity_type, entity_id, details, description)
+  VALUES ('signup_attempt', NULL, v_user_id, 'profile', v_user_id,
+          jsonb_build_object('duplicate', true, 'email', lower(trim(p_email))),
+          format('Tentative d''inscription sur une adresse déjà inscrite : %s — aucun e-mail envoyé',
+                 lower(trim(p_email))));
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION log_duplicate_signup(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION log_duplicate_signup(TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION purge_parasite_account(p_user_id UUID)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_actor UUID := auth.uid();
+  v_name TEXT;
+  v_email TEXT;
+  v_confirmed TIMESTAMPTZ;
+  v_created TIMESTAMPTZ;
+  v_blocker TEXT;
+BEGIN
+  IF NOT (has_role(v_actor, 'admin') OR has_role(v_actor, 'super_admin')) THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'forbidden');
+  END IF;
+
+  -- Un admin ne s'efface pas lui-même : la fonction serait le plus court chemin
+  -- vers un studio sans administrateur.
+  IF p_user_id = v_actor THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'self');
+  END IF;
+
+  SELECT display_name INTO v_name FROM profiles WHERE id = p_user_id;
+  IF v_name IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
+  END IF;
+
+  SELECT email, email_confirmed_at, created_at
+    INTO v_email, v_confirmed, v_created
+  FROM auth.users WHERE id = p_user_id;
+
+  -- Un e-mail confirmé signale quelqu'un qui a fait la démarche jusqu'au bout :
+  -- ce n'est plus un parasite, même s'il n'a rien acheté.
+  IF v_confirmed IS NOT NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'email_confirmed');
+  END IF;
+
+  -- Staff : jamais effaçable ici, quel que soit l'état du compte.
+  IF EXISTS (
+    SELECT 1 FROM user_roles
+    WHERE user_id = p_user_id AND role IN ('coach', 'admin', 'super_admin')
+  ) THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'staff');
+  END IF;
+
+  -- Toute trace financière ou d'usage interdit l'effacement. Le pack de séance
+  -- d'essai, attribué d'office à l'inscription, ne compte pas : il est offert et
+  -- présent sur TOUS les comptes, il bloquerait donc chaque purge.
+  SELECT CASE
+    WHEN EXISTS (SELECT 1 FROM pack_purchases
+                 WHERE user_id = p_user_id AND COALESCE(price_paid_cents, 0) > 0) THEN 'purchase'
+    WHEN EXISTS (SELECT 1 FROM subscriptions   WHERE user_id = p_user_id) THEN 'subscription'
+    WHEN EXISTS (SELECT 1 FROM registration_fees WHERE user_id = p_user_id) THEN 'registration_fee'
+    WHEN EXISTS (SELECT 1 FROM bookings        WHERE user_id = p_user_id) THEN 'booking'
+    ELSE NULL
+  END INTO v_blocker;
+
+  IF v_blocker IS NOT NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'has_activity', 'blocker', v_blocker);
+  END IF;
+
+  -- La trace de l'effacement s'écrit AVANT la suppression : `activity_log`
+  -- référence `auth.users`, et les lignes du parasite vont disparaître. On la
+  -- rattache donc à l'admin, seul acteur qui subsistera.
+  INSERT INTO activity_log (action, actor_id, target_user_id, entity_type, entity_id, details, description)
+  VALUES ('account_deleted', v_actor, v_actor, 'profile', p_user_id,
+          jsonb_build_object(
+            'purged_parasite', true,
+            'former_name', v_name,
+            'former_email', v_email,
+            'signed_up_at', v_created
+          ),
+          format('Compte parasite effacé : %s (%s) — jamais confirmé, aucun achat',
+                 v_name, COALESCE(v_email, 'sans e-mail')));
+
+  -- Les traces du compte partent avec lui : les conserver ferait mentir le
+  -- journal, qui renverrait vers un membre introuvable.
+  DELETE FROM activity_log WHERE target_user_id = p_user_id OR actor_id = p_user_id;
+  DELETE FROM waitlist       WHERE user_id = p_user_id;
+  DELETE FROM notifications  WHERE user_id = p_user_id;
+  DELETE FROM email_queue    WHERE user_id = p_user_id;
+  DELETE FROM performances   WHERE user_id = p_user_id;
+  DELETE FROM pack_purchases WHERE user_id = p_user_id;
+  DELETE FROM user_roles     WHERE user_id = p_user_id;
+  DELETE FROM profiles       WHERE id      = p_user_id;
+  DELETE FROM auth.users     WHERE id      = p_user_id;
+
+  RETURN jsonb_build_object('ok', true, 'former_name', v_name, 'former_email', v_email);
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION purge_parasite_account(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION purge_parasite_account(UUID) TO authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Avis sur les cours
@@ -3774,6 +3914,29 @@ BEGIN
     ''potential''
   );
   INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, ''client'');
+
+  -- Bloc protégé à part : le journal est utile, l''inscription est essentielle.
+  -- Une écriture de trace qui échoue ne doit pas emporter la création du compte
+  -- — le EXCEPTION global du dessous avalerait l''erreur en laissant un profil
+  -- à moitié construit.
+  BEGIN
+    INSERT INTO public.activity_log (
+      action, actor_id, target_user_id, entity_type, entity_id, details, description
+    ) VALUES (
+      ''signup_attempt'', NEW.id, NEW.id, ''profile'', NEW.id,
+      jsonb_build_object(
+        ''email'', NEW.email,
+        ''self_signup'', true,
+        ''email_confirmed'', (NEW.email_confirmed_at IS NOT NULL)
+      ),
+      format(''Tentative d''''inscription : %s (%s)'',
+             COALESCE(NEW.raw_user_meta_data->>''display_name'', ''sans nom''),
+             COALESCE(NEW.email, ''sans e-mail''))
+    );
+  EXCEPTION WHEN OTHERS THEN
+    RAISE LOG ''handle_new_user activity_log error: %'', SQLERRM;
+  END;
+
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
   RAISE LOG ''handle_new_user error: %'', SQLERRM;

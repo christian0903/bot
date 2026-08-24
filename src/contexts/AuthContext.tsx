@@ -24,7 +24,8 @@ interface AuthContextType {
   loading: boolean
   hasRegistrationFee: boolean
   hasUsedTrial: boolean
-  signUp: (email: string, password: string, metadata: SignUpMetadata) => Promise<{ error: Error | null }>
+  /** `dejaInscrit` : l'adresse a déjà un compte — voir `signUp`. */
+  signUp: (email: string, password: string, metadata: SignUpMetadata) => Promise<{ error: Error | null; dejaInscrit: boolean }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: Error | null }>
@@ -155,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string, metadata: SignUpMetadata) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -175,7 +176,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     })
-    return { error: error as Error | null }
+
+    // Adresse déjà inscrite : Supabase répond **sans erreur** et n'envoie aucun
+    // e-mail. C'est sa protection contre l'énumération des comptes — répondre
+    // franchement permettrait de tester des adresses pour savoir qui fréquente
+    // le studio. Le front n'en dit donc rien non plus ; seul le studio le voit,
+    // dans le journal d'activité.
+    //
+    // La détection se fait sur l'ancienneté de `created_at`, pas sur
+    // `identities` vide : ce dernier ne vaut que si la confirmation d'e-mail est
+    // désactivée. Confirmation activée — notre cas — Supabase renvoie le compte
+    // existant AVEC ses identités, et le test sur `identities` ne voyait jamais
+    // rien (vérifié contre l'API : identités présentes dans les deux cas, seul
+    // `created_at` diffère).
+    const SEUIL_COMPTE_NEUF_MS = 10_000
+    const creeA = data.user?.created_at ? new Date(data.user.created_at).getTime() : 0
+    const dejaInscrit = !error && !!data.user
+      && creeA > 0 && Date.now() - creeA > SEUIL_COMPTE_NEUF_MS
+    return { error: error as Error | null, dejaInscrit }
   }
 
   const signIn = async (email: string, password: string) => {

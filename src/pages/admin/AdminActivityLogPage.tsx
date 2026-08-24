@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from '@/components/ui/select'
-import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag, UserPlus, Receipt, LogIn, Star, ScanLine, AlertTriangle, Download, Trash2, Eraser } from 'lucide-react'
+import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag, UserPlus, Receipt, LogIn, Star, ScanLine, AlertTriangle, Download, Trash2, Eraser, UserRoundPlus, UserRoundX } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -43,6 +43,7 @@ const ACTION_CONFIG: Record<string, { icon: typeof Gift; color: string; label_fr
   waitlist_joined: { icon: Clock3, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950', label_fr: 'Liste d\'attente', label_en: 'Waitlist' },
   waitlist_promoted: { icon: CalendarDays, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950', label_fr: 'Promu (attente)', label_en: 'Promoted (waitlist)' },
   user_created: { icon: UserPlus, color: 'text-teal-600 bg-teal-50 dark:bg-teal-950', label_fr: 'Nouveau membre', label_en: 'New member' },
+  signup_attempt: { icon: UserRoundPlus, color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-950', label_fr: 'Inscription', label_en: 'Sign-up' },
   registration_fee_paid: { icon: Receipt, color: 'text-green-600 bg-green-50 dark:bg-green-950', label_fr: 'Frais inscription', label_en: 'Registration fee' },
   user_login: { icon: LogIn, color: 'text-sky-600 bg-sky-50 dark:bg-sky-950', label_fr: 'Connexion', label_en: 'Login' },
   trial_booked: { icon: Star, color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950', label_fr: 'Séance d\'essai', label_en: 'Trial session' },
@@ -72,6 +73,10 @@ export function AdminActivityLogPage() {
   // Export et purge
   const { hasRole } = useAuth()
   const isSuperAdmin = hasRole('super_admin')
+  const isAdmin = hasRole('admin') || isSuperAdmin
+  /** Compte parasite dont l'effacement est proposé à la confirmation. */
+  const [purgeUser, setPurgeUser] = useState<{ id: string; nom: string } | null>(null)
+  const [purgingUser, setPurgingUser] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [purgeMonths, setPurgeMonths] = useState('12')
   const [purgeConfirm, setPurgeConfirm] = useState<{ count: number } | null>(null)
@@ -253,6 +258,73 @@ export function AdminActivityLogPage() {
     return profiles.get(id)?.display_name ?? '...'
   }
 
+  /**
+   * Le bouton d'effacement ne s'affiche que là où il a une chance d'aboutir.
+   *
+   * C'est un filtre d'affichage, pas une sécurité : la décision appartient au
+   * serveur, qui refuse tout compte confirmé, membre du staff, ou portant la
+   * moindre trace d'achat. Ici on évite seulement de proposer une action qui
+   * serait refusée.
+   */
+  const peutPurger = (entry: ActivityEntry) => {
+    if (!isAdmin) return false
+    if (entry.action !== 'signup_attempt') return false
+    // Une tentative sur adresse existante ne crée aucun compte : il n'y a rien
+    // à effacer, et le compte visé est justement celui d'un membre légitime.
+    if (entry.details?.duplicate === true) return false
+    if (entry.details?.email_confirmed === true) return false
+    // Le profil a disparu de la liste : compte déjà effacé, ligne obsolète.
+    return profiles.has(entry.target_user_id)
+  }
+
+  /** Efface un compte parasite après confirmation. */
+  const purgerParasite = async () => {
+    if (!purgeUser) return
+    setPurgingUser(true)
+    const { data, error } = await supabase.rpc('purge_parasite_account', {
+      p_user_id: purgeUser.id,
+    })
+    setPurgingUser(false)
+
+    if (error) {
+      toast.error(isFr ? `Erreur : ${error.message}` : `Error: ${error.message}`)
+      return
+    }
+
+    const res = data as { ok: boolean; reason?: string; blocker?: string } | null
+    if (!res?.ok) {
+      // Nommer le motif : « impossible » sans raison laisse l'admin croire à
+      // une panne, alors que le refus est le plus souvent délibéré.
+      const motifs: Record<string, { fr: string; en: string }> = {
+        forbidden: { fr: 'Réservé aux administrateurs.', en: 'Admins only.' },
+        self: { fr: 'Vous ne pouvez pas effacer votre propre compte.', en: 'You cannot purge your own account.' },
+        not_found: { fr: 'Ce compte n\'existe plus.', en: 'This account no longer exists.' },
+        email_confirmed: {
+          fr: 'Ce membre a confirmé son adresse : ce n\'est pas un parasite. Passez par sa fiche pour une suppression classique.',
+          en: 'This member confirmed their address — not spam. Use their profile for a regular deletion.',
+        },
+        staff: { fr: 'Un membre du staff ne s\'efface pas ici.', en: 'Staff accounts cannot be purged here.' },
+        has_activity: {
+          fr: 'Ce compte a une activité (achat, abonnement ou réservation) : la loi impose de le conserver. Passez par sa fiche pour l\'anonymiser.',
+          en: 'This account has activity (purchase, subscription or booking): the law requires keeping it. Use their profile to anonymise.',
+        },
+      }
+      const m = motifs[res?.reason ?? '']
+      toast.error(m ? (isFr ? m.fr : m.en) : (isFr ? 'Effacement refusé.' : 'Purge refused.'))
+      setPurgeUser(null)
+      return
+    }
+
+    toast.success(isFr
+      ? `Compte de ${res && 'former_name' in res ? (res as { former_name: string }).former_name : purgeUser.nom} effacé.`
+      : 'Account purged.')
+    setPurgeUser(null)
+    // Le compte et ses traces ont disparu : recharger plutôt que retirer une
+    // ligne, plusieurs entrées du journal peuvent le concerner.
+    setPage(0)
+    fetchEntries(0)
+  }
+
   if (loading && entries.length === 0) return <LoadingState />
 
   return (
@@ -378,6 +450,27 @@ export function AdminActivityLogPage() {
                     )}
                   </p>
                 </div>
+
+                {/* Effacer le parasite depuis la ligne qui le signale : le
+                    repérer puis aller chercher sa fiche ferait perdre le fil
+                    d'un journal qu'on parcourt de haut en bas. Le serveur
+                    refusera de toute façon tout compte confirmé ou ayant la
+                    moindre trace d'achat. */}
+                {peutPurger(entry) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    disabled={purgingUser}
+                    title={isFr ? 'Effacer ce compte parasite' : 'Purge this spam account'}
+                    onClick={() => setPurgeUser({
+                      id: entry.target_user_id,
+                      nom: getProfileName(entry.target_user_id),
+                    })}
+                  >
+                    <UserRoundX className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )
           })}
@@ -403,6 +496,19 @@ export function AdminActivityLogPage() {
           ? `${purgeConfirm?.count ?? 0} entrée(s) antérieure(s) à ${purgeMonths} mois seront définitivement effacées. Cette opération est irréversible.`
           : `${purgeConfirm?.count ?? 0} entr${(purgeConfirm?.count ?? 0) > 1 ? 'ies' : 'y'} older than ${purgeMonths} months will be permanently deleted. This cannot be undone.`}
         onConfirm={purger}
+        variant="destructive"
+      />
+
+      {/* Effacement définitif, sans anonymisation : la question doit le dire, et
+          nommer le compte visé — une ligne de journal ressemble à la suivante. */}
+      <ConfirmDialog
+        open={purgeUser !== null}
+        onOpenChange={(o) => { if (!o) setPurgeUser(null) }}
+        title={isFr ? 'Effacer ce compte ?' : 'Purge this account?'}
+        description={isFr
+          ? `Le compte de ${purgeUser?.nom ?? ''} et toutes ses traces seront définitivement effacés. Réservé aux inscriptions jamais confirmées et sans aucun achat — le serveur refusera dans tous les autres cas. Cette opération est irréversible.`
+          : `${purgeUser?.nom ?? 'This account'} and all its traces will be permanently deleted. Only for never-confirmed sign-ups with no purchase — the server will refuse otherwise. This cannot be undone.`}
+        onConfirm={purgerParasite}
         variant="destructive"
       />
     </div>

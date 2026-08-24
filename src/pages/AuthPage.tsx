@@ -26,7 +26,13 @@ export function AuthPage() {
   // protégée : on choisira alors sa destination selon son rôle.
   const from = (location.state as { from?: string })?.from ?? null
 
-  const [tab, setTab] = useState<string>('login')
+  // Un lien de parrainage (`?ref=CODE`) s'adresse par définition à quelqu'un qui
+  // n'a pas de compte : l'ouvrir sur « Connexion » lui demande de se connecter à
+  // un compte qu'il n'a pas. Le code était bien repris dans le formulaire, mais
+  // encore fallait-il y arriver.
+  const [tab, setTab] = useState<string>(() =>
+    new URLSearchParams(window.location.search).has('ref') ? 'register' : 'login',
+  )
   const [loading, setLoading] = useState(false)
   const [regStep, setRegStep] = useState(1) // 1: infos perso, 2: compte + legal
   /** Adresse à laquelle l'e-mail de confirmation vient de partir. Non nul = inscription aboutie. */
@@ -206,7 +212,7 @@ export function AuthPage() {
     setRegErrors([])
     setLoading(true)
     const displayName = `${regFirstName} ${regLastName}`
-    const { error } = await signUp(regEmail, regPassword, {
+    const { error, dejaInscrit } = await signUp(regEmail, regPassword, {
       display_name: displayName,
       first_name: regFirstName,
       last_name: regLastName,
@@ -233,6 +239,15 @@ export function AuthPage() {
       setRegErrors([msg])
       toast.error(msg)
     } else {
+      // L'adresse a déjà un compte : Supabase a répondu comme si de rien
+      // n'était et n'a envoyé aucun e-mail. L'écran ne le dit pas — ce serait
+      // révéler qui fréquente le studio — mais le journal, lui, le note : c'est
+      // ce qui permettra d'expliquer un « je n'ai jamais reçu l'e-mail ».
+      if (dejaInscrit) {
+        // Sans await : la trace ne doit pas retarder l'affichage, et un échec
+        // d'écriture ne doit pas transformer une inscription en erreur.
+        void supabase.rpc('log_duplicate_signup', { p_email: regEmail })
+      }
       // Un toast disparaît en quelques secondes : le membre se retrouvait
       // devant le formulaire de connexion sans savoir qu'un e-mail l'attendait,
       // et beaucoup essayaient de se connecter en vain. L'écran de
@@ -298,6 +313,33 @@ export function AuthPage() {
                 ? 'Rien reçu après quelques minutes ? Regarde dans les indésirables (spam), ou demande un nouvel envoi ci-dessous.'
                 : 'Nothing after a few minutes? Check your spam folder, or ask for a new email below.'}
             </p>
+
+            {/* Deuxième cause, invisible pour qui la subit : l'adresse a déjà un
+                compte. Supabase répond alors comme si l'inscription avait
+                réussi, sans envoyer d'e-mail — c'est délibéré de sa part, dire
+                « cette adresse existe » permettrait de savoir qui est inscrit au
+                studio. On ne l'affirme donc pas non plus ici : on décrit le cas
+                et on donne la sortie, ce qui débloque sans rien divulguer. */}
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+              <p className="text-xs">
+                {isFr
+                  ? 'Tu as déjà un compte avec cette adresse ? Aucun e-mail n\'est envoyé dans ce cas. Connecte-toi directement, ou passe par « Mot de passe oublié ».'
+                  : 'Already have an account with this address? No email is sent in that case. Sign in directly, or use “Forgot password”.'}
+              </p>
+              <button
+                type="button"
+                className="mt-1 text-xs text-primary underline"
+                onClick={() => {
+                  // Reporter l'adresse : la retaper est le genre de friction qui
+                  // fait abandonner quelqu'un déjà bloqué depuis dix minutes.
+                  setForgotEmail(registeredEmail)
+                  setRegisteredEmail(null)
+                  setTab('forgot')
+                }}
+              >
+                {isFr ? 'Mot de passe oublié' : 'Forgot password'}
+              </button>
+            </div>
 
             <Button
               className="w-full"
@@ -415,6 +457,23 @@ export function AuthPage() {
 
             {/* REGISTER */}
             <TabsContent value="register">
+
+              {/* Arrivé par un lien de parrainage : dire pourquoi le code est
+                  déjà rempli, sinon il ressemble à une saisie inexpliquée — et
+                  rappeler ce qu'il rapporte, c'est ce qui décide de finir le
+                  formulaire. */}
+              {regReferralCode && (
+                <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <p className="text-sm font-medium">
+                    {isFr ? 'Tu as été parrainé 🎉' : 'You were referred 🎉'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isFr
+                      ? `Le code ${regReferralCode} est déjà renseigné. Vous recevrez chacun un bon d'achat dès ton premier paiement.`
+                      : `Code ${regReferralCode} is already filled in. You'll each get a voucher after your first payment.`}
+                  </p>
+                </div>
+              )}
 
               {/* Step indicator */}
               <div className="flex items-center justify-center gap-2 mt-4 mb-2">

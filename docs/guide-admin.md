@@ -576,6 +576,43 @@ Tout ce qui a été fait : achats, réservations, annulations, gestes commerciau
 
 **Filtrer** par type d'action et par période. **Exporter** : le bouton en haut à droite sort en CSV **tout ce que les filtres retiennent**, et non les cinquante entrées affichées à l'écran.
 
+#### Suivre les inscriptions
+
+Le filtre **Inscription** montre qui s'est inscrit, et quand. Deux cas s'y
+retrouvent, distingués par leur libellé :
+
+- **« Tentative d'inscription : Nom (adresse) »** — quelqu'un a créé un compte.
+- **« … sur une adresse déjà inscrite »** — quelqu'un a tenté de s'inscrire avec
+  une adresse qui a déjà un compte. **Aucun compte n'est créé et aucun e-mail
+  n'est envoyé** dans ce cas : c'est l'explication d'un « je ne reçois jamais
+  l'e-mail de confirmation ». Dites à la personne de se connecter, ou d'utiliser
+  « Mot de passe oublié ».
+
+#### Effacer un compte parasite
+
+Une inscription douteuse — nom fantaisiste, adresse jetable, jamais confirmée —
+porte une **icône de suppression** au bout de sa ligne.
+
+Le compte et toutes ses traces sont alors **réellement effacés**, contrairement à
+la suppression depuis la fiche d'un membre, qui anonymise.
+
+**Le serveur refuse l'effacement** dès que le compte n'est pas un parasite :
+
+| Refus | Raison |
+|---|---|
+| L'adresse a été confirmée | La personne est allée au bout de la démarche |
+| Le compte a payé quelque chose | La loi impose de le conserver sept ans |
+| Une réservation existe | Le compte a servi |
+| C'est un coach ou un admin | Jamais effaçable ici |
+| C'est votre propre compte | On ne se supprime pas soi-même |
+
+Dans ces cas, le message dit lequel s'applique. Pour un vrai membre à supprimer,
+passer par sa fiche : la suppression y **anonymise** au lieu d'effacer, comme
+l'exige la conservation comptable.
+
+> La séance d'essai offerte à l'inscription **ne bloque pas** l'effacement :
+> elle est attribuée à tout le monde, elle empêcherait sinon toute purge.
+
 #### Effacer les entrées anciennes — super admin seulement
 
 Un bloc encadré de rouge, visible du seul **super admin**, efface les entrées antérieures à un nombre de mois choisi.

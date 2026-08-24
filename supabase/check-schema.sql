@@ -99,6 +99,9 @@ FROM (
   UNION ALL SELECT 'Func: can_delete_own_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='can_delete_own_account')
   UNION ALL SELECT 'Func: delete_own_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='delete_own_account')
   UNION ALL SELECT 'Func: delete_member_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='delete_member_account')
+  UNION ALL SELECT 'Func: purge_parasite_account', EXISTS(SELECT 1 FROM pg_proc WHERE proname='purge_parasite_account')
+  UNION ALL SELECT 'Func: log_duplicate_signup', EXISTS(SELECT 1 FROM pg_proc WHERE proname='log_duplicate_signup')
+  UNION ALL SELECT 'Enum: activity_action.signup_attempt', EXISTS(SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid=t.oid WHERE t.typname='activity_action' AND e.enumlabel='signup_attempt')
 
   -- AVIS SUR LES COURS (2026-08-07)
   UNION ALL SELECT 'Table: class_reviews', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='class_reviews')

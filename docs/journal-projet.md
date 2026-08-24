@@ -201,6 +201,71 @@ l'écran d'un iPhone.
 
 Le pied de page garde le sien : il sert au membre ordinaire, pas au testeur.
 
+### Inscriptions : les voir, et pouvoir effacer un parasite
+
+Trois demandes de Christian pendant la phase de test, liées au même parcours.
+
+**Les inscriptions spontanées n'étaient pas tracées.** `user_created` n'était
+écrit que par `AdminUsersPage`, quand le studio crée un membre à la main : une
+inscription venue du formulaire public ne laissait aucune trace. Le studio ne
+découvrait un nouveau venu qu'en parcourant la liste des membres.
+
+Nouvelle action `signup_attempt`, distincte de `user_created` — les confondre
+effacerait la différence entre « le studio a inscrit quelqu'un » et « quelqu'un
+s'est inscrit tout seul », qui est justement celle qu'on cherche.
+
+Écrite **depuis le trigger** `handle_new_user`, pas depuis le front : toute
+création passe par `auth.users`, quelle qu'en soit l'origine. Dans un bloc
+`BEGIN/EXCEPTION` à part, car le trigger avale déjà ses erreurs — une trace qui
+échoue ne doit pas emporter la création du compte.
+
+**Une adresse déjà inscrite ne créait aucune trace non plus**, et c'est le cas
+qui a fait perdre du temps à un testeur : Supabase répond **sans erreur**,
+n'envoie aucun e-mail, et renvoie un utilisateur factice dont `identities` est
+vide. C'est sa protection contre l'énumération des comptes — répondre
+franchement permettrait de tester des adresses pour savoir qui fréquente le
+studio.
+
+> **Décision : ne pas le dire au visiteur, le dire au studio.** L'écran de
+> confirmation décrit le cas sans l'affirmer (« Tu as déjà un compte avec cette
+> adresse ? Aucun e-mail n'est envoyé dans ce cas ») et propose « Mot de passe
+> oublié », adresse pré-remplie. Le journal, lui, l'enregistre nommément :
+> `log_duplicate_signup` est appelable sans session — la personne qui s'inscrit
+> n'en a pas — mais ne renvoie jamais si l'adresse existe, et se borne à une
+> trace par heure et par adresse pour qu'un formulaire soumis en boucle ne noie
+> pas le journal.
+
+**Effacer un parasite.** `delete_member_account` anonymise, le droit comptable
+belge imposant sept ans dès qu'il y a eu paiement. Un parasite inscrit il y a dix
+minutes n'a produit aucune écriture : l'anonymiser laisserait une ligne fantôme
+« Membre supprimé #a1b2c3d4 » à vie, là où il n'y a rien à conserver.
+
+`purge_parasite_account` efface donc pour de bon, mais **refuse** tout compte
+dont l'e-mail est confirmé, membre du staff, ou portant la moindre trace
+financière — achat payé, abonnement, frais d'inscription, réservation. Le
+garde-fou est côté serveur : un admin ne peut pas effacer un vrai membre par
+mégarde, et le refus nomme son motif plutôt que d'afficher un « impossible » qui
+ferait croire à une panne.
+
+> Le pack de séance d'essai ne bloque pas : offert d'office à l'inscription, il
+> est présent sur **tous** les comptes et interdirait sinon chaque purge. Le
+> filtre porte sur `price_paid_cents > 0`.
+
+Le bouton vit sur la ligne du journal qui signale l'inscription — repérer le
+parasite puis aller chercher sa fiche ferait perdre le fil d'un journal qu'on
+parcourt de haut en bas.
+
+### Le lien de parrainage ouvrait la page de connexion
+
+`ReferralPage` génère `/auth?ref=CODE`, et `AuthPage` démarrait sur l'onglet
+« Connexion » : on demandait à un filleul de se connecter à un compte qu'il n'a
+pas, par définition. Le code était pourtant bien repris dans le formulaire —
+encore fallait-il y arriver.
+
+La présence de `?ref=` ouvre désormais l'onglet Inscription, et un bandeau dit
+pourquoi le code est déjà rempli et ce qu'il rapporte. Sans `?ref=`, rien ne
+change.
+
 ### Ce qu'il reste à savoir sur la PWA
 
 - **Les notifications push** ne fonctionnent sur iOS qu'une fois l'application
