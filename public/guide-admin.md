@@ -431,9 +431,27 @@ Pour chaque pack :
 | **Abonnement** | Renouvellement automatique. Demande une périodicité. |
 | **Catégories éligibles** | Restreint la vente à certaines catégories. Vide = ouvert à tous. |
 
+**Le statut se change d'un clic** sur le badge de la liste, qui fait tourner :
+
+| Statut | Ce que voit le membre |
+|---|---|
+| **Inactif** | Rien — le pack a quitté le catalogue |
+| **Actif** | Le pack, à sa place habituelle |
+| **Promu** | Bandeau, carte soulignée, et **placé en tête** de sa section |
+
+Le **texte du bandeau** se règle dans le formulaire d'édition — « Le plus
+choisi », « Nouveauté », « -20 % ». Laissé vide, il affiche « Recommandé ».
+
+> **Tout mettre en avant revient à ne rien mettre en avant.** Rien ne limite le
+> nombre de packs promus : c'est à vous de doser.
+
 **Périodicité d'un abonnement** : semaines ou mois. Un **abonnement annuel** se
 règle sur « 12 mois » — il s'affichera « chaque année » chez le membre. Les
 maximums (52 semaines, 12 mois) viennent de Stripe, pas de l'application.
+
+> **La corbeille est réservée au super admin.** Un admin retire du catalogue,
+> il n'efface pas — le geste est irréversible et touche à l'historique des
+> achats.
 
 > **Un pack déjà vendu ne se supprime pas.** La corbeille sera refusée, en
 > nommant la raison : l'achat deviendrait orphelin et le membre perdrait la trace

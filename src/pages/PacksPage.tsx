@@ -450,6 +450,14 @@ export function PacksPage() {
       if (p.is_recurring) g.subscriptions.push(p)
       else g.oneOff.push(p)
     }
+    // Les packs promus remontent en tête de leur section : un bandeau au milieu
+    // d'une grille se remarque moins qu'une carte placée en premier.
+    for (const g of map.values()) {
+      const promuDAbord = (a: PackType, b: PackType) =>
+        Number(b.is_featured ?? false) - Number(a.is_featured ?? false)
+      g.subscriptions.sort(promuDAbord)
+      g.oneOff.sort(promuDAbord)
+    }
     // Les types proposant un abonnement d'abord : c'est ce que le studio vend.
     return [...map.values()].sort((a, b) => {
       const aSub = a.subscriptions.length > 0 ? 0 : 1
@@ -497,29 +505,36 @@ export function PacksPage() {
         transition={{ delay: index * 0.08 }}
         className="relative"
       >
-        {/* Badge : l'abonnement prime sur « populaire » — l'engagement
-            récurrent est l'information la plus utile au client. */}
-        {pack.is_recurring ? (
+        {/* Ordre des bandeaux : la promotion d'abord — c'est le message que le
+            studio a délibérément choisi de pousser, il prime sur l'information
+            générique. Vient ensuite l'abonnement, dont l'engagement récurrent
+            est ce que le client doit savoir avant tout le reste. */}
+        {isPopular ? (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+            <span className="flex items-center gap-1 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+              <Flame className="h-3 w-3" />
+              {pack.featured_label?.trim() || (isFr ? 'Recommandé' : 'Recommended')}
+            </span>
+          </div>
+        ) : pack.is_recurring ? (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
             <span className="flex items-center gap-1 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
               <RefreshCw className="h-3 w-3" />
               {isFr ? 'Abonnement' : 'Subscription'}
             </span>
           </div>
-        ) : isPopular && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-            <span className="flex items-center gap-1 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
-              <Flame className="h-3 w-3" />
-              {isFr ? 'Populaire' : 'Popular'}
-            </span>
-          </div>
-        )}
+        ) : null}
 
         <div className={cn(
           'rounded-xl border bg-card p-6 flex flex-col h-full transition-all',
-          highlighted
-            ? 'border-primary ring-1 ring-primary/30 shadow-lg shadow-primary/10'
-            : 'border-border hover:border-muted-foreground/30'
+          // Le promu se distingue de l'abonnement, qui porte déjà un cadre :
+          // sans anneau plus marqué, la mise en avant passerait inaperçue au
+          // milieu d'abonnements déjà tous encadrés.
+          isPopular
+            ? 'border-primary ring-2 ring-primary/50 shadow-xl shadow-primary/20'
+            : highlighted
+              ? 'border-primary ring-1 ring-primary/30 shadow-lg shadow-primary/10'
+              : 'border-border hover:border-muted-foreground/30'
         )}>
           {/* Name + description */}
           <h3 className="text-lg font-bold">{pack.name}</h3>
@@ -759,7 +774,7 @@ export function PacksPage() {
                   </div>
                   <div className="flex justify-center">
                     <div className={gridClass(group.subscriptions.length)}>
-                      {group.subscriptions.map((pack, index) => renderPack(pack, index, false))}
+                      {group.subscriptions.map((pack, index) => renderPack(pack, index, !!pack.is_featured))}
                     </div>
                   </div>
                 </div>
@@ -780,7 +795,7 @@ export function PacksPage() {
                   </div>
                   <div className="flex justify-center">
                     <div className={gridClass(group.oneOff.length)}>
-                      {group.oneOff.map((pack, index) => renderPack(pack, index, false))}
+                      {group.oneOff.map((pack, index) => renderPack(pack, index, !!pack.is_featured))}
                     </div>
                   </div>
                 </div>

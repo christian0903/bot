@@ -472,6 +472,42 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Types de packs : trois statuts, et la corbeille au super admin
+
+Demandé par Christian : basculer actif/inactif depuis la liste, réserver la
+suppression, et pouvoir **mettre un pack en avant**.
+
+**Le statut se change d'un clic sur son badge**, qui fait tourner
+inactif → actif → promu. Retirer un pack du catalogue est le geste courant —
+bien plus que le supprimer, refusé dès qu'il a été vendu — il ne méritait pas un
+aller-retour par le formulaire.
+
+**« Promu » est un champ à part, pas un troisième état de `is_active`.** Les deux
+ne répondent pas à la même question : un pack promu est forcément actif, la
+promotion étant une mise en avant et non un état de vente. Les fondre en une
+colonne interdirait de dépromouvoir sans désactiver, et un pack désactivé puis
+réactivé aurait perdu sa promotion en silence. Une contrainte `NOT is_featured
+OR is_active` empêche l'état incohérent.
+
+> C'est le raisonnement du B2B pris à l'envers : là-bas, *deux marqueurs pour le
+> même fait finiraient par diverger* ; ici, ç'aurait été **un seul marqueur pour
+> deux faits différents**.
+
+Quatre effets, tous demandés : bandeau au texte libre (`featured_label`, vide =
+« Recommandé »), remontée en tête de section, anneau plus marqué que celui des
+abonnements — sans quoi la mise en avant passerait inaperçue au milieu de cartes
+déjà toutes encadrées — et priorité sur le bandeau « Abonnement », puisque c'est
+le message que le studio a délibérément choisi de pousser.
+
+Le mécanisme `isPopular` existait déjà dans `renderPack` mais recevait toujours
+`false` : il n'y avait qu'à le brancher.
+
+**La corbeille est réservée au super admin**, à l'écran *et en base*. La policy
+`Pack types: admin manage` couvrait `ALL`, donc `DELETE` : masquer le bouton
+n'aurait rien protégé — le projet l'a déjà écrit à propos du menu du staff. Elle
+est découpée en trois : insert et update pour tout admin, delete pour le super
+admin seul. Un admin retire du catalogue, il n'efface pas.
+
 ### Abonnements : semaines ou mois, et l'annuel confirmé possible
 
 Christian voulait s'assurer qu'un **abonnement annuel** est faisable, et retirer

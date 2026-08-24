@@ -216,7 +216,14 @@ CREATE TABLE pack_types (
   -- ouvrir des tarifs réservés (une séance supplémentaire à prix abonné).
   -- NULL = ce pack ne se prononce pas sur la catégorie.
   grants_category_id UUID REFERENCES member_categories(id),
-  reverts_to_category_id UUID REFERENCES member_categories(id)
+  reverts_to_category_id UUID REFERENCES member_categories(id),
+  -- Mise en avant. Un champ à part et non un troisième état de `is_active` :
+  -- un pack promu est forcément actif, la promotion est une mise en avant et
+  -- non un état de vente. Les fondre interdirait de dépromouvoir sans
+  -- désactiver.
+  is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+  featured_label TEXT,
+  CONSTRAINT pack_types_featured_requires_active CHECK (NOT is_featured OR is_active)
 );
 
 -- Un seul pack d'essai : sans cette garantie, l'attribution devrait choisir
@@ -4245,7 +4252,12 @@ CREATE POLICY "Credit types: admin manage" ON credit_types FOR ALL USING (has_ro
 -- PACK_TYPES
 CREATE POLICY "Pack types: read active or admin" ON pack_types
   FOR SELECT USING (is_active = true OR has_role(auth.uid(), 'admin'));
-CREATE POLICY "Pack types: admin manage" ON pack_types FOR ALL USING (has_role(auth.uid(), 'admin'));
+-- Créer et modifier : tout admin. Ce sont les gestes du quotidien, et ils se
+-- corrigent. Effacer, non : c'est irréversible et cela touche à l'historique des
+-- achats — même niveau de responsabilité que l'effacement du journal d'activité.
+CREATE POLICY "Pack types: admin insert" ON pack_types FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Pack types: admin update" ON pack_types FOR UPDATE USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Pack types: super admin delete" ON pack_types FOR DELETE USING (has_role(auth.uid(), 'super_admin'));
 
 -- PACK_TYPE_CATEGORIES
 CREATE POLICY "Pack type categories: public read" ON pack_type_categories FOR SELECT USING (true);

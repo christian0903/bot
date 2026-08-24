@@ -97,6 +97,10 @@ export interface PackType {
   updated_at: string
   credit_type?: CreditType
   categories?: MemberCategory[]
+  /** Pack mis en avant : bandeau, carte soulignée, remonté en tête. */
+  is_featured?: boolean
+  /** Texte du bandeau. Vide = « Recommandé ». */
+  featured_label?: string | null
   /** Catégorie attribuée au membre tant que ce pack est actif. */
   grants_category_id?: string | null
   /** Catégorie de repli quand plus aucun pack n'en accorde. */

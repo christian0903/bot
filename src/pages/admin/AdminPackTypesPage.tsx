@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase'
 import { formatEuros, daysToWeeks, weeksToDays, formatValidity } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 import type { PackType, CreditType, MemberCategory } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -35,7 +36,8 @@ import {
 
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Package, Pencil, Plus, Trash2, RefreshCw } from 'lucide-react'
+import { Package, Pencil, Plus, Trash2, RefreshCw, Flame } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface PackTypeForm {
   name: string
@@ -54,6 +56,8 @@ interface PackTypeForm {
   recurring_interval: 'week' | 'month'
   recurring_interval_count: number
   is_active: boolean
+  /** Texte du bandeau quand le pack est promu. Vide = « Recommandé ». */
+  featured_label: string
   category_ids: string[]
   /** Catégorie attribuée tant que ce pack est actif. Vide = ne change rien. */
   grants_category_id: string
@@ -76,6 +80,7 @@ const emptyForm: PackTypeForm = {
   recurring_interval: 'week',
   recurring_interval_count: 4,
   is_active: true,
+  featured_label: '',
   category_ids: [],
   grants_category_id: '',
   reverts_to_category_id: '',
@@ -84,6 +89,10 @@ const emptyForm: PackTypeForm = {
 export function AdminPackTypesPage() {
   const { t, i18n } = useTranslation()
   const isFr = i18n.language === 'fr'
+  const { hasRole } = useAuth()
+  const isSuperAdmin = hasRole('super_admin')
+  /** Pack en cours de bascule : évite qu'un double clic parte deux fois. */
+  const [togglingId, setTogglingId] = useState<string | null>(null)
   const [packTypes, setPackTypes] = useState<PackType[]>([])
   const [creditTypes, setCreditTypes] = useState<CreditType[]>([])
   const [categories, setCategories] = useState<MemberCategory[]>([])
@@ -148,6 +157,7 @@ export function AdminPackTypesPage() {
       recurring_interval: pt.recurring_interval === 'month' ? 'month' : 'week',
       recurring_interval_count: pt.recurring_interval_count ?? 4,
       is_active: pt.is_active,
+      featured_label: pt.featured_label ?? '',
       category_ids: pt.categories?.map(c => c.id) ?? [],
       grants_category_id: pt.grants_category_id ?? '',
       reverts_to_category_id: pt.reverts_to_category_id ?? '',
@@ -179,6 +189,7 @@ export function AdminPackTypesPage() {
       recurring_interval: form.is_recurring ? form.recurring_interval : null,
       recurring_interval_count: form.is_recurring ? form.recurring_interval_count : null,
       is_active: form.is_active,
+      featured_label: form.featured_label.trim() || null,
       // Chaîne vide = aucune attribution. Un `null` explicite, pas un oubli :
       // la colonne est nullable et NULL veut dire « ce pack ne se prononce pas ».
       grants_category_id: form.grants_category_id || null,
@@ -220,6 +231,36 @@ export function AdminPackTypesPage() {
 
     toast.success(t('common.saveSuccess'))
     setDialogOpen(false)
+    fetchData()
+  }
+
+  /**
+   * Fait tourner le statut d'un pack : inactif → actif → promu → inactif.
+   *
+   * Trois états à l'écran, deux champs en base. « Actif » et « promu » ne
+   * répondent pas à la même question — un promu est forcément actif, la
+   * promotion étant une mise en avant et non un état de vente. Les fondre en
+   * une colonne interdirait de dépromouvoir sans désactiver.
+   */
+  const toggleActif = async (pt: PackType) => {
+    const suivant = !pt.is_active
+      ? { is_active: true, is_featured: false }
+      : !pt.is_featured
+        ? { is_active: true, is_featured: true }
+        : { is_active: false, is_featured: false }
+
+    setTogglingId(pt.id)
+    const { error } = await supabase.from('pack_types').update(suivant).eq('id', pt.id)
+    setTogglingId(null)
+
+    if (error) { toast.error(error.message); return }
+
+    toast.success(
+      suivant.is_featured
+        ? (isFr ? `« ${pt.name} » mis en avant` : `“${pt.name}” featured`)
+        : suivant.is_active
+          ? (isFr ? `« ${pt.name} » remis en vente` : `“${pt.name}” back on sale`)
+          : (isFr ? `« ${pt.name} » retiré du catalogue` : `“${pt.name}” removed from catalogue`))
     fetchData()
   }
 
@@ -380,18 +421,45 @@ export function AdminPackTypesPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={pt.is_active ? 'default' : 'secondary'}>
-                      {pt.is_active ? t('common.active') : t('common.inactive')}
-                    </Badge>
+                    {/* Retirer un pack du catalogue est le geste courant — bien
+                        plus que le supprimer, qui reste refusé dès qu'il a été
+                        vendu. Il valait donc mieux qu'un clic sur son état, pas
+                        un aller-retour par le formulaire d'édition. */}
+                    <button
+                      type="button"
+                      onClick={() => toggleActif(pt)}
+                      disabled={togglingId === pt.id}
+                      title={isFr ? 'Cliquer pour changer : inactif → actif → promu' : 'Click to cycle: inactive → active → featured'}
+                      className="disabled:opacity-50"
+                    >
+                      <Badge
+                        variant={pt.is_featured ? 'default' : pt.is_active ? 'outline' : 'secondary'}
+                        className={cn(
+                          'cursor-pointer hover:opacity-80 transition-opacity',
+                          pt.is_featured && 'gap-1',
+                        )}
+                      >
+                        {pt.is_featured && <Flame className="h-3 w-3" />}
+                        {pt.is_featured
+                          ? (isFr ? 'Promu' : 'Featured')
+                          : pt.is_active ? t('common.active') : t('common.inactive')}
+                      </Badge>
+                    </button>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(pt)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(pt)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {/* Supprimer un type de pack est irréversible et touche à
+                          l'historique des achats : réservé au super admin, comme
+                          l'effacement du journal d'activité. Un admin retire du
+                          catalogue, il n'efface pas. */}
+                      {isSuperAdmin && (
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(pt)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                   </> })()}
@@ -668,6 +736,24 @@ export function AdminPackTypesPage() {
                 onCheckedChange={(checked) => setForm(f => ({ ...f, is_active: checked }))}
               />
               <Label>{t('admin.packTypes.active')}</Label>
+            </div>
+
+            {/* Le texte du bandeau se règle ici, la promotion elle-même depuis
+                la liste : deux gestes de fréquence différente — on promeut et
+                dépromeut souvent, on change rarement le mot. */}
+            <div>
+              <Label>{isFr ? 'Texte du bandeau (si promu)' : 'Banner text (when featured)'}</Label>
+              <Input
+                value={form.featured_label}
+                onChange={(e) => setForm(f => ({ ...f, featured_label: e.target.value }))}
+                placeholder={isFr ? 'Recommandé' : 'Recommended'}
+                maxLength={24}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {isFr
+                  ? 'Vide = « Recommandé ». Par exemple : « Le plus choisi », « Nouveauté », « -20 % ».'
+                  : 'Empty = “Recommended”. For example: “Most popular”, “New”, “-20%”.'}
+              </p>
             </div>
             <div>
               <Label>{t('admin.packTypes.categories')}</Label>
