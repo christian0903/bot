@@ -122,7 +122,7 @@ npm run build    # tsc + vite — doit passer
 npm run lint     # voir la note ci-dessous
 ```
 
-Le lint sort **38 signalements résiduels**, tous du React Compiler
+Le lint sort **37 signalements résiduels**, tous du React Compiler
 (`set-state-in-effect`, `static-components`, `exhaustive-deps`). Ils portent sur
 du code qui tourne et qui a été validé à l'écran ; les corriger change le
 comportement au runtime. C'est un chantier à mener page par page, **pas** un

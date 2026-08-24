@@ -65,9 +65,27 @@ Administration is accessible via the **Admin** menu in the header (or the shield
 
 #### User List
 - **Role filters**: Client / Coach / Admin / All buttons (Client by default), each with a counter
-- Columns: Name (clickable), Remaining credits, Last login, Actions
+- Columns: checkbox, Name (clickable), **Category**, Remaining credits, Last login, Actions
 - **Gift icon** 🎁: assign a pack
 - **Trash icon** 🗑️: delete user
+
+A dash in the Category column means none is assigned — a normal state, not an
+oversight. There is no Role column: this page only lists clients, coaches and
+admins have their own. The role appears at the top of the individual profile.
+
+#### Assigning a category to several members at once
+
+Tick the members you want, and a bar appears with **Set category**. This is how
+you file a whole season of former members under “archives” without opening each
+profile. The menu also offers **No category**, to undo.
+
+> **The “select all” checkbox only takes what is displayed.** Filter first, tick
+> afterwards: you will never carry along members you cannot see.
+
+> **Member status is not set by hand.** It is recalculated from the facts — fee
+> paid, active pack, age of the last expired pack. Forcing it would be pointless,
+> the value would be overwritten at the next recalculation. To set aside former
+> members, use the **archives category**.
 
 #### User Detail Page
 Click a user's name to see their full profile:
@@ -139,6 +157,30 @@ Configure pack offerings sold to members:
 - **Price**: in euros (enter 250 for €250, conversion to cents is automatic)
 - **Validity**: duration in days after purchase
 - **Eligible categories**: click category badges to toggle them
+- **Category granted** / **Category after expiry**: what buying this pack gives
+  the member, and where they fall back afterwards
+
+##### Selling a members-only rate
+
+These last two settings read the opposite way to what you'd think:
+
+- **Eligible categories** says *who is allowed to buy this pack*.
+- **Category granted** says *what buying it changes about the member*.
+
+To sell an extra session at subscriber price: on your **subscription**, set
+*Category granted* → **subscriber** and *Category after expiry* → **standard**;
+then create the **Extra session** pack at its preferential rate, with *Eligible
+categories* → **subscriber** only.
+
+> **An active subscription wins.** A subscriber buying an extra session stays a
+> subscriber — otherwise they'd lose the very rate that made them buy.
+
+> **A pack that says nothing changes nothing.** Leave both fields empty on
+> ordinary packs: manual filing won't be overwritten by a purchase.
+
+The category is refreshed on purchase, when a subscription ends, and at every
+sign-in — that last one covers a one-off pack expiring, which triggers nothing by
+itself.
 - **Active**: deactivating a pack removes it from the catalog without deleting it
 
 #### Class Types
@@ -175,6 +217,20 @@ Filter bar at the top:
    - **Date and time**
    - **Max spots** and **Duration**
 3. Save
+
+#### Conflicts are announced before writing
+
+If duplicating lands on slots already taken, a dialog opens and **names every
+class concerned** — you confirm or cancel. Nothing shows when everything is free.
+
+| Conflict | What happens |
+|---|---|
+| **Same time, same room** | The class is **not** created — two classes don't fit in one room |
+| **Same coach, two rooms** | The class **is** created, but flagged — your call |
+
+> Two classes **with no room set** at the same time are not a conflict: nothing
+> says they clash. That's the case for two Personal Training sessions run by two
+> different coaches.
 
 #### Bulk Actions
 1. **Check** desired classes (checkbox on each row, or "select all" in the header)
@@ -246,6 +302,21 @@ Chronological history of all important operations:
 | Coach assigned | 🔄 | Coach change on one or more classes |
 | Waitlist | ⏳ | Waitlist registration |
 | Promoted (waitlist) | ✅ | Promotion from waitlist |
+| Sign-up | 👤 | Someone signed up, or tried on an address already registered |
+
+**Tracking sign-ups.** The **Sign-up** filter shows who registered, and when. Two
+cases appear, told apart by their wording: a plain sign-up, and “on an address
+already registered” — in which case **no account is created and no email is
+sent**. That is the explanation behind “I never get the confirmation email”: tell
+the person to sign in, or use “Forgot password”.
+
+**Purging a spam account.** A doubtful sign-up — never confirmed, no purchase, no
+booking — carries a delete icon at the end of its row. The account and all its
+traces are then **truly erased**, unlike deleting from a member's profile, which
+anonymises. The server refuses as soon as the account is anything but spam:
+confirmed address, any paid pack or subscription, any booking, or staff. The free
+trial pack does not count — granted to every sign-up, it would otherwise block
+every purge.
 
 Each entry shows:
 - Operation type (colored badge)
@@ -426,6 +497,13 @@ The app is installable as a Progressive Web App:
 - `manifest.json` configures the name, icon, and colors
 - `sw.js` uses a network-first strategy with cache fallback
 - Requests to Supabase are not intercepted by the service worker
+- The cache name carries the `package.json` version, injected at build time — an
+  old cache is purged automatically on the next deploy
+- A **New version available** banner offers the switch instead of forcing it: a
+  half-filled form must not be swept away mid-edit
+
+> On iPhone, only **Safari** can install to the home screen. Chrome and Firefox
+> on iOS are WebKit shells and do not expose the option.
 
 ---
 

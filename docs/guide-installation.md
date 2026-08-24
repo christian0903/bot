@@ -222,17 +222,38 @@ Le dossier `dist/` contient l'application prête à déployer.
 
 Uploader le contenu de `dist/` vers le serveur web (o2switch, OVH, etc.) via FTP/SFTP (Transmit, FileZilla).
 
-S'assurer que le `.htaccess` est uploadé pour le routing SPA :
-```apache
-RewriteEngine On
-RewriteBase /
-RewriteRule ^index\.html$ - [L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.html [L]
+> **Ne pas oublier les fichiers cachés.** `.htaccess` commence par un point :
+> beaucoup de clients FTP le masquent par défaut. Sans lui, recharger une page
+> autre que l'accueil renvoie une 404.
+
+Le `.htaccess` livré vit dans `public/` et part avec le build — **ne pas le
+récrire à la main**. Il fait trois choses au-delà du routing SPA :
+
+- **Il exclut les extensions statiques de la réécriture.** Sans cela un fichier
+  absent répond `index.html` en HTTP 200 : iOS recevait du HTML là où il
+  attendait l'icône, et posait une icône générique sans rien signaler.
+- **`sw.js` et `manifest.json` passent en `no-cache`** — ils ne portent pas de
+  hash dans leur nom, un cache long les figerait sur une version périmée.
+- Compression, cache long sur les assets hashés, en-têtes de sécurité.
+
+### 5.3 Vérifier que le déploiement a pris
+
+```bash
+# La version livree — doit correspondre a package.json
+curl -s https://desk.backontrackstudio.be/sw.js | sed -n '3p'
+
+# L'icone iPhone — doit repondre 200 et image/png, jamais text/html
+curl -sI https://desk.backontrackstudio.be/icons/apple-touch-icon.png | head -3
 ```
 
-### 5.3 Mobile (Capacitor)
+Un `content-type: text/html` sur la seconde signifie que le `.htaccess` n'est pas
+monté : l'installation sur écran d'accueil posera une icône générique.
+
+Le numéro de version s'affiche aussi **dans l'en-tête de l'application** — c'est
+le contrôle le plus rapide, et le premier renseignement à demander à un testeur
+qui signale un problème.
+
+### 5.4 Mobile (Capacitor)
 
 L'application charge l'URL de production (`desk.backontrackstudio.be`) via Capacitor. Les mises à jour web sont automatiques sans passer par les stores.
 

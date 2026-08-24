@@ -472,6 +472,30 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Passe documentaire de clôture
+
+Onze chantiers livrés dans la journée, dont la trace était complète dans le
+journal et les guides FR — mais **`documentation-technique.md` n'avait rien
+reçu**, alors que c'est la source de vérité technique. Quatre sections ajoutées :
+PWA, inscriptions au journal, catégorie dérivée des packs, conflits de planning.
+
+**Un défaut trouvé au passage dans `guide-installation.md`** : le `.htaccess` y
+était recopié en dur, dans sa version d'avant la correction du jour. Quelqu'un
+qui aurait suivi ce guide aurait reproduit le bug de l'icône iPhone — un fichier
+statique absent répondant `index.html` en HTTP 200. Le guide renvoie désormais au
+fichier livré dans `public/` plutôt que d'en tenir une copie, et gagne les deux
+commandes `curl` qui vérifient qu'un déploiement a pris.
+
+**Les guides anglais** reçoivent les sections du jour (446 → 524 lignes pour
+l'admin, 235 → 266 pour le membre). Leur retard de fond sur les versions
+françaises **n'est pas rattrapé** : il préexiste au 23 août, porte sur 300 lignes
+sans rapport avec cette session, et reste un chantier à part.
+
+> **`CLAUDE.md` annonçait 38 signalements de lint, la base réelle est 37**
+> (vérifié par `git stash` en début de session). Corrigé — un seuil faux fait
+> soit passer une régression pour normale, soit chercher un défaut qui n'existe
+> pas.
+
 ### Ce qu'il reste à savoir sur la PWA
 
 - **Les notifications push** ne fonctionnent sur iOS qu'une fois l'application

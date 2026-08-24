@@ -19,7 +19,19 @@ Back on Track is your fitness studio's app. It lets you view the class schedule,
 4. Click **Sign Up**
 5. **Check your email**: you'll receive a confirmation link. Your account will only be active after clicking it.
 
-> **Note**: if you can't find the email, check your spam folder.
+> **No email received?** Check your spam folder first. If you find nothing, a
+> **Resend the email** button sits just below the confirmation message. Allow a
+> minute between two requests.
+>
+> Closed the page in the meantime? Just try to sign in: the refusal will explain
+> that confirmation is missing, and offer to resend.
+>
+> **Wrong address?** Resending would go to the same place: sign up again with the
+> correct address, or ask the studio.
+>
+> **Already had an account with this address?** No email is sent in that case —
+> this is normal, and it is the most common reason an email never arrives. Sign
+> in directly, or use “Forgot password”.
 
 ## Log In
 
@@ -74,6 +86,11 @@ After logging in, your dashboard shows:
 
 ### Access the Schedule
 Click **Schedule** in the navigation or the "View Schedule" card on your dashboard.
+
+**Semi-private or Personal Training?** When both are on the schedule, tabs at the
+top separate them, just like in “Buy a pack”. **All** shows the full week.
+Choosing a tab keeps only the classes that credit type can book — handy so you
+don't scan through classes your pack doesn't cover.
 
 ### Navigate the Schedule
 - Use the **◀ ▶ arrows** to change weeks
@@ -227,6 +244,20 @@ Back on Track is a progressive web app. You can install it on your device to acc
 - **Desktop**: Chrome → install icon in the address bar
 
 Once installed, the app is accessible from your home screen and works even with limited connectivity.
+
+An invitation also appears on your dashboard once you are signed in.
+
+> **On iPhone, only Safari can install.** Chrome and Firefox on iOS do not offer
+> “Add to Home Screen”.
+
+**Updates happen on their own.** Nothing to download, nothing to reinstall. When
+a new version is ready, a **New version available** banner appears at the bottom
+of the screen: tap **Reload**. You can also ignore it — it will apply on your
+next visit.
+
+> **Removing the icon signs you out.** On iOS, deleting the app from your home
+> screen clears its local storage, including your session. Nothing is lost — all
+> your data lives on the server — but you will need to sign in again.
 
 ---
 

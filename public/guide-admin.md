@@ -739,6 +739,43 @@ Le message affiché en haut de la page d'accueil des membres.
 
 ---
 
+## L'application sur le téléphone des membres
+
+Back on Track s'installe sur un écran d'accueil **sans passer par un store** :
+icône, plein écran, plus de barre d'adresse. C'est ce qui sert la phase de test,
+avant la publication sur l'App Store.
+
+Ce qu'il faut dire à un membre :
+
+> Ouvre **desk.backontrackstudio.be** dans **Safari** (pas Chrome), touche le
+> bouton **Partager** en bas, puis **Sur l'écran d'accueil**. Sur **Android**,
+> ouvre le même lien dans **Chrome** : menu **⋮** → **Installer l'application**.
+
+Une invitation apparaît aussi sur son tableau de bord après connexion, avec le
+mode d'emploi illustré pour iPhone.
+
+**Les mises à jour se font seules.** Quand vous déployez, un bandeau *Nouvelle
+version disponible* apparaît chez le membre : il touche **Recharger**. Rien à
+réinstaller, aucune validation Apple à attendre.
+
+> **Le numéro de version est dans l'en-tête.** C'est le premier renseignement à
+> demander à quelqu'un qui signale un problème : un numéro inférieur à celui
+> déployé, et le défaut est probablement déjà corrigé.
+
+Trois choses qui surprennent, et qu'il vaut mieux savoir avant qu'on vous les
+signale :
+
+- **Sur iPhone, seul Safari installe.** Chrome et Firefox n'affichent pas
+  l'option — c'est une limite d'iOS, pas un défaut de l'application.
+- **Supprimer l'icône déconnecte.** Le stockage local part avec elle, donc la
+  session. Rien n'est perdu, mais il faudra se reconnecter.
+- **Les notifications push exigent l'installation.** Un membre resté dans Safari
+  n'en recevra aucune.
+
+Procédure de test détaillée : `docs/guide-test-iphone.md`.
+
+---
+
 ## Points de vigilance
 
 **Le paiement fait foi.** Un pack n'est crédité qu'après confirmation du paiement par Stripe. Si un membre dit avoir payé sans que rien n'apparaisse, vérifiez d'abord côté Stripe avant d'attribuer à la main.

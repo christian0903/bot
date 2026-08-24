@@ -28,6 +28,7 @@ Corollaire : **si un paiement n'a rien crédité, le problème est presque toujo
 | Paiement | Stripe |
 | E-mails | Resend |
 | Application mobile | Capacitor (iOS, Android) |
+| Installation sans store | PWA — manifest + service worker |
 
 **Ce qui n'existe pas** : il n'y a pas de serveur applicatif. Le front parle directement à Supabase, et les opérations sensibles passent par des Edge Functions. Les clés secrètes ne quittent jamais ces fonctions.
 
@@ -180,7 +181,7 @@ C'est ce qui a évité d'écrire un moteur de quota, une table de formules et un
 | `profiles` | Le membre. Porte son `referral_code`, généré à la création |
 | `user_roles` | Un rôle par ligne. Un membre peut être coach **et** admin |
 | `credit_types` | Semi-privé, personal training… **La brique de base** |
-| `pack_types` | Le catalogue. `is_unlimited`, `is_recurring` et sa périodicité |
+| `pack_types` | Le catalogue. `is_unlimited`, `is_recurring` et sa périodicité, et la catégorie que l'achat attribue |
 | `pack_purchases` | Un achat **ou un cycle d'abonnement**. `stripe_invoice_id` en index unique |
 | `subscriptions` | Le lien avec Stripe. Les crédits, eux, vivent dans `pack_purchases` |
 | `bookings` | Une réservation, rattachée au pack qui l'a payée |
@@ -485,6 +486,152 @@ npm run build
 ```
 
 **Les versions anglaises** (`public/guide-admin-en.md`, `public/guide-utilisateur-en.md`) sont traduites à la main et **accusent du retard** : au 2026-08-09, elles ignorent le suivi des clients, le démarrage différé, la séance d'essai, la suppression de compte et les tableaux d'orientation.
+
+---
+
+## PWA — l'application installable
+
+Le front est une PWA : `public/manifest.json`, `public/sw.js`, et l'enregistrement du service worker dans `index.html`. Un membre l'installe sur son écran d'accueil et l'ouvre en plein écran, sans barre d'adresse.
+
+### Le cache porte la version
+
+`CACHE_NAME` était figé à `'bot-v1'` : un testeur pouvait rester indéfiniment sur une version périmée et **signaler un bug déjà corrigé**.
+
+Le nom du cache porte désormais la version de `package.json`, injectée à la construction par le plugin `versionner-le-sw` de `vite.config.ts`. Il faut un plugin parce que **Vite recopie `public/` sans le transformer** : `__APP_VERSION__` n'atteint pas `sw.js`.
+
+`activate` purge tout cache dont le nom diffère — l'ancien part de lui-même.
+
+### La bascule est proposée, pas imposée
+
+`skipWaiting()` a été **retiré de `install`**. Il faisait basculer le nouveau service worker immédiatement, ce qui remplace le code sous les pieds du membre : un formulaire à moitié rempli ou une réservation en cours de validation part avec.
+
+Le worker attend en réserve et ne s'active que sur le message `ACTIVER_MAINTENANT`, envoyé par le bouton « Recharger » de `UpdatePrompt`.
+
+Trois détails séparent une bannière qui marche d'une qui ment (`src/lib/pwa-update.ts`) :
+
+- **Le rechargement vient de `controllerchange`**, pas du clic — le déclencher tout de suite rechargerait l'**ancienne** version, le nouveau worker n'ayant pas encore pris la main.
+- **Un worker déjà en attente au chargement** est détecté explicitement. Sans ce test, un membre revenu après un déploiement ne verrait la bannière qu'au déploiement *suivant* : `updatefound` s'est déclenché avant que la page existe.
+- **`navigator.serviceWorker.controller` absent = première visite.** Annoncer une « nouvelle version » à quelqu'un qui découvre le site n'aurait aucun sens.
+
+Une vérification horaire couvre l'onglet laissé ouvert — le cas le plus fréquent sur ordinateur.
+
+### Installer : quatre situations, une seule réponse
+
+`useInstallationPWA` (`src/lib/pwa-install.ts`) ramène les navigateurs à quatre états : `prompt` (Chrome sait le faire), `ios-manuel` (montrer le geste), `installee`, `impossible`.
+
+- **Le hook répond `installee` en natif** (Capacitor) : proposer une installation dans l'app native n'a aucun sens, et Apple rejette une app qui pousse vers un autre canal de distribution.
+- **Seul Safari reçoit le mode iOS.** Chrome et Firefox y sont des habillages de WebKit et n'exposent pas « Sur l'écran d'accueil ».
+
+### Pièges rencontrés
+
+**L'`apple-touch-icon` pointait vers un PNG absent**, et le `.htaccess` renvoyait `index.html` pour toute URL inconnue : iOS recevait du **HTML en HTTP 200** là où il attendait une image, et posait une icône générique sans rien signaler. Le `.htaccess` exclut désormais les extensions statiques de la réécriture SPA — une image absente répond 404, ce qui se voit.
+
+**Toutes les icônes étaient déclarées `"any maskable"`** : Android applique alors un masque circulaire et rogne le logo. Les deux usages sont séparés.
+
+**`sw.js` et `manifest.json` passent en `no-cache`** dans le `.htaccess` : ils ne portent pas de hash dans leur nom, et un cache long les figerait sur une version périmée sans recours.
+
+> Les **notifications push** ne fonctionnent sur iOS **que** si l'application a été installée sur l'écran d'accueil. Un membre resté dans Safari n'en reçoit aucune.
+
+Procédure de test complète : `docs/guide-test-iphone.md`.
+
+---
+
+## Inscriptions — ce que le journal enregistre
+
+`signup_attempt` couvre deux cas que rien ne traçait.
+
+**L'inscription spontanée.** `user_created` n'était écrit que par `AdminUsersPage`, quand le studio crée un membre à la main : une inscription venue du formulaire public ne laissait aucune trace. Les deux actions restent distinctes — les confondre effacerait la différence entre « le studio a inscrit quelqu'un » et « quelqu'un s'est inscrit tout seul ».
+
+Écrite depuis le trigger `handle_new_user`, pas depuis le front : toute création passe par `auth.users`, quelle qu'en soit l'origine. Dans un bloc `BEGIN/EXCEPTION` à part, car le trigger avale déjà ses erreurs — une trace qui échoue ne doit pas emporter la création du compte.
+
+**La tentative sur une adresse déjà inscrite.** Ce cas ne crée aucun compte, donc le trigger ne se déclenche pas — et c'est pourtant celui qui fait qu'un membre « ne reçoit jamais l'e-mail » sans comprendre pourquoi.
+
+> **Supabase répond sans erreur et n'envoie rien.** C'est sa protection contre l'énumération des comptes : répondre franchement permettrait de tester des adresses pour savoir qui fréquente le studio.
+
+La détection se fait sur l'**ancienneté de `created_at`** (seuil : 10 secondes), pas sur `identities` vide. Ce dernier critère ne vaut que si la confirmation d'e-mail est **désactivée** ; confirmation activée — notre cas — Supabase renvoie le compte existant **avec** ses identités, et le test ne voit jamais rien. Vérifié contre l'API : compte neuf à 1,3 s d'écart, compte existant à plusieurs minutes.
+
+`log_duplicate_signup(p_email)` est appelable **sans session** — la personne qui s'inscrit n'en a pas — mais ne révèle jamais si l'adresse existe, et se borne à une trace par heure et par adresse pour qu'un formulaire soumis en boucle ne noie pas le journal.
+
+Côté écran, l'application ne l'affirme pas non plus : elle décrit le cas (« Tu as déjà un compte avec cette adresse ? ») et propose « Mot de passe oublié », adresse pré-remplie.
+
+### Renvoyer l'e-mail de confirmation
+
+Deux points d'entrée, parce qu'il y a deux situations : l'écran affiché juste après l'inscription, et le **refus de connexion pour non-confirmation** — c'est le cas de celui qui a fermé la première page, et il n'avait auparavant aucun recours.
+
+`signUp` passe désormais `emailRedirectTo`, comme `resetPassword` : le lien partait sinon vers l'URL configurée côté Supabase, pas forcément l'origine réelle. `urlApplication()` reprend le motif de `ProfilePage` — toujours `VITE_APP_URL` quand elle est connue, sans quoi une inscription depuis le serveur de développement enverrait un lien vers `localhost`, inutilisable depuis le téléphone qui reçoit l'e-mail.
+
+La seule erreur montrée est la **limite de cadence** (une minute entre deux envois) : sans ce message, le membre reclique en croyant que rien ne part.
+
+### Effacer un compte parasite
+
+`purge_parasite_account(p_user_id)` efface **réellement**, contrairement à `delete_member_account` qui anonymise. Le droit comptable belge impose sept ans dès qu'il y a eu paiement — mais un compte inscrit il y a dix minutes n'a produit aucune écriture, et l'anonymiser laisserait une ligne fantôme « Membre supprimé #a1b2c3d4 » à vie.
+
+Refusé dès que le compte est autre chose qu'un parasite : e-mail confirmé, membre du staff, ou trace financière (pack payé, abonnement, frais d'inscription, réservation). Le garde-fou est **côté serveur**, et le refus nomme son motif plutôt que d'afficher un « impossible » qui ferait croire à une panne.
+
+> **La séance d'essai ne bloque pas.** Offerte d'office à toute inscription, elle est présente sur *tous* les comptes et interdirait sinon chaque purge. Le filtre porte sur `price_paid_cents > 0`.
+
+La trace d'effacement s'écrit **avant** la suppression et se rattache à l'admin : `activity_log` référence `auth.users`, et les lignes du parasite vont disparaître.
+
+---
+
+## Catégorie de membre — dérivée des packs actifs
+
+Un pack peut attribuer une catégorie (`grants_category_id`) et dire à quoi revenir ensuite (`reverts_to_category_id`). C'est ce qui permet de vendre une **séance supplémentaire à tarif abonné**, invisible pour les autres — le mécanisme d'accès étant `pack_type_categories`, qui restreint qui voit quel pack.
+
+> **Deux réglages globaux avaient été envisagés**, déduits de `is_recurring`. Écarté : cela suppose que tous les abonnements se valent. Le jour où un premium coexiste avec un mini, les deux donneraient le même tarif préférentiel ; et un pack ponctuel ne pourrait jamais accorder de catégorie. `is_recurring` (comment on paie) et la catégorie (quel tarif on mérite) ne sont pas le même fait.
+
+**La catégorie se dérive, elle ne se comptabilise pas.** Stocker à l'achat et « rendre » à l'expiration reviendrait à tenir un compteur : deux écritures qui doivent rester d'accord, et qui divergeront. Un membre peut détenir un abonnement **et** une carte de séances, sans qu'on sache dans quel ordre ils s'éteignent.
+
+`derive_member_category(p_user_id)` répond toujours à la même question — *vu ce que ce membre détient maintenant, quelle catégorie mérite-t-il ?* :
+
+```
+1. abonnement actif (active/trialing/past_due)  → sa catégorie
+2. sinon, pack ponctuel encore valide            → sa catégorie
+3. sinon, repli du dernier pack qui en déclarait un
+```
+
+**Priorité à l'abonnement** : un abonné qui achète une séance supplémentaire ne perd pas son statut — ce serait lui retirer le tarif qui l'a fait acheter.
+
+`apply_member_category` écrit le résultat, et **sort sans rien faire quand aucun pack ne se prononce** : un studio qui range ses membres à la main ne doit pas voir son classement effacé par un achat.
+
+**Trois moments de recalcul**, dont un qui méritait réflexion :
+
+| Quand | Comment |
+|---|---|
+| À l'achat | Trigger `trg_category_on_purchase` sur `pack_purchases` |
+| Fin d'abonnement | Trigger `trg_category_on_subscription` sur `subscriptions` |
+| À la connexion | `refresh_my_category()`, appelée par `fetchProfile` |
+
+Le troisième existe parce que **l'expiration d'un pack ponctuel ne produit aucun événement** : la date passe, rien ne se déclenche. Un cron nocturne corrigerait après coup et finirait par diverger — le projet a déjà tranché ce débat pour le statut d'un cours. On recalcule au moment où la valeur sert.
+
+Les deux triggers sont dans un bloc `BEGIN/EXCEPTION` : un classement qui échoue ne doit pas annuler un achat payé.
+
+> **`member_status` ne se règle pas à la main.** Il est calculé par `update_member_status` à partir des faits — frais payés, pack actif, ancienneté du dernier pack expiré. Un statut posé manuellement serait écrasé au prochain recalcul. Pour ranger d'anciens membres, utiliser la **catégorie** « archives ».
+
+---
+
+## Conflits de planning
+
+`analyserConflits` (`src/lib/conflits-planning.ts`) est appelée avant toute écriture en masse — duplication, création avec répétition. Elle sort la logique de la page, où elle était dupliquée à deux endroits.
+
+Elle confronte les candidats aux cours existants **et entre eux** : dupliquer deux cours vers le même créneau doit se voir, alors qu'aucun des deux n'est encore en base.
+
+Deux natures de conflit, qui n'appellent pas la même réponse :
+
+| Conflit | Traitement |
+|---|---|
+| Même minute, **même salle** | **Bloquant** — deux cours ne tiennent pas dans une salle |
+| Même minute, **même coach**, salles différentes | **Avertissement** — le cours est créé |
+
+Le conflit de coach n'était pas vérifié, et c'est pourtant le plus coûteux : il ne se découvre que le jour même, avec des membres inscrits des deux côtés. Bloquer interdirait des plannings valides — un coach peut superviser deux salles.
+
+> **Une salle vide ne bloque pas.** La clé était `heure|salle`, et une salle absente devenait `heure|` : deux cours sans salle se bloquaient mutuellement, ce qui interdisait deux Personal Training simultanés avec deux coachs différents.
+
+La comparaison se fait à la **minute** : deux cours saisis à la même heure peuvent différer de quelques millisecondes selon leur origine.
+
+Sept cas de test couvrent la logique — salle occupée, deux salles, salle vide, conflit de coach, candidats entre eux, précision à la minute, cas nominal.
+
+> **Aucune contrainte en base** n'empêche deux cours au même créneau : la vérification est applicative, et l'admin peut passer outre l'avertissement de coach. Un `EXCLUDE` sur `(starts_at, floor)` fermerait la porte, mais interdirait aussi les corrections légitimes.
 
 ---
 
