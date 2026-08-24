@@ -7,7 +7,7 @@
 
 ## Où en est le projet
 
-**Phases 1 à 10 livrées** (v2.0.0 et suivantes ; **v2.62.0** au 2026-08-09) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
+**Phases 1 à 10 livrées** (v2.0.0 et suivantes ; **v3.12.0** au 2026-08-24) : comptes, packs, planning, réservations, liste d'attente, annulations, check-in, statistiques, notifications, e-mails.
 
 **Phase 11** (admin avancé) : **largement livrée** — rôles, statuts de cours, espace coach autonome.
 **Phase 12** (abonnements récurrents) : **livrée et éprouvée**. Renouvellement vérifié au *test clock* Stripe le 2026-08-07.
@@ -471,6 +471,27 @@ Un seul écart, délibéré : **le pack de séance d'essai ne bloque pas**. Offe
 d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
+
+### Clôture du 2026-08-24 — v3.12.0
+
+Sept commits (`f33de65..52029e9`). Séance ouverte sur une fausse alerte — une
+session bloquée dans un terminal figé, dont tout le travail était en réalité
+commité — puis enchaînée sur sept chantiers, tous nés de l'usage : Christian
+testait sur son iPhone et signalait ce qui coinçait.
+
+Appliqué en production : la migration `payment_method` et le webhook Stripe
+(v13). **Le front reste en 3.11.0 en ligne** — la 3.12.0 est compilée dans
+`dist/` mais non uploadée, et c'est elle qui porte le correctif PWA.
+
+Deux documents pour l'équipe : le handoff technique
+(`docs/handoffs/handoff-2026-08-24-2117-…`) et un bilan sans jargon destiné aux
+coachs (`docs/nouveautes-2026-08-24.md`).
+
+Un constat de méthode, à garder : la session de test Chrome était ouverte sur un
+compte membre, ce qui a empêché d'éprouver à l'écran la grille calendrier, le
+repli des stats coach et la correction du mode Membre. Trois livraisons reposent
+donc sur la seule lecture du code. Prévoir une session admin pour les
+vérifications visuelles.
 
 ### L'iPhone bloqué neuf versions en arrière
 
