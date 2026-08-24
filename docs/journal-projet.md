@@ -472,6 +472,44 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Accueil au studio : deux écrans qui refusaient sans expliquer
+
+Christian cherchait un membre dans la liste d'ajout d'un cours, sans le trouver.
+Vérification faite : sur seize membres, **neuf seulement** apparaissaient. Les
+autres étaient écartés par trois filtres cumulés — pack expiré, mauvais type de
+crédit, ou zéro crédit restant.
+
+**La règle est juste** : inscrire quelqu'un sans crédit créerait une réservation
+impayée, précisément ce que `book_class` a fermé le 23 août. **Le silence ne
+l'était pas** : le membre absent ne disait pas s'il fallait lui attribuer un
+pack ou si l'on cherchait la mauvaise personne.
+
+Tous les membres sont désormais chargés ; ceux sans source utilisable restent
+visibles, **grisés et non sélectionnables**, avec la mention « aucun crédit pour
+ce cours ». Les inscriptibles passent devant — la liste sert à inscrire, pas à
+consulter qui ne peut pas l'être.
+
+### Le scan propose d'inscrire au lieu de refuser
+
+Dans la foulée, Christian décrit le cas réel : quelqu'un se présente **sans avoir
+réservé**, mais avec des crédits. Le scan répondait « membre non inscrit à ce
+cours », et le coach devait ressortir de l'écran pour l'ajouter à la main.
+
+Le code scanné cherche maintenant au-delà des inscrits. Trois issues, toutes
+explicites : code inconnu, membre sans crédit utilisable, ou **proposition
+d'inscription** — que le coach confirme, le solde annoncé avant plutôt que
+découvert après.
+
+La confirmation appelle `book_member_by_staff`, qui inscrit **et consomme le
+crédit** dans la même transaction. C'est la même fonction que l'ajout manuel :
+rien n'a été réécrit, et les règles de capacité, de cours annulé et de double
+inscription s'appliquent telles quelles.
+
+> **Elle ne pointe pas la présence**, vérifié dans son code source. Le pointage
+> est donc écrit ensuite, sur l'identifiant de réservation qu'elle renvoie — la
+> personne est devant le coach, il serait absurde de lui demander un second
+> geste. Le message ne dit « pointé » que si l'écriture a réellement abouti.
+
 ### Types de packs : trois statuts, et la corbeille au super admin
 
 Demandé par Christian : basculer actif/inactif depuis la liste, réserver la

@@ -124,6 +124,26 @@ Chaque cours porte un badge qui dit où il en est :
 
 > **« Décision attendue » est le seul badge rouge.** Des membres ont consommé un crédit sans qu'on sache s'ils ont eu leur cours. C'est la seule situation qui exige une intervention.
 
+### Scanner un code à l'arrivée
+
+Ouvrez le cours depuis **Mes cours**, puis **Scanner QR** : la caméra s'ouvre
+dans la page. Le membre montre son code — il le trouve sur son accueil, replié
+derrière **Afficher**, ou sur sa page Profil.
+
+| Situation | Ce qui se passe |
+|---|---|
+| Inscrit, pas encore pointé | Présence enregistrée |
+| Déjà pointé | Signalé, rien n'est dupliqué |
+| **Pas inscrit, mais a des crédits** | **L'application propose de l'inscrire** — vous confirmez, un crédit est décompté |
+| Pas inscrit, sans crédit | Refusé, avec son nom et la raison |
+| Code inconnu | Refusé |
+
+> **Le scanner se ferme après chaque lecture.** Pour la personne suivante, il
+> faut recliquer sur **Scanner QR**.
+
+Vous n'êtes pas obligé de scanner : chaque ligne de la liste porte un bouton de
+pointage, souvent plus rapide pour un petit groupe.
+
 ### Inscrire ou désinscrire quelqu'un
 
 Depuis le planning (admin) ou depuis la fiche du cours (coach), ouvrez le cours et ajoutez le membre. L'application demande **quelle source de crédit utiliser** : abonnement ou pack. Elle affiche pour chacun ce qu'il reste et sa date d'expiration.

@@ -42,7 +42,19 @@ export function CoachClassDetailPage() {
 
   // Add member
   const [addMemberOpen, setAddMemberOpen] = useState(false)
-  const [eligibleMembers, setEligibleMembers] = useState<{ user_id: string; display_name: string; credits: number; pack_purchase_id: string; unlimited: boolean }[]>([])
+  /**
+   * Membre scanné qui n'a pas réservé, mais qui pourrait payer la séance.
+   * Non nul = le dialogue de confirmation est ouvert.
+   */
+  const [scanWalkIn, setScanWalkIn] = useState<{
+    userId: string
+    nom: string
+    packPurchaseId: string
+    illimite: boolean
+    creditsRestants: number
+  } | null>(null)
+  const [scanWalkInSaving, setScanWalkInSaving] = useState(false)
+  const [eligibleMembers, setEligibleMembers] = useState<{ user_id: string; display_name: string; credits: number; pack_purchase_id: string; unlimited: boolean; eligible: boolean }[]>([])
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [addMemberLoading, setAddMemberLoading] = useState(false)
   const [cancelClassOpen, setCancelClassOpen] = useState(false)
@@ -324,6 +336,110 @@ export function CoachClassDetailPage() {
       : `${booking.user?.display_name} removed — credit ${result?.refunded ? 'refunded' : 'not refunded'}`)
   }
 
+  /**
+   * Un code scanné qui ne correspond à aucun inscrit.
+   *
+   * On cherche le membre et une source de crédit valable pour ce cours. Trois
+   * issues, toutes explicites : inconnu, sans crédit utilisable, ou inscriptible
+   * — auquel cas le coach confirme, et `book_member_by_staff` inscrit ET
+   * consomme le crédit dans la même transaction.
+   */
+  const proposerInscriptionAuScan = async (userId: string) => {
+    const creditTypeId = scheduledClass?.class_type?.credit_type_id
+    if (!creditTypeId) return
+
+    const { data: profil } = await supabase
+      .from('profiles').select('id, display_name').eq('id', userId).maybeSingle()
+
+    if (!profil) {
+      toast.error(isFr ? 'Code inconnu' : 'Unknown code')
+      return
+    }
+
+    // Même règle que la liste d'ajout : pack non expiré, du bon type, et
+    // consommable. L'abonnement passe devant, il est déjà facturé.
+    const { data: packs } = await supabase
+      .from('pack_purchases')
+      .select('id, credits_remaining, subscription_id, pack_type:pack_types(credit_type_id, is_unlimited)')
+      .eq('user_id', userId)
+      .gt('expires_at', new Date().toISOString())
+      .order('expires_at', { ascending: true })
+
+    const utilisable = (packs ?? []).find(p => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pt = p.pack_type as any
+      if (pt?.credit_type_id !== creditTypeId) return false
+      return !!pt?.is_unlimited || p.credits_remaining > 0
+    })
+
+    if (!utilisable) {
+      toast.error(isFr
+        ? `${profil.display_name} n'a pas de crédit pour ce cours.`
+        : `${profil.display_name} has no credit for this class.`,
+        { duration: 6000 })
+      return
+    }
+
+    setScanWalkIn({
+      userId,
+      nom: profil.display_name,
+      packPurchaseId: utilisable.id,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      illimite: !!(utilisable.pack_type as any)?.is_unlimited,
+      creditsRestants: utilisable.credits_remaining,
+    })
+  }
+
+  /** Inscrit le membre scanné après confirmation, puis le pointe présent. */
+  const confirmerInscriptionAuScan = async () => {
+    if (!scanWalkIn || !scheduledClass) return
+    setScanWalkInSaving(true)
+
+    const { data: res, error } = await supabase.rpc('book_member_by_staff', {
+      p_class_id: scheduledClass.id,
+      p_user_id: scanWalkIn.userId,
+      p_pack_purchase_id: scanWalkIn.packPurchaseId,
+    })
+    setScanWalkInSaving(false)
+
+    if (error) { toast.error(error.message); return }
+
+    const result = res as { ok: boolean; error?: string }
+    if (!result?.ok) {
+      const messages: Record<string, { fr: string; en: string }> = {
+        not_your_class: { fr: 'Ce cours n\'est pas le tien.', en: 'This is not your class.' },
+        class_full: { fr: 'La salle est complète.', en: 'The class is full.' },
+        class_cancelled: { fr: 'Ce cours est annulé.', en: 'This class is cancelled.' },
+        already_booked: { fr: 'Ce membre est déjà inscrit.', en: 'Already booked.' },
+        no_credits: { fr: 'Plus de crédit disponible.', en: 'No credits left.' },
+      }
+      const m = messages[result?.error ?? '']
+      toast.error(m ? (isFr ? m.fr : m.en) : (isFr ? 'Inscription refusée.' : 'Booking refused.'))
+      setScanWalkIn(null)
+      return
+    }
+
+    // `book_member_by_staff` inscrit et consomme le crédit, mais ne pointe pas :
+    // la personne est devant nous, on enchaîne. Le pointage est écrit ici, sur
+    // l'identifiant que la fonction vient de renvoyer.
+    const bookingId = (res as { booking_id?: string })?.booking_id
+    let pointe = false
+    if (bookingId) {
+      const { data: maj } = await supabase
+        .from('bookings')
+        .update({ checked_in_at: new Date().toISOString() })
+        .eq('id', bookingId)
+        .select('id')
+      pointe = !!maj && maj.length > 0
+    }
+
+    toast.success(isFr
+      ? `${scanWalkIn.nom} inscrit(e)${pointe ? ' et pointé(e)' : ''} — ${scanWalkIn.illimite ? 'accès illimité' : 'crédit décompté'}`
+      : `${scanWalkIn.nom} booked${pointe ? ' and checked in' : ''} — ${scanWalkIn.illimite ? 'unlimited access' : 'credit used'}`)
+    setScanWalkIn(null)
+    await fetchData()
+  }
+
   // ---- QR Scanner ----
   const startScanner = async () => {
     setScanning(true)
@@ -346,7 +462,11 @@ export function CoachClassDetailPage() {
               handleCheckIn(booking)
             }
           } else {
-            toast.error(isFr ? 'Membre non inscrit à ce cours' : 'Member not registered for this class')
+            // Quelqu'un se présente sans avoir réservé : c'est un cas courant à
+            // l'accueil, pas une erreur. On regarde s'il a de quoi payer la
+            // séance et on propose de l'inscrire — refuser sec obligeait le
+            // coach à ressortir de l'écran pour l'ajouter à la main.
+            void proposerInscriptionAuScan(decodedText)
           }
           stopScanner()
         },
@@ -455,28 +575,48 @@ export function CoachClassDetailPage() {
       }
     }
 
-    const userIds = [...memberMap.keys()]
-    if (userIds.length > 0) {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles').select('id, display_name').in('id', userIds)
-      if (profilesError) {
-        console.error('openAddMember / profiles', profilesError)
-        toast.error(profilesError.message)
-        setAddMemberLoading(false)
-        return
-      }
-      const result = (profiles ?? []).map(p => ({
-        user_id: p.id,
-        display_name: p.display_name,
-        credits: memberMap.get(p.id)!.credits,
-        pack_purchase_id: memberMap.get(p.id)!.pack_purchase_id,
-        unlimited: memberMap.get(p.id)!.unlimited,
-      }))
-      result.sort((a, b) => a.display_name.localeCompare(b.display_name))
-      setEligibleMembers(result)
-    } else {
-      setEligibleMembers([])
+    // On charge TOUS les membres, pas seulement ceux qui ont un crédit
+    // utilisable. Les autres restent non sélectionnables, mais visibles avec
+    // leur raison : chercher quelqu'un qui n'apparaît nulle part, sans savoir
+    // s'il manque un pack ou si on se trompe de personne, ne dit rien de ce
+    // qu'il faut faire.
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, display_name, deleted_at')
+      .is('deleted_at', null)
+      .order('display_name')
+    if (profilesError) {
+      console.error('openAddMember / profiles', profilesError)
+      toast.error(profilesError.message)
+      setAddMemberLoading(false)
+      return
     }
+
+    // Le staff ne s'inscrit pas à un cours qu'il encadre.
+    const { data: staffRows } = await supabase
+      .from('user_roles').select('user_id').in('role', ['coach', 'admin', 'super_admin'])
+    const staff = new Set((staffRows ?? []).map(r => r.user_id))
+
+    const result = (profiles ?? [])
+      .filter(p => !staff.has(p.id) && !bookedUserIds.has(p.id))
+      .map(p => {
+        const m = memberMap.get(p.id)
+        return {
+          user_id: p.id,
+          display_name: p.display_name,
+          credits: m?.credits ?? 0,
+          pack_purchase_id: m?.pack_purchase_id ?? '',
+          unlimited: m?.unlimited ?? false,
+          /** Sans source utilisable : affiché grisé, non sélectionnable. */
+          eligible: !!m,
+        }
+      })
+
+    // Les membres inscriptibles d'abord : la liste sert à inscrire, pas à
+    // consulter qui ne peut pas l'être.
+    result.sort((a, b) =>
+      Number(b.eligible) - Number(a.eligible) || a.display_name.localeCompare(b.display_name))
+    setEligibleMembers(result)
     setAddMemberLoading(false)
   }
 
@@ -740,7 +880,7 @@ export function CoachClassDetailPage() {
                     <p className="text-sm text-muted-foreground text-center py-2">...</p>
                   ) : eligibleMembers.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-2">
-                      {isFr ? 'Aucun membre avec des crédits disponibles' : 'No members with available credits'}
+                      {isFr ? 'Aucun membre à inscrire' : 'No member to add'}
                     </p>
                   ) : (
                     <>
@@ -756,9 +896,15 @@ export function CoachClassDetailPage() {
                           </span>
                         </SelectTrigger>
                         <SelectContent className="min-w-[350px] max-h-60" sideOffset={4}>
+                          {/* Les membres sans crédit utilisable restent visibles
+                              mais désactivés : leur absence pure et simple ne
+                              disait pas s'il fallait leur attribuer un pack ou
+                              si l'on cherchait la mauvaise personne. */}
                           {eligibleMembers.map(m => (
-                            <SelectItem key={m.user_id} value={m.user_id}>
-                              {m.display_name} — {m.unlimited ? (isFr ? 'illimité' : 'unlimited') : `${m.credits} ${isFr ? 'crédit(s)' : 'credit(s)'}`}
+                            <SelectItem key={m.user_id} value={m.user_id} disabled={!m.eligible}>
+                              {m.eligible
+                                ? `${m.display_name} — ${m.unlimited ? (isFr ? 'illimité' : 'unlimited') : `${m.credits} ${isFr ? 'crédit(s)' : 'credit(s)'}`}`
+                                : `${m.display_name} — ${isFr ? 'aucun crédit pour ce cours' : 'no credit for this class'}`}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -852,6 +998,62 @@ export function CoachClassDetailPage() {
               {cancelling
                 ? (isFr ? 'Annulation…' : 'Cancelling…')
                 : (isFr ? 'Annuler le cours' : 'Cancel the class')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Membre scanné qui n'a pas réservé. Le coach confirme en connaissance de
+          cause : l'inscription consomme un crédit, ce n'est pas un simple
+          pointage. Le solde est annoncé avant, pas découvert après. */}
+      <Dialog open={scanWalkIn !== null} onOpenChange={(o) => { if (!o) setScanWalkIn(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              {isFr ? 'Inscrire ce membre ?' : 'Add this member?'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {scanWalkIn && (
+            <div className="space-y-3 text-sm">
+              <p>
+                <strong>{scanWalkIn.nom}</strong>{' '}
+                {isFr
+                  ? "n'a pas réservé ce cours."
+                  : 'has not booked this class.'}
+              </p>
+              <div className="rounded-lg border bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'Crédit disponible' : 'Available credit'}
+                </p>
+                <p className="font-semibold">
+                  {scanWalkIn.illimite
+                    ? (isFr ? 'Illimité' : 'Unlimited')
+                    : isFr
+                      ? `${scanWalkIn.creditsRestants} crédit(s)`
+                      : `${scanWalkIn.creditsRestants} credit(s)`}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {scanWalkIn.illimite
+                  ? (isFr
+                    ? 'Son accès est illimité : rien ne sera décompté.'
+                    : 'Their access is unlimited: nothing will be deducted.')
+                  : (isFr
+                    ? 'Un crédit sera décompté, comme pour une réservation ordinaire.'
+                    : 'One credit will be used, as for a regular booking.')}
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setScanWalkIn(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={confirmerInscriptionAuScan} disabled={scanWalkInSaving}>
+              <UserPlus className="h-4 w-4 mr-1" />
+              {isFr ? 'Inscrire et pointer' : 'Book and check in'}
             </Button>
           </DialogFooter>
         </DialogContent>
