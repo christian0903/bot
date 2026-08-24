@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { Browser } from '@capacitor/browser'
+import { ouvrirPaiement } from '@/lib/ouvrir-paiement'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -223,7 +223,7 @@ export function PacksPage() {
       }
       if (data.url) {
         setPendingPurchase(null)
-        await Browser.open({ url: data.url, presentationStyle: 'popover' })
+        await ouvrirPaiement(data.url)
       } else {
         toast.error(data.error || t('common.error'))
       }
@@ -412,7 +412,7 @@ export function PacksPage() {
       }
       if (data.url) {
         setPendingPurchase(null)
-        await Browser.open({ url: data.url, presentationStyle: 'popover' })
+        await ouvrirPaiement(data.url)
       } else {
         toast.error(data.error || t('common.error'))
       }

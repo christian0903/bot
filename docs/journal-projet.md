@@ -472,6 +472,36 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Le paiement n'ouvrait rien sur le web
+
+Signalé par Christian : cliquer « Continuer » pour payer les frais d'inscription
+ramenait à la page des packs au lieu d'ouvrir Stripe.
+
+La cause tient à une ligne du plugin Capacitor. Sur le web, `Browser.open` se
+réduit à `window.open(url, '_blank')` — une ouverture d'onglet, et rien d'autre.
+Deux choses la faisaient échouer :
+
+- **Le popup était bloqué.** L'ouverture suit un `fetch` vers
+  `create-checkout-session` : le navigateur ne la rattache plus au clic et
+  l'écarte comme une fenêtre intempestive. Comportement anti-popup standard, que
+  rien ne signale à l'utilisateur.
+- **En PWA installée, `_blank` sort de l'application** — ou n'aboutit pas du tout
+  sur iOS.
+
+`ouvrirPaiement` (`src/lib/ouvrir-paiement.ts`) redirige désormais la page
+courante sur le web, et conserve `Browser.open` en natif, où il ouvre une vue
+intégrée dont on revient sans quitter l'app. Trois appels concernés : frais
+d'inscription, achat de pack, et achat depuis le dialogue « pas de crédits ».
+
+> **`MarkdownLink` n'a pas été touché** : il ouvre un lien externe dans un
+> document, où un onglet séparé reste le bon comportement.
+
+**Conséquence qu'il a fallu traiter.** Tant qu'un onglet s'ouvrait, le membre
+revenait à sa page inchangée. Avec la redirection, il atterrit sur `/my-packs` ou
+`/schedule` sans plus avoir la page Stripe sous les yeux : seul `fee_paid` était
+accusé, les deux autres retours n'affichaient rien. Ils confirment maintenant le
+paiement.
+
 ### Deux défauts d'affichage signalés depuis l'iPhone
 
 **« 0 crédit » ne s'affichait pas.** La liste des soldes partait de

@@ -121,6 +121,20 @@ export function MyPacksPage() {
     fetchAll()
   }, [user])
 
+  // Retour de Stripe après un achat. Sans cet accusé, le membre arrivait sur
+  // ses packs sans savoir si le paiement avait abouti — la redirection ayant
+  // remplacé l'ouverture d'un onglet, il n'a plus la page Stripe sous les yeux
+  // pour s'en assurer.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('success') === 'true') {
+      toast.success(isFr
+        ? 'Paiement confirmé. Tes crédits sont disponibles.'
+        : 'Payment confirmed. Your credits are available.')
+      window.history.replaceState({}, '', '/my-packs')
+    }
+  }, [isFr])
+
   const handleCancelSubscription = async () => {
     setCancelling(true)
     try {

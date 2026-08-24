@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Browser } from '@capacitor/browser'
+import { ouvrirPaiement } from '@/lib/ouvrir-paiement'
 import { toast } from 'sonner'
 import { CreditCard, Repeat, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -129,7 +129,7 @@ export function NoCreditsDialog({ open, onOpenChange, reason, creditTypeId, cred
       const data = await response.json()
 
       if (data.url) {
-        await Browser.open({ url: data.url, presentationStyle: 'popover' })
+        await ouvrirPaiement(data.url)
         onOpenChange(false)
         return
       }

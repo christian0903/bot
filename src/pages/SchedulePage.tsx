@@ -413,6 +413,19 @@ export function SchedulePage() {
     setLoading(false)
   }
 
+  // Retour de Stripe après un achat lancé depuis le dialogue « pas de crédits ».
+  // La redirection ayant remplacé l'ouverture d'un onglet, le membre n'a plus la
+  // page Stripe sous les yeux : sans accusé, il ignore si son paiement a abouti.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('success') === 'true') {
+      toast.success(isFr
+        ? 'Paiement confirmé. Tu peux réserver ton cours.'
+        : 'Payment confirmed. You can book your class.')
+      window.history.replaceState({}, '', '/schedule')
+    }
+  }, [isFr])
+
   useEffect(() => { fetchData() }, [currentDate, user])
 
   // Build email vars from a scheduled class
