@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import type { ScheduledClass, ClassType, Profile } from '@/types'
 import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
+import { WeekGrid } from '@/components/admin/WeekGrid'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +25,7 @@ import {
 import { toast } from 'sonner'
 import { sendEmail } from '@/lib/send-email'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy, ChevronLeft, ChevronRight, AlertTriangle} from 'lucide-react'
+import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy, ChevronLeft, ChevronRight, AlertTriangle, List, LayoutGrid } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
@@ -128,6 +129,31 @@ export function AdminSchedulePage() {
       format(new Date(to.getTime() + direction * span), 'yyyy-MM-dd'),
     )
   }
+  /**
+   * Vue courante. Dans l'URL comme la période : revenir du détail d'un cours
+   * ne doit pas ramener à la liste quand on lisait la grille.
+   */
+  const vue = searchParams.get('vue') === 'calendrier' ? 'calendrier' : 'liste'
+  const setVue = (v: 'liste' | 'calendrier') => {
+    const next = new URLSearchParams(searchParams)
+    if (v === 'calendrier') next.set('vue', 'calendrier'); else next.delete('vue')
+    setSearchParams(next, { replace: true })
+  }
+
+  /**
+   * Repli mobile : sept colonnes sur un iPhone ne se lisent pas. Sous cette
+   * largeur la grille montre une seule journée, navigable par les flèches.
+   */
+  const [ecranEtroit, setEcranEtroit] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const onChange = (e: MediaQueryListEvent) => setEcranEtroit(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
   const [filterCoach, setFilterCoach] = useState('all')
   const [filterClassType, setFilterClassType] = useState('all')
 
@@ -249,6 +275,26 @@ export function AdminSchedulePage() {
     })
   }, [classes, filterDateFrom, filterDateTo, filterCoach, filterClassType])
 
+  /**
+   * Cours de la grille. Les bornes de période sont écartées à dessein : elles
+   * découpent une liste, alors que la grille affiche une semaine entière —
+   * « du 24/08, sans date de fin » n'y montrerait que la moitié des colonnes.
+   * Coach et type, eux, restent des filtres de lecture et s'appliquent.
+   */
+  const classesCalendrier = useMemo(() => {
+    return classes.filter(sc => {
+      if (filterCoach !== 'all' && sc.coach_id !== filterCoach) return false
+      if (filterClassType !== 'all' && sc.class_type_id !== filterClassType) return false
+      return true
+    })
+  }, [classes, filterCoach, filterClassType])
+
+  /** Ancre de la grille : le jour de début de période, jamais vide. */
+  const ancreCalendrier = useMemo(
+    () => new Date(filterDateFrom + 'T12:00:00'),
+    [filterDateFrom],
+  )
+
   const allSelected = filteredClasses.length > 0 && filteredClasses.every(sc => selectedIds.has(sc.id))
 
   const toggleAll = () => {
@@ -268,7 +314,21 @@ export function AdminSchedulePage() {
   }
 
   // CRUD
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true) }
+  /**
+   * Création. Depuis la grille, la case cliquée dit déjà le jour et l'heure :
+   * les resaisir serait redemander ce qu'on vient de désigner.
+   */
+  const openAdd = (date?: Date, heure?: number) => {
+    setEditing(null)
+    setForm(date
+      ? {
+          ...emptyForm,
+          date: format(date, 'yyyy-MM-dd'),
+          time: `${String(heure ?? 10).padStart(2, '0')}:00`,
+        }
+      : emptyForm)
+    setDialogOpen(true)
+  }
 
   const openEdit = (sc: ScheduledClass) => {
     const dt = new Date(sc.starts_at)
@@ -649,10 +709,33 @@ export function AdminSchedulePage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('admin.schedule.title')}</h1>
-        <Button onClick={openAdd}>
+        <div className="flex items-center gap-2">
+          {/* Segmenté maison plutôt que Tabs : c'est déjà la forme utilisée
+              par le planning côté membre, autant garder le même geste. */}
+          <div className="flex rounded-lg border overflow-hidden">
+            {([
+              { v: 'liste' as const, icone: List, libelle: isFr ? 'Liste' : 'List' },
+              { v: 'calendrier' as const, icone: LayoutGrid, libelle: isFr ? 'Calendrier' : 'Calendar' },
+            ]).map(({ v, icone: Icone, libelle }) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setVue(v)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors',
+                  vue === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                )}
+              >
+                <Icone className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{libelle}</span>
+              </button>
+            ))}
+          </div>
+          <Button onClick={() => openAdd()}>
           <Plus className="h-4 w-4 mr-2" />
-          {t('admin.schedule.add')}
-        </Button>
+            {t('admin.schedule.add')}
+          </Button>
+        </div>
       </div>
 
       {/* Filtres.
@@ -830,9 +913,26 @@ export function AdminSchedulePage() {
         </div>
       )}
 
-      {/* Table */}
-      {filteredClasses.length === 0 ? (
-        <EmptyState icon={CalendarDays} message={t('common.noResults')} actionLabel={t('admin.schedule.add')} onAction={openAdd} />
+      {vue === 'calendrier' ? (
+        <WeekGrid
+          classes={classesCalendrier}
+          anchorDate={ancreCalendrier}
+          bookingCounts={bookingCounts}
+          isFr={isFr}
+          singleDay={ecranEtroit}
+          onShiftWeek={(d) => {
+            // Sur mobile la grille montre un jour : la flèche avance d'un jour,
+            // pas d'une semaine, sinon six journées sont sautées sans le voir.
+            const pas = ecranEtroit ? 1 : 7
+            const ancre = new Date(filterDateFrom + 'T12:00:00')
+            setPeriod(format(new Date(ancre.getTime() + d * pas * 86400000), 'yyyy-MM-dd'), '')
+          }}
+          onToday={() => setPeriod(format(new Date(), 'yyyy-MM-dd'), '')}
+          onOpenClass={(sc) => navigate(`/coach/class/${sc.id}`)}
+          onCreateAt={(date, heure) => openAdd(date, heure)}
+        />
+      ) : filteredClasses.length === 0 ? (
+        <EmptyState icon={CalendarDays} message={t('common.noResults')} actionLabel={t('admin.schedule.add')} onAction={() => openAdd()} />
       ) : (
         <div className="border rounded-lg overflow-x-auto">
           <Table>
