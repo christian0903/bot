@@ -472,6 +472,41 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### L'iPhone bloqué neuf versions en arrière
+
+Christian signale que son téléphone affiche la **3.2** quand le dépôt est à la
+3.11 — et il précise avoir bien vu la bannière « Nouvelle version disponible ».
+La détection marchait donc ; c'est ce qui suivait le clic qui échouait.
+
+Contrôles faits d'abord côté serveur, tous bons : `sw.js` en ligne annonce la
+bonne version, le bundle est **identique octet pour octet** à `dist/`, les
+en-têtes portent `no-cache, must-revalidate`, et la page ouverte dans un
+navigateur affiche la version attendue. Rien à corriger de ce côté.
+
+Deux défauts dans le code de mise à jour, et ils se combinent :
+
+**`recharger()` tournait en rond.** Sans worker en attente, la fonction faisait
+`window.location.reload()`. Or **un rechargement ne remplace jamais un service
+worker actif** : la page revient à l'identique, la bannière réapparaît, et le
+membre peut cliquer indéfiniment. La fonction force désormais une
+vérification, active ce qui en sort, et en dernier recours **désinscrit le
+worker et vide les caches** — le seul geste qui rende la main au réseau.
+
+**`cache.addAll` rejetait en bloc.** Une seule requête en échec — un réseau qui
+vacille, ce qui arrive sur mobile — et l'installation entière échouait. Un
+worker dont l'install rejette ne passe jamais en attente : la nouvelle version
+ne s'installe alors *plus jamais*. Le préchargement tolère maintenant l'échec
+unitaire ; la stratégie « réseau d'abord » ira chercher la ressource au premier
+accès.
+
+S'y ajoute un filet de deux secondes après `ACTIVER_MAINTENANT` : iOS manque
+parfois `controllerchange` après une bascule d'application, laissant le membre
+devant un bouton sans effet.
+
+À noter : **ces correctifs ne débloquent pas un appareil déjà coincé.** Pour
+recevoir le nouveau code, il faudrait qu'il se mette à jour — ce qu'il ne sait
+justement plus faire. Sortie manuelle : effacer les données du site.
+
 ### Deux ajustements dictés par l'usage réel
 
 Christian, en se servant de l'application sur son iPhone.

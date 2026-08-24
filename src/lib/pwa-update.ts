@@ -84,12 +84,43 @@ export function useMiseAJourPWA() {
    */
   const recharger = useCallback(async () => {
     const registration = await navigator.serviceWorker.getRegistration()
+
     if (registration?.waiting) {
       registration.waiting.postMessage('ACTIVER_MAINTENANT')
+      // Filet : si `controllerchange` ne vient pas — iOS l'a déjà manqué après
+      // une bascule d'application — on recharge quand même plutôt que de
+      // laisser le membre devant un bouton qui n'a rien fait.
+      setTimeout(() => window.location.reload(), 2000)
       return
     }
-    // Worker disparu entre-temps (navigation privée, purge du navigateur) :
-    // un rechargement franc reste la bonne réponse.
+
+    // Pas de worker en attente, alors qu'une nouvelle version est annoncée.
+    // Recharger ne servirait à rien : un rechargement **ne remplace jamais**
+    // un worker actif, la page revient à l'identique et la bannière
+    // réapparaît — la boucle dans laquelle une installation pouvait rester
+    // bloquée plusieurs versions durant.
+    //
+    // On force donc une vérification, puis on active ce qui en sort.
+    if (registration) {
+      try {
+        await registration.update()
+        if (registration.waiting) {
+          registration.waiting.postMessage('ACTIVER_MAINTENANT')
+          setTimeout(() => window.location.reload(), 2000)
+          return
+        }
+        // Toujours rien : le worker installé est hors d'état de se renouveler
+        // (installation échouée, worker devenu obsolète). Le désinscrire et
+        // vider les caches rend la main au réseau — c'est le seul geste qui
+        // débloque, et il ne coûte qu'un chargement complet.
+        await registration.unregister()
+        const cles = await caches.keys()
+        await Promise.all(cles.map(k => caches.delete(k)))
+      } catch {
+        // Rien à rattraper : le rechargement ci-dessous reste la sortie.
+      }
+    }
+
     window.location.reload()
   }, [])
 

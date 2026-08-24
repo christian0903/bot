@@ -7,7 +7,14 @@ const STATIC_ASSETS = ['/', '/index.html']
 // Install: cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    // `addAll` rejette en bloc dès qu'UNE requête échoue, et un install qui
+    // rejette ne passe jamais en attente : la nouvelle version ne s'installe
+    // alors plus jamais, et le membre reste des versions entières en arrière
+    // sans aucun signal. Un préchargement raté n'a pas à coûter cela — la
+    // stratégie « réseau d'abord » ira chercher la ressource au premier accès.
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(STATIC_ASSETS.map((url) => cache.add(url).catch(() => {})))
+    )
   )
   // Pas de skipWaiting() ici : ce service worker attend en réserve, et
   // l'application propose au membre de recharger. S'activer tout de suite
