@@ -97,6 +97,10 @@ export interface PackType {
   updated_at: string
   credit_type?: CreditType
   categories?: MemberCategory[]
+  /** Catégorie attribuée au membre tant que ce pack est actif. */
+  grants_category_id?: string | null
+  /** Catégorie de repli quand plus aucun pack n'en accorde. */
+  reverts_to_category_id?: string | null
 }
 
 export interface PackPurchase {

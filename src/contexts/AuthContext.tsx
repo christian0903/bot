@@ -59,6 +59,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasUsedTrial, setHasUsedTrial] = useState(false)
 
   const fetchProfile = async (userId: string) => {
+    // Remettre la catégorie d'aplomb avant de lire le profil.
+    //
+    // L'achat d'un pack et la fin d'un abonnement sont couverts par des
+    // triggers, mais l'expiration d'un pack ponctuel ne produit **aucun
+    // événement** : la date passe, rien ne se déclenche. Un cron nocturne
+    // corrigerait après coup et finirait par diverger du réel — le projet a
+    // déjà tranché ce débat pour le statut d'un cours. On recalcule donc au
+    // moment où la valeur sert.
+    //
+    // Sans await bloquant sur l'échec : une catégorie non rafraîchie vaut
+    // mieux qu'une session qui ne s'ouvre pas.
+    await supabase.rpc('refresh_my_category').then(
+      () => {},
+      () => {},
+    )
+
     const { data } = await supabase
       .from('profiles')
       .select('*')

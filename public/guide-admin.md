@@ -430,6 +430,8 @@ Pour chaque pack :
 | **Validité** | Durée pendant laquelle les crédits restent utilisables. |
 | **Abonnement** | Renouvellement automatique. Demande une périodicité. |
 | **Catégories éligibles** | Restreint la vente à certaines catégories. Vide = ouvert à tous. |
+| **Catégorie attribuée** | Ce que l'achat donne au membre. Vide = ne change rien. |
+| **Catégorie après expiration** | Où il retombe quand plus aucun pack n'en accorde. |
 
 > **Sur un abonnement, la validité doit correspondre au cycle.** Un cycle de 4 semaines va avec une validité de 28 jours. L'application vous alerte si les deux divergent.
 
@@ -440,6 +442,35 @@ Pour chaque pack :
 ### Types de cours — Administration → Types de cours
 
 Nom, description, couleur, nombre de places par défaut, image, et **type de crédit exigé**. La description longue accepte le Markdown et s'affiche aux membres.
+
+#### Vendre un tarif réservé aux abonnés
+
+C'est l'usage principal des deux derniers réglages, et il se lit à l'envers de
+ce qu'on croit :
+
+- **Catégories éligibles** dit *qui a le droit d'acheter ce pack*.
+- **Catégorie attribuée** dit *ce que l'achat change chez le membre*.
+
+Pour vendre une séance supplémentaire à prix abonné :
+
+1. Sur votre **abonnement**, réglez *Catégorie attribuée* → **abonné**, et
+   *Catégorie après expiration* → **standard**
+2. Créez le pack **« Séance supplémentaire »** à son tarif préférentiel, et
+   réglez ses *Catégories éligibles* → **abonné** uniquement
+
+Le membre qui souscrit l'abonnement devient abonné, voit apparaître la séance
+supplémentaire, et la perd quand son abonnement s'arrête.
+
+> **Un abonnement en cours l'emporte.** Un abonné qui achète une séance
+> supplémentaire reste abonné — sinon il perdrait le tarif qui l'a fait acheter.
+
+> **Un pack qui ne se prononce pas ne change rien.** Laissez les deux champs
+> vides sur les packs ordinaires : le classement que vous faites à la main ne
+> sera pas écrasé par un achat.
+
+La catégorie se remet d'aplomb à l'achat, à la fin d'un abonnement, et à chaque
+connexion du membre — ce dernier point couvre l'expiration d'un pack ponctuel,
+qui ne déclenche rien par elle-même.
 
 ### Catégories de membres — Administration → Catégories de membres
 

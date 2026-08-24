@@ -377,6 +377,67 @@ avoir filtré ne doit pas embarquer ce qu'on ne voit pas.
 Retirer la catégorie est proposé au même endroit : sans cette entrée, un membre
 mal rangé le resterait.
 
+### Un pack peut attribuer une catégorie
+
+Le besoin de Christian : vendre une **séance supplémentaire à tarif abonné**,
+invisible pour les autres. Le mécanisme d'accès existait déjà —
+`pack_type_categories` restreint qui voit quel pack, et « Carte séance unique »
+était déjà réservée aux abonnés. Ce qui manquait, c'est l'attribution
+automatique de la catégorie : elle se posait à la main, donc s'oubliait.
+
+Deux champs sur `pack_types` : `grants_category_id` (ce que l'achat donne) et
+`reverts_to_category_id` (à quoi revenir ensuite).
+
+**Deux réglages globaux avaient été envisagés** — « catégorie des abonnés » et
+« catégorie après résiliation », déduites de `is_recurring`. Écarté : cela
+suppose que tous les abonnements se valent. Les données disaient déjà le
+contraire, et le jour où un abonnement premium coexiste avec un abonnement mini,
+les deux donneraient le même tarif préférentiel. Un pack ponctuel ne pourrait par
+ailleurs jamais accorder de catégorie.
+
+> Le précédent B2B disait l'inverse — « pas de catégorie B2B, deux marqueurs pour
+> le même fait finiraient par diverger ». La différence tient à ceci :
+> `is_recurring` (comment on paie) et la catégorie (quel tarif on mérite) ne sont
+> **pas** le même fait. Les lier par une règle globale, c'est décider une fois
+> pour toutes qu'ils coïncident.
+
+**La catégorie est dérivée, pas comptabilisée.** Stocker à l'achat et « rendre »
+à l'expiration reviendrait à tenir un compteur : deux écritures qui doivent
+rester d'accord, et qui divergeront. Un membre peut détenir un abonnement *et*
+une carte de séances, sans qu'on sache dans quel ordre ils s'éteignent.
+`derive_member_category` répond donc toujours à la même question — « vu ce que ce
+membre détient maintenant, quelle catégorie mérite-t-il ? ». La colonne reste
+écrite, les filtres en ont besoin, mais une seule logique la fixe.
+
+**Priorité à l'abonnement** : un abonné qui achète une séance supplémentaire ne
+perd pas son statut d'abonné — ce serait lui retirer le tarif qui l'a fait
+acheter.
+
+**Trois moments de recalcul**, dont un qui méritait réflexion :
+
+- **À l'achat** — trigger sur `pack_purchases`. C'est l'instant où la catégorie
+  doit être juste : le membre va s'en servir aussitôt.
+- **À la fin d'un abonnement** — trigger sur `subscriptions`, événement net que
+  Stripe signale.
+- **À la lecture du profil** — parce que l'expiration d'un pack ponctuel ne
+  produit **aucun événement** : la date passe, rien ne se déclenche. Un cron
+  nocturne corrigerait après coup et finirait par diverger ; on recalcule au
+  moment où la valeur sert, comme le fait déjà `update_member_status`.
+
+Les deux triggers sont dans un bloc `BEGIN/EXCEPTION` : un classement qui échoue
+ne doit pas annuler un achat payé.
+
+> **Un pack qui ne se prononce pas ne change rien.** `apply_member_category`
+> sort sans écrire quand aucun pack n'accorde de catégorie — un studio qui range
+> ses membres à la main ne doit pas voir son classement effacé par un achat.
+
+Éprouvé sur les données réelles, en transactions annulées : sans configuration
+la fonction ne change rien pour personne (les classements manuels existants sont
+préservés) ; l'abonnement configuré fait passer les cinq abonnés actifs en
+« abonné » ; trois d'entre eux détiennent aussi un pack ponctuel accordant
+« standard » et **restent abonnés** ; et la résiliation les ramène à
+« standard ».
+
 ### La catégorie, visible dans la liste
 
 Signalé par Christian juste après l'attribution groupée : sans la voir, on coche

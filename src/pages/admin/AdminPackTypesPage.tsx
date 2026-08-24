@@ -55,6 +55,10 @@ interface PackTypeForm {
   recurring_interval_count: number
   is_active: boolean
   category_ids: string[]
+  /** Catégorie attribuée tant que ce pack est actif. Vide = ne change rien. */
+  grants_category_id: string
+  /** Catégorie de repli quand plus aucun pack n'en accorde. Vide = aucune. */
+  reverts_to_category_id: string
 }
 
 const emptyForm: PackTypeForm = {
@@ -73,6 +77,8 @@ const emptyForm: PackTypeForm = {
   recurring_interval_count: 4,
   is_active: true,
   category_ids: [],
+  grants_category_id: '',
+  reverts_to_category_id: '',
 }
 
 export function AdminPackTypesPage() {
@@ -141,6 +147,8 @@ export function AdminPackTypesPage() {
       recurring_interval_count: pt.recurring_interval_count ?? 4,
       is_active: pt.is_active,
       category_ids: pt.categories?.map(c => c.id) ?? [],
+      grants_category_id: pt.grants_category_id ?? '',
+      reverts_to_category_id: pt.reverts_to_category_id ?? '',
     })
     setDialogOpen(true)
   }
@@ -169,6 +177,10 @@ export function AdminPackTypesPage() {
       recurring_interval: form.is_recurring ? form.recurring_interval : null,
       recurring_interval_count: form.is_recurring ? form.recurring_interval_count : null,
       is_active: form.is_active,
+      // Chaîne vide = aucune attribution. Un `null` explicite, pas un oubli :
+      // la colonne est nullable et NULL veut dire « ce pack ne se prononce pas ».
+      grants_category_id: form.grants_category_id || null,
+      reverts_to_category_id: form.reverts_to_category_id || null,
     }
 
     // Un Price Stripe est immuable : son montant et sa périodicité ne peuvent
@@ -634,6 +646,81 @@ export function AdminPackTypesPage() {
                   </Badge>
                 ))}
               </div>
+            </div>
+
+            {/* Les deux champs ci-dessus et ci-dessous répondent à des questions
+                opposées, et les confondre est facile : au-dessus « qui a le
+                droit d'acheter ce pack », ici « ce que l'achat change chez le
+                membre ». D'où l'encadré et le titre explicite. */}
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+              <div>
+                <p className="text-sm font-medium">
+                  {isFr ? 'Ce que l\'achat attribue' : 'What the purchase grants'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isFr
+                    ? 'Facultatif. Sert à ouvrir des tarifs réservés — par exemple une séance supplémentaire à prix abonné.'
+                    : 'Optional. Used to unlock reserved pricing — e.g. an extra session at member rate.'}
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label className="text-xs">
+                    {isFr ? 'Catégorie attribuée' : 'Category granted'}
+                  </Label>
+                  <Select
+                    value={form.grants_category_id}
+                    onValueChange={(v) => setForm(f => ({ ...f, grants_category_id: (v && v !== '__none__') ? v : '' }))}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <span>
+                        {categories.find(c => c.id === form.grants_category_id)?.name
+                          ?? (isFr ? 'Aucune' : 'None')}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{isFr ? 'Aucune' : 'None'}</SelectItem>
+                      {categories.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-xs">
+                    {isFr ? 'Catégorie après expiration' : 'Category after expiry'}
+                  </Label>
+                  <Select
+                    value={form.reverts_to_category_id}
+                    onValueChange={(v) => setForm(f => ({ ...f, reverts_to_category_id: (v && v !== '__none__') ? v : '' }))}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <span>
+                        {categories.find(c => c.id === form.reverts_to_category_id)?.name
+                          ?? (isFr ? 'Aucune' : 'None')}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{isFr ? 'Aucune' : 'None'}</SelectItem>
+                      {categories.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Le cumul surprend : un abonné qui achète une carte garde son
+                  statut d'abonné. Le dire ici évite de croire à un bug. */}
+              {form.grants_category_id && (
+                <p className="text-xs text-muted-foreground">
+                  {isFr
+                    ? 'Un abonnement en cours l\'emporte : un abonné qui achète ce pack reste abonné.'
+                    : 'An active subscription wins: a subscriber buying this pack stays a subscriber.'}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
