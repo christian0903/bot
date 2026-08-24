@@ -28,6 +28,7 @@ import { CalendarDays, Pencil, Plus, Trash2, Users, UserCog, Eye, Copy, ChevronL
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
+import { analyserConflits, type AnalyseConflits, type Conflit } from '@/lib/conflits-planning'
 
 interface ScheduleForm {
   class_type_id: string
@@ -137,6 +138,17 @@ export function AdminSchedulePage() {
   const [bulkMaxParticipants, setBulkMaxParticipants] = useState(4)
   const [bulkDuplicateDays, setBulkDuplicateDays] = useState(7)
   const [bulkSaving, setBulkSaving] = useState(false)
+  /**
+   * Conflits à valider avant d'écrire. Non nul = le dialogue est ouvert.
+   *
+   * La duplication écrivait puis annonçait « 2 ignorés » : l'admin découvrait
+   * après coup, sans savoir lesquels ni pouvoir revenir en arrière.
+   */
+  const [conflitsAValider, setConflitsAValider] = useState<{
+    analyse: AnalyseConflits
+    lignes: Record<string, unknown>[]
+    dayOffset: number
+  } | null>(null)
 
   const fetchData = async () => {
     // On ne charge que la période affichée. La page tirait auparavant TOUS les
@@ -542,45 +554,43 @@ export function AdminSchedulePage() {
 
       const { data: existing } = await supabase
         .from('scheduled_classes')
-        .select('starts_at, floor')
+        .select('starts_at, floor, coach_id')
         .gte('starts_at', minDate)
         .lte('starts_at', maxDate)
         .eq('is_cancelled', false)
 
-      // Compare by minute precision + floor
-      const toMinuteKey = (iso: string, floor: string | null) => {
-        return iso.slice(0, 16) + '|' + (floor ?? '')
-      }
-      const existingKeys = new Set((existing ?? []).map(e => toMinuteKey(e.starts_at, e.floor)))
-
-      // Split into insertable and skipped
-      const toInsert = candidates.filter(c => !existingKeys.has(toMinuteKey(c.starts_at, c.floor)))
-      const skipped = candidates.filter(c => existingKeys.has(toMinuteKey(c.starts_at, c.floor)))
+      const analyse = analyserConflits(
+        candidates.map(c => ({
+          starts_at: c.starts_at,
+          floor: c.floor,
+          coach_id: c.coach_id,
+          libelle: c._original_name,
+        })),
+        (existing ?? []) as { starts_at: string; floor: string | null; coach_id: string | null }[],
+      )
 
       // Remove internal field before insert
       // `_original_name` sert à l'aperçu écran ; la colonne n'existe pas en
       // base. On l'écarte par destructuration — d'où une variable déclarée
       // mais jamais lue, qui est ici tout l'intérêt de la ligne.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const rows = toInsert.map(({ _original_name, ...row }) => row)
+      const retenus = new Set(analyse.aCreer.map(c => c.starts_at + '|' + (c.floor ?? '')))
+      const rows = candidates
+        .filter(c => retenus.has(c.starts_at + '|' + (c.floor ?? '')))
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .map(({ _original_name, ...row }) => row)
 
-      if (rows.length > 0) {
+      // Rien à signaler : dupliquer sans rien demander, l'admin a déjà cliqué.
+      if (analyse.bloques.length === 0 && analyse.avertissements.length === 0) {
         const { error } = await supabase.from('scheduled_classes').insert(rows)
         if (error) { toast.error(error.message); setBulkSaving(false); return }
-      }
-
-      if (skipped.length > 0 && rows.length > 0) {
-        toast.warning(isFr
-          ? `${rows.length} cours dupliqués, ${skipped.length} ignoré(s) (créneau déjà occupé)`
-          : `${rows.length} duplicated, ${skipped.length} skipped (slot already taken)`)
-      } else if (skipped.length > 0 && rows.length === 0) {
-        toast.error(isFr
-          ? `Aucun cours dupliqué — tous les créneaux sont déjà occupés`
-          : `No classes duplicated — all slots already taken`)
-      } else {
         toast.success(isFr
           ? `${rows.length} cours dupliqués (+${dayOffset} jour${dayOffset > 1 ? 's' : ''})`
           : `${rows.length} classes duplicated (+${dayOffset} day${dayOffset > 1 ? 's' : ''})`)
+      } else {
+        // Sinon : montrer ce qui coince AVANT d'écrire, et laisser renoncer.
+        setConflitsAValider({ analyse, lignes: rows, dayOffset })
+        setBulkSaving(false)
+        return
       }
     }
 
@@ -589,6 +599,48 @@ export function AdminSchedulePage() {
     setSelectedIds(new Set())
     setBulkDuplicateDays(7)
     await fetchData()
+  }
+
+  /** Écrit les duplications que l'admin vient de confirmer malgré les conflits. */
+  const confirmerDuplication = async () => {
+    if (!conflitsAValider) return
+    const { lignes, analyse, dayOffset } = conflitsAValider
+    setBulkSaving(true)
+
+    if (lignes.length > 0) {
+      const { error } = await supabase.from('scheduled_classes').insert(lignes)
+      if (error) {
+        toast.error(error.message)
+        setBulkSaving(false)
+        return
+      }
+      toast.success(analyse.bloques.length > 0
+        ? (isFr
+          ? `${lignes.length} cours dupliqués, ${analyse.bloques.length} ignoré(s)`
+          : `${lignes.length} duplicated, ${analyse.bloques.length} skipped`)
+        : (isFr
+          ? `${lignes.length} cours dupliqués (+${dayOffset} jour${dayOffset > 1 ? 's' : ''})`
+          : `${lignes.length} classes duplicated (+${dayOffset} day${dayOffset > 1 ? 's' : ''})`))
+    } else {
+      toast.error(isFr
+        ? 'Aucun cours dupliqué — tous les créneaux sont déjà occupés'
+        : 'No classes duplicated — all slots already taken')
+    }
+
+    setConflitsAValider(null)
+    setBulkSaving(false)
+    setBulkAction(null)
+    setSelectedIds(new Set())
+    setBulkDuplicateDays(7)
+    await fetchData()
+  }
+
+  /** « CrossTraining — lundi 31/08 18h30, salle du bas ». */
+  const decrireConflit = (c: Conflit) => {
+    const d = new Date(c.candidat.starts_at)
+    const quand = format(d, 'EEEE dd/MM HH:mm', { locale })
+    const salle = c.candidat.floor ? (floorNames[c.candidat.floor] || c.candidat.floor) : null
+    return [c.candidat.libelle, quand, salle].filter(Boolean).join(' — ')
   }
 
   if (loading) return <LoadingState />
@@ -603,49 +655,60 @@ export function AdminSchedulePage() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg border bg-muted/30">
-        {/* Flèches : décalent la période d'une longueur équivalente. Sans date
-            de fin, on avance d'une semaine. */}
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => shiftPeriod(-1)}
-          title={i18n.language === 'fr' ? 'Période précédente' : 'Previous period'}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+      {/* Filtres.
+          Les champs portent un libellé au-dessus, les boutons non : alignés
+          tous ensemble par le bas, les libellés flottaient au-dessus du reste
+          et la barre paraissait avoir une ligne en trop. Chaque champ forme
+          donc sa propre colonne, et les boutons de période sont poussés à la
+          hauteur des champs par une cale invisible. */}
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-4 p-3 rounded-lg border bg-muted/30">
+        {/* Navigation de période : les flèches encadrent les deux dates, elles
+            forment un seul geste et ne doivent pas être séparées par un retour
+            à la ligne. */}
+        <div className="flex items-end gap-2">
+          {/* Flèches : décalent la période d'une longueur équivalente. Sans date
+              de fin, on avance d'une semaine. */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => shiftPeriod(-1)}
+            title={i18n.language === 'fr' ? 'Période précédente' : 'Previous period'}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
 
-        <div>
-          <Label className="text-xs">{i18n.language === 'fr' ? 'Du' : 'From'}</Label>
-          <Input type="date" className="h-8 text-xs w-36" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs text-muted-foreground">{i18n.language === 'fr' ? 'Du' : 'From'}</Label>
+            <Input type="date" className="h-8 text-xs w-36" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs text-muted-foreground">{i18n.language === 'fr' ? 'Au' : 'To'}</Label>
+            <Input type="date" className="h-8 text-xs w-36" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
+          </div>
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => shiftPeriod(1)}
+            title={i18n.language === 'fr' ? 'Période suivante' : 'Next period'}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs shrink-0"
+            onClick={() => setPeriod(format(new Date(), 'yyyy-MM-dd'), '')}
+          >
+            {i18n.language === 'fr' ? "Aujourd'hui" : 'Today'}
+          </Button>
         </div>
-        <div>
-          <Label className="text-xs">{i18n.language === 'fr' ? 'Au' : 'To'}</Label>
-          <Input type="date" className="h-8 text-xs w-36" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
-        </div>
 
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => shiftPeriod(1)}
-          title={i18n.language === 'fr' ? 'Période suivante' : 'Next period'}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 text-xs"
-          onClick={() => setPeriod(format(new Date(), 'yyyy-MM-dd'), '')}
-        >
-          {i18n.language === 'fr' ? "Aujourd'hui" : 'Today'}
-        </Button>
-        <div>
-          <Label className="text-xs">{t('admin.schedule.coach')}</Label>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">{t('admin.schedule.coach')}</Label>
           <Select value={filterCoach} onValueChange={(v) => setFilterCoach(v ?? 'all')}>
             <SelectTrigger className="h-8 text-xs w-40">
               <span>{filterCoach === 'all' ? t('common.all') : coaches.find(c => c.id === filterCoach)?.display_name}</span>
@@ -658,8 +721,8 @@ export function AdminSchedulePage() {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="text-xs">{t('admin.schedule.classType')}</Label>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">{t('admin.schedule.classType')}</Label>
           <Select value={filterClassType} onValueChange={(v) => setFilterClassType(v ?? 'all')}>
             <SelectTrigger className="h-8 text-xs w-40">
               <span>{filterClassType === 'all' ? t('common.all') : classTypes.find(c => c.id === filterClassType)?.name}</span>
@@ -675,7 +738,7 @@ export function AdminSchedulePage() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-xs"
+          className="h-8 text-xs shrink-0"
           onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); setFilterCoach('all'); setFilterClassType('all') }}
         >
           {i18n.language === 'fr' ? 'Réinitialiser' : 'Reset'}
@@ -1047,6 +1110,72 @@ export function AdminSchedulePage() {
           : ''}
         onConfirm={handleDelete}
       />
+
+      {/* Conflits de duplication : montrer avant d'écrire, et nommer chaque
+          cours concerné. « 2 ignorés » sans dire lesquels obligeait à parcourir
+          le planning pour retrouver ce qu'il fallait reprendre à la main. */}
+      <Dialog open={conflitsAValider !== null} onOpenChange={(o) => { if (!o) setConflitsAValider(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              {isFr ? 'Conflits détectés' : 'Conflicts detected'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm max-h-[60vh] overflow-y-auto">
+            {conflitsAValider && conflitsAValider.analyse.bloques.length > 0 && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                <p className="font-medium">
+                  {isFr
+                    ? `${conflitsAValider.analyse.bloques.length} créneau(x) déjà occupé(s) — ces cours ne seront PAS créés :`
+                    : `${conflitsAValider.analyse.bloques.length} slot(s) already taken — these will NOT be created:`}
+                </p>
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {conflitsAValider.analyse.bloques.map((c, i) => (
+                    <li key={i}>• {decrireConflit(c)}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Le coach n'empêche pas : il peut superviser deux salles, ou
+                l'admin corrigera. Bloquer interdirait des plannings valides. */}
+            {conflitsAValider && conflitsAValider.analyse.avertissements.length > 0 && (
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+                <p className="font-medium">
+                  {isFr
+                    ? `${conflitsAValider.analyse.avertissements.length} conflit(s) de coach — le cours sera créé quand même :`
+                    : `${conflitsAValider.analyse.avertissements.length} coach conflict(s) — the class will still be created:`}
+                </p>
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {conflitsAValider.analyse.avertissements.map((c, i) => (
+                    <li key={i}>• {decrireConflit(c)}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <p className="font-medium">
+              {isFr
+                ? `${conflitsAValider?.lignes.length ?? 0} cours seront créés.`
+                : `${conflitsAValider?.lignes.length ?? 0} class(es) will be created.`}
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConflitsAValider(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={confirmerDuplication}
+              disabled={bulkSaving || (conflitsAValider?.lignes.length ?? 0) === 0}
+            >
+              {t('common.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

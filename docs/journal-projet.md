@@ -303,6 +303,47 @@ explication visible.
 > voulu, pas un défaut. Le staff, qui peut reculer, les verra sur la semaine du
 > 17 août : Personal Training (6) et Semi-privé (19).
 
+### Gestion du planning : filtres lisibles, conflits annoncés
+
+Deux signalements de Christian sur la même page admin.
+
+**La barre de filtres avait une ligne en trop.** Elle alignait tout par le bas
+(`items-end`), mais les champs portent un libellé au-dessus et les boutons non :
+« Réinitialiser » décrochait seul en bas, les libellés flottaient, et le tableau
+en devenait illisible. Chaque champ forme désormais sa propre colonne, et les
+flèches de période restent groupées avec les deux dates — elles forment un seul
+geste et ne doivent pas être séparées par un retour à la ligne.
+
+**La duplication vérifiait déjà les conflits, mais après coup.** La règle
+existait — même minute, même salle — et s'appliquait aussi à la création avec
+répétition. Elle écrivait cependant d'abord, puis annonçait « 2 ignorés » : sans
+dire lesquels, et sans possibilité de renoncer.
+
+Un dialogue s'ouvre maintenant **avant** d'écrire et nomme chaque cours
+concerné. Rien ne s'affiche s'il n'y a aucun conflit : l'admin a déjà cliqué.
+
+`analyserConflits` (`src/lib/conflits-planning.ts`) sort la logique de la page :
+elle servait déjà à deux endroits, dupliquée. Elle confronte les candidats aux
+cours existants **et entre eux** — dupliquer deux cours vers le même créneau doit
+se voir, alors qu'aucun des deux n'est encore en base.
+
+Deux natures de conflit, qui n'appellent pas la même réponse :
+
+- **Créneau occupé** (même minute, même salle) : bloquant. Deux cours ne tiennent
+  pas dans la même salle au même moment.
+- **Coach déjà pris** (même minute, salles différentes) : simple avertissement.
+  Rien ne le vérifiait, et c'est pourtant le conflit le plus coûteux — il ne se
+  découvre que le jour même, avec des membres inscrits des deux côtés. Bloquer
+  interdirait des plannings valides : un coach peut superviser deux salles.
+
+> **Corrigé au passage : une salle vide ne bloque plus.** La clé était
+> `heure|salle`, et une salle absente devenait `heure|` — deux cours sans salle
+> se bloquaient donc mutuellement, alors que rien ne dit qu'ils s'opposent. Cela
+> interdisait deux Personal Training simultanés avec deux coachs différents.
+
+Sept cas de test couvrent la logique : salle occupée, deux salles, salle vide,
+conflit de coach, candidats entre eux, précision à la minute, cas nominal.
+
 ### Ce qu'il reste à savoir sur la PWA
 
 - **Les notifications push** ne fonctionnent sur iOS qu'une fois l'application

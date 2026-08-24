@@ -75,6 +75,21 @@ C'est l'écran le plus utilisé. Chaque cours peut être ouvert pour :
 
 **Créer une série de cours.** Le formulaire propose de **répéter pour X semaines** : le cours est dupliqué à l'identique. Pour dupliquer autrement, le bouton **Dupliquer…** permet de choisir un décalage en jours.
 
+**Les conflits sont annoncés avant d'écrire.** Si la duplication tombe sur des
+créneaux déjà pris, une fenêtre s'ouvre et **nomme chaque cours concerné** — vous
+confirmez ou vous annulez. Rien ne s'affiche quand tout est libre.
+
+Deux natures de conflit, traitées différemment :
+
+| Conflit | Ce qui se passe |
+|---|---|
+| **Même heure, même salle** | Le cours n'est **pas** créé — deux cours ne tiennent pas dans une salle |
+| **Même coach, deux salles** | Le cours **est** créé, mais signalé — à vous de juger |
+
+> Deux cours **sans salle précisée** à la même heure ne posent pas de conflit :
+> rien ne dit qu'ils s'opposent. C'est le cas de deux Personal Training menés par
+> deux coachs différents.
+
 **Modifier une série.** Quand un cours fait partie d'une série, l'application demande si le changement vaut pour **ce cours uniquement** ou pour toute la suite. Vérifiez ce choix : c'est l'erreur la plus fréquente.
 
 **Modifier un cours qui a des inscrits.** Les membres sont prévenus, et le message **nomme ce qui change** : coach, salle, horaire, durée.
