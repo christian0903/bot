@@ -183,10 +183,19 @@ CREATE TABLE pack_types (
   -- « week » x 4 = 28 jours fixes, soit 13 échéances par an ; « month » x 1 =
   -- mois calendaire, 12 échéances. Les deux ne sont PAS équivalents.
   is_recurring BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Semaines ou mois : « tous les 72 jours » ne se dit pas, ne se compare pas,
+  -- et n'a aucun sens commercial. Un abonnement annuel se fait en mois x 12.
   recurring_interval TEXT
-    CHECK (recurring_interval IS NULL OR recurring_interval IN ('day', 'week', 'month')),
+    CHECK (recurring_interval IS NULL OR recurring_interval IN ('week', 'month')),
   recurring_interval_count INTEGER
     CHECK (recurring_interval_count IS NULL OR recurring_interval_count > 0),
+  -- Bornes de Stripe, pas un choix du studio : au-delà, le Price est refusé au
+  -- premier paiement et rien n'explique pourquoi.
+  CONSTRAINT pack_types_recurring_within_stripe_limits CHECK (
+    recurring_interval IS NULL
+    OR (recurring_interval = 'week'  AND recurring_interval_count BETWEEN 1 AND 52)
+    OR (recurring_interval = 'month' AND recurring_interval_count BETWEEN 1 AND 12)
+  ),
   -- Price Stripe, distinct par mode : un prix de test n'existe pas en live.
   stripe_price_id_test TEXT,
   stripe_price_id_live TEXT,

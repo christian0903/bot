@@ -430,6 +430,15 @@ Pour chaque pack :
 | **Validité** | Durée pendant laquelle les crédits restent utilisables. |
 | **Abonnement** | Renouvellement automatique. Demande une périodicité. |
 | **Catégories éligibles** | Restreint la vente à certaines catégories. Vide = ouvert à tous. |
+
+**Périodicité d'un abonnement** : semaines ou mois. Un **abonnement annuel** se
+règle sur « 12 mois » — il s'affichera « chaque année » chez le membre. Les
+maximums (52 semaines, 12 mois) viennent de Stripe, pas de l'application.
+
+> **Un pack déjà vendu ne se supprime pas.** La corbeille sera refusée, en
+> nommant la raison : l'achat deviendrait orphelin et le membre perdrait la trace
+> de crédits qu'il détient encore. Décochez **Actif** — le pack quitte le
+> catalogue, personne n'est touché.
 | **Catégorie attribuée** | Ce que l'achat donne au membre. Vide = ne change rien. |
 | **Catégorie après expiration** | Où il retombe quand plus aucun pack n'en accorde. |
 

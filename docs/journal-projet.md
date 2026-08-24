@@ -472,6 +472,40 @@ d'office à toute inscription, il est présent sur tous les comptes ; le prendre
 en compte rendrait la purge impossible en toutes circonstances. Le filtre porte
 donc sur `price_paid_cents > 0` — « aucun pack **payé** ».
 
+### Abonnements : semaines ou mois, et l'annuel confirmé possible
+
+Christian voulait s'assurer qu'un **abonnement annuel** est faisable, et retirer
+les jours de la périodicité.
+
+**L'annuel fonctionnait déjà** : `month × 12`, exactement la limite haute de
+Stripe. Il s'affiche désormais « chaque année » plutôt que « tous les 12 mois » —
+juste mais administratif, là où l'annuel est un argument de vente.
+
+**Les jours disparaissent.** « Tous les 72 jours » ne se dit pas, ne se compare
+pas, et n'a aucun sens commercial. Un seul pack l'utilisait — « abo 72j », sans
+aucun abonné — converti en 10 semaines par la migration (écart de deux jours,
+sans conséquence).
+
+**Les bornes de Stripe deviennent une contrainte**, en base et à la saisie : 52
+semaines, 12 mois. Rien ne l'empêchait auparavant — un « mois × 24 » passait la
+création puis se faisait refuser au premier paiement, sans explication. Changer
+d'unité ramène aussi le nombre dans les bornes plutôt que d'attendre le refus.
+
+### Supprimer un type de pack déjà vendu : dire pourquoi c'est refusé
+
+Signalé par Christian en tentant de supprimer « abo 72j » : « Une erreur est
+survenue », sans plus.
+
+La base refusait à raison — **un achat actif existait** : 18 crédits restants,
+valides jusqu'au 1er novembre. Supprimer le type aurait rendu cet achat orphelin,
+sans nom ni prix, et fait disparaître des crédits que le membre détient encore.
+
+Le défaut était donc l'écran, pas la règle. Les liens sont maintenant comptés
+**avant** de tenter, et le refus nomme sa raison en proposant l'issue :
+décocher « Actif » retire le pack du catalogue sans toucher aux membres qui le
+détiennent. Les erreurs restantes remontent leur message réel plutôt qu'un
+`common.error` générique.
+
 ### Le paiement n'ouvrait rien sur le web
 
 Signalé par Christian : cliquer « Continuer » pour payer les frais d'inscription

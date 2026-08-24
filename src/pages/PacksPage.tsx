@@ -24,14 +24,18 @@ import { motion } from 'framer-motion'
 function formatRecurrence(pack: PackType, isFr: boolean): string {
   const n = pack.recurring_interval_count ?? 1
   const unit = pack.recurring_interval
+  // Douze mois se dit « chaque année » : c'est ce que le membre comprend, et
+  // c'est ainsi qu'un abonnement annuel se vend. « Tous les 12 mois » est juste
+  // mais se lit comme une échéance administrative.
+  const estAnnuel = unit === 'month' && n === 12
   if (isFr) {
+    if (estAnnuel) return 'chaque année'
     if (unit === 'week') return n === 1 ? 'chaque semaine' : `toutes les ${n} semaines`
-    if (unit === 'month') return n === 1 ? 'chaque mois' : `tous les ${n} mois`
-    return n === 1 ? 'chaque jour' : `tous les ${n} jours`
+    return n === 1 ? 'chaque mois' : `tous les ${n} mois`
   }
+  if (estAnnuel) return 'every year'
   if (unit === 'week') return n === 1 ? 'every week' : `every ${n} weeks`
-  if (unit === 'month') return n === 1 ? 'every month' : `every ${n} months`
-  return n === 1 ? 'every day' : `every ${n} days`
+  return n === 1 ? 'every month' : `every ${n} months`
 }
 
 export function PacksPage() {

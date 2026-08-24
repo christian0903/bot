@@ -87,7 +87,7 @@ export interface PackType {
   /** Vendu en abonnement : renouvellement automatique par Stripe. */
   is_recurring: boolean
   /** Unité du cycle. « week » × 4 = 28 jours fixes ; « month » × 1 = mois calendaire. */
-  recurring_interval: 'day' | 'week' | 'month' | null
+  recurring_interval: 'week' | 'month' | null
   recurring_interval_count: number | null
   /** Price Stripe, distinct selon le mode : un prix de test n'existe pas en live. */
   stripe_price_id_test: string | null

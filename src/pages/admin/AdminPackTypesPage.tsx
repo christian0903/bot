@@ -51,7 +51,7 @@ interface PackTypeForm {
   /** Demi-largeur de la fenêtre, en jours (1 à 14). Va avec `quota_sessions`. */
   quota_days: number | null
   is_recurring: boolean
-  recurring_interval: 'day' | 'week' | 'month'
+  recurring_interval: 'week' | 'month'
   recurring_interval_count: number
   is_active: boolean
   category_ids: string[]
@@ -143,7 +143,9 @@ export function AdminPackTypesPage() {
       quota_sessions: pt.quota_sessions ?? null,
       quota_days: pt.quota_days ?? null,
       is_recurring: pt.is_recurring,
-      recurring_interval: pt.recurring_interval ?? 'week',
+      // Un ancien pack en jours (converti en base) ne doit pas rouvrir sur une
+      // valeur que le sélecteur ne propose plus.
+      recurring_interval: pt.recurring_interval === 'month' ? 'month' : 'week',
       recurring_interval_count: pt.recurring_interval_count ?? 4,
       is_active: pt.is_active,
       category_ids: pt.categories?.map(c => c.id) ?? [],
@@ -223,9 +225,31 @@ export function AdminPackTypesPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return
+
+    // Un type déjà vendu ne se supprime pas : la base le refuse, et elle a
+    // raison — l'achat deviendrait orphelin, sans nom ni prix, et le membre
+    // perdrait la trace de crédits qu'il détient encore. On le dit AVANT de
+    // tenter, plutôt que de laisser remonter un « une erreur est survenue »
+    // qui n'explique rien.
+    const [achats, abos, factures] = await Promise.all([
+      supabase.from('pack_purchases').select('id', { count: 'exact', head: true }).eq('pack_type_id', deleteTarget.id),
+      supabase.from('subscriptions').select('id', { count: 'exact', head: true }).eq('pack_type_id', deleteTarget.id),
+      supabase.from('invoice_requests').select('id', { count: 'exact', head: true }).eq('pack_type_id', deleteTarget.id),
+    ])
+    const lies = (achats.count ?? 0) + (abos.count ?? 0) + (factures.count ?? 0)
+
+    if (lies > 0) {
+      toast.error(isFr
+        ? `Impossible : ce pack a déjà été vendu (${lies} achat(s) ou abonnement(s)). Décochez « Actif » pour le retirer du catalogue sans toucher aux membres qui le détiennent.`
+        : `Not possible: this pack has already been sold (${lies} purchase(s) or subscription(s)). Uncheck “Active” to remove it from the catalogue without affecting members who hold it.`,
+        { duration: 8000 })
+      setDeleteTarget(null)
+      return
+    }
+
     await supabase.from('pack_type_categories').delete().eq('pack_type_id', deleteTarget.id)
     const { error } = await supabase.from('pack_types').delete().eq('id', deleteTarget.id)
-    if (error) { toast.error(t('common.error')); return }
+    if (error) { toast.error(error.message); return }
     toast.success(t('common.deleteSuccess'))
     setDeleteTarget(null)
     fetchData()
@@ -343,8 +367,7 @@ export function AdminPackTypesPage() {
                     {pt.is_recurring && pt.recurring_interval_count && (
                       <Badge variant="secondary" className="ml-1.5 text-[10px]">
                         {isFr ? 'tous les' : 'every'} {pt.recurring_interval_count}{' '}
-                        {pt.recurring_interval === 'day' ? (isFr ? 'j' : 'd')
-                          : pt.recurring_interval === 'month' ? (isFr ? 'mois' : 'mo')
+                        {pt.recurring_interval === 'month' ? (isFr ? 'mois' : 'mo')
                             : (isFr ? 'sem' : 'wk')}
                       </Badge>
                     )}
@@ -484,30 +507,44 @@ export function AdminPackTypesPage() {
                 <div className="space-y-2 pl-1">
                   <Label>{isFr ? 'Prélèvement tous les' : 'Charge every'}</Label>
                   <div className="flex gap-2 items-center">
+                    {/* Stripe plafonne à 52 semaines ou 12 mois. Sans borne, un
+                        « mois × 24 » passait la création et se faisait refuser au
+                        premier paiement, sans que rien n'explique pourquoi. */}
                     <Input
                       type="number"
                       min={1}
+                      max={form.recurring_interval === 'month' ? 12 : 52}
                       className="w-20"
                       value={form.recurring_interval_count}
-                      onChange={(e) => setForm(f => ({ ...f, recurring_interval_count: parseInt(e.target.value) || 1 }))}
+                      onChange={(e) => {
+                        const max = form.recurring_interval === 'month' ? 12 : 52
+                        const v = parseInt(e.target.value) || 1
+                        setForm(f => ({ ...f, recurring_interval_count: Math.min(Math.max(1, v), max) }))
+                      }}
                     />
                     <Select
                       value={form.recurring_interval}
-                      onValueChange={(val) =>
-                        setForm(f => ({ ...f, recurring_interval: (val as 'day' | 'week' | 'month') ?? 'week' }))
-                      }
+                      onValueChange={(val) => {
+                        const unite = (val as 'week' | 'month') ?? 'week'
+                        // Passer de semaines à mois peut rendre le nombre
+                        // invalide (52 semaines = 52 mois, refusé) : on le ramène
+                        // dans les bornes plutôt que d'attendre le refus.
+                        const max = unite === 'month' ? 12 : 52
+                        setForm(f => ({
+                          ...f,
+                          recurring_interval: unite,
+                          recurring_interval_count: Math.min(f.recurring_interval_count, max),
+                        }))
+                      }}
                     >
                       <SelectTrigger className="w-40">
                         <span>
-                          {form.recurring_interval === 'day'
-                            ? (isFr ? 'jours' : 'days')
-                            : form.recurring_interval === 'month'
-                              ? (isFr ? 'mois' : 'months')
-                              : (isFr ? 'semaines' : 'weeks')}
+                          {form.recurring_interval === 'month'
+                            ? (isFr ? 'mois' : 'months')
+                            : (isFr ? 'semaines' : 'weeks')}
                         </span>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="day">{isFr ? 'jours' : 'days'}</SelectItem>
                         <SelectItem value="week">{isFr ? 'semaines' : 'weeks'}</SelectItem>
                         <SelectItem value="month">{isFr ? 'mois' : 'months'}</SelectItem>
                       </SelectContent>
