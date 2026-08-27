@@ -2,19 +2,32 @@
  * Script de création des données de démonstration
  * Simule une migration depuis un système externe (Technogym, etc.)
  *
- * Usage: npx tsx scripts/import-demo.ts
+ * Usage: npx tsx --env-file=.env scripts/import-demo.ts
  *
  * Prérequis:
  * - npm install @supabase/supabase-js tsx
+ * - .env renseigné : VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
  * - Les types de cours, crédits et packs doivent déjà exister en base
  *   (exécuter la partie 1-3 de seed-all.sql d'abord)
  */
 
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'https://aojguoqxbzqcganxgqem.supabase.co'
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvamd1b3F4YnpxY2dhbnhncWVtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQ3MDE2NCwiZXhwIjoyMDkxMDQ2MTY0fQ.V1GRh_6s7SFbFYzEwb6N_ELNKXHgCoJmdAYnk7t2Y4E'
-const DEFAULT_PASSWORD = 'Demo12345678!'
+// La service_role contourne tout le RLS : elle ne doit jamais être écrite dans
+// un fichier versionné. Elle se lit dans .env (ignoré par git), sous
+// SUPABASE_SERVICE_ROLE_KEY — Dashboard → Settings → API.
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const DEFAULT_PASSWORD = process.env.DEMO_PASSWORD ?? 'Demo12345678!'
+
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  console.error(
+    'Il manque VITE_SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY.\n' +
+    'Les renseigner dans .env, puis relancer avec :\n' +
+    '  npx tsx --env-file=.env scripts/import-demo.ts'
+  )
+  process.exit(1)
+}
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false }
@@ -40,8 +53,6 @@ interface UserToCreate {
   price_paid_cents?: number
   // Registration fee paid?
   registration_fee?: boolean
-  // Trial used?
-  trial_used?: boolean
 }
 
 // Pack type IDs (doivent correspondre à ceux en base)
@@ -148,7 +159,6 @@ const USERS: UserToCreate[] = [
     address: 'Boulevard Anspach 80, 1000 Bruxelles',
     roles: ['client'],
     registration_fee: false,
-    trial_used: true,
   },
   {
     email: 'simona@demo.bot',
@@ -263,10 +273,12 @@ async function run() {
       })
     }
 
-    // 6. Trial session
-    if (u.trial_used) {
-      await supabase.from('trial_sessions').insert({ user_id: userId })
-    }
+    // 6. Séance d'essai : plus rien à écrire ici. Depuis le 2026-08-07 le pack
+    // d'essai est attribué automatiquement à la création du profil, et l'essai
+    // consommé est une réservation ordinaire (migration 20260807_pack_essai).
+    // L'ancien INSERT dans `trial_sessions` visait une table supprimée : il
+    // échouait en silence, Supabase ne levant pas d'exception sur un refus
+    // d'écriture.
 
     // 7. Update member status
     await supabase.rpc('update_member_status', { p_user_id: userId })

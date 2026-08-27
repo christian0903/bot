@@ -28,7 +28,7 @@ supabase/seed-demo-part1.sql
 Terminal :
 ```bash
 cd /Users/christian/bot
-npx tsx scripts/import-demo.ts
+npx tsx --env-file=.env scripts/import-demo.ts
 ```
 
 ### Étape 4 : Créer les cours + réservations

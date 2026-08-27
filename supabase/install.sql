@@ -3397,6 +3397,15 @@ BEGIN
 END;
 $fn$;
 
+-- Ces deux fonctions sont le SEUL chemin d'écriture dans user_roles : elles
+-- portent le contrôle de hiérarchie que les policies ne font plus. Laissées
+-- exécutables par PUBLIC, elles ouvriraient à un visiteur non authentifié ce
+-- qu'on vient de fermer aux admins.
+REVOKE ALL ON FUNCTION grant_user_role(UUID, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION revoke_user_role(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION grant_user_role(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION revoke_user_role(UUID, TEXT) TO authenticated;
+
 
 -- ---- Outil de test ----
 
@@ -4243,11 +4252,14 @@ CREATE POLICY "Profiles: admin update all" ON profiles FOR UPDATE USING (has_rol
 CREATE POLICY "Profiles: insert on signup" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- USER_ROLES
+-- Lecture seule, volontairement : aucune policy d'écriture. Les écritures
+-- passent par grant_user_role / revoke_user_role (SECURITY DEFINER), qui
+-- vérifient la hiérarchie. Une policy d'écriture rouvrirait la faille corrigée
+-- le 2026-08-06, où tout admin pouvait se créer un pair.
 CREATE POLICY "Roles: read own or admin" ON user_roles
   FOR SELECT USING (auth.uid() = user_id OR has_role(auth.uid(), 'admin'));
-CREATE POLICY "Roles: admin insert" ON user_roles FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Roles: admin update" ON user_roles FOR UPDATE USING (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Roles: admin delete" ON user_roles FOR DELETE USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Roles: admin read all" ON user_roles
+  FOR SELECT USING (has_role(auth.uid(), 'admin'));
 
 -- MEMBER_CATEGORIES
 CREATE POLICY "Categories: public read" ON member_categories FOR SELECT USING (true);
@@ -4343,20 +4355,22 @@ CREATE POLICY "Activity log: admin read" ON activity_log FOR SELECT USING (has_r
 CREATE POLICY "Activity log: coach read" ON activity_log FOR SELECT USING (has_role(auth.uid(), 'coach'));
 CREATE POLICY "Activity log: own read" ON activity_log FOR SELECT USING (auth.uid() = target_user_id);
 CREATE POLICY "Activity log: system insert" ON activity_log FOR INSERT WITH CHECK (true);
+CREATE POLICY "Activity log: admin insert" ON activity_log FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Activity log: coach insert" ON activity_log FOR INSERT WITH CHECK (has_role(auth.uid(), 'coach'));
 
 -- REGISTRATION_FEES
-CREATE POLICY "Reg fees: own read" ON registration_fees FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Reg fees: admin read" ON registration_fees FOR SELECT USING (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Reg fees: insert" ON registration_fees FOR INSERT WITH CHECK (true);
-CREATE POLICY "Reg fees: admin all" ON registration_fees FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "reg_fees_own_read" ON registration_fees FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "reg_fees_admin_read" ON registration_fees FOR SELECT USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "reg_fees_insert" ON registration_fees FOR INSERT WITH CHECK (true);
+CREATE POLICY "reg_fees_admin_all" ON registration_fees FOR ALL USING (has_role(auth.uid(), 'admin'));
 
 -- Séances d'essai : plus de table dédiée depuis le 2026-08-07. Les policies de
 -- `bookings` couvrent l'essai, qui est une réservation comme une autre.
 
 -- INVOICE_REQUESTS
-CREATE POLICY "Invoice: own read" ON invoice_requests FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Invoice: own insert" ON invoice_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Invoice: admin all" ON invoice_requests FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "invoice_own_read" ON invoice_requests FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "invoice_own_insert" ON invoice_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "invoice_admin_all" ON invoice_requests FOR ALL USING (has_role(auth.uid(), 'admin'));
 
 -- PERFORMANCE_TYPES
 ALTER TABLE performance_types ENABLE ROW LEVEL SECURITY;
@@ -4374,6 +4388,9 @@ CREATE POLICY "Perf: own read" ON performances FOR SELECT
   USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
 CREATE POLICY "Perf: insert" ON performances FOR INSERT
   WITH CHECK (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+-- Le coach corrige ses propres fautes de frappe après encodage pour un membre :
+-- sans lui, il encode mais ne peut plus rien reprendre (migration
+-- 20260511_perf_rls_coach_update.sql).
 CREATE POLICY "Perf: update" ON performances FOR UPDATE
   USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
 CREATE POLICY "Perf: delete" ON performances FOR DELETE
@@ -4432,9 +4449,12 @@ CREATE POLICY "rewards_admin_all" ON referral_rewards
 
 -- ---- Badges ----
 CREATE POLICY "badges_own_read" ON member_badges
-  FOR SELECT USING (auth.uid() = user_id OR has_role(auth.uid(), 'admin'));
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "badges_admin_read" ON member_badges
+  FOR SELECT USING (has_role(auth.uid(), 'admin'));
+-- Les badges sont attribués par des fonctions serveur, pas par le membre.
 CREATE POLICY "badges_insert" ON member_badges
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT WITH CHECK (true);
 
 -- ============================================
 -- 6. VUE : profils des coachs

@@ -91,14 +91,16 @@ Le script `scripts/import-demo.ts` crée les utilisateurs via l'**API Admin Supa
 
 ### 2.2 Prérequis
 
-- La **service_role key** de Supabase (Dashboard → Settings → API)
+- La **service_role key** de Supabase (Dashboard → Settings → API), renseignée
+  dans `.env` sous `SUPABASE_SERVICE_ROLE_KEY`. Elle contourne tout le RLS :
+  ne jamais l'écrire dans un fichier versionné
 - Les types de cours, crédits et packs déjà créés en base (via l'interface admin ou SQL)
 - `tsx` installé : `npm install tsx`
 
 ### 2.3 Lancer l'import demo
 
 ```bash
-npx tsx scripts/import-demo.ts
+npx tsx --env-file=.env scripts/import-demo.ts
 ```
 
 Ce script crée :
@@ -121,7 +123,7 @@ Pour repartir de zéro (garde le super_admin et la config) :
 supabase/reset-test-data.sql
 
 # 2. Relancer l'import :
-npx tsx scripts/import-demo.ts
+npx tsx --env-file=.env scripts/import-demo.ts
 ```
 
 ---
