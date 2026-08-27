@@ -68,10 +68,18 @@ WITH attendu(tbl, pol) AS (VALUES
   ('performance_types','PerfTypes: coach/admin insert'),
   ('performance_types','PerfTypes: coach/admin update'),
   ('performance_types','PerfTypes: read all'),
--- ATTENTION : la base porte encore `Perf: own update` / `own delete`, qui
--- n'autorisent PAS le coach. La migration 20260511_perf_rls_coach_update.sql,
--- qui les renomme en `Perf: update` / `Perf: delete` et ouvre au coach, n'a
--- jamais été appliquée. Cette liste décrit le réel, pas l'intention.
+-- ATTENTION : cette liste décrit `bot`, qui porte encore `Perf: own insert /
+-- own update / own delete` — les deux dernières n'autorisant PAS le coach. La
+-- migration 20260511_perf_rls_coach_update.sql, qui les renomme en `Perf:
+-- update` / `Perf: delete` et ouvre au coach, n'y a jamais été appliquée.
+--
+-- Une base neuve installée depuis install.sql porte, elle, les noms corrigés :
+-- ce contrôle y signale donc 6 anomalies sur performances (3 EN TROP, 3
+-- MANQUANTES). C'est l'écart attendu tant que la migration n'est pas passée
+-- sur bot — vérifié sur bot2 le 2026-08-27. Le jour où elle sera appliquée,
+-- remplacer les quatre lignes ci-dessous par :
+--   ('performances','Perf: own read'), ('performances','Perf: insert'),
+--   ('performances','Perf: update'),   ('performances','Perf: delete')
   ('performances','Perf: own delete'),
   ('performances','Perf: own insert'),
   ('performances','Perf: own read'),

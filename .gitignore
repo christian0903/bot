@@ -46,3 +46,6 @@ android/app/debug/
 
 # Cache de la CLI Supabase (versions des services, regenere a chaque commande)
 supabase/.temp/
+
+# Dumps de base : contiennent des données de membres, jamais dans le dépôt
+.dumps/

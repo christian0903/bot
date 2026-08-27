@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-24**
+> Dernière mise à jour : **2026-08-27**
 
 ---
 
@@ -43,6 +43,44 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
 2. **Politique de confidentialité avec URL publique** — livrée, page `/privacy`.
+
+---
+
+## Session du 2026-08-27
+
+Partie d'une question d'exploitation — vider la base de test pour la recharger —
+la session a découvert que `install.sql` **réintroduisait la faille des rôles
+corrigée le 6 août** : il recréait les trois policies d'écriture sur
+`user_roles` que la migration avait supprimées, et omettait les `REVOKE ALL`
+sur `grant_user_role` / `revoke_user_role`. La base, elle, était saine — seule
+une installation faite depuis ce fichier serait née vulnérable. Corrigé.
+
+`reset-test-data.sql` ignorait huit tables apparues depuis le 7 août, dont deux
+avec une clé étrangère en `NO ACTION` : il n'effaçait pas à moitié, il
+**échouait**. Réécrit, puis exécuté réellement sur une base jetable — ce qui a
+révélé un neuvième oubli qu'aucune lecture n'aurait vu : les admins conservés
+pointent vers `member_categories`, qu'on ne peut donc pas vider avant eux.
+
+`check-policies.sql` ne cherchait que les policies *manquantes*, alors que la
+faille du 6 août était une policy *en trop* : il était aveugle au cas qui
+comptait. Il compare désormais dans les deux sens, sur les 89 policies réelles.
+
+**`install.sql` a été rejoué d'un bloc sur une base neuve : il passe.** Résultat
+identique à la production (27 tables, 89 policies, 76 fonctions, 12 triggers).
+C'est la première fois que ce fichier est éprouvé de bout en bout.
+
+Deux trouvailles dans `import-demo.ts` : la clé `service_role` y était en clair
+dans un fichier versionné — sortie vers `.env`, **à régénérer** puisqu'elle
+reste dans l'historique git ; et le script écrivait encore dans
+`trial_sessions`, supprimée le 7 août, l'erreur n'étant pas testée (règle n° 5).
+
+**Décidé** : ne pas migrer `bot` vers Francfort (gain de ~15 ms, contre un
+risque sur les comptes et les abonnements Stripe — la région se choisit à la
+création) ; ne pas vider `bot`, qui sera remplacée puis gardée comme filet ; ne
+pas y appliquer la migration `20260511` du bug coach sur les performances, pour
+la même raison. Le développement local passe sur une base séparée.
+
+La marche à suivre est dans **`docs/strategie-base-neuve.md`**.
 
 ---
 
