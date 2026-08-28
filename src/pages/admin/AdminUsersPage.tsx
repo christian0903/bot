@@ -818,22 +818,34 @@ export function AdminUsersPage() {
                   }}
                 >
                   <SelectTrigger>
-                    <span>
+                    <span className={selectedPack && !selectedPack.is_active
+                      ? 'text-amber-700 dark:text-amber-500'
+                      : undefined}>
                       {selectedPack
-                        ? `${selectedPack.name} — ${formatPackCredits(selectedPack, isFr)}`
+                        ? `${selectedPack.name} — ${formatPackCredits(selectedPack, isFr)}${
+                            selectedPack.is_active ? '' : (isFr ? ' (hors catalogue)' : ' (off catalogue)')
+                          }`
                         : t('admin.users.selectPack')}
                     </span>
                   </SelectTrigger>
                   <SelectContent>
+                    {/* Un pack hors catalogue s'attribue mais ne s'achète pas.
+                        Il se distingue à la couleur et à la puce, pas seulement
+                        à une mention en fin de ligne : dans une liste longue, le
+                        texte se lit après coup, la couleur avant. */}
                     {packTypes.map(pt => (
-                      <SelectItem key={pt.id} value={pt.id}>
-                        {pt.name} — {formatPackCredits(pt, isFr)} — {formatEuros(pt.price_cents, 0)}
-                        {/* Un pack hors catalogue s'attribue mais ne s'achète
-                            pas : le dire ici évite de le choisir par erreur en
-                            croyant qu'il est en vente. */}
+                      <SelectItem
+                        key={pt.id}
+                        value={pt.id}
+                        className={!pt.is_active ? 'text-amber-700 dark:text-amber-500' : undefined}
+                      >
                         {!pt.is_active && (
-                          <span className="text-muted-foreground">
-                            {isFr ? ' — hors catalogue' : ' — off catalogue'}
+                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                        )}
+                        {pt.name} — {formatPackCredits(pt, isFr)} — {formatEuros(pt.price_cents, 0)}
+                        {!pt.is_active && (
+                          <span className="text-xs opacity-70">
+                            {isFr ? '(hors catalogue)' : '(off catalogue)'}
                           </span>
                         )}
                       </SelectItem>

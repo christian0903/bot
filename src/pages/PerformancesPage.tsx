@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { Activity, Plus, Pencil, Trash2, Settings, Trophy } from 'lucide-react'
+import { Activity, Plus, Pencil, Trash2, Settings, Trophy, Target } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
@@ -53,7 +53,7 @@ export function PerformancesPage() {
   const { i18n } = useTranslation()
   const isFr = i18n.language === 'fr'
   const locale = isFr ? fr : enUS
-  const { user, hasRole } = useAuth()
+  const { user, profile, hasRole } = useAuth()
   const navigate = useNavigate()
   const canManageTypes = hasRole('coach') || hasRole('admin')
 
@@ -367,6 +367,61 @@ export function PerformancesPage() {
           </Button>
         </div>
       </div>
+
+      {/* L'objectif du membre, rappelé au moment de noter un score.
+          Il vit dans le profil, un écran qu'on ouvre à l'inscription puis
+          presque jamais : le relire ici, c'est se souvenir de ce qu'on mesure
+          et pourquoi. Le même quel que soit le mouvement — c'est un cap, pas
+          une consigne d'exercice. */}
+      <Card className={profile?.objectives ? 'border-primary/20 bg-primary/5' : 'border-dashed'}>
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className={cn(
+              'h-8 w-8 rounded-lg flex items-center justify-center shrink-0',
+              profile?.objectives ? 'bg-primary/10' : 'bg-muted',
+            )}>
+              <Target className={cn(
+                'h-4 w-4',
+                profile?.objectives ? 'text-primary' : 'text-muted-foreground',
+              )} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {isFr ? 'Mon objectif' : 'My goal'}
+              </p>
+              {profile?.objectives ? (
+                /* whitespace-pre-line : le champ est un textarea, ses retours à
+                   la ligne font partie de ce que le membre a écrit. */
+                <p className="text-sm mt-0.5 whitespace-pre-line">{profile.objectives}</p>
+              ) : (
+                /* Un objectif vide ne laisse pas un blanc : la carte devient
+                   l'invitation à le remplir, au moment précis où il servirait —
+                   devant ses propres chiffres. Le profil est un écran qu'on
+                   ouvre à l'inscription puis presque plus jamais. */
+                <p className="text-sm mt-0.5 text-muted-foreground">
+                  {isFr
+                    ? 'Vous n\'avez pas encore noté votre objectif. Le définir aide à situer vos progrès.'
+                    : 'You have not set a goal yet. Defining one helps put your progress in context.'}
+                </p>
+              )}
+              {/* Le bouton reste dans les deux cas : un objectif se révise en
+                  cours de route, et le chemin pour le faire ne doit pas
+                  disparaître une fois qu'il est rempli. */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => navigate('/profile')}
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                {profile?.objectives
+                  ? (isFr ? 'Modifier mon objectif' : 'Edit my goal')
+                  : (isFr ? 'Compléter mon objectif' : 'Set my goal')}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {activeTypes.length === 0 && (
         <Card>
