@@ -97,6 +97,15 @@ export function AdminDashboardPage() {
    * achats de juillet.
    */
   const [parcours, setParcours] = useState({ inscriptions: 0, essais: 0, achats: 0 })
+  /**
+   * Crédits jamais utilisés sur des packs arrivés à échéance PENDANT la
+   * période. Ce qui a été payé et pas consommé : le studio l'a encaissé, le
+   * membre ne l'a pas eu. Un chiffre qui monte signale des packs trop gros ou
+   * une validité trop courte.
+   *
+   * Les illimités sont exclus : `credits_remaining` n'y veut rien dire.
+   */
+  const [creditsPerdus, setCreditsPerdus] = useState({ nombre: 0, valeurCents: 0 })
 
   const [detailDialog, setDetailDialog] = useState<'packs' | 'credits' | 'coach' | null>(null)
   const [selectedCoach, setSelectedCoach] = useState<CoachStat | null>(null)
@@ -311,6 +320,29 @@ export function AdminDashboardPage() {
     // 4. Étapes du parcours franchies dans la période. Une fonction SQL plutôt
     // qu'une agrégation ici : elle date les transitions par des MIN(), ce qui
     // se fait mal côté client sans tout charger.
+    // 5. Crédits perdus : packs échus dans la période avec du solde restant.
+    const { data: expires } = await supabase
+      .from('pack_purchases')
+      .select('credits_remaining, price_paid_cents, pack_type:pack_types(name, credit_count, is_unlimited)')
+      .gte('expires_at', from)
+      .lte('expires_at', to)
+      .gt('credits_remaining', 0)
+
+    let perdusNombre = 0
+    let perdusValeur = 0
+    for (const p of expires ?? []) {
+      const pt = one(p.pack_type)
+      // Un illimité n'a pas de solde au sens propre : `credits_remaining` n'y
+      // veut rien dire, et rien n'y est « perdu » — le membre a eu son accès.
+      if (pt?.is_unlimited) continue
+      perdusNombre += p.credits_remaining
+      // Même valorisation que pour un crédit consommé, pour que les deux
+      // chiffres s'additionnent honnêtement.
+      perdusValeur += (creditValueCents(p.price_paid_cents, pt, unlimitedSessionCost) ?? 0)
+        * p.credits_remaining
+    }
+    setCreditsPerdus({ nombre: perdusNombre, valeurCents: perdusValeur })
+
     const { data: par } = await supabase.rpc('stats_parcours', { p_from: from, p_to: to })
     const ligne = Array.isArray(par) ? par[0] : par
     setParcours({
@@ -350,6 +382,19 @@ export function AdminDashboardPage() {
   const coursDonnes = coachStats.reduce((s, c) => s + c.class_count, 0)
   const revenuMoyenParSeance = coursDonnes > 0 ? totalClassRevenue / coursDonnes : null
   const inscritsParCours = coursDonnes > 0 ? totalCreditsConsumed / coursDonnes : null
+
+  /**
+   * Valeur produite : ce que le studio a encaissé ET acquis sur la période —
+   * les crédits consommés, plus ceux qui ont expiré sans être utilisés. Un
+   * crédit perdu a été payé : il est acquis au studio, même si le membre n'est
+   * pas venu.
+   *
+   * Distincte de la valeur consommée, qui ne compte que les séances réellement
+   * suivies. Les ratios « par cours donné » se calculent sur celle-ci et non
+   * sur la valeur produite : un crédit expiré n'est rattaché à aucun cours, et
+   * l'inclure gonflerait le rendement apparent d'un créneau.
+   */
+  const valeurProduite = totalClassRevenue + creditsPerdus.valeurCents
 
 
   const presets: { value: PeriodPreset; label: string }[] = [
@@ -547,9 +592,7 @@ export function AdminDashboardPage() {
                   {isFr ? 'Valeur consommée' : 'Value consumed'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {revenuMoyenParSeance !== null
-                    ? `${formatEuros(revenuMoyenParSeance, 0)} ${isFr ? 'par séance donnée' : 'per class given'}`
-                    : (isFr ? 'aucune séance donnée' : 'no class given')}
+                  {bookings.length} {isFr ? 'séance(s) suivie(s)' : 'session(s) attended'}
                 </p>
               </CardContent>
             </Card>
@@ -561,6 +604,70 @@ export function AdminDashboardPage() {
               content des personnes qui franchissent une étape, celles-là de
               l'argent et des cours. Les mêler dans une grille unique laissait
               croire à une continuité qui n'existe pas. */}
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* Valeur par cours donné : ce que rapporte un créneau, quelle que
+                soit sa fréquentation. Comparable d'un mois à l'autre, là où le
+                total dépend du nombre de cours au programme. */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center">
+                    <CalendarDays className="h-5 w-5 text-indigo-600" />
+                  </div>
+                </div>
+                <p className="text-3xl font-bold">
+                  {revenuMoyenParSeance !== null ? formatEuros(revenuMoyenParSeance, 0) : '—'}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isFr ? 'Valeur par cours donné' : 'Value per class given'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {coursDonnes} {isFr ? 'cours donné(s)' : 'class(es) given'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Crédits perdus : payés, jamais consommés, le pack ayant expiré.
+                Le studio les a encaissés, le membre ne les a pas eus. Un
+                chiffre qui monte signale des packs trop gros, ou une durée de
+                validité trop courte. */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-orange-100 dark:bg-orange-950 flex items-center justify-center">
+                    <CreditCard className="h-5 w-5 text-orange-600" />
+                  </div>
+                </div>
+                <p className="text-3xl font-bold">{creditsPerdus.nombre}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isFr ? 'Crédits perdus' : 'Credits lost'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatEuros(creditsPerdus.valeurCents, 0)} — {isFr ? 'packs échus, solde non utilisé' : 'expired packs, unused balance'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Valeur produite : consommée + perdue. Ce que le studio a acquis
+                sur la période, qu'un membre soit venu ou non. */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center">
+                    <Euro className="h-5 w-5 text-emerald-600" />
+                  </div>
+                </div>
+                <p className="text-3xl font-bold">{formatEuros(valeurProduite, 0)}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isFr ? 'Valeur produite' : 'Value produced'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'consommée + perdue' : 'consumed + lost'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-3">
             {/* ---- Le parcours, en trois nombres bruts ----
                 Inscription → essai réservé → pack acheté, aux noms des statuts

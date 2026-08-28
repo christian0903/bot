@@ -291,6 +291,33 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Ce qui est payé et jamais consommé
+
+Trois cartes s'ajoutent, et une distinction avec elles.
+
+**Crédits perdus** : les soldes de packs arrivés à échéance sans avoir été
+utilisés — 27 crédits, 904 €, sur l'ensemble de l'historique de `bot`. Le studio
+les a encaissés, le membre ne les a pas eus. Un chiffre qui monte signale des
+packs trop gros ou une validité trop courte. Comptés sur la période
+d'**échéance**, comme les autres cartes suivent la période affichée.
+
+Les packs illimités en sont exclus : `credits_remaining` n'y représente rien, et
+le membre a eu son accès — il n'a rien perdu.
+
+**Valeur produite** = consommée + perdue. Christian a d'abord demandé que la
+valeur consommée intègre les crédits perdus, ce qui est économiquement juste :
+un crédit expiré a été payé. Mais cela aurait faussé « valeur par cours donné »,
+un crédit expiré n'étant rattaché à aucun cours — l'inclure gonflerait le
+rendement apparent d'un créneau alors que personne n'est venu. D'où deux
+chiffres distincts plutôt qu'un seul ambigu.
+
+**Valeur par cours donné** quitte la petite ligne sous les crédits pour avoir sa
+carte.
+
+Les deux valorisations passent par la même fonction `creditValueCents` — prix du
+pack divisé par son nombre de crédits — de sorte que consommé et perdu
+s'additionnent honnêtement.
+
 ### Le tableau de bord suit le parcours, en chiffres bruts
 
 Sept cartes sur deux lignes : l'activité d'un côté, les membres de l'autre. Les
