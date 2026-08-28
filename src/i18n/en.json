@@ -17,7 +17,8 @@
     "coach": "Coach Area",
     "login": "Login",
     "logout": "Logout",
-    "myInvoices": "My invoices"
+    "myInvoices": "My invoices",
+    "coachMembers": "Members"
   },
   "auth": {
     "login": "Login",

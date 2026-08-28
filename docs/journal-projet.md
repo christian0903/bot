@@ -291,6 +291,46 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Un coach peut lire les performances d'un membre
+
+La policy `Perf: own read` autorisait déjà un coach à lire les performances de
+n'importe quel membre — **l'écran manquait, pas le droit**. Deux chemins, selon
+ce qu'on cherche :
+
+- **depuis la fiche d'un cours**, le nom de chaque inscrit est cliquable : le
+  coach prépare sa séance depuis la liste qu'il a sous les yeux ;
+- **depuis une page « Membres »** (nouvelle entrée de l'espace coach), avec
+  recherche par nom et le nombre de mesures par membre — ce qui distingue d'un
+  coup d'œil ceux qui suivent leur progression.
+
+La fiche reprend l'objectif du membre, ses mouvements, la courbe et le record.
+**Lecture seule** : la policy autoriserait l'écriture, c'est un choix et non un
+oubli — le membre reste maître de ce qu'il enregistre.
+
+La page « Membres » est volontairement pauvre : nom, photo, nombre de mesures.
+Ni coordonnées ni données de santé — elles relèvent de la fiche membre côté
+administration, et un coach n'a pas à y accéder par ce chemin.
+
+> La barre du bas en mode coach remplace « Perfs » (les *types* de performance)
+> par « Membres » : consulter une fiche est un geste de tous les cours, définir
+> un type se fait une fois. Les types restent au menu du haut.
+
+**Le guide admin disait une chose devenue fausse** : « un coach ne voit ni Mes
+cours, ni Mes packs, ni Performances ». C'était vrai avant le sélecteur de mode ;
+le staff qui s'entraîne au studio les retrouve en mode Membre. Corrigé au
+passage.
+
+### L'objectif du membre, là où il sert
+
+Le champ « objectifs » du profil s'affiche en tête de la page Mes performances,
+le même quel que soit le mouvement — c'est un cap, pas une consigne d'exercice.
+Le profil est un écran qu'on ouvre à l'inscription puis presque jamais ; relire
+son objectif devant ses propres chiffres lui redonne un usage.
+
+Vide, le champ ne laisse pas un blanc : la carte devient l'invitation à le
+remplir. Et le bouton vers le profil reste présent une fois l'objectif écrit —
+il se révise en cours de route.
+
 ### Attribuer un pack hors catalogue, pour la reprise des soldes
 
 L'écran d'attribution d'un pack ne proposait que les packs `is_active = true`.

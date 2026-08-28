@@ -1058,11 +1058,20 @@ export function CoachClassDetailPage() {
                         </button>
                       </div>
 
-                      <div>
-                        <p className={cn('font-medium', isNoShow && 'line-through text-muted-foreground')}>
+                      <div className="min-w-0">
+                        {/* Le nom mène aux performances du membre : le coach
+                            prépare sa séance depuis la liste qu'il a sous les
+                            yeux, sans passer par une recherche. */}
+                        <button
+                          onClick={() => navigate(`/coach/member/${booking.user_id}/performances`)}
+                          className={cn(
+                            'font-medium text-left hover:underline underline-offset-2 truncate',
+                            isNoShow && 'line-through text-muted-foreground',
+                          )}
+                        >
                           {booking.user?.display_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
+                        </button>
+                        <p className="text-xs text-muted-foreground truncate">
                           {booking.user?.phone || booking.user?.email}
                         </p>
                       </div>

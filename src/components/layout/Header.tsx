@@ -83,6 +83,7 @@ export function Header() {
     // `hasRole('admin')`, un admin qui donne des cours devait taper l'URL à la
     // main pour atteindre un écran qui lui était pourtant ouvert.
     { label: t('nav.coach'), path: '/coach/my-classes', show: isStaff && mode === 'coach' },
+    { label: t('nav.coachMembers'), path: '/coach/members', show: isStaff && mode === 'coach' },
     { label: t('nav.admin'), path: '/admin/users', show: hasRole('admin') && mode === 'admin' },
   ].filter((item) => item.show)
 

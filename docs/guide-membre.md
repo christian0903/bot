@@ -255,6 +255,15 @@ Dans **Mes packs**, ton abonnement affiche son état et sa prochaine échéance.
 
 **Performances** — tes mesures et leur évolution, si le studio les suit.
 
+Ton **objectif** s'affiche en haut de cette page, tel que tu l'as écrit dans ton
+profil. Il ne change pas d'un mouvement à l'autre : c'est ton cap, pas une
+consigne d'exercice. Si tu ne l'as pas encore noté, un bouton t'invite à le
+faire — et il reste ensuite disponible pour le modifier, un objectif se révisant
+en cours de route.
+
+Tes coachs peuvent consulter tes performances et ton objectif. Ils ne les
+modifient pas : c'est toi qui enregistres tes mesures.
+
 **Stats** — nombre de séances, régularité, types de cours.
 
 ### Supprimer mon compte

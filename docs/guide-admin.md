@@ -243,9 +243,21 @@ Un coach y trouve ses cours et ses chiffres.
 
 **Un admin y accède aussi**, par le lien **Coach** du menu principal — au même titre qu'un coach simple. Il y voit les cours dont **il est lui-même le coach**, pas ceux de toute l'équipe : pour la vue d'ensemble, c'est Administration → Gestion du planning. Utile quand on cumule les deux casquettes et qu'on donne des cours.
 
-### Le menu du staff n'affiche pas les écrans membres
+### Consulter les performances d'un membre
 
-Un coach ou un admin ne voit ni *Mes cours*, ni *Mes packs*, ni *Performances*, ni *Packs* : le staff ne s'entraîne pas au studio, ces écrans n'auraient rien à lui montrer.
+Deux chemins, selon ce qu'on cherche.
+
+**Depuis un cours** — dans la fiche d'un cours, le nom de chaque inscrit est cliquable et mène à ses performances. C'est le geste rapide : préparer sa séance depuis la liste qu'on a sous les yeux.
+
+**Depuis Membres** — l'entrée *Membres* de l'espace coach donne la liste complète, avec une recherche par nom. Chaque ligne indique le nombre de mesures enregistrées, ce qui distingue d'un coup d'œil ceux qui suivent leur progression.
+
+La fiche montre l'**objectif** du membre, ses mouvements, la courbe de progression et le record. En **lecture seule** : le membre reste maître de ce qu'il enregistre.
+
+Cette page ne montre ni coordonnées, ni informations de santé — elles relèvent de la fiche membre, côté Administration.
+
+### Le menu suit le mode choisi
+
+Un coach ou un admin ne voit pas les écrans membres — *Mes cours*, *Mes packs*, *Performances* — tant qu'il est en mode Coach ou Admin. Ils réapparaissent en **mode Membre**, pour le staff qui s'entraîne aussi au studio (voir *Changer de casquette*).
 
 Le **planning** reste dans son menu — c'est aussi son outil de travail : lui seul y voit les cours à surveiller et les décisions en attente.
 

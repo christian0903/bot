@@ -38,6 +38,8 @@ const ManagePerformanceTypesPage = lazy(() => import('@/pages/ManagePerformanceT
 // Pages coach (lazy)
 const CoachClassesPage = lazy(() => import('@/pages/coach/CoachClassesPage').then(m => ({ default: m.CoachClassesPage })))
 const CoachClassDetailPage = lazy(() => import('@/pages/coach/CoachClassDetailPage').then(m => ({ default: m.CoachClassDetailPage })))
+const CoachMembersPage = lazy(() => import('@/pages/coach/CoachMembersPage').then(m => ({ default: m.CoachMembersPage })))
+const CoachMemberPerformancesPage = lazy(() => import('@/pages/coach/CoachMemberPerformancesPage').then(m => ({ default: m.CoachMemberPerformancesPage })))
 
 // Pages admin (lazy)
 const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })))
@@ -111,6 +113,8 @@ function App() {
                   {/* Coach */}
                   <Route path="/coach/my-classes" element={<AuthGuard><RoleGuard roles={['coach', 'admin']}><Lazy><CoachClassesPage /></Lazy></RoleGuard></AuthGuard>} />
                   <Route path="/coach/class/:id" element={<AuthGuard><RoleGuard roles={['coach', 'admin']}><Lazy><CoachClassDetailPage /></Lazy></RoleGuard></AuthGuard>} />
+                  <Route path="/coach/members" element={<AuthGuard><RoleGuard roles={['coach', 'admin']}><Lazy><CoachMembersPage /></Lazy></RoleGuard></AuthGuard>} />
+                  <Route path="/coach/member/:userId/performances" element={<AuthGuard><RoleGuard roles={['coach', 'admin']}><Lazy><CoachMemberPerformancesPage /></Lazy></RoleGuard></AuthGuard>} />
 
                   {/* Admin */}
                   <Route path="/admin" element={<AuthGuard><RoleGuard roles={['admin']}><AdminLayout /></RoleGuard></AuthGuard>}>

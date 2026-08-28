@@ -43,7 +43,10 @@ export function MobileBottomNav() {
     { path: '/dashboard', icon: Home, label: t('nav.home') },
     { path: '/coach/my-classes', icon: Dumbbell, label: isFr ? 'Mes cours' : 'My classes' },
     { path: '/schedule', icon: CalendarDays, label: t('nav.schedule') },
-    { path: '/performance-types', icon: ClipboardList, label: isFr ? 'Perfs' : 'Perfs' },
+    // « Membres » plutôt que les types de performance : consulter la fiche
+    // d'un membre est un geste de tous les cours, définir un type se fait une
+    // fois. Les types restent au menu du haut.
+    { path: '/coach/members', icon: Users, label: isFr ? 'Membres' : 'Members' },
   ]
 
   // Membre : « Mes cours » plutôt que les stats — le planning signale les cours
