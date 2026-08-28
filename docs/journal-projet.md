@@ -291,6 +291,19 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Attribuer un pack hors catalogue, pour la reprise des soldes
+
+L'écran d'attribution d'un pack ne proposait que les packs `is_active = true`.
+Or la bascule depuis l'ancien système demande le geste inverse : créer un pack
+**artificiel** portant le solde d'un membre, le laisser hors catalogue pour que
+personne ne puisse l'acheter, et l'attribuer à la main. Le filtre interdisait
+précisément ce cas.
+
+Le filtre est levé — la policy de lecture autorisait déjà l'admin à voir ces
+packs, seule la requête les écartait. Les packs actifs restent en tête de liste,
+et ceux qui sont hors catalogue portent la mention « hors catalogue » : les
+choisir doit rester un acte délibéré.
+
 ### Un lien dans une annonce ne se voyait pas
 
 Les annonces, la description d'un cours et la présentation d'un coach étaient

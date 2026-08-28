@@ -219,10 +219,18 @@ export function AdminUsersPage() {
 
   useEffect(() => {
     fetchUsers()
+    // Les packs hors catalogue sont chargés eux aussi : un admin doit pouvoir
+    // en attribuer un. C'est le cas de la reprise d'un ancien système — on crée
+    // un pack artificiel pour reporter le solde d'un membre, on le laisse
+    // inactif pour que personne ne puisse l'acheter, et on l'attribue à la
+    // main. Le filtre `is_active` interdisait précisément ce geste.
+    //
+    // La policy de lecture autorise déjà l'admin à les voir ; seul ce filtre
+    // les écartait.
     supabase
       .from('pack_types')
       .select('*, credit_type:credit_types(*)')
-      .eq('is_active', true)
+      .order('is_active', { ascending: false })
       .order('name')
       .then(({ data }) => setPackTypes((data as PackType[]) ?? []))
   }, [])
@@ -820,6 +828,14 @@ export function AdminUsersPage() {
                     {packTypes.map(pt => (
                       <SelectItem key={pt.id} value={pt.id}>
                         {pt.name} — {formatPackCredits(pt, isFr)} — {formatEuros(pt.price_cents, 0)}
+                        {/* Un pack hors catalogue s'attribue mais ne s'achète
+                            pas : le dire ici évite de le choisir par erreur en
+                            croyant qu'il est en vente. */}
+                        {!pt.is_active && (
+                          <span className="text-muted-foreground">
+                            {isFr ? ' — hors catalogue' : ' — off catalogue'}
+                          </span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
