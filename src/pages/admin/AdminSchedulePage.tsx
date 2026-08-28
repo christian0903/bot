@@ -1060,7 +1060,15 @@ export function AdminSchedulePage() {
                 value={form.class_type_id || undefined}
                 onValueChange={(val) => {
                   const ct = classTypes.find(c => c.id === val)
-                  setForm(f => ({ ...f, class_type_id: val ?? '', max_participants: ct?.default_max_participants ?? f.max_participants }))
+                  // La durée suit le type au même titre que la capacité : un
+                  // semi-privé dure 50 min, un personal training 60. Elle reste
+                  // modifiable juste en dessous, cours par cours.
+                  setForm(f => ({
+                    ...f,
+                    class_type_id: val ?? '',
+                    max_participants: ct?.default_max_participants ?? f.max_participants,
+                    duration_minutes: ct?.default_duration_minutes ?? f.duration_minutes,
+                  }))
                 }}
               >
                 <SelectTrigger>

@@ -100,6 +100,9 @@ export function AdminPackTypesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<PackType | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<PackType | null>(null)
+  /** Les packs retirés du catalogue sont repliés par défaut : ils restent utiles
+      (des membres les détiennent) mais n'ont plus à occuper la liste. */
+  const [afficherArchives, setAfficherArchives] = useState(false)
   const [form, setForm] = useState<PackTypeForm>(emptyForm)
 
   const fetchData = async () => {
@@ -319,9 +322,16 @@ export function AdminPackTypesPage() {
     | { kind: 'header'; key: string; recurring: boolean; count: number }
     | { kind: 'pack'; pt: PackType }
 
+  // Un pack retiré du catalogue reste en base tant que des membres le
+  // détiennent — c'est le sens de `is_active`. Mais il encombre la liste :
+  // 6 des 13 types du studio sont dans ce cas. On les replie par défaut, avec
+  // le compte visible pour qu'ils ne soient pas oubliés.
+  const archives = packTypes.filter(pt => !pt.is_active)
+  const visibles = afficherArchives ? packTypes : packTypes.filter(pt => pt.is_active)
+
   const groupedPackTypes: Row[] = (() => {
     const byType = new Map<string, { label: string; packs: PackType[] }>()
-    for (const pt of packTypes) {
+    for (const pt of visibles) {
       const key = pt.credit_type_id
       const label = (isFr ? pt.credit_type?.label_fr : pt.credit_type?.label_en)
         ?? pt.credit_type?.name ?? (isFr ? 'Sans type' : 'No type')
@@ -355,6 +365,31 @@ export function AdminPackTypesPage() {
           {t('admin.packTypes.add')}
         </Button>
       </div>
+
+      {/* Pourquoi la corbeille n'est pas là où on l'attend. Un admin qui cherche
+          à supprimer ne trouvait aucun bouton et aucune explication : le message
+          n'existait que pour le super admin, et seulement après avoir cliqué.
+          C'est ce silence qui a fait remonter la demande. */}
+      <p className="text-sm text-muted-foreground bg-muted/50 border rounded-lg px-4 py-3">
+        {isFr
+          ? 'Un pack déjà vendu ne se supprime pas : les membres qui le détiennent perdraient la trace de leurs crédits. Décochez « Actif » pour le retirer du catalogue — il reste utilisable par ceux qui l\'ont acheté. Seul un super admin peut effacer un pack jamais vendu.'
+          : 'A pack that has been sold cannot be deleted: members holding it would lose track of their credits. Uncheck “Active” to remove it from the catalogue — it stays usable for those who bought it. Only a super admin can delete a pack that was never sold.'}
+      </p>
+
+      {archives.length > 0 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            {archives.length} {isFr
+              ? (archives.length > 1 ? 'packs retirés du catalogue' : 'pack retiré du catalogue')
+              : (archives.length > 1 ? 'packs out of catalogue' : 'pack out of catalogue')}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => setAfficherArchives(v => !v)}>
+            {afficherArchives
+              ? (isFr ? 'Masquer' : 'Hide')
+              : (isFr ? 'Afficher' : 'Show')}
+          </Button>
+        </div>
+      )}
 
       {packTypes.length === 0 ? (
         <EmptyState icon={Package} message={t('common.noResults')} actionLabel={t('admin.packTypes.add')} onAction={openAdd} />

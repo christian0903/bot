@@ -90,6 +90,13 @@ export function AdminDashboardPage() {
   const [packSales, setPackSales] = useState<PackSale[]>([])
   const [bookings, setBookings] = useState<BookingDetail[]>([])
   const [coachStats, setCoachStats] = useState<CoachStat[]>([])
+  /**
+   * Minutes de cours réellement DONNÉS sur la période — même définition que
+   * `class_count` : passé, non annulé, au moins `minParticipants` inscrits.
+   * Sert de dénominateur aux ratios « par heure de cours ». Prendre les cours
+   * planifiés diluerait le chiffre avec des créneaux qui n'ont jamais eu lieu.
+   */
+  const [minutesGiven, setMinutesGiven] = useState(0)
 
   const [detailDialog, setDetailDialog] = useState<'packs' | 'credits' | 'coach' | null>(null)
   const [selectedCoach, setSelectedCoach] = useState<CoachStat | null>(null)
@@ -178,7 +185,7 @@ export function AdminDashboardPage() {
     // PLANIFIÉS (ils étaient au programme) mais jamais dans les cours DONNÉS.
     const { data: allClassesInPeriod } = await supabase
       .from('scheduled_classes')
-      .select('id, class_type_id, coach_id, starts_at, title, is_cancelled, class_type:class_types(name)')
+      .select('id, class_type_id, coach_id, starts_at, duration_minutes, title, is_cancelled, class_type:class_types(name)')
       .gte('starts_at', from)
       .lte('starts_at', to)
       .order('starts_at')
@@ -249,6 +256,7 @@ export function AdminDashboardPage() {
     //    réuni au moins `minParticipants` inscrits.
     const nowTs = Date.now()
     const coachMap = new Map<string, CoachStat>()
+    let minutes = 0
     for (const sc of allClassesInPeriod ?? []) {
       // Les cours à venir ne sont comptés dans aucun des deux compteurs.
       if (new Date(sc.starts_at).getTime() >= nowTs) continue
@@ -286,7 +294,12 @@ export function AdminDashboardPage() {
 
       // Le cours est forcément passé et non annulé ici : reste le seuil.
       const wasGiven = classBookings.length >= minParticipants
-      if (wasGiven) stat.class_count++
+      if (wasGiven) {
+        stat.class_count++
+        // duration_minutes est NOT NULL DEFAULT 60 en base ; le repli ne sert
+        // qu'au cas où la colonne manquerait à la sélection.
+        minutes += sc.duration_minutes ?? 60
+      }
 
       stat.total_bookings += classBookings.length
       stat.total_revenue_cents += classRevenue
@@ -300,6 +313,7 @@ export function AdminDashboardPage() {
       })
     }
     setCoachStats([...coachMap.values()].sort((a, b) => b.total_revenue_cents - a.total_revenue_cents))
+    setMinutesGiven(minutes)
 
     setLoading(false)
   }
@@ -308,6 +322,18 @@ export function AdminDashboardPage() {
   const totalRevenue = packSales.reduce((s, p) => s + p.price_paid_cents, 0)
   const totalCreditsConsumed = bookings.length
   const totalClassRevenue = bookings.reduce((s, b) => s + b.credit_value_cents, 0)
+
+  /**
+   * Remplissage : crédits consommés par heure de cours donnée. Dit ce qu'un
+   * créneau rapporte en fréquentation, indépendamment de sa durée — un
+   * semi-privé de 50 min et un personal training d'une heure ne se comparent
+   * pas au nombre brut de réservations.
+   *
+   * `null` tant qu'aucun cours n'a été donné sur la période : afficher 0 ferait
+   * lire « personne ne vient » là où il n'y a simplement rien à mesurer.
+   */
+  const heuresDonnees = minutesGiven / 60
+  const creditsParHeure = heuresDonnees > 0 ? totalCreditsConsumed / heuresDonnees : null
 
   const presets: { value: PeriodPreset; label: string }[] = [
     { value: 'week', label: isFr ? 'Cette semaine' : 'This week' },
@@ -457,6 +483,12 @@ export function AdminDashboardPage() {
                 <p className="text-xs text-muted-foreground">
                   {isFr ? 'Valeur' : 'Value'}: {formatEuros(totalClassRevenue, 0)}
                 </p>
+                {creditsParHeure !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    {creditsParHeure.toFixed(1)} {isFr ? 'par heure de cours' : 'per class hour'}
+                    <span className="opacity-60"> ({heuresDonnees.toFixed(0)} h)</span>
+                  </p>
+                )}
               </CardContent>
             </Card>
 

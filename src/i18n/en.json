@@ -6,10 +6,10 @@
   "nav": {
     "home": "Home",
     "schedule": "Schedule",
-    "myBookings": "My Bookings",
+    "myBookings": "My classes",
     "myPacks": "My Packs",
     "packs": "Buy a Pack",
-    "performances": "Performances",
+    "performances": "My performance",
     "profile": "Profile",
     "notifications": "Notifications",
     "help": "Help",

@@ -334,6 +334,10 @@ CREATE TABLE class_types (
   description TEXT,
   credit_type_id UUID NOT NULL REFERENCES credit_types(id),
   default_max_participants INTEGER DEFAULT 4,
+  -- Préremplit la durée à la création d'un cours, comme le fait déjà
+  -- default_max_participants pour la capacité. 60 par défaut : la valeur que le
+  -- formulaire posait en dur avant que ce réglage existe.
+  default_duration_minutes INTEGER NOT NULL DEFAULT 60,
   color TEXT DEFAULT '#3B82F6',
   image_url TEXT,
   description_md TEXT,

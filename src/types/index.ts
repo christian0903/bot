@@ -197,6 +197,8 @@ export interface ClassType {
   image_url: string | null
   credit_type_id: string
   default_max_participants: number
+  /** Préremplit la durée à la création d'un cours planifié. */
+  default_duration_minutes: number
   color: string
   is_active: boolean
   created_at: string

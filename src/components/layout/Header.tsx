@@ -76,8 +76,10 @@ export function Header() {
     { label: t('nav.home'), path: user ? '/dashboard' : '/', show: true },
     { label: t('nav.schedule'), path: '/schedule', show: !!user },
     { label: t('nav.myBookings'), path: '/my-bookings', show: !!user && enMembre },
-    { label: t('nav.myPacks'), path: '/my-packs', show: !!user && enMembre },
+    // Même ordre que la barre du bas (accueil | planning | mes cours | mes
+    // performances) : deux navigations qui se contredisent obligent à chercher.
     { label: t('nav.performances'), path: '/performances', show: !!user && enMembre },
+    { label: t('nav.myPacks'), path: '/my-packs', show: !!user && enMembre },
     { label: t('nav.packs'), path: '/packs', show: !!user && enMembre },
     // L'admin y a droit — la route accepte déjà `['coach', 'admin']`. Sans ce
     // `hasRole('admin')`, un admin qui donne des cours devait taper l'URL à la

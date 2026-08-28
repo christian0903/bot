@@ -291,6 +291,50 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Lot A des remarques coachs — cinq points livrés
+
+Les remarques de Gauthier et Joan ont été classées en trois lots ; le premier
+est livré. Deux bugs avaient déjà été corrigés le matin (bouton mort sur les
+chronos, « 0 crédit ») — restaient cinq améliorations sans décision préalable.
+
+**Durée par défaut par type de cours.** Nouvelle colonne
+`class_types.default_duration_minutes`, propagée au choix du type dans le
+formulaire de planification — au même endroit que `default_max_participants`,
+qui faisait déjà ce travail pour la capacité.
+
+> La demande disait « semi-privés = 50 min, personal training = 1 h ». Or
+> **aucun type ne s'appelle « semi-privé »** : ce que les coachs désignent ainsi,
+> ce sont les cours de groupe (BackOnTrack, Boxing, CrossTraining, Ladies,
+> Posture — 5 places), par opposition au personal training (2 places). Les
+> valeurs ont donc été posées sur `default_max_participants`, un critère qui
+> existe en base, plutôt que sur des libellés renommables. « Événement spécial »
+> (20 places) garde 60 : sa durée varie, un défaut n'y veut rien dire.
+
+**Packs archivés repliés, et l'explication qui manquait.** Six des treize types
+de packs sont hors catalogue et encombraient la liste : ils sont repliés, avec
+un compteur et un bouton pour les révéler. S'ajoute un encadré permanent,
+visible de **tous** les admins, disant pourquoi un pack vendu ne se supprime pas
+et que décocher « Actif » est le geste attendu.
+
+C'est ce silence qui avait produit la demande de corbeille : le message
+d'explication n'existait que pour le super admin, et seulement après un clic sur
+un bouton que les autres ne voient pas.
+
+**Onglets membre** : accueil │ planning │ mes cours │ mes performances, même
+ordre en haut et en bas. « Mes packs » quitte la barre du bas — elle ne tient
+que quatre entrées — et reste au menu du haut.
+
+**Crédits consommés par heure de cours**, sur la carte du tableau de bord. Le
+dénominateur est celui des heures **réellement données** (passées, non annulées,
+au moins `min_participants` inscrits) : c'est la définition que la page utilise
+déjà pour compter les cours donnés, et les heures planifiées dilueraient le
+ratio avec des créneaux qui n'ont pas eu lieu.
+
+**Reste à faire** : lot B (suppression multiple de cours, € par heure) et lot C
+(statuts de membre et conversion). Le lot C porte un bug non demandé — le
+recalcul de `member_status` n'est déclenché par presque rien, et **9 profils sur
+23 portent un statut faux**.
+
 ### `bot` alignée sur `install.sql` — trois policies restées en arrière
 
 Christian a tranché : **`bot` est la référence absolue.** La base de

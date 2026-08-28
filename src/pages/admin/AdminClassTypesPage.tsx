@@ -44,6 +44,7 @@ interface ClassTypeForm {
   image_url: string
   credit_type_id: string
   default_max_participants: number
+  default_duration_minutes: number
   is_active: boolean
 }
 
@@ -54,6 +55,7 @@ const emptyForm: ClassTypeForm = {
   image_url: '',
   credit_type_id: '',
   default_max_participants: 4,
+  default_duration_minutes: 60,
   is_active: true,
 }
 
@@ -119,6 +121,7 @@ export function AdminClassTypesPage() {
       image_url: ct.image_url ?? '',
       credit_type_id: ct.credit_type_id,
       default_max_participants: ct.default_max_participants ?? 8,
+      default_duration_minutes: ct.default_duration_minutes ?? 60,
       is_active: ct.is_active,
     })
     setDialogOpen(true)
@@ -132,6 +135,7 @@ export function AdminClassTypesPage() {
       image_url: form.image_url || null,
       credit_type_id: form.credit_type_id,
       default_max_participants: form.default_max_participants,
+      default_duration_minutes: form.default_duration_minutes,
       is_active: form.is_active,
     }
     if (editing) {
@@ -303,6 +307,21 @@ export function AdminClassTypesPage() {
                 value={form.default_max_participants}
                 onChange={(e) => setForm(f => ({ ...f, default_max_participants: parseInt(e.target.value) || 8 }))}
               />
+            </div>
+            <div>
+              <Label>{isFr ? 'Durée par défaut (minutes)' : 'Default duration (minutes)'}</Label>
+              <Input
+                type="number"
+                min={5}
+                step={5}
+                value={form.default_duration_minutes}
+                onChange={(e) => setForm(f => ({ ...f, default_duration_minutes: parseInt(e.target.value) || 60 }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {isFr
+                  ? 'Proposée à la création d\'un cours de ce type. Reste modifiable cours par cours.'
+                  : 'Suggested when scheduling a class of this type. Still editable per class.'}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Switch

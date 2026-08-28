@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import {
-  Home, CalendarDays, CreditCard, ClipboardList,
+  Home, CalendarDays, ClipboardList,
   LayoutDashboard, Users, Dumbbell, Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -54,8 +54,12 @@ export function MobileBottomNav() {
     // espace d'administration, ce qui annulerait le mode choisi.
     { path: '/dashboard', icon: Home, label: t('nav.home') },
     { path: '/schedule', icon: CalendarDays, label: t('nav.schedule') },
-    { path: '/my-bookings', icon: ClipboardList, label: isFr ? 'Mes cours' : 'My classes' },
-    { path: '/my-packs', icon: CreditCard, label: t('packs.myPacks') },
+    { path: '/my-bookings', icon: ClipboardList, label: t('nav.myBookings') },
+    // « Mes performances » prend la place de « Mes packs » (demande des coachs,
+    // 2026-08-28). La barre du bas ne tient que quatre entrées ; les packs
+    // restent au menu du haut, et se consultent moins souvent qu'un suivi de
+    // progression.
+    { path: '/performances', icon: Dumbbell, label: isFr ? 'Mes performances' : 'My performance' },
   ]
 
   const items = mode === 'admin' ? adminItems : mode === 'coach' ? coachItems : memberItems
