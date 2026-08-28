@@ -84,11 +84,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const fetchRoles = async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
-    setRoles(data?.map((r) => r.role as UserRole) ?? [])
+
+    // Un refus de lecture est indiscernable d'un compte sans rôle : les deux
+    // donnent `data = null`, et l'application se contente alors d'afficher une
+    // interface de simple membre. Le 2026-08-28, une base neuve à qui aucun
+    // GRANT n'avait été accordé a ainsi privé un super_admin de tous ses
+    // écrans — sans le moindre message, ni à l'écran ni en console.
+    //
+    // On distingue donc les deux cas. Les rôles ne sont PAS vidés sur erreur :
+    // un incident réseau passager ne doit pas dégrader une session en cours.
+    if (error) {
+      console.error(
+        '[auth] Lecture des rôles refusée — l\'interface restera en mode membre.',
+        error,
+      )
+      return
+    }
+
+    setRoles(data.map((r) => r.role as UserRole))
   }
 
   const fetchMemberFlags = async (userId: string) => {

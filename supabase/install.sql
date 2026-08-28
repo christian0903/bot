@@ -4819,6 +4819,46 @@ REVOKE ALL ON FUNCTION client_tracking_stats() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION client_tracking_stats() TO authenticated;
 
 -- ============================================
+-- 8. DROITS DE TABLE (GRANT)
+-- ============================================
+--
+-- RLS ne sert à rien sans ces GRANT : ce sont deux contrôles superposés, et le
+-- droit SQL s'applique AVANT la policy. Une table protégée par RLS mais sans
+-- GRANT n'est pas « sécurisée », elle est inaccessible — PostgREST répond
+-- `permission denied for table ...`, sur toutes les lignes.
+--
+-- Sur un projet Supabase créé avec « Automatically expose new tables » activé,
+-- ces droits sont posés automatiquement (`pg_default_acl`) et install.sql n'a
+-- jamais eu à les porter. C'est ce qui a masqué leur absence : la base `bot`
+-- les a reçus à sa création en avril, et le fichier paraissait complet.
+--
+-- Le 2026-08-28, une installation faite sur une base neuve avec cette option
+-- DÉCOCHÉE — comme le recommande `docs/strategie-base-neuve.md`, pour ne pas
+-- exposer une table avant qu'elle soit protégée — a produit une base dont les
+-- 27 tables refusaient toute lecture. Les compteurs de contrôle (tables,
+-- policies, fonctions, triggers) étaient pourtant tous justes : aucun ne
+-- regardait les droits.
+--
+-- Accorder ces droits n'expose rien tant que RLS est actif sur chaque table et
+-- que chaque table porte ses policies — c'est fait aux sections 4 et 5.
+-- C'est le modèle de Supabase : le GRANT ouvre la porte, la policy décide qui
+-- passe et sur quelles lignes.
+--
+-- Ce bloc vient EN DERNIER, une fois tous les objets créés : `ON ALL TABLES`
+-- ne vaut que pour ce qui existe déjà, et la vue `coach_profiles` de la
+-- section 6 serait sautée s'il était placé plus haut.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+
+-- Les tables créées PLUS TARD (migration, nouvelle fonctionnalité) doivent
+-- hériter des mêmes droits, sans quoi le défaut réapparaîtrait table par table
+-- et le bug se rejouerait au prochain ajout.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
+
+-- ============================================
 -- INSTALLATION TERMINÉE
 -- ============================================
 -- Prochaines étapes :

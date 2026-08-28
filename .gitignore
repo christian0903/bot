@@ -24,9 +24,11 @@ dist-ssr
 *.sw?
 
 # Environment variables
+# `.env.example` reste versionne : c'est le modele, sans aucune cle.
+# Tout le reste porte des cles et ne doit jamais partir dans un commit.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Capacitor build artifacts
 ios/App/build/

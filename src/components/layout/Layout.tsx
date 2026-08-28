@@ -2,10 +2,14 @@ import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { Footer } from './Footer'
 import { MobileBottomNav } from './MobileBottomNav'
+import { BandeauBase } from '@/components/common/BandeauBase'
 
 export function Layout() {
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Au-dessus du header : sur une base de test, c'est la première chose
+          à voir, avant même le nom du studio. Ne rend rien en production. */}
+      <BandeauBase />
       <Header />
       <main className="flex-1 container mx-auto max-w-7xl px-4 py-6 md:pb-6">
         <Outlet />

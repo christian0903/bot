@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-27**
+> Dernière mise à jour : **2026-08-28**
 
 ---
 
@@ -43,6 +43,86 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
 2. **Politique de confidentialité avec URL publique** — livrée, page `/privacy`.
+
+---
+
+## Session du 2026-08-28
+
+**`install.sql` produisait des bases inutilisables.** Le fichier ne posait
+aucun `GRANT` de table : ses 36 `GRANT` portaient tous sur des fonctions. Une
+base installée depuis lui refusait toute lecture sur ses 27 tables —
+`permission denied for table ...` — alors que RLS, policies, fonctions et
+triggers étaient parfaits. Une policy ne s'applique qu'**après** le droit SQL :
+une table sous RLS mais sans `GRANT` n'est pas protégée avec soin, elle est
+fermée.
+
+Le défaut ne se voyait pas parce qu'un projet Supabase créé avec
+« Automatically expose new tables » pose ces droits tout seul (`pg_default_acl`).
+`bot` les a reçus à sa création en avril ; le fichier n'a donc jamais eu à les
+porter. Or `strategie-base-neuve.md` recommandait de **décocher** cette case,
+pour ne pas exposer une table avant qu'elle soit protégée. Le fichier et la
+procédure se contredisaient, chacun paraissant correct isolément.
+
+**Le symptôme était trompeur.** L'application se chargeait, la connexion
+réussissait, mais tout écran restait vide et un `super_admin` fraîchement promu
+n'avait ni le mode Admin ni le mode Coach. La base était pourtant juste : c'est
+le front qui lisait `user_roles`, recevait un refus, et le traitait comme « ce
+compte n'a aucun rôle ». `fetchRoles` faisait `const { data } = await …` sans
+tester `error` — la règle n° 5, une fois de plus. Corrigé : l'erreur est
+distinguée du cas « aucun rôle » et tracée ; les rôles ne sont plus vidés sur
+erreur, un incident réseau ne devant pas dégrader une session ouverte.
+
+**Ce que les contrôles du 27 août ne pouvaient pas voir.** `install.sql` avait
+été rejoué et déclaré conforme la veille — 27 tables, 89 policies, 76 fonctions,
+12 triggers, tous exacts. Aucun de ces compteurs ne regardait les droits. La
+base était certifiée complète et refusait toute lecture. `check-policies.sql`
+vérifie désormais aussi les `GRANT`, et signale une table dont RLS serait
+désactivé. Lancé sur `bot` et sur la base de développement : muet des deux
+côtés.
+
+Les `GRANT` entrent dans `install.sql` en **section 8, placée en dernier** :
+`ON ALL TABLES` ne vaut que pour ce qui existe déjà, et la vue `coach_profiles`
+de la section 6 aurait été sautée plus haut. Un `ALTER DEFAULT PRIVILEGES`
+accompagne, sans quoi le défaut reviendrait table par table au prochain ajout.
+
+> **`bot` n'a pas le problème mais n'a pas non plus ce garde-fou** : le jour où
+> une migration y crée une table, celle-ci naîtra sans droits et le bug se
+> rejouera, en production. Appliquer `20260828_grants_tables.sql` sur `bot` la
+> mettrait à l'abri — **non fait**, en attente de décision.
+
+**Deux fichiers `.env`, et un bandeau qui dit où l'on est.** `.env.test` (base
+de développement) et `.env.ops` (base opérationnelle), qu'on met en service par
+`cp`. La mécanique est volontairement bête — un `IF` dans un `.env` n'existe
+pas, ce n'est pas un langage — mais elle laissait un angle mort : le `.env` en
+service ne disait pas d'où il venait. D'où un bandeau orange en tête de
+l'application, affiché **hors production uniquement**. En ops, le silence est
+le signal : un avertissement permanent finit par ne plus être lu. Le défaut
+penche du côté sûr, toute valeur autre que `ops` déclenche le bandeau, y compris
+une variable absente. Vérifié dans les deux sens sur le contenu du bundle : en
+production le texte n'est pas masqué, il est **absent du code livré**.
+
+Au passage, `.gitignore` ne couvrait que `.env` et `.env.*.local` : `.env.test`
+et `.env.ops` seraient partis dans un commit avec leurs clés. Corrigé en
+`.env.*` avec exception `!.env.example`.
+
+**`supabase/promouvoir-super-admin.sql`** : le premier compte d'une base neuve
+ne peut pas se promouvoir lui-même — depuis le 6 août `user_roles` n'a plus
+aucune policy d'écriture, et `grant_user_role()` exige d'être déjà admin. Une
+seule ligne à modifier, l'adresse. Il refuse une adresse inexistante au lieu de
+la laisser passer pour un succès : sans ce contrôle, l'`INSERT` touche zéro
+ligne sans lever d'erreur. Sans `\set`, qui est une commande psql et ne
+fonctionne pas dans l'éditeur du dashboard. Éprouvé sur les trois cas — adresse
+inconnue, promotion, rejeu.
+
+**Décidé** : pas d'écran d'amorçage du premier `super_admin` dans
+l'application. Il devrait écrire dans `user_roles`, donc rouvrir ce qu'on a
+fermé le 6 août ; l'installation reste une opération manuelle, faite une fois
+par base, par quelqu'un qui a déjà les accès au dashboard.
+
+**Reste ouvert** : la copie des données de `bot` vers la base de développement
+(`scripts/copier-bot-vers-bot2.sh`, toujours pas exécuté), et les **10 Edge
+Functions dont aucune n'est déployée** sur cette base — le front en appelle
+huit en dur, donc paiements, e-mails et création de comptes y échoueront.
 
 ---
 

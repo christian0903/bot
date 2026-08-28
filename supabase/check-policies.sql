@@ -133,3 +133,44 @@ LEFT JOIN attendu a
 WHERE p.schemaname = 'public' AND a.pol IS NULL
 
 ORDER BY 1, 2, 3;
+
+-- ============================================================================
+-- Droits de table (GRANT)
+-- ============================================================================
+--
+-- Ajouté le 2026-08-28, après un bug que ce fichier ne pouvait pas voir.
+--
+-- Une policy ne s'applique QU'APRÈS le droit SQL. Une table protégée par RLS
+-- mais sans GRANT n'est pas « verrouillée avec soin » : elle est inaccessible,
+-- et PostgREST répond `permission denied for table ...` quelle que soit la
+-- policy. Les 89 policies pouvaient donc être parfaites et l'application
+-- entièrement vide — c'est exactement ce qui est arrivé sur une base neuve
+-- créée sans « Automatically expose new tables ».
+--
+-- Les compteurs de contrôle (tables, policies, fonctions, triggers) étaient
+-- tous justes. Aucun ne regardait les droits. D'où ce second volet.
+--
+-- Aucune ligne = conforme.
+
+SELECT 'DROIT MANQUANT' AS anomalie,
+       c.relname AS tablename,
+       r.rolname || ' : ' || a.priv AS policyname
+FROM pg_class c
+CROSS JOIN (VALUES ('anon'), ('authenticated')) AS r(rolname)
+CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE')) AS a(priv)
+WHERE c.relnamespace = 'public'::regnamespace
+  AND c.relkind IN ('r', 'v')
+  AND NOT has_table_privilege(r.rolname, c.oid, a.priv)
+
+UNION ALL
+
+-- L'inverse : une table qui aurait perdu RLS serait, elle, réellement ouverte.
+-- Le GRANT et RLS ne valent que l'un avec l'autre.
+SELECT 'RLS DESACTIVE', c.relname, '(table exposee sans filtrage)'
+FROM pg_class c
+WHERE c.relnamespace = 'public'::regnamespace
+  AND c.relkind = 'r'
+  AND NOT c.relrowsecurity
+
+ORDER BY 1, 2, 3;
+

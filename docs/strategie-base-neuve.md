@@ -56,6 +56,15 @@ Dashboard Supabase → New project, dans l'organisation **Pro**.
   lui-même, et `install.sql` pose ses propres policies. Laisser cette option
   exposerait des tables avant qu'elles ne soient protégées.
 
+  > **Depuis le 2026-08-28, `install.sql` pose lui-même les `GRANT`** (section 8),
+  > ce qui rend cette case sans effet sur le résultat final. Ce n'était pas le
+  > cas avant : le fichier ne posait aucun droit de table, et la base installée
+  > refusait toute lecture sur ses 27 tables — `permission denied for table`.
+  > Le symptôme était trompeur : l'application se chargeait, la connexion
+  > réussissait, mais tout écran restait vide et un `super_admin` n'avait
+  > accès à rien. Aucun compteur de contrôle ne le voyait ; `check-policies.sql`
+  > vérifie désormais aussi les droits.
+
 ### 2. Installer le schéma
 
 Le fichier passe **d'un seul bloc** par `psql` — le découpage en sections A et
