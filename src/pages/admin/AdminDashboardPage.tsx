@@ -90,13 +90,6 @@ export function AdminDashboardPage() {
   const [packSales, setPackSales] = useState<PackSale[]>([])
   const [bookings, setBookings] = useState<BookingDetail[]>([])
   const [coachStats, setCoachStats] = useState<CoachStat[]>([])
-  /**
-   * Minutes de cours réellement DONNÉS sur la période — même définition que
-   * `class_count` : passé, non annulé, au moins `minParticipants` inscrits.
-   * Sert de dénominateur aux ratios « par heure de cours ». Prendre les cours
-   * planifiés diluerait le chiffre avec des créneaux qui n'ont jamais eu lieu.
-   */
-  const [minutesGiven, setMinutesGiven] = useState(0)
 
   const [detailDialog, setDetailDialog] = useState<'packs' | 'credits' | 'coach' | null>(null)
   const [selectedCoach, setSelectedCoach] = useState<CoachStat | null>(null)
@@ -185,7 +178,7 @@ export function AdminDashboardPage() {
     // PLANIFIÉS (ils étaient au programme) mais jamais dans les cours DONNÉS.
     const { data: allClassesInPeriod } = await supabase
       .from('scheduled_classes')
-      .select('id, class_type_id, coach_id, starts_at, duration_minutes, title, is_cancelled, class_type:class_types(name)')
+      .select('id, class_type_id, coach_id, starts_at, title, is_cancelled, class_type:class_types(name)')
       .gte('starts_at', from)
       .lte('starts_at', to)
       .order('starts_at')
@@ -256,7 +249,6 @@ export function AdminDashboardPage() {
     //    réuni au moins `minParticipants` inscrits.
     const nowTs = Date.now()
     const coachMap = new Map<string, CoachStat>()
-    let minutes = 0
     for (const sc of allClassesInPeriod ?? []) {
       // Les cours à venir ne sont comptés dans aucun des deux compteurs.
       if (new Date(sc.starts_at).getTime() >= nowTs) continue
@@ -294,12 +286,7 @@ export function AdminDashboardPage() {
 
       // Le cours est forcément passé et non annulé ici : reste le seuil.
       const wasGiven = classBookings.length >= minParticipants
-      if (wasGiven) {
-        stat.class_count++
-        // duration_minutes est NOT NULL DEFAULT 60 en base ; le repli ne sert
-        // qu'au cas où la colonne manquerait à la sélection.
-        minutes += sc.duration_minutes ?? 60
-      }
+      if (wasGiven) stat.class_count++
 
       stat.total_bookings += classBookings.length
       stat.total_revenue_cents += classRevenue
@@ -313,7 +300,6 @@ export function AdminDashboardPage() {
       })
     }
     setCoachStats([...coachMap.values()].sort((a, b) => b.total_revenue_cents - a.total_revenue_cents))
-    setMinutesGiven(minutes)
 
     setLoading(false)
   }
@@ -324,16 +310,28 @@ export function AdminDashboardPage() {
   const totalClassRevenue = bookings.reduce((s, b) => s + b.credit_value_cents, 0)
 
   /**
-   * Remplissage : crédits consommés par heure de cours donnée. Dit ce qu'un
-   * créneau rapporte en fréquentation, indépendamment de sa durée — un
-   * semi-privé de 50 min et un personal training d'une heure ne se comparent
-   * pas au nombre brut de réservations.
-   *
-   * `null` tant qu'aucun cours n'a été donné sur la période : afficher 0 ferait
-   * lire « personne ne vient » là où il n'y a simplement rien à mesurer.
+   * Remplissage moyen : inscrits par cours donné. C'est la maille utile — le
+   * studio raisonne en cours, pas en heures. Un ratio « par heure » obligeait à
+   * traduire mentalement un semi-privé de 50 min en 0,83 heure, sans rien
+   * apporter : deux formats de cours qui se comparent bien sont le
+   * semi-privé et le personal training, et c'est leur remplissage qui parle,
+   * pas leur durée.
    */
-  const heuresDonnees = minutesGiven / 60
-  const creditsParHeure = heuresDonnees > 0 ? totalCreditsConsumed / heuresDonnees : null
+
+  /**
+   * Revenu moyen par séance donnée. `totalClassRevenue` additionne, réservation
+   * par réservation, ce que vaut le crédit consommé : deux membres à 30 € et
+   * 20 € font 50 € pour ce cours-là. Divisé par les cours réellement donnés,
+   * cela dit ce que rapporte un créneau — un chiffre comparable d'un mois à
+   * l'autre, là où le total dépend du nombre de cours au programme.
+   *
+   * Dénominateur : les cours DONNÉS, pas les planifiés. Un créneau annulé ou
+   * sans inscrit n'a rien rapporté ; le compter tirerait la moyenne vers le bas
+   * sans rien dire de la valeur d'une séance.
+   */
+  const coursDonnes = coachStats.reduce((s, c) => s + c.class_count, 0)
+  const revenuMoyenParSeance = coursDonnes > 0 ? totalClassRevenue / coursDonnes : null
+  const inscritsParCours = coursDonnes > 0 ? totalCreditsConsumed / coursDonnes : null
 
   const presets: { value: PeriodPreset; label: string }[] = [
     { value: 'week', label: isFr ? 'Cette semaine' : 'This week' },
@@ -480,15 +478,13 @@ export function AdminDashboardPage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   {isFr ? 'Crédits consommés' : 'Credits consumed'}
                 </p>
+                {/* La valeur a désormais sa propre carte : on garde ici le
+                    remplissage, qui ne se lit nulle part ailleurs. */}
                 <p className="text-xs text-muted-foreground">
-                  {isFr ? 'Valeur' : 'Value'}: {formatEuros(totalClassRevenue, 0)}
+                  {inscritsParCours !== null
+                    ? `${inscritsParCours.toFixed(1)} ${isFr ? 'par cours donné' : 'per class given'}`
+                    : (isFr ? 'aucun cours donné' : 'no class given')}
                 </p>
-                {creditsParHeure !== null && (
-                  <p className="text-xs text-muted-foreground">
-                    {creditsParHeure.toFixed(1)} {isFr ? 'par heure de cours' : 'per class hour'}
-                    <span className="opacity-60"> ({heuresDonnees.toFixed(0)} h)</span>
-                  </p>
-                )}
               </CardContent>
             </Card>
 
@@ -511,6 +507,77 @@ export function AdminDashboardPage() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {coachStats.length} {isFr ? 'coach(s)' : 'coach(es)'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Valeur consommée — ce que valent les séances réellement suivies.
+                Distincte des recettes encaissées : un pack vendu en janvier se
+                consomme jusqu'en mars, et c'est la consommation qui dit ce que
+                le studio a produit sur la période. */}
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetailDialog('credits')}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center">
+                    <Euro className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-3xl font-bold">{formatEuros(totalClassRevenue, 0)}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isFr ? 'Valeur consommée' : 'Value consumed'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {revenuMoyenParSeance !== null
+                    ? `${formatEuros(revenuMoyenParSeance, 0)} ${isFr ? 'par séance donnée' : 'per class given'}`
+                    : (isFr ? 'aucune séance donnée' : 'no class given')}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* ---- Membres : chiffres en attente ----
+                Les deux cartes ci-dessous montrent des valeurs FIXES. Les règles
+                de calcul dépendent des définitions de statut que les coachs
+                doivent trancher (lot C2) : « nouveau membre » et « membre
+                potentiel » n'ont pas encore de sens arrêté. La place est prise
+                pour que le format se juge dès maintenant ; les calculs
+                viendront quand les définitions seront fixées. */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-teal-100 dark:bg-teal-950 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-teal-600" />
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">
+                    {isFr ? 'à définir' : 'pending'}
+                  </Badge>
+                </div>
+                <p className="text-3xl font-bold text-muted-foreground">—</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isFr ? 'Nouveaux membres' : 'New members'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'en attente des définitions' : 'awaiting definitions'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-rose-600" />
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">
+                    {isFr ? 'à définir' : 'pending'}
+                  </Badge>
+                </div>
+                <p className="text-3xl font-bold text-muted-foreground">—</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isFr ? 'Taux de conversion' : 'Conversion rate'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'membres / membres potentiels' : 'members / potential members'}
                 </p>
               </CardContent>
             </Card>

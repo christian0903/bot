@@ -291,6 +291,42 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Les statuts suivent le parcours, plus les frais d'inscription
+
+Définitions arrêtées avec Christian, chacune reposant sur un fait daté :
+
+| Statut | Règle |
+|---|---|
+| Premier contact | compte créé, aucun essai réservé |
+| Membre potentiel | a réservé son cours d'essai |
+| Membre actif | a acheté un pack payant, et en a un en cours |
+| Membre inactif | plus de pack valide, échéance de moins de 4 semaines |
+| Ancien membre | échéance du dernier pack dépassée de plus de 4 semaines |
+
+**Les frais d'inscription ne sont plus regardés.** Raisonnement de Christian :
+on ne peut pas acheter un pack sans les avoir payés — la règle est appliquée à
+l'achat — donc les tester une seconde fois est redondant. Et trompeur : des
+frais offerts ou saisis en retard faisaient apparaître comme « potentiel »
+quelqu'un qui s'entraînait depuis des semaines. C'est ce qui explique les cinq
+membres à pack actif classés « potentiel » plus tôt dans la journée.
+
+**`visitor` devient un vrai état.** Il n'était que la valeur par défaut de la
+colonne, jamais produite par le calcul : tout compte sans frais payés basculait
+en `potential`, confondant celui qui vient de créer son compte et celui qui a
+déjà essayé. Le libellé devient « Premier contact », qui dit ce que le statut
+signifie.
+
+**L'essai se lit sur le pack, pas sur le drapeau.** `bookings.is_trial` et le
+type du pack utilisé donnaient des comptes différents — 4 contre 7 : le drapeau
+est une copie qu'il faut penser à poser, le pack est un fait. Même arbitrage que
+pour le statut d'un cours : toujours dérivé, jamais recopié.
+
+**Un déclencheur de plus.** « Premier contact → potentiel » se joue sur une
+réservation, donc un `INSERT` dans `bookings` — les triggers posés le matin ne
+couvraient que l'achat d'un pack et les frais. Celui sur `registration_fees` est
+supprimé : il ne commande plus rien, et un trigger qui ne sert à rien finit par
+tromper celui qui le lit.
+
 ### Écrire à plusieurs membres depuis la liste
 
 Un bouton dans la barre de sélection de la liste des membres ouvre le client de

@@ -1286,45 +1286,76 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Phase 3 : Mettre à jour le statut d'un membre
+-- Statut de membre : suit le parcours réel (défini le 2026-08-28).
+--
+--   visitor    premier contact — compte créé, aucun essai réservé
+--   potential  a réservé son cours d'essai
+--   active     a acheté un pack payant, et en a un en cours
+--   inactive   a acheté, plus de pack valide, échéance de moins de 4 semaines
+--   former     échéance du dernier pack dépassée de plus de 4 semaines
+--
+-- Les frais d'inscription ne sont PAS regardés : on ne peut pas acheter un pack
+-- sans les avoir payés (contrôle à l'achat), donc les tester ici serait
+-- redondant — et trompeur, des frais offerts ou saisis en retard faisant
+-- apparaître comme « potentiel » quelqu'un qui s'entraîne depuis des semaines.
+--
+-- L'essai se reconnaît au PACK utilisé (`pack_types.is_trial`) et non au
+-- drapeau `bookings.is_trial` : le premier est un fait, le second une copie
+-- qu'il faut penser à poser. Les deux divergeaient en base.
 CREATE OR REPLACE FUNCTION update_member_status(p_user_id UUID)
 RETURNS TEXT
 LANGUAGE plpgsql SECURITY DEFINER
-AS '
+SET search_path = public
+AS $fn$
 DECLARE
-  v_has_fee BOOLEAN;
-  v_has_active_pack BOOLEAN;
-  v_last_expired TIMESTAMPTZ;
-  v_weeks_since INTEGER;
+  v_a_achete BOOLEAN;
+  v_a_essaye BOOLEAN;
+  v_fin_dernier_pack TIMESTAMPTZ;
+  v_pack_actif BOOLEAN;
   v_status TEXT;
 BEGIN
-  SELECT EXISTS(SELECT 1 FROM registration_fees WHERE user_id = p_user_id) INTO v_has_fee;
-  IF NOT v_has_fee THEN
-    v_status := ''potential'';
+  SELECT EXISTS(
+    SELECT 1 FROM pack_purchases pp
+      JOIN pack_types pt ON pt.id = pp.pack_type_id
+     WHERE pp.user_id = p_user_id AND NOT pt.is_trial
+  ) INTO v_a_achete;
+
+  IF NOT v_a_achete THEN
+    SELECT EXISTS(
+      SELECT 1 FROM bookings b
+        JOIN pack_purchases pp ON pp.id = b.pack_purchase_id
+        JOIN pack_types pt ON pt.id = pp.pack_type_id
+       WHERE b.user_id = p_user_id AND pt.is_trial
+    ) INTO v_a_essaye;
+
+    -- La réservation suffit : la séance n'a pas à avoir eu lieu.
+    v_status := CASE WHEN v_a_essaye THEN 'potential' ELSE 'visitor' END;
   ELSE
     SELECT EXISTS(
       SELECT 1 FROM pack_purchases
-      WHERE user_id = p_user_id AND credits_remaining > 0 AND expires_at > NOW()
-    ) INTO v_has_active_pack;
-    IF v_has_active_pack THEN
-      v_status := ''active'';
+       WHERE user_id = p_user_id AND credits_remaining > 0 AND expires_at > NOW()
+    ) INTO v_pack_actif;
+
+    IF v_pack_actif THEN
+      v_status := 'active';
     ELSE
-      SELECT MAX(expires_at) INTO v_last_expired FROM pack_purchases WHERE user_id = p_user_id;
-      IF v_last_expired IS NULL THEN
-        v_status := ''active'';
+      SELECT MAX(pp.expires_at) INTO v_fin_dernier_pack
+        FROM pack_purchases pp
+        JOIN pack_types pt ON pt.id = pp.pack_type_id
+       WHERE pp.user_id = p_user_id AND NOT pt.is_trial;
+
+      IF v_fin_dernier_pack IS NULL OR v_fin_dernier_pack > NOW() - INTERVAL '4 weeks' THEN
+        v_status := 'inactive';
       ELSE
-        v_weeks_since := EXTRACT(EPOCH FROM (NOW() - v_last_expired))::INTEGER / 604800;
-        IF v_weeks_since <= 13 THEN
-          v_status := ''inactive'';
-        ELSE
-          v_status := ''former'';
-        END IF;
+        v_status := 'former';
       END IF;
     END IF;
   END IF;
+
   UPDATE profiles SET member_status = v_status WHERE id = p_user_id;
   RETURN v_status;
 END;
-';
+$fn$;
 
 -- Phase 3 : Vérifier frais d'inscription
 CREATE OR REPLACE FUNCTION has_registration_fee(p_user_id UUID)
@@ -1998,26 +2029,24 @@ CREATE TRIGGER statut_apres_achat_pack
   AFTER INSERT ON pack_purchases
   FOR EACH ROW EXECUTE FUNCTION trg_statut_apres_achat_pack();
 
--- Les frais d'inscription font basculer `potential` → `active`, et la table est
--- alimentée par plusieurs chemins (webhook Stripe, saisie admin, bon d'achat).
--- Un trigger les couvre tous, là où il aurait fallu modifier chaque appelant.
-CREATE OR REPLACE FUNCTION trg_statut_apres_frais()
+-- « Premier contact → potentiel » se joue sur une RÉSERVATION d'essai : sans ce
+-- trigger, le membre garderait son statut jusqu'à sa prochaine connexion.
+CREATE OR REPLACE FUNCTION trg_statut_apres_reservation()
 RETURNS TRIGGER
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE plpgsql
 AS $fn$
 BEGIN
-  -- Sur DELETE (un admin retire les frais), c'est OLD qui porte le membre.
-  PERFORM update_member_status(COALESCE(NEW.user_id, OLD.user_id));
-  RETURN COALESCE(NEW, OLD);
+  PERFORM update_member_status(NEW.user_id);
+  RETURN NEW;
 END;
 $fn$;
 
-DROP TRIGGER IF EXISTS statut_apres_frais ON registration_fees;
-CREATE TRIGGER statut_apres_frais
-  AFTER INSERT OR DELETE ON registration_fees
-  FOR EACH ROW EXECUTE FUNCTION trg_statut_apres_frais();
+DROP TRIGGER IF EXISTS statut_apres_reservation ON bookings;
+CREATE TRIGGER statut_apres_reservation
+  AFTER INSERT ON bookings
+  FOR EACH ROW EXECUTE FUNCTION trg_statut_apres_reservation();
 
 -- ---------------------------------------------------------------------------
 -- Avis sur les cours
