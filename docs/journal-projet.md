@@ -291,6 +291,34 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### `bot` alignée sur `install.sql` — trois policies restées en arrière
+
+Christian a tranché : **`bot` est la référence absolue.** La base de
+développement sera effacée et recréée depuis `bot` ; tout ce qui doit vivre
+doit donc être dans `bot`, et les scripts de passage tenus à jour.
+
+En comparant le texte des policies, trois écarts sont apparus — dans le sens
+inattendu : c'est `install.sql` qui était en avance, corrigé au fil des
+sessions, tandis que `bot`, plus ancienne, gardait les premières versions. Une
+base neuve naissait donc plus juste que la référence.
+
+**Un seul avait un effet réel.** Sur `performances`, un coach pouvait *créer*
+une performance pour un membre mais ni la corriger ni la supprimer : une faute
+de frappe restait définitive, sauf à déranger un admin. Le studio compte cinq
+coachs.
+
+Les deux autres — `referrals` et `subscription_discounts` — étaient
+**cosmétiques, vérification faite** : les policies `*_admin_all` couvrent déjà
+toutes les commandes, `SELECT` compris, et deux policies permissives
+s'additionnent en OR. L'admin voyait donc déjà ces lignes. Elles ont été
+alignées quand même, pour que le texte des deux bases soit comparable — c'est
+la condition pour qu'un écart futur se remarque au lieu de se noyer dans un
+bruit de fond d'écarts tolérés.
+
+`check-policies.sql` documentait précisément cet écart depuis le 27 août, en
+nommant la migration jamais appliquée et en indiquant quoi écrire le jour où
+elle passerait. C'est fait, et le fichier suit.
+
 ### Comparer les schémas, pas les compteurs
 
 `scripts/comparer-bases.sh` compare le **texte** des policies, des signatures de
