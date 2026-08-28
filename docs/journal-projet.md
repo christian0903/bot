@@ -291,6 +291,21 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Le tableau de bord en trois lignes qui se lisent
+
+Neuf cartes, réparties par sujet plutôt qu'au fil de leur ajout :
+
+| Ligne | | | |
+|---|---|---|---|
+| Activité | Recettes encaissées | Cours donnés / planifiés | Valeur par cours donné |
+| Crédits | Crédits consommés | Crédits perdus | Valeur produite |
+| Membres | Premier contact | Membres potentiels | Nouveaux membres |
+
+La ligne des crédits se lit de gauche à droite comme un raisonnement : ce qui a
+été utilisé, ce qui a été perdu, le total acquis. C'est ce regroupement que
+Christian a demandé, et il a réglé du même coup une disposition qui suivait
+l'ordre des ajouts plutôt que le sens.
+
 ### Ce qui est payé et jamais consommé
 
 Trois cartes s'ajoutent, et une distinction avec elles.

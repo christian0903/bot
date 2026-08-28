@@ -529,29 +529,6 @@ export function AdminDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Total crédits consommés */}
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetailDialog('credits')}>
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-950 flex items-center justify-center">
-                    <CreditCard className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <p className="text-3xl font-bold">{totalCreditsConsumed}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isFr ? 'Crédits consommés' : 'Credits consumed'}
-                </p>
-                {/* La valeur a désormais sa propre carte : on garde ici le
-                    remplissage, qui ne se lit nulle part ailleurs. */}
-                <p className="text-xs text-muted-foreground">
-                  {inscritsParCours !== null
-                    ? `${inscritsParCours.toFixed(1)} ${isFr ? 'par cours donné' : 'per class given'}`
-                    : (isFr ? 'aucun cours donné' : 'no class given')}
-                </p>
-              </CardContent>
-            </Card>
-
             {/* Total cours */}
             <Card>
               <CardContent className="p-5">
@@ -571,6 +548,28 @@ export function AdminDashboardPage() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {coachStats.length} {isFr ? 'coach(s)' : 'coach(es)'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Valeur par cours donné : ce que rapporte un créneau, quelle que
+                soit sa fréquentation. Comparable d'un mois à l'autre, là où le
+                total dépend du nombre de cours au programme. */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center">
+                    <CalendarDays className="h-5 w-5 text-indigo-600" />
+                  </div>
+                </div>
+                <p className="text-3xl font-bold">
+                  {revenuMoyenParSeance !== null ? formatEuros(revenuMoyenParSeance, 0) : '—'}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isFr ? 'Valeur par cours donné' : 'Value per class given'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {coursDonnes} {isFr ? 'cours donné(s)' : 'class(es) given'}
                 </p>
               </CardContent>
             </Card>
@@ -605,24 +604,25 @@ export function AdminDashboardPage() {
               l'argent et des cours. Les mêler dans une grille unique laissait
               croire à une continuité qui n'existe pas. */}
           <div className="grid gap-4 md:grid-cols-3">
-            {/* Valeur par cours donné : ce que rapporte un créneau, quelle que
-                soit sa fréquentation. Comparable d'un mois à l'autre, là où le
-                total dépend du nombre de cours au programme. */}
-            <Card>
+            {/* Total crédits consommés */}
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetailDialog('credits')}>
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center">
-                    <CalendarDays className="h-5 w-5 text-indigo-600" />
+                  <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-950 flex items-center justify-center">
+                    <CreditCard className="h-5 w-5 text-blue-600" />
                   </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <p className="text-3xl font-bold">
-                  {revenuMoyenParSeance !== null ? formatEuros(revenuMoyenParSeance, 0) : '—'}
-                </p>
+                <p className="text-3xl font-bold">{totalCreditsConsumed}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {isFr ? 'Valeur par cours donné' : 'Value per class given'}
+                  {isFr ? 'Crédits consommés' : 'Credits consumed'}
                 </p>
+                {/* La valeur a désormais sa propre carte : on garde ici le
+                    remplissage, qui ne se lit nulle part ailleurs. */}
                 <p className="text-xs text-muted-foreground">
-                  {coursDonnes} {isFr ? 'cours donné(s)' : 'class(es) given'}
+                  {inscritsParCours !== null
+                    ? `${inscritsParCours.toFixed(1)} ${isFr ? 'par cours donné' : 'per class given'}`
+                    : (isFr ? 'aucun cours donné' : 'no class given')}
                 </p>
               </CardContent>
             </Card>
