@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
@@ -14,9 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
-import { Menu, User, LogOut, Settings, Shield, Dumbbell, Gift } from 'lucide-react'
+import { User, LogOut, Settings, Shield, Dumbbell, Gift, CreditCard, ShoppingBag, FileText } from 'lucide-react'
 import { useMode } from '@/contexts/ModeContext'
 import { ModeSwitcher } from '@/components/layout/ModeSwitcher'
 import { urlImage } from '@/lib/url-image'
@@ -36,7 +34,6 @@ export function Header() {
   const { user, profile, roles, hasRole, signOut } = useAuth()
   const primaryRole = roles.includes('super_admin') ? 'super_admin' : roles.includes('admin') ? 'admin' : roles.includes('coach') ? 'coach' : 'client'
   const navigate = useNavigate()
-  const [mobileOpen, setMobileOpen] = useState(false)
 
   const handleLogout = async () => {
     // Quitter la page protégée AVANT de fermer la session : sinon AuthGuard et
@@ -158,6 +155,27 @@ export function Header() {
                     <User className="mr-2 h-4 w-4" />
                     {t('nav.profile')}
                   </DropdownMenuItem>
+                  {/* Sur mobile, ce menu est la seule voie vers ces pages : la
+                      barre du bas ne tient que quatre entrées, et le tiroir
+                      hamburger a été retiré. « Acheter un pack » en fait partie
+                      — sans elle, un membre sur iPhone ne pourrait plus
+                      acheter. */}
+                  {enMembre && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate('/my-packs')}>
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        {t('nav.myPacks')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/packs')}>
+                        <ShoppingBag className="mr-2 h-4 w-4" />
+                        {t('nav.packs')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/invoice-request')}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        {t('nav.myInvoices')}
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuItem onClick={() => navigate('/referral')}>
                     <Gift className="mr-2 h-4 w-4" />
                     {t('admin.referrals.title')}
@@ -188,17 +206,6 @@ export function Header() {
             </Button>
           )}
 
-          {/* Mobile menu */}
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger className="inline-flex items-center justify-center rounded-md h-9 w-9 hover:bg-accent md:hidden">
-              <Menu className="h-5 w-5" />
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}>
-              <div className="flex flex-col gap-4 px-4">
-                <NavLinks onClick={() => setMobileOpen(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
     </header>

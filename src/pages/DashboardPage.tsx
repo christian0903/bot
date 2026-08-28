@@ -210,7 +210,7 @@ export function DashboardPage() {
                   <Megaphone className="h-4 w-4 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <div className="md-annonce text-sm">
                     <AnnonceMarkdown contenu={announcement} />
                   </div>
                 </div>

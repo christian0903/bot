@@ -130,7 +130,7 @@ export function AdminAnnouncementsPage() {
               <CardTitle>{t('admin.announcements.preview')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="prose prose-sm dark:prose-invert max-w-none">
+              <div className="md-annonce text-sm">
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{content}</ReactMarkdown>
               </div>
             </CardContent>

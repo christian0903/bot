@@ -16,7 +16,8 @@
     "admin": "Administration",
     "coach": "Espace coach",
     "login": "Connexion",
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "myInvoices": "Mes factures"
   },
   "auth": {
     "login": "Connexion",

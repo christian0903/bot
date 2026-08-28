@@ -291,6 +291,42 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Un lien dans une annonce ne se voyait pas
+
+Les annonces, la description d'un cours et la présentation d'un coach étaient
+rendues dans un conteneur `prose prose-sm dark:prose-invert` — les classes de
+`@tailwindcss/typography`. **Ce plugin n'est pas installé** : ces classes ne
+produisaient rien, et un lien Markdown sortait en texte brut, sans couleur ni
+soulignement. Rien ne signalait qu'on pouvait cliquer.
+
+Le projet avait déjà buté là-dessus pour la documentation et écrit une classe
+`.md-doc` à la main, dont le commentaire signale l'absence du plugin. Une classe
+`.md-annonce` suit la même voie plutôt que d'ajouter la dépendance : liens en
+couleur primaire soulignés, soulignement épaissi au survol, plus le gras,
+l'italique, les listes et le code en ligne. Style volontairement sobre — une
+annonce tient dans une petite carte, les marges d'un document y creuseraient
+des trous.
+
+**Cinq pages étaient concernées**, pas seulement le tableau de bord : la page
+d'accueil publique, la description d'un cours au planning, la fiche d'un coach,
+et l'aperçu de l'écran d'administration des annonces. Ce dernier compte
+particulièrement — c'est là qu'on rédige, avec un aperçu qui ne montrait pas le
+défaut qu'il était censé révéler.
+
+### Le menu hamburger disparaît sur mobile
+
+Les entrées qu'il portait rejoignent le menu du profil : mes packs, acheter un
+pack, mes factures, parrainage. Elles n'apparaissent qu'en mode Membre.
+
+**« Acheter un pack » a été repris volontairement** : la demande initiale ne
+citait que trois entrées, mais le tiroir portait aussi le chemin vers l'achat,
+absent de la barre du bas. Le supprimer sans le reprendre aurait laissé un
+membre sur iPhone sans aucun moyen d'acheter.
+
+Le staff ne perd rien : la barre du bas donne les écrans de chaque mode et le
+`ModeSwitcher` reste dans l'en-tête. Le lint descend de 37 à 36 — un
+`static-components` du React Compiler disparaît avec le tiroir.
+
 ### Le tableau de bord en trois lignes qui se lisent
 
 Neuf cartes, réparties par sujet plutôt qu'au fil de leur ajout :

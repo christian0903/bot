@@ -16,7 +16,8 @@
     "admin": "Admin",
     "coach": "Coach Area",
     "login": "Login",
-    "logout": "Logout"
+    "logout": "Logout",
+    "myInvoices": "My invoices"
   },
   "auth": {
     "login": "Login",

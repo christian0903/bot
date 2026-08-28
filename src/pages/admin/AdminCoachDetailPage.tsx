@@ -311,7 +311,7 @@ export function AdminCoachDetailPage() {
             <CardTitle className="text-base">{isFr ? 'Présentation' : 'About'}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm dark:prose-invert max-w-none">
+            <div className="md-annonce text-sm">
               <ReactMarkdown components={{ a: MarkdownLink }}>{profile.coach_description}</ReactMarkdown>
             </div>
           </CardContent>

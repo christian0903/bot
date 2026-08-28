@@ -294,6 +294,56 @@
 
 .md-doc strong { font-weight: 650; }
 
+/* ---------------------------------------------------------------------------
+   Annonces du tableau de bord.
+
+   Même problème que .md-doc : les classes `prose` de Tailwind ne produisent
+   rien, le plugin @tailwindcss/typography n'étant pas installé. Un lien y
+   ressortait donc en texte brut — rien ne signalait qu'on pouvait cliquer.
+
+   Le style reste sobre : une annonce tient dans une petite carte, des marges
+   de document y creuseraient des trous. Seul l'essentiel est repris —
+   les liens, l'emphase, les listes et les retours à la ligne.
+   --------------------------------------------------------------------------- */
+.md-annonce > *:first-child { margin-top: 0; }
+.md-annonce > *:last-child { margin-bottom: 0; }
+
+.md-annonce p { margin: 0 0 0.5rem; }
+
+.md-annonce a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+}
+
+/* Le survol confirme la cible avant le clic — utile quand plusieurs liens se
+   suivent dans une même phrase. */
+.md-annonce a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.md-annonce strong { font-weight: 650; }
+.md-annonce em { font-style: italic; }
+
+.md-annonce ul,
+.md-annonce ol {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+}
+.md-annonce ul { list-style: disc; }
+.md-annonce ol { list-style: decimal; }
+.md-annonce li { margin: 0.125rem 0; }
+
+.md-annonce code {
+  font-size: 0.875em;
+  background: var(--muted);
+  color: var(--primary);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+
+
 .md-doc code {
   font-size: 0.875em;
   background: var(--muted);

@@ -93,7 +93,7 @@ export function HomePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2">{t('home.announcements')}</h3>
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <div className="md-annonce text-sm">
                     <AnnonceMarkdown contenu={announcement} />
                   </div>
                 </div>

@@ -2226,7 +2226,7 @@ export function SchedulePage() {
                 <DialogTitle>{infoClassType.name}</DialogTitle>
               </DialogHeader>
               {infoClassType.description_md && (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
+                <div className="md-annonce text-sm">
                   <ReactMarkdown components={{ a: MarkdownLink }}>{infoClassType.description_md}</ReactMarkdown>
                 </div>
               )}
