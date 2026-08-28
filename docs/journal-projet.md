@@ -291,6 +291,45 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Le statut de membre n'était presque jamais recalculé
+
+`update_member_status` calculait juste — et n'était appelée nulle part où ça
+comptait. Ses cinq points d'appel couvraient la commande B2B, le reset de test,
+le bon d'achat, la case « frais payés » d'un admin et l'import de démo.
+Manquaient l'achat d'un pack, le paiement Stripe des frais, et surtout
+**l'écoulement du temps**, qui fait passer `active` → `inactive` → `former` sans
+produire le moindre événement.
+
+Résultat mesuré avant correction : **9 profils sur 23 portaient un statut faux**.
+Trois étaient « membre actif » sans avoir payé les frais d'inscription, deux
+« inactif » avec un pack en cours.
+
+Trois déclencheurs posés, sans toucher à une seule règle de calcul :
+
+- `refresh_my_member_status()`, appelée par `AuthContext.fetchProfile` à côté de
+  `refresh_my_category` — c'est le patron que le projet avait déjà retenu pour
+  la catégorie, et pour la même raison : l'expiration d'un pack ne produit aucun
+  événement, un cron corrigerait après coup et finirait par diverger.
+- un trigger sur `pack_purchases` INSERT — l'admin qui encode un paiement au
+  comptoir voit l'effet tout de suite.
+- un trigger sur `registration_fees` INSERT/DELETE — la table est alimentée par
+  le webhook Stripe, la saisie admin et les bons d'achat ; un trigger les couvre
+  tous là où il aurait fallu modifier chaque appelant.
+
+Plus une remise à plat des 23 profils existants. Après : 8 `active`, 12
+`potential`, 2 `inactive`, 1 `former` — tous cohérents avec les règles en
+vigueur.
+
+> **Cinq membres ont un pack actif mais restent `potential`** : ils n'ont pas
+> payé les frais d'inscription. C'est conforme à la règle actuelle, et c'est
+> exactement ce que la redéfinition demandée par les coachs (lot C2) doit
+> trancher.
+
+**Pourquoi ce correctif avant la redéfinition.** Joan demande de changer les
+seuils ; les changer sans poser le déclencheur aurait donné des statuts justes
+le jour du calcul et faux la semaine suivante — la situation d'avant, avec
+d'autres chiffres.
+
 ### Lot A des remarques coachs — cinq points livrés
 
 Les remarques de Gauthier et Joan ont été classées en trois lots ; le premier

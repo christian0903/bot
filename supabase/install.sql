@@ -1950,6 +1950,75 @@ $fn$;
 REVOKE ALL ON FUNCTION refresh_my_category() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION refresh_my_category() TO authenticated;
 
+-- Le statut de membre suit la même mécanique, et pour la même raison : les
+-- triggers ci-dessous couvrent l'achat d'un pack et les frais d'inscription,
+-- mais le passage `active` → `inactive` → `former` ne tient qu'à l'écoulement
+-- du temps, qui ne produit aucun événement. D'où le recalcul à la lecture,
+-- appelé par AuthContext.fetchProfile à côté de refresh_my_category.
+--
+-- Sans ces trois déclencheurs, la fonction calculait juste et n'était presque
+-- jamais appelée : 9 profils sur 23 portaient un statut faux sur `bot` au
+-- 2026-08-28.
+CREATE OR REPLACE FUNCTION refresh_my_member_status()
+RETURNS TEXT
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_user UUID := auth.uid();
+BEGIN
+  IF v_user IS NULL THEN
+    RETURN NULL;
+  END IF;
+  RETURN update_member_status(v_user);
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION refresh_my_member_status() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION refresh_my_member_status() TO authenticated;
+
+-- Un pack acheté fait passer à `active` immédiatement : l'admin qui encode un
+-- paiement au comptoir doit voir l'effet sans attendre la prochaine connexion
+-- du membre.
+CREATE OR REPLACE FUNCTION trg_statut_apres_achat_pack()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  PERFORM update_member_status(NEW.user_id);
+  RETURN NEW;
+END;
+$fn$;
+
+DROP TRIGGER IF EXISTS statut_apres_achat_pack ON pack_purchases;
+CREATE TRIGGER statut_apres_achat_pack
+  AFTER INSERT ON pack_purchases
+  FOR EACH ROW EXECUTE FUNCTION trg_statut_apres_achat_pack();
+
+-- Les frais d'inscription font basculer `potential` → `active`, et la table est
+-- alimentée par plusieurs chemins (webhook Stripe, saisie admin, bon d'achat).
+-- Un trigger les couvre tous, là où il aurait fallu modifier chaque appelant.
+CREATE OR REPLACE FUNCTION trg_statut_apres_frais()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  -- Sur DELETE (un admin retire les frais), c'est OLD qui porte le membre.
+  PERFORM update_member_status(COALESCE(NEW.user_id, OLD.user_id));
+  RETURN COALESCE(NEW, OLD);
+END;
+$fn$;
+
+DROP TRIGGER IF EXISTS statut_apres_frais ON registration_fees;
+CREATE TRIGGER statut_apres_frais
+  AFTER INSERT OR DELETE ON registration_fees
+  FOR EACH ROW EXECUTE FUNCTION trg_statut_apres_frais();
+
 -- ---------------------------------------------------------------------------
 -- Avis sur les cours
 -- ---------------------------------------------------------------------------

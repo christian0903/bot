@@ -70,10 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     //
     // Sans await bloquant sur l'échec : une catégorie non rafraîchie vaut
     // mieux qu'une session qui ne s'ouvre pas.
-    await supabase.rpc('refresh_my_category').then(
-      () => {},
-      () => {},
-    )
+    // Le statut de membre suit la même logique, et pour la même raison : les
+    // triggers couvrent l'achat d'un pack et les frais d'inscription, mais le
+    // passage `active` → `inactive` → `former` ne tient qu'à l'écoulement du
+    // temps, qui ne produit aucun événement.
+    await Promise.all([
+      supabase.rpc('refresh_my_category').then(() => {}, () => {}),
+      supabase.rpc('refresh_my_member_status').then(() => {}, () => {}),
+    ])
 
     const { data } = await supabase
       .from('profiles')
