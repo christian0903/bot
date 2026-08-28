@@ -90,6 +90,13 @@ export function AdminDashboardPage() {
   const [packSales, setPackSales] = useState<PackSale[]>([])
   const [bookings, setBookings] = useState<BookingDetail[]>([])
   const [coachStats, setCoachStats] = useState<CoachStat[]>([])
+  /**
+   * Les trois étapes du parcours franchies pendant la période : inscription,
+   * premier essai réservé, premier pack acheté. On date la TRANSITION et non
+   * l'état courant — quelqu'un devenu membre en juin ne compte pas dans les
+   * achats de juillet.
+   */
+  const [parcours, setParcours] = useState({ inscriptions: 0, essais: 0, achats: 0 })
 
   const [detailDialog, setDetailDialog] = useState<'packs' | 'credits' | 'coach' | null>(null)
   const [selectedCoach, setSelectedCoach] = useState<CoachStat | null>(null)
@@ -301,6 +308,17 @@ export function AdminDashboardPage() {
     }
     setCoachStats([...coachMap.values()].sort((a, b) => b.total_revenue_cents - a.total_revenue_cents))
 
+    // 4. Étapes du parcours franchies dans la période. Une fonction SQL plutôt
+    // qu'une agrégation ici : elle date les transitions par des MIN(), ce qui
+    // se fait mal côté client sans tout charger.
+    const { data: par } = await supabase.rpc('stats_parcours', { p_from: from, p_to: to })
+    const ligne = Array.isArray(par) ? par[0] : par
+    setParcours({
+      inscriptions: ligne?.inscriptions ?? 0,
+      essais: ligne?.essais ?? 0,
+      achats: ligne?.achats ?? 0,
+    })
+
     setLoading(false)
   }
 
@@ -332,6 +350,7 @@ export function AdminDashboardPage() {
   const coursDonnes = coachStats.reduce((s, c) => s + c.class_count, 0)
   const revenuMoyenParSeance = coursDonnes > 0 ? totalClassRevenue / coursDonnes : null
   const inscritsParCours = coursDonnes > 0 ? totalCreditsConsumed / coursDonnes : null
+
 
   const presets: { value: PeriodPreset; label: string }[] = [
     { value: 'week', label: isFr ? 'Cette semaine' : 'This week' },
@@ -535,29 +554,51 @@ export function AdminDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* ---- Membres : chiffres en attente ----
-                Les deux cartes ci-dessous montrent des valeurs FIXES. Les règles
-                de calcul dépendent des définitions de statut que les coachs
-                doivent trancher (lot C2) : « nouveau membre » et « membre
-                potentiel » n'ont pas encore de sens arrêté. La place est prise
-                pour que le format se juge dès maintenant ; les calculs
-                viendront quand les définitions seront fixées. */}
+          </div>
+
+          {/* ---- Statistiques membres, sur leur propre ligne ----
+              Elles ne se lisent pas avec les chiffres d'activité : celles-ci
+              content des personnes qui franchissent une étape, celles-là de
+              l'argent et des cours. Les mêler dans une grille unique laissait
+              croire à une continuité qui n'existe pas. */}
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* ---- Le parcours, en trois nombres bruts ----
+                Inscription → essai réservé → pack acheté, aux noms des statuts
+                de membre. Trois chiffres et aucun quotient : un taux
+                « achats / essais » dépassait 100 % en pratique, puisqu'on peut
+                acheter sans être passé par l'essai, ou essayer un mois et
+                acheter le suivant. Les trois nombres côte à côte se lisent sans
+                piège ; le rapport se fait à l'œil quand il a du sens. */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-slate-600" />
+                  </div>
+                </div>
+                <p className="text-3xl font-bold">{parcours.inscriptions}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isFr ? 'Premier contact' : 'First contact'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isFr ? 'comptes créés' : 'accounts created'}
+                </p>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="h-10 w-10 rounded-xl bg-teal-100 dark:bg-teal-950 flex items-center justify-center">
                     <Users className="h-5 w-5 text-teal-600" />
                   </div>
-                  <Badge variant="outline" className="text-[10px]">
-                    {isFr ? 'à définir' : 'pending'}
-                  </Badge>
                 </div>
-                <p className="text-3xl font-bold text-muted-foreground">—</p>
+                <p className="text-3xl font-bold">{parcours.essais}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {isFr ? 'Nouveaux membres' : 'New members'}
+                  {isFr ? 'Membres potentiels' : 'Potential members'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {isFr ? 'en attente des définitions' : 'awaiting definitions'}
+                  {isFr ? 'ont réservé leur essai' : 'booked their trial'}
                 </p>
               </CardContent>
             </Card>
@@ -568,16 +609,13 @@ export function AdminDashboardPage() {
                   <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center">
                     <Users className="h-5 w-5 text-rose-600" />
                   </div>
-                  <Badge variant="outline" className="text-[10px]">
-                    {isFr ? 'à définir' : 'pending'}
-                  </Badge>
                 </div>
-                <p className="text-3xl font-bold text-muted-foreground">—</p>
+                <p className="text-3xl font-bold">{parcours.achats}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {isFr ? 'Taux de conversion' : 'Conversion rate'}
+                  {isFr ? 'Nouveaux membres' : 'New members'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {isFr ? 'membres / membres potentiels' : 'members / potential members'}
+                  {isFr ? 'ont acheté un pack' : 'bought a pack'}
                 </p>
               </CardContent>
             </Card>

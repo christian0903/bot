@@ -291,6 +291,38 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Le tableau de bord suit le parcours, en chiffres bruts
+
+Sept cartes sur deux lignes : l'activité d'un côté, les membres de l'autre. Les
+deux ne se lisent pas ensemble — l'une compte de l'argent et des cours, l'autre
+des personnes qui franchissent une étape.
+
+**Valeur consommée** sort en carte à part, avec sa moyenne par séance donnée.
+Elle était calculée depuis toujours mais reléguée en petite ligne sous les
+crédits. Distincte des recettes encaissées : un pack vendu en janvier se
+consomme jusqu'en mars, et c'est la consommation qui dit ce que le studio a
+produit sur la période.
+
+**Les ratios se comptent par cours, pas par heure.** Le premier jet affichait
+« crédits par heure de cours » ; Christian a fait remarquer que le studio
+raisonne en cours. Traduire un semi-privé de 50 minutes en 0,83 heure
+n'apprenait rien à personne. Tout le mécanisme qui cumulait les minutes a été
+retiré.
+
+**Trois chiffres pour les membres, aucun quotient.** La demande initiale portait
+sur un taux de conversion. Le calcul donnait **128 %** sur les données réelles —
+plus de membres que de prospects sur le mois. Ce n'est pas un défaut de calcul :
+on peut acheter un pack sans être passé par l'essai, ou essayer en juillet et
+acheter en août ; numérateur et dénominateur ne portent pas sur les mêmes
+personnes. Christian a tranché pour trois nombres bruts — premier contact,
+membres potentiels, nouveaux membres — qui se lisent sans ce piège.
+
+`stats_parcours(p_from, p_to)` date les **transitions** et non l'état courant :
+quelqu'un devenu membre en juin ne compte pas dans les achats de juillet, sinon
+le même membre serait recompté chaque mois. La fonction est `SECURITY DEFINER`
+et contrôle le rôle admin — sans quoi tout membre connecté aurait lu les
+chiffres commerciaux du studio.
+
 ### Les statuts suivent le parcours, plus les frais d'inscription
 
 Définitions arrêtées avec Christian, chacune reposant sur un fait daté :
