@@ -36,7 +36,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Download, Trash2, Users, Gift, ChevronRight, CreditCard, Plus, Banknote, Landmark, AlertTriangle } from 'lucide-react'
+import { Download, Trash2, Users, Gift, ChevronRight, CreditCard, Plus, Banknote, Landmark, AlertTriangle, Mail } from 'lucide-react'
 import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 
@@ -388,6 +388,47 @@ export function AdminUsersPage() {
     })
   }
 
+  /**
+   * Ouvre le client de messagerie avec les membres sélectionnés en **CCI**.
+   *
+   * En copie cachée et non en destinataires : un envoi groupé ne doit pas
+   * dévoiler l'adresse de chaque membre à tous les autres — ce serait
+   * communiquer des données personnelles à des tiers.
+   *
+   * Un `mailto:` trop long échoue **sans rien dire** : le navigateur n'ouvre
+   * rien et n'émet aucune erreur. Au-delà d'une longueur prudente, on copie
+   * donc les adresses dans le presse-papiers plutôt que de laisser l'admin
+   * devant un bouton qui ne fait rien. 23 membres pèsent 661 caractères : la
+   * limite ne se rencontrera qu'avec un studio bien plus grand.
+   */
+  const envoyerAuxSelectionnes = async () => {
+    const adresses = users
+      .filter(u => selectedIds.has(u.id) && u.email)
+      .map(u => u.email as string)
+
+    if (adresses.length === 0) {
+      toast.error(isFr ? 'Aucune adresse e-mail dans la sélection' : 'No email address in selection')
+      return
+    }
+
+    const liste = adresses.join(',')
+
+    if (liste.length > 1800) {
+      try {
+        await navigator.clipboard.writeText(liste)
+        toast.success(isFr
+          ? `${adresses.length} adresses copiées : collez-les en CCI dans votre messagerie. La liste était trop longue pour ouvrir le courrier automatiquement.`
+          : `${adresses.length} addresses copied: paste them as BCC in your mail client. The list was too long to open the composer automatically.`,
+          { duration: 10000 })
+      } catch {
+        toast.error(isFr ? 'Copie impossible' : 'Copy failed')
+      }
+      return
+    }
+
+    window.location.href = `mailto:?bcc=${encodeURIComponent(liste)}`
+  }
+
   /** Attribue — ou retire — une catégorie aux membres sélectionnés. */
   const appliquerCategorie = async () => {
     const ids = [...selectedIds]
@@ -501,6 +542,10 @@ export function AdminUsersPage() {
             {isFr ? 'membre(s) sélectionné(s)' : 'member(s) selected'}
           </span>
           <div className="flex-1" />
+          <Button size="sm" variant="outline" onClick={envoyerAuxSelectionnes}>
+            <Mail className="h-4 w-4 mr-1.5" />
+            {isFr ? 'Écrire un e-mail' : 'Send email'}
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setBulkCategoryOpen(true)}>
             <Users className="h-4 w-4 mr-1.5" />
             {isFr ? 'Attribuer une catégorie' : 'Set category'}

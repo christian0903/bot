@@ -291,6 +291,20 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Écrire à plusieurs membres depuis la liste
+
+Un bouton dans la barre de sélection de la liste des membres ouvre le client de
+messagerie avec les adresses sélectionnées **en CCI**. En copie cachée, pas en
+destinataires : un envoi groupé ne doit pas dévoiler l'adresse de chaque membre
+à tous les autres.
+
+Un `mailto:` trop long échoue **sans rien dire** — le navigateur n'ouvre rien et
+n'émet aucune erreur. Au-delà de 1800 caractères, les adresses sont donc copiées
+dans le presse-papiers, avec le message qui explique quoi en faire. Les
+23 membres actuels pèsent 661 caractères : le repli ne servira qu'avec un studio
+bien plus grand, mais il évite un bouton qui cesserait de fonctionner en
+silence le jour venu.
+
 ### Les images ne portent plus l'adresse du projet
 
 Préparant la reconstruction d'une base depuis `install.sql`, un piège est
