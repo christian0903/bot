@@ -18,6 +18,9 @@ type ActivityAction =
   | 'no_show'
   | 'password_reset_by_admin'
   | 'email_change_by_admin'
+  // Suppression de cours en masse. La suppression d'un cours seul ne laissait
+  // aucune trace ; effacer plusieurs créneaux d'un coup en mérite une.
+  | 'class_deleted'
 
 interface LogEntry {
   action: ActivityAction

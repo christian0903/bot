@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Users, ChevronRight } from 'lucide-react'
+import { urlImage } from '@/lib/url-image'
 
 interface CoachWithRoles extends Profile {
   roles: UserRole[]
@@ -92,7 +93,7 @@ export function AdminCoachesPage() {
               className="flex items-center gap-4 p-4 rounded-xl border bg-card hover:border-primary/30 hover:shadow-md transition-all cursor-pointer group"
             >
               <Avatar className="h-14 w-14">
-                <AvatarImage src={coach.avatar_url ?? undefined} />
+                <AvatarImage src={urlImage(coach.avatar_url)} />
                 <AvatarFallback className="text-xl">{coach.display_name?.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">

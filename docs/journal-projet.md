@@ -291,6 +291,60 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Les images ne portent plus l'adresse du projet
+
+Préparant la reconstruction d'une base depuis `install.sql`, un piège est
+apparu que personne n'avait vu : les URL d'images stockées en base contenaient
+**la référence du projet en dur**.
+
+```
+https://aojguoqxbzqcganxgqem.supabase.co/storage/v1/object/public/avatars/coaches/x.jpg
+```
+
+Copier les données vers une autre base y aurait laissé les images pointer sur
+l'ancienne. Et le défaut serait resté **invisible** tant que l'ancien projet
+vivait — les images s'affichant normalement — pour que toutes disparaissent le
+jour de sa suppression. Exactement le genre de défaut qui passe la répétition
+et casse en vrai.
+
+La base ne garde plus que le chemin (`coaches/x.jpg`) ; `src/lib/url-image.ts`
+reconstruit l'adresse à l'affichage, à partir de `VITE_SUPABASE_URL`. Une base
+devient ainsi indépendante du projet qui l'héberge : plus aucune réécriture
+d'URL lors d'une migration.
+
+Un seul endroit écrivait ces valeurs (`ImageUpload`), dix les affichaient dans
+neuf fichiers. Le helper accepte les deux formes — une URL absolue est renvoyée
+telle quelle — de sorte qu'une base non migrée continue de fonctionner.
+
+> Décision de Christian : le faire **avant** la répétition sur une base neuve,
+> pour que celle-ci éprouve la version définitive plutôt qu'un état
+> intermédiaire.
+
+Les 8 fichiers du bucket, au passage, ne sont pas ce que son nom laisse croire :
+4 photos de types de cours et 4 portraits de coachs, pas des avatars de membres.
+
+### Suppression et annulation multiples de cours
+
+La sélection multiple du planning admin savait assigner un coach, changer la
+capacité et dupliquer ; elle ne savait ni annuler ni supprimer. Gauthier
+supprimait ses cours un par un.
+
+**Deux actions distinctes, et c'est le cœur de la réponse.** `bookings` est en
+`ON DELETE CASCADE` : supprimer un cours efface ses réservations sans rembourser
+ni prévenir personne. La suppression est donc **refusée** dès qu'un cours
+sélectionné a un inscrit, avec un message qui renvoie vers l'annulation ; le
+bouton est même désactivé. L'annulation, elle, marque les cours annulés,
+rembourse par `cancel_booking_by_studio` (le crédit revient toujours, même à
+moins de 24 h, puisque l'annulation vient du studio), notifie et envoie un
+e-mail à chaque inscrit.
+
+La barre annonce ce qui est en jeu avant d'agir — « Annuler 5 cours —
+12 réservation(s) remboursée(s), membres prévenus ». C'est le chiffre qui
+manquait pour décider.
+
+`class_deleted` entre au journal d'activité : la suppression d'un cours seul ne
+laissait aucune trace, effacer plusieurs créneaux d'un coup en mérite une.
+
 ### Le statut de membre n'était presque jamais recalculé
 
 `update_member_status` calculait juste — et n'était appelée nulle part où ça

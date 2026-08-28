@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { LoadingState } from '@/components/common/LoadingState'
 import type { Profile } from '@/types'
+import { urlImage } from '@/lib/url-image'
 
 export function PublicProfilePage() {
   const { id } = useParams<{ id: string }>()
@@ -34,7 +35,7 @@ export function PublicProfilePage() {
       <Card>
         <CardHeader className="text-center">
           <Avatar className="h-20 w-20 mx-auto mb-4">
-            <AvatarImage src={profile.avatar_url ?? undefined} />
+            <AvatarImage src={urlImage(profile.avatar_url)} />
             <AvatarFallback className="text-2xl">
               {profile.display_name?.charAt(0).toUpperCase()}
             </AvatarFallback>

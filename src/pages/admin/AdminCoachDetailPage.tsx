@@ -22,6 +22,7 @@ import { format, addDays } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import ReactMarkdown from 'react-markdown'
 import { MarkdownLink } from '@/components/common/MarkdownLink'
+import { urlImage } from '@/lib/url-image'
 
 export function AdminCoachDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -216,7 +217,7 @@ export function AdminCoachDetailPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <Avatar className="h-16 w-16">
-          <AvatarImage src={profile.avatar_url ?? undefined} />
+          <AvatarImage src={urlImage(profile.avatar_url)} />
           <AvatarFallback className="text-2xl">{profile.display_name?.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="flex-1">

@@ -159,7 +159,7 @@ export function AdminSchedulePage() {
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [bulkAction, setBulkAction] = useState<'coach' | 'max' | 'duplicate' | null>(null)
+  const [bulkAction, setBulkAction] = useState<'coach' | 'max' | 'duplicate' | 'cancel' | 'delete' | null>(null)
   const [bulkCoachId, setBulkCoachId] = useState('')
   const [bulkMaxParticipants, setBulkMaxParticipants] = useState(4)
   const [bulkDuplicateDays, setBulkDuplicateDays] = useState(7)
@@ -530,6 +530,27 @@ export function AdminSchedulePage() {
   }
 
   // Bulk actions
+  /**
+   * Variables des e-mails de cours. Même forme que dans SchedulePage — les
+   * gabarits attendent ces clés-là. La date est en français quel que soit
+   * l'admin : c'est le membre qui reçoit l'e-mail, pas lui.
+   */
+  const classEmailVars = (sc: ScheduledClass, userName?: string) => ({
+    user_name: userName,
+    class_name: sc.title || sc.class_type?.name,
+    class_date: format(new Date(sc.starts_at), "EEEE dd MMMM 'à' HH:mm", { locale: fr }),
+    coach_name: sc.coach?.display_name,
+    room_name: sc.floor ? (floorNames[sc.floor] || sc.floor) : undefined,
+    duration_minutes: sc.duration_minutes,
+  })
+
+  /**
+   * Réservations portées par les cours sélectionnés. Affiché avant d'agir :
+   * c'est le seul chiffre qui dit si le geste touche de vraies personnes.
+   */
+  const inscritsSelectionnes = [...selectedIds]
+    .reduce((n, id) => n + (bookingCounts.get(id) ?? 0), 0)
+
   const handleBulkApply = async () => {
     if (selectedIds.size === 0) return
     setBulkSaving(true)
@@ -577,6 +598,105 @@ export function AdminSchedulePage() {
       })
 
       toast.success(`Max participants changé à ${bulkMaxParticipants} pour ${ids.length} cours`)
+    }
+
+    if (bulkAction === 'cancel') {
+      // Les cours déjà annulés sont ignorés plutôt que retraités : les
+      // réinscrire déclencherait un second remboursement et un second e-mail.
+      const aAnnuler = filteredClasses.filter(sc => ids.includes(sc.id) && !sc.is_cancelled)
+
+      if (aAnnuler.length === 0) {
+        toast.info(isFr ? 'Ces cours sont déjà annulés' : 'These classes are already cancelled')
+        setBulkSaving(false); setBulkAction(null); return
+      }
+
+      const idsAAnnuler = aAnnuler.map(sc => sc.id)
+      const { error } = await supabase
+        .from('scheduled_classes')
+        .update({ is_cancelled: true })
+        .in('id', idsAAnnuler)
+      if (error) { toast.error(error.message); setBulkSaving(false); return }
+
+      // Rembourser, notifier, prévenir par e-mail — le même geste que
+      // l'annulation d'un cours seul, répété. cancel_booking_by_studio et non
+      // cancel_booking_v2 : l'annulation vient du studio, le crédit revient
+      // toujours, même à moins de 24 h.
+      const { data: reservations } = await supabase
+        .from('bookings')
+        .select('id, user_id, scheduled_class_id')
+        .in('scheduled_class_id', idsAAnnuler)
+        .eq('status', 'confirmed')
+
+      const membresIds = [...new Set((reservations ?? []).map(b => b.user_id))]
+      const { data: profils } = membresIds.length > 0
+        ? await supabase.from('profiles').select('id, display_name, email').in('id', membresIds)
+        : { data: [] }
+      const profilParId = new Map((profils ?? []).map(p => [p.id, p]))
+      const coursParId = new Map(aAnnuler.map(sc => [sc.id, sc]))
+
+      for (const b of reservations ?? []) {
+        const sc = coursParId.get(b.scheduled_class_id)
+        if (!sc) continue
+        await supabase.rpc('cancel_booking_by_studio', { p_booking_id: b.id })
+
+        const quand = format(new Date(sc.starts_at), 'EEEE dd/MM à HH:mm', { locale })
+        await supabase.from('notifications').insert({
+          user_id: b.user_id,
+          title: isFr ? 'Cours annulé' : 'Class cancelled',
+          message: isFr
+            ? `Le cours ${sc.class_type?.name} du ${quand} a été annulé. Votre crédit a été restitué.`
+            : `The class ${sc.class_type?.name} on ${quand} has been cancelled. Your credit has been refunded.`,
+          type: 'error',
+          link: '/schedule',
+        })
+
+        const p = profilParId.get(b.user_id)
+        if (p?.email) sendEmail('class_cancelled', p.email, classEmailVars(sc, p.display_name))
+      }
+
+      await logActivity({
+        action: 'booking_cancelled',
+        actor_id: currentUser?.id ?? null,
+        target_user_id: currentUser?.id ?? '',
+        entity_type: 'scheduled_class',
+        details: { scheduled_class_ids: idsAAnnuler, bookings: reservations?.length ?? 0, classes: affectedClasses },
+        description: `${idsAAnnuler.length} cours annulés (${reservations?.length ?? 0} réservation(s) remboursée(s)) : ${affectedClasses.join(' | ')}`,
+      })
+
+      toast.success(isFr
+        ? `${idsAAnnuler.length} cours annulé(s), ${reservations?.length ?? 0} réservation(s) remboursée(s)`
+        : `${idsAAnnuler.length} class(es) cancelled, ${reservations?.length ?? 0} booking(s) refunded`)
+    }
+
+    if (bulkAction === 'delete') {
+      // `bookings` est en ON DELETE CASCADE : supprimer un cours qui a des
+      // inscrits effacerait leurs réservations sans rien rembourser ni prévenir
+      // personne. On refuse, et on oriente vers l'annulation — qui, elle, fait
+      // le travail proprement.
+      const avecInscrits = filteredClasses.filter(
+        sc => ids.includes(sc.id) && (bookingCounts.get(sc.id) ?? 0) > 0,
+      )
+      if (avecInscrits.length > 0) {
+        toast.error(isFr
+          ? `${avecInscrits.length} cours sélectionné(s) ont des inscrits et ne peuvent pas être supprimés. Utilisez « Annuler » : les crédits sont rendus et les membres prévenus.`
+          : `${avecInscrits.length} selected class(es) have bookings and cannot be deleted. Use “Cancel”: credits are refunded and members notified.`,
+          { duration: 8000 })
+        setBulkSaving(false); setBulkAction(null); return
+      }
+
+      const { error } = await supabase.from('scheduled_classes').delete().in('id', ids)
+      if (error) { toast.error(error.message); setBulkSaving(false); return }
+
+      await logActivity({
+        action: 'class_deleted',
+        actor_id: currentUser?.id ?? null,
+        target_user_id: currentUser?.id ?? '',
+        entity_type: 'scheduled_class',
+        details: { scheduled_class_ids: ids, classes: affectedClasses },
+        description: `${ids.length} cours supprimés (sans inscrit) : ${affectedClasses.join(' | ')}`,
+      })
+
+      toast.success(isFr ? `${ids.length} cours supprimé(s)` : `${ids.length} class(es) deleted`)
     }
 
     if (bulkAction === 'duplicate') {
@@ -872,6 +992,44 @@ export function AdminSchedulePage() {
                 {t('common.cancel')}
               </Button>
             </div>
+          ) : bulkAction === 'cancel' ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {isFr
+                  ? `Annuler ${selectedIds.size} cours — ${inscritsSelectionnes} réservation(s) remboursée(s), membres prévenus`
+                  : `Cancel ${selectedIds.size} classes — ${inscritsSelectionnes} booking(s) refunded, members notified`}
+              </span>
+              <Button size="sm" className="text-xs" onClick={handleBulkApply} disabled={bulkSaving}>
+                {bulkSaving ? '...' : (isFr ? 'Confirmer' : 'Confirm')}
+              </Button>
+              <Button size="sm" variant="ghost" className="text-xs" onClick={() => setBulkAction(null)}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+          ) : bulkAction === 'delete' ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {inscritsSelectionnes > 0
+                  ? (isFr
+                    ? `Impossible : ${inscritsSelectionnes} réservation(s) sur ces cours. Utilisez « Annuler ».`
+                    : `Not possible: ${inscritsSelectionnes} booking(s) on these classes. Use “Cancel”.`)
+                  : (isFr
+                    ? `Supprimer définitivement ${selectedIds.size} cours (aucun inscrit)`
+                    : `Permanently delete ${selectedIds.size} classes (no bookings)`)}
+              </span>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="text-xs"
+                onClick={handleBulkApply}
+                disabled={bulkSaving || inscritsSelectionnes > 0}
+              >
+                {bulkSaving ? '...' : (isFr ? 'Supprimer' : 'Delete')}
+              </Button>
+              <Button size="sm" variant="ghost" className="text-xs" onClick={() => setBulkAction(null)}>
+                {t('common.cancel')}
+              </Button>
+            </div>
           ) : bulkAction === 'duplicate' ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">
@@ -907,6 +1065,21 @@ export function AdminSchedulePage() {
               <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setBulkAction('duplicate')}>
                 <Copy className="h-3 w-3" />
                 {isFr ? 'Dupliquer…' : 'Duplicate…'}
+              </Button>
+              {/* Annuler et supprimer sont deux gestes distincts, et c'est
+                  volontaire. `bookings` est en ON DELETE CASCADE : supprimer un
+                  cours efface ses réservations sans que personne ne soit
+                  prévenu. L'annulation, elle, rembourse les crédits, notifie et
+                  envoie un e-mail — c'est ce qu'on veut dans presque tous les
+                  cas. La suppression ne sert qu'à effacer un créneau créé par
+                  erreur, donc vide. */}
+              <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setBulkAction('cancel')}>
+                <AlertTriangle className="h-3 w-3" />
+                {isFr ? 'Annuler…' : 'Cancel…'}
+              </Button>
+              <Button size="sm" variant="outline" className="text-xs gap-1 text-destructive" onClick={() => setBulkAction('delete')}>
+                <Trash2 className="h-3 w-3" />
+                {isFr ? 'Supprimer…' : 'Delete…'}
               </Button>
             </>
           )}

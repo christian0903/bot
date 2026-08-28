@@ -18,6 +18,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Copy, Share2, ScanLine, FileText } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
+import { urlImage } from '@/lib/url-image'
 
 const STATUS_COLORS: Record<string, string> = {
   visitor: 'bg-gray-100 text-gray-800',
@@ -279,7 +280,7 @@ export function ProfilePage() {
         <CardContent className="pt-6">
           <div className="flex items-center gap-3">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={profile.avatar_url ?? undefined} />
+              <AvatarImage src={urlImage(profile.avatar_url)} />
               <AvatarFallback className="text-xl">
                 {profile.display_name?.charAt(0).toUpperCase()}
               </AvatarFallback>

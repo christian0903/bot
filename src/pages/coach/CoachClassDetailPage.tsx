@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import type { ScheduledClass, Booking } from '@/types'
 import { sendEmail } from '@/lib/send-email'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { urlImage } from '@/lib/url-image'
 
 export function CoachClassDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -830,7 +831,7 @@ export function CoachClassDetailPage() {
           <div className="flex items-start gap-3">
             {scheduledClass.class_type?.image_url && (
               <img
-                src={scheduledClass.class_type.image_url}
+                src={urlImage(scheduledClass.class_type.image_url)}
                 alt=""
                 className="h-16 w-16 rounded-lg object-cover shrink-0"
               />

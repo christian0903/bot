@@ -25,6 +25,7 @@ import { fr, enUS } from 'date-fns/locale'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
 import type { ScheduledClass, Booking } from '@/types'
+import { urlImage } from '@/lib/url-image'
 
 /** Une façon de payer une séance : abonnement ou pack, telle que renvoyée par get_available_credits. */
 type CreditSource = {
@@ -1436,7 +1437,7 @@ export function SchedulePage() {
         <div className="relative w-20 sm:w-28 shrink-0 bg-muted">
           {sc.class_type?.image_url ? (
             <img
-              src={sc.class_type.image_url}
+              src={urlImage(sc.class_type.image_url)}
               alt={sc.class_type.name}
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -2218,7 +2219,7 @@ export function SchedulePage() {
             <>
               {infoClassType.image_url && (
                 <div className="rounded-lg overflow-hidden -mx-6 -mt-6 mb-4">
-                  <img src={infoClassType.image_url} alt={infoClassType.name} className="w-full h-48 object-cover" />
+                  <img src={urlImage(infoClassType.image_url)} alt={infoClassType.name} className="w-full h-48 object-cover" />
                 </div>
               )}
               <DialogHeader>

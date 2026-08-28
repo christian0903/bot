@@ -36,6 +36,7 @@ import { ArrowLeft, CreditCard, CalendarDays, Package, Plus, Clock, User, Pencil
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
+import { urlImage } from '@/lib/url-image'
 
 export function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -977,7 +978,7 @@ export function AdminUserDetailPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <Avatar className="h-14 w-14">
-          <AvatarImage src={profile.avatar_url ?? undefined} />
+          <AvatarImage src={urlImage(profile.avatar_url)} />
           <AvatarFallback className="text-xl">{profile.display_name?.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div>

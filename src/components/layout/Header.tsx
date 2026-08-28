@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { Menu, User, LogOut, Settings, Shield, Dumbbell, Gift } from 'lucide-react'
 import { useMode } from '@/contexts/ModeContext'
 import { ModeSwitcher } from '@/components/layout/ModeSwitcher'
+import { urlImage } from '@/lib/url-image'
 
 /** Injectée au build depuis package.json (cf. vite.config.ts). */
 declare const __APP_VERSION__: string
@@ -139,7 +140,7 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-full h-9 w-9">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={profile?.avatar_url ?? undefined} />
+                    <AvatarImage src={urlImage(profile?.avatar_url)} />
                     <AvatarFallback>
                       {profile?.display_name?.charAt(0).toUpperCase() ?? 'U'}
                     </AvatarFallback>

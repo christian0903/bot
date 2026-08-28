@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ScheduledClass } from '@/types'
+import { urlImage } from '@/lib/url-image'
 
 /**
  * Grille hebdomadaire du planning : jours en colonnes, heures en lignes.
@@ -229,7 +230,7 @@ function CarteCours({
       <div className="flex items-start gap-1">
         {sc.class_type?.image_url && !sc.is_cancelled && (
           <img
-            src={sc.class_type.image_url}
+            src={urlImage(sc.class_type.image_url)}
             alt=""
             className="h-6 w-6 rounded object-cover shrink-0 hidden sm:block"
           />

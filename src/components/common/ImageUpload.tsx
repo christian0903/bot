@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Upload, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { urlImage, cheminImage } from '@/lib/url-image'
 
 interface ImageUploadProps {
   value: string | null
@@ -52,18 +53,18 @@ export function ImageUpload({ value, onChange, folder, className, size = 'md' }:
       return
     }
 
-    const { data: urlData } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(fileName)
-
-    onChange(urlData.publicUrl)
+    // On remonte le CHEMIN, pas l'URL publique : la base ne doit pas porter la
+    // référence du projet, sinon copier les données vers une autre base laisse
+    // les images pointer vers l'ancienne. `urlImage` reconstruit l'adresse au
+    // moment de l'affichage.
+    onChange(fileName)
     setUploading(false)
   }
 
   const handleRemove = async () => {
     if (value) {
-      // Extract path from URL
-      const path = value.split('/avatars/')[1]
+      // Accepte l'ancienne forme (URL complète) comme la nouvelle (chemin).
+      const path = cheminImage(value)
       if (path) {
         await supabase.storage.from('avatars').remove([path])
       }
@@ -83,7 +84,7 @@ export function ImageUpload({ value, onChange, folder, className, size = 'md' }:
 
       {value ? (
         <div className={cn('relative rounded-lg overflow-hidden border', sizeClasses[size])}>
-          <img src={value} alt="" className="h-full w-full object-cover" />
+          <img src={urlImage(value)} alt="" className="h-full w-full object-cover" />
           <button
             type="button"
             onClick={handleRemove}
