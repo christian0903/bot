@@ -902,14 +902,32 @@ export function SchedulePage() {
    * acquis. Rien à décider — et l'écran de pointage n'offrait d'ailleurs plus
    * aucun bouton, ce qui rendait la demande insoluble.
    */
+  /**
+   * Cours passés qui attendent encore un geste du staff.
+   *
+   * Deux cas, et ils appellent la même action — ouvrir la fiche pour pointer :
+   *
+   *   `pending_checkin`  quorum atteint, personne pointé
+   *   `not_given`        sous le quorum, des membres ont consommé un crédit
+   *
+   * La sélection écartait auparavant les cours atteignant le quorum
+   * (`count >= minParticipants`), alors que le planning leur affiche le badge
+   * « Présence à confirmer » calculé par `getClassStatus`. L'écran se
+   * contredisait : il signalait un cours à traiter sans offrir le moyen de le
+   * faire. Les deux reposent désormais sur la même fonction — c'est elle qui
+   * décide, ici comme sur le badge.
+   */
   const classesPendingDecision = isStaff
     ? classes.filter(sc => {
-        if (sc.is_cancelled) return false
-        if (new Date(sc.starts_at) > new Date()) return false
-        const count = bookingCounts.get(sc.id) ?? 0
-        if (count === 0 || count >= minParticipants) return false
-        if ((attendedCounts.get(sc.id) ?? 0) > 0) return false
-        return (noShowCounts.get(sc.id) ?? 0) < count
+        const statut = getClassStatus({
+          starts_at: sc.starts_at,
+          is_cancelled: sc.is_cancelled,
+          bookings: bookingCounts.get(sc.id) ?? 0,
+          attended: attendedCounts.get(sc.id) ?? 0,
+          noShows: noShowCounts.get(sc.id) ?? 0,
+          minParticipants,
+        })
+        return statut === 'pending_checkin' || statut === 'not_given'
       })
     : []
 
@@ -1426,11 +1444,17 @@ export function SchedulePage() {
           (isStaff || clientCanOpenBookings) && 'cursor-pointer'
         )}
         onClick={
-          isStaff
-            ? () => openClassDetail(sc)
-            : clientCanOpenBookings
-              ? () => navigate('/my-bookings')
-              : undefined
+          // Son propre cours, déjà passé : c'est le pointage qu'on vient
+          // chercher, pas la fiche de gestion. Le dialogue de cette page sait
+          // inscrire, désinscrire et annuler, mais pas marquer présent ou
+          // absent — cliquer y menait donc à un écran sans le bouton attendu.
+          isStaff && isPast && sc.coach_id === user?.id
+            ? () => navigate(`/coach/class/${sc.id}`)
+            : isStaff
+              ? () => openClassDetail(sc)
+              : clientCanOpenBookings
+                ? () => navigate('/my-bookings')
+                : undefined
         }
       >
         {/* Left: image */}
@@ -1571,13 +1595,13 @@ export function SchedulePage() {
           <div>
             <p className="text-sm font-semibold text-orange-700 dark:text-orange-400">
               {isFr
-                ? `${classesPendingDecision.length} cours passé(s) sans décision`
-                : `${classesPendingDecision.length} past class(es) awaiting a decision`}
+                ? `${classesPendingDecision.length} cours passé(s) à pointer`
+                : `${classesPendingDecision.length} past class(es) to check in`}
             </p>
             <p className="text-xs text-orange-700/80 dark:text-orange-400/80 mt-0.5">
               {isFr
-                ? 'Des membres ont consommé un crédit sans qu\'on sache si le cours a eu lieu. Pointe les présences, ou annule pour leur rendre leur crédit.'
-                : 'Members used a credit and nobody said whether the class took place. Check them in, or cancel to refund their credit.'}
+                ? 'Des membres ont consommé un crédit sans qu\'on sache s\'ils sont venus. Pointe les présences, ou annule le cours pour leur rendre leur crédit.'
+                : 'Members used a credit and nobody said whether they came. Check them in, or cancel the class to refund their credit.'}
             </p>
           </div>
           {classesPendingDecision.map(sc => {
@@ -1585,8 +1609,17 @@ export function SchedulePage() {
             return (
               <div key={sc.id} className="flex items-center justify-between gap-2 rounded-lg bg-background p-2.5 flex-wrap">
                 <div className="min-w-0">
+                  {/* Le coach est nommé ici : ce bandeau est visible par tout
+                      le staff, et pointer un cours revient à celui qui l'a
+                      donné. Sans le nom, chacun devait ouvrir la fiche pour
+                      savoir si l'affaire le concernait. */}
                   <p className="text-sm font-medium truncate">
                     {sc.title || sc.class_type?.name}
+                    <span className="font-normal text-muted-foreground">
+                      {' ('}
+                      {sc.coach?.display_name ?? (isFr ? 'sans coach' : 'no coach')}
+                      {')'}
+                    </span>
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {format(new Date(sc.starts_at), 'EEEE dd/MM à HH:mm', { locale })}

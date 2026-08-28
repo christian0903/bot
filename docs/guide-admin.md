@@ -164,6 +164,28 @@ Chaque cours porte un badge qui dit où il en est :
 
 > **« Décision attendue » est le seul badge rouge.** Des membres ont consommé un crédit sans qu'on sache s'ils ont eu leur cours. C'est la seule situation qui exige une intervention.
 
+### Trois chemins vers le pointage
+
+Le badge signale le travail à faire ; encore faut-il l'atteindre. Depuis le
+**planning**, trois voies mènent à l'écran de pointage :
+
+1. **Le bandeau orange en haut de page** — « N cours passé(s) à pointer »,
+   avec le **nom du coach entre parenthèses** : ce bandeau est visible par tout
+   le staff, le nom dit d'un coup d'œil qui est concerné. Le bouton *Pointer les
+   présences* ouvre la fiche.
+2. **Cliquer sur son propre cours passé** dans la liste — on arrive directement
+   sur l'écran de pointage, pas sur la fiche de gestion.
+3. **L'espace coach → Mes cours**, le chemin habituel.
+
+Le cours d'un **autre** coach, lui, ouvre la fiche de gestion : c'est là qu'on
+inscrit, désinscrit ou annule. Pointer reste le geste de celui qui a donné le
+cours.
+
+> Le bandeau et les badges reposent sur la **même règle** : un cours signalé
+> « Présences à valider » ou « Décision attendue » figure toujours dans le
+> bandeau. Ce ne fut pas toujours le cas — l'écran a un temps annoncé un travail
+> sans offrir le moyen de le faire.
+
 ### La fiche d'un cours
 
 En tête : la vignette du cours, une **jauge de remplissage** et cinq compteurs —
@@ -314,6 +336,29 @@ Sur un écran étroit, les colonnes secondaires se masquent progressivement.
 
 L'export CSV reprend toutes ces colonnes, pour l'ensemble de ce que les filtres
 retiennent.
+
+### Le statut d'un membre — calculé, jamais saisi
+
+Le statut suit le parcours réel du membre. Il se recalcule tout seul : à l'achat
+d'un pack, à la réservation d'un essai, et à chaque connexion du membre — cette
+dernière pour le temps qui passe, qui ne produit aucun événement.
+
+| Statut | Règle |
+|---|---|
+| **Premier contact** | Compte créé, aucun cours d'essai réservé |
+| **Membre potentiel** | A réservé son cours d'essai — la réservation suffit, la séance n'a pas à avoir eu lieu |
+| **Membre actif** | A acheté un pack payant, et en a un en cours |
+| **Membre inactif** | A acheté, plus de pack valide, échéance de moins de 4 semaines |
+| **Ancien membre** | Échéance du dernier pack dépassée de plus de 4 semaines |
+
+> **Les frais d'inscription n'entrent pas dans le calcul.** On ne peut pas
+> acheter un pack sans les avoir payés : les tester une seconde fois serait
+> redondant, et trompeur — des frais offerts ou saisis en retard faisaient
+> apparaître comme « potentiel » quelqu'un qui s'entraînait depuis des semaines.
+
+> **Le statut ne se modifie pas à la main**, et c'est délibéré : une valeur
+> posée manuellement serait écrasée au recalcul suivant. Pour classer un membre
+> selon vos propres critères, utilisez la **catégorie**, qui elle se règle.
 
 ### Ranger plusieurs membres à la fois
 
@@ -755,13 +800,46 @@ Le staff n'apparaît pas dans la liste : coachs et administrateurs ne sont pas u
 
 ### Tableau de bord — Administration → Tableau de bord
 
-Sur une période au choix (semaine, mois, trimestre, année, ou dates libres) :
+Sur une période au choix (semaine, mois, trimestre, année, ou dates libres),
+neuf chiffres répartis en trois lignes.
 
-- **Recettes encaissées** et nombre de packs vendus
-- **Crédits consommés** et leur valeur
-- **Cours donnés / planifiés**
-- **Cours par coach** — seuls les cours **déjà donnés** sont comptés
-- **Exports CSV** : ventes de packs, et cours avec leurs réservations — sur ce que la page affiche. Pour des extractions plus larges, voir **Administration → Exports**.
+**Activité**
+
+| | |
+|---|---|
+| **Recettes encaissées** | L'argent réellement encaissé sur la période, et le nombre de packs vendus |
+| **Cours donnés / planifiés** | Un cours est *donné* s'il est passé, non annulé, et a réuni le minimum d'inscrits |
+| **Valeur par cours donné** | Ce que rapporte un créneau en moyenne — comparable d'un mois à l'autre |
+
+**Crédits**
+
+| | |
+|---|---|
+| **Crédits consommés** | Les séances réellement suivies, et la moyenne par cours donné |
+| **Crédits perdus** | Les soldes de packs arrivés à échéance sans avoir été utilisés, avec leur valeur. Le studio les a encaissés, le membre ne les a pas eus |
+| **Valeur produite** | Consommée + perdue : ce que le studio a acquis sur la période |
+
+**Membres** — les trois étapes du parcours franchies pendant la période :
+
+| | |
+|---|---|
+| **Premier contact** | Comptes créés |
+| **Membres potentiels** | Ont réservé leur cours d'essai |
+| **Nouveaux membres** | Ont acheté leur premier pack |
+
+Plus **Cours par coach** (seuls les cours déjà donnés) et des **exports CSV**.
+
+> **Recettes encaissées et valeur consommée ne disent pas la même chose.** Un
+> pack vendu en janvier se consomme jusqu'en mars : le premier chiffre suit
+> l'argent, le second suit l'activité. C'est le second qui dit ce que le studio
+> a produit sur la période.
+
+> **Un chiffre de crédits perdus qui monte** signale des packs trop gros, ou une
+> durée de validité trop courte.
+
+> **Les trois chiffres de membres ne se divisent pas entre eux.** On peut
+> acheter un pack sans être passé par l'essai, ou essayer un mois et acheter le
+> suivant : un « taux de conversion » calculé ainsi dépasserait 100 %.
 
 > Sur un pack illimité, aucun crédit n'est décompté : la valeur d'une séance vient du réglage « coût moyen d'une séance illimitée ».
 

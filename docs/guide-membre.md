@@ -284,15 +284,18 @@ Depuis **Profil**, en bas de page. La demande est définitive et prend effet imm
 |---|---|
 | **Accueil** | Ta séance d'essai, tes messages, tes prochains cours |
 | **Planning** | Voir les cours et **réserver** |
-| **Mes réservations** | Tes séances à venir (et, au choix, le passé et les annulations), **annuler** |
+| **Mes cours** | Tes séances à venir (et, au choix, le passé et les annulations), **annuler** |
+| **Mes performances** | Tes mesures, leur évolution, et ton objectif |
 | **Mes packs** | Tes crédits, ton abonnement, sa prochaine échéance |
 | **Acheter un pack** | Les formules, les abonnements, les frais d'inscription |
-| **Performances** | Tes mesures et leur évolution |
+| **Mes factures** | Demander une facture pour un achat |
 | **Profil** | Coordonnées, photo, langue, thème, **supprimer ton compte** |
 | **Parrainage** | Ton code à partager et tes bons d'achat |
 | **Aide** | Ce guide |
 
-**Sur mobile** : la barre du bas donne Accueil · Planning · Mes réservations · Mes packs. Le reste est dans le menu, en haut à droite.
+**Sur mobile** : la barre du bas donne Accueil · Planning · Mes cours · Mes
+performances. Le reste — mes packs, acheter un pack, mes factures, parrainage,
+profil — se trouve en touchant **ta photo, en haut à droite**.
 
 **Sur ordinateur** : tout est dans le menu du haut ; Profil et Parrainage sont sous ton nom, à droite.
 

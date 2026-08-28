@@ -291,6 +291,40 @@ n'aurait presque jamais servi, donc jamais été éprouvé.
 Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
 d'autre, `md5` identique. La copie ne butera plus.
 
+### Le planning annonçait un travail sans offrir le moyen de le faire
+
+Christian signale qu'un cours du 28 à 8h, dont il est le coach, affiche
+« Présence à confirmer » sans qu'aucun bouton ne permette de pointer. La base
+était pourtant en règle : cours passé, un inscrit, rien de pointé.
+
+**Deux règles concurrentes.** Le badge venait de `getClassStatus`, qui classe en
+`pending_checkin` un cours passé avec inscrits et non pointé. Le bandeau orange
+qui porte le bouton *Pointer les présences* avait sa propre condition, et
+excluait les cours **atteignant** le quorum :
+
+```js
+if (count === 0 || count >= minParticipants) return false
+```
+
+Le cours a un inscrit, le seuil est à un : le badge le signalait, le bandeau
+l'écartait. Les deux reposent désormais sur la même fonction — elle décide, ici
+comme sur le badge. Le bandeau couvre `pending_checkin` et `not_given`, deux cas
+qui appellent le même geste.
+
+> Effet de bord sur les données de test : le bandeau remonte 19 cours au lieu de
+> quelques-uns, tous jamais pointés depuis le 10 août. C'est le reflet fidèle de
+> la base, pas un défaut.
+
+**Le nom du coach entre parenthèses.** Le bandeau est visible par tout le staff,
+et pointer revient à celui qui a donné le cours : sans le nom, chacun devait
+ouvrir la fiche pour savoir si l'affaire le concernait.
+
+**Cliquer sur son propre cours passé ouvre le pointage.** Le dialogue de cette
+page sait inscrire, désinscrire et annuler, mais pas marquer présent ou absent —
+cliquer y menait donc à un écran sans le bouton attendu. La redirection ne vaut
+que pour ses propres cours : celui d'un autre coach garde la fiche de gestion,
+qui est bien l'écran voulu pour y inscrire ou annuler.
+
 ### Un coach peut lire les performances d'un membre
 
 La policy `Perf: own read` autorisait déjà un coach à lire les performances de
