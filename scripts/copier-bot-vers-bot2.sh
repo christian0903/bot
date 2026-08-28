@@ -19,8 +19,21 @@
 set -euo pipefail
 
 PG_BIN="/opt/homebrew/opt/libpq/bin"
-SOURCE_HOST="db.aojguoqxbzqcganxgqem.supabase.co"   # bot  — production
+
+# bot ne répond plus en connexion directe : db.<ref>.supabase.co refuse le
+# port 5432 (« Connection refused », 2026-08-28) alors que le projet est
+# ACTIVE_HEALTHY. Il faut passer par le pooler, ce qui change l'hôte ET
+# l'utilisateur (postgres.<ref> et non postgres). bot2, créé le 27 août,
+# accepte encore la connexion directe : les deux ne se traitent pas pareil.
+#
+# Le préfixe aws-0 / aws-1 ne se devine pas — les deux répondent au ping,
+# un seul accepte le projet. Project Settings → Database → Connection string
+# → onglet « Session pooler ».
+SOURCE_REF="aojguoqxbzqcganxgqem"                   # bot  — production, eu-west-1
+SOURCE_HOST="${POOLER:-}"                            # pooler de bot, à fournir
+SOURCE_USER="postgres.$SOURCE_REF"
 CIBLE_HOST="db.dcfzupyzdrndqegyeafg.supabase.co"    # bot2 — développement
+CIBLE_USER="postgres"
 
 RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DUMP_DIR="$RACINE/.dumps"
@@ -30,20 +43,45 @@ DUMP="$DUMP_DIR/bot-$(date +%Y%m%d-%H%M%S).sql"
 # fournisseur (email). Sans ces deux tables, les profils importés n'auraient
 # plus de compte et personne ne pourrait se connecter. Le reste du schéma auth
 # (sessions, jetons) ne vaut que pour l'instance d'origine : on le laisse.
-SCHEMAS=(--schema=public --table=auth.users --table=auth.identities)
+#
+# public s'écrit --table=public.* et NON --schema=public : dès qu'un --table
+# est présent, pg_dump ignore --schema. Écrit --schema, le dump ne sortait que
+# les deux tables auth, sans une ligne de public — et sans la moindre erreur.
+SCHEMAS=(--table='public.*' --table=auth.users --table=auth.identities)
+
+if [[ -z "$SOURCE_HOST" ]]; then
+  echo "Hôte du pooler de bot introuvable."
+  echo
+  echo "Dashboard → projet bot → Project Settings → Database"
+  echo "  → Connection string → onglet « Session pooler »"
+  echo
+  echo "  POOLER=aws-0-eu-west-1.pooler.supabase.com $0"
+  echo
+  exit 1
+fi
 
 mkdir -p "$DUMP_DIR"
 
 echo "=== 1/3  Export de bot (données seules) ==="
+echo "    hôte : $SOURCE_HOST  (user $SOURCE_USER)"
 read -rsp "Mot de passe de bot  : " PW_SOURCE; echo
 export PGPASSWORD="$PW_SOURCE"
 "$PG_BIN/pg_dump" \
-  -h "$SOURCE_HOST" -p 5432 -U postgres -d postgres \
+  -h "$SOURCE_HOST" -p 5432 -U "$SOURCE_USER" -d postgres \
   --data-only --no-owner --no-privileges \
   "${SCHEMAS[@]}" \
   -f "$DUMP"
 unset PGPASSWORD PW_SOURCE
 echo "    → $DUMP  ($(du -h "$DUMP" | cut -f1))"
+
+# Sans public, le dump ne porte que les comptes : l'importer après avoir vidé
+# bot2 la laisserait avec 23 comptes et aucune donnée applicative. On s'arrête
+# donc AVANT l'étape destructrice.
+if ! grep -q '^COPY public\.' "$DUMP"; then
+  echo
+  echo "⚠️  AUCUNE table public dans le dump — bot2 n'a PAS été touchée."
+  exit 1
+fi
 
 echo
 echo "=== 2/3  Reset de bot2 ==="
@@ -52,11 +90,18 @@ export PGPASSWORD="$PW_CIBLE"
 
 # Le reset conserve les admins ; ici on veut une table rase, les comptes de
 # bot arrivant à l'étape suivante. D'où la suppression complète qui suit.
-"$PG_BIN/psql" -h "$CIBLE_HOST" -p 5432 -U postgres -d postgres \
+"$PG_BIN/psql" -h "$CIBLE_HOST" -p 5432 -U "$CIBLE_USER" -d postgres \
   -v ON_ERROR_STOP=1 -q -f "$RACINE/supabase/reset-test-data.sql" > /dev/null
-"$PG_BIN/psql" -h "$CIBLE_HOST" -p 5432 -U postgres -d postgres \
+#
+# app_settings est une table de CONFIGURATION : reset-test-data.sql la
+# préserve volontairement, et c'est bien ainsi pour un reset. Mais ici le dump
+# apporte sa propre version complète, et `key` est unique — les lignes déjà en
+# place font échouer l'import sur un doublon (vu le 2026-08-28 :
+# « duplicate key ... Key (key)=(payment_provider) already exists »).
+# Toute table de configuration ajoutée un jour au dump devra être vidée ici.
+"$PG_BIN/psql" -h "$CIBLE_HOST" -p 5432 -U "$CIBLE_USER" -d postgres \
   -v ON_ERROR_STOP=1 -q \
-  -c "DELETE FROM profiles; DELETE FROM user_roles; DELETE FROM auth.users;"
+  -c "DELETE FROM profiles; DELETE FROM user_roles; DELETE FROM auth.users; DELETE FROM app_settings;"
 echo "    → bot2 vidée"
 
 echo
@@ -76,14 +121,14 @@ echo "=== 3/3  Import dans bot2 ==="
   cat "$DUMP"
   echo "SET session_replication_role = 'origin';"
   echo "COMMIT;"
-} | "$PG_BIN/psql" -h "$CIBLE_HOST" -p 5432 -U postgres -d postgres \
+} | "$PG_BIN/psql" -h "$CIBLE_HOST" -p 5432 -U "$CIBLE_USER" -d postgres \
       -v ON_ERROR_STOP=1 -q
 
 echo "    → import terminé"
 
 echo
 echo "=== Contrôle ==="
-"$PG_BIN/psql" -h "$CIBLE_HOST" -p 5432 -U postgres -d postgres -q -c "
+"$PG_BIN/psql" -h "$CIBLE_HOST" -p 5432 -U "$CIBLE_USER" -d postgres -q -c "
 SELECT 'auth.users' AS table_name, COUNT(*) FROM auth.users
 UNION ALL SELECT 'profiles', COUNT(*) FROM profiles
 UNION ALL SELECT 'user_roles', COUNT(*) FROM user_roles

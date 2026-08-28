@@ -618,7 +618,7 @@ CREATE TABLE invoice_requests (
   company_name TEXT NOT NULL,
   address TEXT NOT NULL,
   vat_number TEXT,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processed')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'paid', 'cancelled', 'processed')),
   admin_notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   processed_at TIMESTAMPTZ

@@ -119,10 +119,116 @@ l'application. Il devrait écrire dans `user_roles`, donc rouvrir ce qu'on a
 fermé le 6 août ; l'installation reste une opération manuelle, faite une fois
 par base, par quelqu'un qui a déjà les accès au dashboard.
 
-**Reste ouvert** : la copie des données de `bot` vers la base de développement
-(`scripts/copier-bot-vers-bot2.sh`, toujours pas exécuté), et les **10 Edge
-Functions dont aucune n'est déployée** sur cette base — le front en appelle
-huit en dur, donc paiements, e-mails et création de comptes y échoueront.
+**Les données de `bot` sont sauvegardées.** 424 Ko, 27 tables `public` plus
+`auth.users` et `auth.identities`, 23 comptes cohérents entre les trois —
+`.dumps/bot-20260828-104047.sql`. C'était le préalable à la copie vers la base
+de développement, et il a fallu lever deux obstacles pour l'obtenir.
+
+**`bot` n'accepte plus la connexion directe.** `db.<ref>.supabase.co` refuse le
+port 5432 — « Connection refused » — alors que l'API répond et que le projet est
+`ACTIVE_HEALTHY`. Ce n'est ni le mot de passe ni le réseau : `bot2`, créé le
+27 août, répond en direct depuis la même machine. Les projets antérieurs à la
+fin de l'IPv4 gratuite (janvier 2024) ont perdu cet accès ; `bot` date d'avril.
+La voie est le **pooler**, qui change deux choses à la fois : l'hôte
+(`aws-N-eu-west-1.pooler.supabase.com`) et l'**utilisateur**, qui devient
+`postgres.<ref>` et non `postgres`. Le préfixe `aws-0` / `aws-1` ne se devine
+pas — les deux répondent au ping, un seul accepte le projet : il se lit dans
+Project Settings → Database → Connection string → onglet « Session pooler ».
+
+> À noter pour plus tard : **`bot` et `bot2` sont dans deux organisations
+> différentes** (`pflryojyjqgxqoekgcbb` et `qmtrvtjqgfbehwkgawwl`). Le mot de
+> passe d'une base se réinitialise dans les réglages du **projet**, sous la
+> bonne organisation. Il n'est jamais réaffiché — montré une seule fois à la
+> création — et son reset ne casse ni le front ni les Edge Functions, qui
+> passent par les clés API et non par Postgres.
+
+**`--schema=public` était neutralisé, en silence.** La ligne
+`SCHEMAS=(--schema=public --table=auth.users --table=auth.identities)` ne
+sortait que les deux tables `auth` : dès qu'un `--table` est présent, `pg_dump`
+ignore `--schema`. Le premier dump pesait 28 Ko, s'annonçait comme un succès, et
+ne contenait pas une ligne de données applicatives. Il faut écrire
+`--table='public.*'`, qui se combine au lieu d'exclure.
+
+Le défaut venait de `copier-bot-vers-bot2.sh`, d'où la ligne avait été reprise.
+Il y était plus grave qu'ailleurs : le script vide `bot2` **avant** d'importer,
+si bien qu'un dump amputé l'aurait laissée avec 23 comptes et aucune donnée. Les
+deux scripts refusent désormais de continuer si le dump ne contient aucune table
+`public` — dans le script de copie, ce contrôle s'exécute **avant** l'étape
+destructrice.
+
+**Décidé** : sauvegarder d'abord, copier ensuite. L'export a été sorti dans un
+script à part, `scripts/sauvegarder-bot.sh`, qui ne fait que lire — aucune
+écriture, sur aucune base. Un dump réussi vaut par lui-même, indépendamment de
+la copie vers `bot2` ; les mêler dans un seul script rendait impossible de
+sécuriser les données sans accepter au passage l'effacement de la base de
+développement. Le contrôle affiche le compte de lignes par table : un dump vide
+ne peut plus passer pour une sauvegarde réussie.
+
+**Pas de dump depuis le dashboard** — la question s'est posée. Supabase n'offre
+pas d'export complet : les Backups ne sont téléchargeables qu'à partir des plans
+payants, et le « Download CSV » de l'éditeur SQL sort table par table, sans
+`auth.users` ni l'ordre des dépendances. `pg_dump` reste la seule voie.
+
+**Les données sont dans la base de développement.** 23 comptes, 23 profils,
+28 rôles, 553 cours, 142 réservations, 158 performances — tous les comptes
+correspondent au dump, et six contrôles d'intégrité relationnelle ne trouvent
+aucun orphelin, malgré les triggers désactivés pendant l'import.
+`christian@aikicom.eu` y est `super_admin` : **la connexion à la base de
+développement se fait désormais avec les identifiants de `bot`**, les deux
+comptes créés la veille ayant été effacés par le vidage.
+
+**L'import a échoué trois fois, sur trois causes distinctes.** Chacune valait
+d'être comprise plutôt que contournée.
+
+1. **`app_settings` en doublon.** `reset-test-data.sql` préserve volontairement
+   les tables de configuration — c'est juste pour un reset, mais pas quand un
+   dump apporte sa propre version complète et que `key` est unique. Les
+   11 lignes en place refusaient les 15 du dump. `app_settings` entre donc dans
+   le vidage du script de copie.
+2. **Contrainte `invoice_requests_status_check` trop étroite.** La base de
+   développement, née d'`install.sql`, n'admettait que `pending` et `processed`
+   quand `bot` accepte cinq statuts. La migration `20260807_clients_b2b.sql`
+   avait élargi `bot` **sans être reportée dans `install.sql`** — la règle n° 1,
+   prise en défaut, et invisible jusqu'à ce qu'une facture au statut `paid`
+   cherche à entrer. Corrigé des deux côtés.
+3. **Colonne `mollie_payment_id` absente.** Vestige de la migration Mollie
+   abandonnée le 2026-08-03 : `bot` la porte encore, `install.sql` — réécrit
+   depuis — ne la crée plus. Elle est **vide sur les 11 lignes**, elle a donc
+   été retirée du fichier d'import plutôt qu'ajoutée à la base neuve. Ici
+   `install.sql` a raison et c'est `bot` qui traîne un reliquat ; l'en retirer
+   est une décision à part, à ne pas prendre au détour d'un import.
+
+Les deux premières causes ne se voyaient qu'à l'exécution. La troisième non
+plus — mais une fois l'erreur lue, une comparaison systématique des
+31 contraintes `CHECK` et des colonnes récentes des deux bases a montré qu'il
+n'y avait **aucun autre écart**, ce qui a évité de découvrir les suivants un à
+un.
+
+**Le rollback ne couvre pas tout.** L'import est dans une transaction, le
+vidage qui le précède est un `psql` séparé, déjà validé. Un import qui échoue
+laisse donc la base **vide**, pas dans son état d'avant. Sans conséquence ici
+puisque le dump contient tout, mais à savoir avant de lancer le script sur une
+base dont le contenu compterait.
+
+**L'écran blanc d'après import venait de Vite, pas de la base.** Le serveur de
+développement tournait déjà pendant la bascule : il gardait en mémoire le
+`.env` lu à son démarrage, et la session ouverte dans le navigateur référençait
+un compte que le vidage venait d'effacer. D'où une page blanche, sans même de
+bouton de déconnexion. Un `npm run dev` relancé a suffi. À retenir : **après
+tout changement de `.env` ou de contenu de base, redémarrer Vite** — le `.env`
+n'est lu qu'au démarrage, et un `localStorage.clear()` dans la console vide la
+session quand l'interface ne répond plus.
+
+Les données, elles, avaient été vérifiées entre-temps : droits de table,
+policies de `user_roles`, `has_role()`, jointures du tableau de bord et valeurs
+nulles — tout était correct, ce qui a écarté la base avant de chercher côté
+application.
+
+**Reste ouvert** : les **10 Edge Functions dont aucune n'est déployée** sur la
+base de développement — le front en appelle huit en dur, donc paiements,
+e-mails et création de comptes y échoueront. Le bucket Storage `avatars` n'y
+est pas non plus créé : les avatars des 23 profils pointent vers des fichiers
+absents.
 
 ---
 
