@@ -658,7 +658,13 @@ export function PerformancesPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               {isFr ? 'Annuler' : 'Cancel'}
             </Button>
-            <Button onClick={handleSave} disabled={saving || !form.value.trim() || !form.performance_type_id}>
+            {/* La condition suit le champ réellement affiché : un chrono se
+                saisit dans timeMin/timeSec, jamais dans form.value. Exiger
+                form.value ici laissait le bouton mort en permanence pour tout
+                type `time` — le membre saisissait son temps, cliquait, et rien
+                ne se passait, sans le moindre message. handleSave valide déjà
+                le détail (temps vide, secondes hors bornes) et le dit. */}
+            <Button onClick={handleSave} disabled={saving || !form.performance_type_id || (formKind === 'time' ? !timeMin.trim() && !timeSec.trim() : !form.value.trim())}>
               {saving ? '...' : (isFr ? 'Enregistrer' : 'Save')}
             </Button>
           </DialogFooter>

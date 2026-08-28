@@ -4270,8 +4270,24 @@ CREATE POLICY "Credit types: public read" ON credit_types FOR SELECT USING (true
 CREATE POLICY "Credit types: admin manage" ON credit_types FOR ALL USING (has_role(auth.uid(), 'admin'));
 
 -- PACK_TYPES
-CREATE POLICY "Pack types: read active or admin" ON pack_types
-  FOR SELECT USING (is_active = true OR has_role(auth.uid(), 'admin'));
+-- Lire : le catalogue actif, plus tout pack que le membre détient — même
+-- retiré de la vente. `is_active = FALSE` veut dire « hors catalogue, mais
+-- toujours utilisable » (cf. le commentaire de la colonne) ; sans cette
+-- ouverture, la jointure du planning renvoyait NULL et le membre lisait
+-- « 0 crédit » avec des crédits bien valides.
+CREATE POLICY "Pack types: read active, detenu ou admin" ON pack_types
+  FOR SELECT USING (
+    is_active = true
+    OR has_role(auth.uid(), 'admin')
+    OR EXISTS (
+      SELECT 1 FROM pack_purchases pp
+      WHERE pp.pack_type_id = pack_types.id AND pp.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM subscriptions s
+      WHERE s.pack_type_id = pack_types.id AND s.user_id = auth.uid()
+    )
+  );
 -- Créer et modifier : tout admin. Ce sont les gestes du quotidien, et ils se
 -- corrigent. Effacer, non : c'est irréversible et cela touche à l'historique des
 -- achats — même niveau de responsabilité que l'effacement du journal d'activité.

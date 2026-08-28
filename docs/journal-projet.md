@@ -224,6 +224,86 @@ policies de `user_roles`, `has_role()`, jointures du tableau de bord et valeurs
 nulles — tout était correct, ce qui a écarté la base avant de chercher côté
 application.
 
+### Inventaire de ce qui a été posé sur la base de développement
+
+**Règle rappelée par Christian le 2026-08-28 : `bot` est la référence.** La base
+de développement ne sert qu'à éprouver la migration ; rien ne doit y exister qui
+n'existe pas dans `bot`. Tant qu'on n'est pas passé en mode opérationnel, c'est
+`bot` qui porte le réel — les coachs y testent.
+
+Trois migrations ont été appliquées sur la base de développement dans la
+journée. Deux d'entre elles la **rattrapaient** au niveau de `bot` sans le
+dépasser :
+
+| Migration | État de `bot` | Écart |
+|---|---|---|
+| `20260828_grants_tables_anon_authenticated` | GRANT présents, 6 `DEFAULT PRIVILEGES` posés | aucun |
+| `20260828_invoice_requests_statuts_b2b` | a déjà les cinq statuts | aucun |
+| `20260828_pack_types_lecture_detenteurs` | policy encore ancienne | **oui — le seul** |
+
+**Un seul écart subsiste donc** : la policy de lecture de `pack_types`. Elle
+corrige le « 0 crédit » et n'est pas encore sur `bot`, où six membres voient
+toujours un solde amputé ou nul.
+
+> À appliquer sur `bot` après validation. C'est une policy de lecture : elle
+> n'écrit rien et ne touche aucune donnée.
+
+### Deux bugs coachs, et le vestige Mollie retiré
+
+**Le bouton « Enregistrer » était mort sur les performances chrono.** Sa
+condition exigeait `form.value`, que le formulaire ne remplit jamais pour un
+`measure_kind = 'time'` : il affiche deux champs minutes/secondes câblés
+ailleurs. Le membre saisissait son temps, cliquait, et rien ne se passait —
+sans message. Gauthier l'avait signalé comme « le rameur et le ski ne
+s'enregistrent pas », en soupçonnant l'unité de mesure ; la base disait
+l'inverse, le Rameur portait déjà 44 performances. La condition suit désormais
+le champ réellement affiché, et `handleSave` — qui valide déjà temps vide et
+secondes hors bornes — peut enfin s'exécuter et le dire.
+
+**« 0 crédit » alors que des packs sont valides.** La policy de lecture de
+`pack_types` ne laissait voir que `is_active = true`, quand le commentaire de
+la colonne dit l'inverse : « hors catalogue, mais toujours utilisable ». Un
+pack retiré de la vente devenait invisible, la jointure du planning renvoyait
+NULL, et le crédit était écarté en silence. La policy autorise maintenant aussi
+la lecture d'un pack que le membre détient, par achat ou par abonnement.
+
+Appliqué sur les deux bases. Six membres retrouvent leurs crédits : Ingrid
+passe de 8 à 27 affichés, Joan de 12 à 15 — exactement ce qu'elle signalait —
+et trois autres de zéro à leur solde réel.
+
+> Joan a **trois comptes** (`joan@backontrackstudio.be`,
+> `joan.rodon2112@gmail.com`, `joan.rodon@hotmail.fr`). Sur deux d'entre eux, le
+> « 0 crédit » était juste. Le bug était réel, mais la question des comptes en
+> double reste ouverte.
+
+**`registration_fees.mollie_payment_id` est supprimée.** Dernier vestige du
+chantier abandonné le 2026-08-03 : 11 lignes, aucune valeur, aucun code qui la
+lit. `install.sql` ne la créait plus depuis sa réécriture, si bien que la copie
+des données vers une base neuve échouait dessus — après avoir vidé la cible.
+
+Deux réponses étaient possibles : apprendre au script à élaguer les colonnes
+absentes de la cible, ou aligner la source. **La seconde a été retenue** (choix
+de Christian) : `bot` est la référence, et une référence ne devrait pas traîner
+ce que le fichier d'installation a cessé de décrire. Un script tolérant aurait
+masqué l'écart au lieu de le fermer — et ce code d'élagage, écrit puis retiré,
+n'aurait presque jamais servi, donc jamais été éprouvé.
+
+Les deux bases ont désormais **la même empreinte de colonnes** : 274 de part et
+d'autre, `md5` identique. La copie ne butera plus.
+
+### Comparer les schémas, pas les compteurs
+
+`scripts/comparer-bases.sh` compare le **texte** des policies, des signatures de
+fonctions, des colonnes, des contraintes `CHECK` et des droits de table entre
+deux bases. Il ne fait que lire.
+
+Il répond à ce que la journée a montré : les deux bases affichaient **exactement
+les mêmes compteurs** — 27 tables, 89 policies, 76 fonctions, 12 triggers —
+alors que la policy de `pack_types` différait dans son texte et faisait lire
+« 0 crédit » à six membres. Le contrôle du 27 août avait certifié `install.sql`
+conforme sur ces mêmes compteurs, sans voir les droits manquants. **Un compteur
+identique ne prouve rien** ; c'est la définition qu'il faut comparer.
+
 **Reste ouvert** : les **10 Edge Functions dont aucune n'est déployée** sur la
 base de développement — le front en appelle huit en dur, donc paiements,
 e-mails et création de comptes y échoueront. Le bucket Storage `avatars` n'y

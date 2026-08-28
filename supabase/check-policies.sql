@@ -62,7 +62,7 @@ WITH attendu(tbl, pol) AS (VALUES
   ('pack_type_categories','Pack type categories: public read'),
   ('pack_types','Pack types: admin insert'),
   ('pack_types','Pack types: admin update'),
-  ('pack_types','Pack types: read active or admin'),
+  ('pack_types','Pack types: read active, detenu ou admin'),
   ('pack_types','Pack types: super admin delete'),
   ('performance_types','PerfTypes: coach/admin delete'),
   ('performance_types','PerfTypes: coach/admin insert'),
