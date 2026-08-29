@@ -81,7 +81,7 @@ WITH attendu(tbl, pol) AS (VALUES
   ('profiles','Profiles: admin update all'),
   ('profiles','Profiles: insert on signup'),
   ('profiles','Profiles: own update'),
-  ('profiles','Profiles: read when signed in'),
+  ('profiles','Profiles: own or staff'),
   ('referral_rewards','rewards_admin_all'),
   ('referral_rewards','rewards_own_read'),
   ('referrals','referrals_admin_all'),
@@ -146,8 +146,8 @@ ORDER BY 1, 2, 3;
 --
 -- Aucune ligne = conforme.
 
--- `coach_profiles` est exclue : le 2026-08-29, `anon` en a ete revoque
--- volontairement — la vue ne sert qu'a deux ecrans d'administration, et elle
+-- `coach_profiles` et `profils_publics` sont exclues : le 2026-08-29, `anon`
+-- en a ete revoque volontairement — la vue ne sert qu'a deux ecrans d'administration, et elle
 -- exposait auparavant les e-mails et telephones des coachs a qui voulait les
 -- lire. Un droit absent y est donc l'etat correct, pas une anomalie.
 --
@@ -162,7 +162,7 @@ CROSS JOIN (VALUES ('anon'), ('authenticated')) AS r(rolname)
 CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE')) AS a(priv)
 WHERE c.relnamespace = 'public'::regnamespace
   AND c.relkind IN ('r', 'v')
-  AND c.relname <> 'coach_profiles'
+  AND c.relname NOT IN ('coach_profiles', 'profils_publics')
   AND NOT has_table_privilege(r.rolname, c.oid, a.priv)
 
 UNION ALL

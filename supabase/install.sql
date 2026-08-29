@@ -4394,18 +4394,24 @@ ALTER TABLE member_badges          ENABLE ROW LEVEL SECURITY;
 -- ============================================
 
 -- PROFILES
--- `TO authenticated` est essentiel : sans mention de role, une policy vaut
--- pour PUBLIC, donc pour `anon`. C'est ce qui rendait la table lisible SANS
--- COMPTE, avec la seule cle publishable que porte le code du site — 23
--- profils complets sur bot3 le 2026-08-29, telephones, adresses et un
--- `medical_conditions` compris.
+-- Deux precautions, chacune payee d'une fuite le 2026-08-29 :
 --
--- Un membre connecte lit encore les profils des autres : le planning affiche
--- le nom du coach, la liste de presence celui des participants. Restreindre
--- davantage demanderait une vue dediee. Le gain tient a ce qu'il faut
--- desormais un compte, et qu'un compte se trace.
-CREATE POLICY "Profiles: read when signed in" ON profiles
-  FOR SELECT TO authenticated USING (true);
+-- `TO authenticated` — sans mention de role, une policy vaut pour PUBLIC, donc
+-- pour `anon`. La table se lisait SANS COMPTE avec la cle publishable que
+-- porte le code du site : 23 profils complets, telephones, adresses et un
+-- `medical_conditions`.
+--
+-- `auth.uid() = id` — un membre ne lit que SON profil. Le staff lit tout, il
+-- en a besoin pour une liste de presence ou une fiche membre. Les autres
+-- passent par la vue `profils_publics`, qui ne porte que le nom et la photo :
+-- c'est tout ce dont on a besoin sur autrui.
+CREATE POLICY "Profiles: own or staff" ON profiles
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid() = id
+    OR has_role(auth.uid(), 'coach')
+    OR has_role(auth.uid(), 'admin')
+  );
 CREATE POLICY "Profiles: own update" ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Profiles: admin update all" ON profiles FOR UPDATE USING (has_role(auth.uid(), 'admin'));
 CREATE POLICY "Profiles: insert on signup" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
@@ -4655,10 +4661,30 @@ JOIN user_roles ur ON ur.user_id = p.id
 WHERE ur.role IN ('coach', 'admin', 'super_admin')
 ORDER BY p.id, CASE ur.role WHEN 'super_admin' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END;
 
--- `anon` exclu volontairement : les deux ecrans qui lisent cette vue sont des
--- pages d'administration.
-REVOKE ALL ON coach_profiles FROM anon;
+-- Le retrait des droits d'`anon` sur cette vue ne peut PAS se faire ici : la
+-- section 8, plus bas, redonne tout a `anon` sur ON ALL TABLES — les vues
+-- comprises. Il est donc pose apres elle, en fin de fichier.
 GRANT SELECT ON coach_profiles TO authenticated;
+
+-- ============================================
+-- 6b. VUE : ce qu'un membre voit des autres
+-- ============================================
+-- Trois colonnes, et rien d'autre. Un membre a besoin du nom du coach de son
+-- cours et de celui des participants ; il n'a jamais besoin de leur telephone,
+-- de leur adresse ni de leurs `medical_conditions`.
+--
+-- La policy de `profiles` ne laisse un membre lire que son propre profil. Sans
+-- cette vue, le planning n'afficherait plus aucun nom de coach.
+--
+-- SECURITY DEFINER (le defaut, pas `security_invoker`) : c'est ce qui lui
+-- permet de traverser cette policy. Le filtrage tient ici a la liste des
+-- colonnes — trois champs inoffensifs n'ont rien de plus a filtrer.
+CREATE OR REPLACE VIEW profils_publics AS
+SELECT id, display_name, avatar_url
+FROM profiles
+WHERE deleted_at IS NULL;
+
+GRANT SELECT ON profils_publics TO authenticated;
 
 -- ============================================
 -- 7. REALTIME
@@ -5042,6 +5068,16 @@ GRANT EXECUTE ON FUNCTION client_tracking_stats() TO authenticated;
 -- section 6 serait sautée s'il était placé plus haut.
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+
+-- ...a une exception pres, et elle doit venir APRES le bloc ci-dessus.
+--
+-- `coach_profiles` n'a rien a faire entre les mains d'un visiteur non
+-- connecte : la vue ne sert qu'a deux ecrans d'administration, et elle a
+-- expose les e-mails et telephones des coachs jusqu'au 2026-08-29. Pose plus
+-- haut, ce REVOKE serait efface par le `ON ALL TABLES` qui precede — une base
+-- neuve renaitrait avec la fuite.
+REVOKE ALL ON coach_profiles FROM anon;
+REVOKE ALL ON profils_publics FROM anon;
 
 -- Les tables créées PLUS TARD (migration, nouvelle fonctionnalité) doivent
 -- hériter des mêmes droits, sans quoi le défaut réapparaîtrait table par table

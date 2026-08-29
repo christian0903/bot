@@ -1128,6 +1128,14 @@ remplie.
 
 ## Points de vigilance
 
+**Les coordonnées des membres ne sortent pas du studio.** Depuis le 29 août,
+un membre connecté ne lit plus que son propre profil : téléphone, adresse,
+date de naissance et informations médicales lui sont invisibles chez les
+autres. Vous, coachs et administrateurs, gardez l'accès complet — c'est
+nécessaire pour joindre quelqu'un ou tenir une liste de présence. Ce qui reste
+visible de tous, ce sont les noms et les photos, sans quoi le planning
+n'afficherait plus le coach d'un cours.
+
 **Le paiement fait foi.** Un pack n'est crédité qu'après confirmation du paiement par Stripe. Si un membre dit avoir payé sans que rien n'apparaisse, vérifiez d'abord côté Stripe avant d'attribuer à la main.
 
 **Les gestes commerciaux sont tracés.** Réductions, bons, reports d'échéance : tout est enregistré au journal, avec l'auteur. C'est une protection, pas une surveillance — elle permet de répondre à un membre qui conteste.

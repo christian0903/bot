@@ -277,6 +277,96 @@ Sans ce contrôle **côté serveur**, n'importe qui appellerait la fonction et o
 
 ---
 
+## Données personnelles : ce qui a fuité, et pourquoi
+
+Deux fuites ont été trouvées le 2026-08-29, à quelques heures d'intervalle et
+pour la même raison de fond. Elles valent d'être racontées : le piège se
+rejouera à la prochaine policy écrite trop vite.
+
+### Une policy sans rôle s'applique à `anon`
+
+```sql
+CREATE POLICY "Profiles: public read" ON profiles FOR SELECT USING (true);
+```
+
+`USING (true)` se lit « tout le monde », et c'est bien ce que ça veut dire :
+sans clause `TO`, une policy vaut pour `PUBLIC`, donc pour le rôle `anon` —
+celui qu'utilise n'importe quel visiteur muni de la clé publishable. Or cette
+clé **figure en clair dans le code du site** : c'est sa raison d'être.
+
+Relevé sur une base réelle : 23 profils complets, 23 e-mails, 21 téléphones,
+17 adresses, des dates de naissance, des contacts d'urgence et un
+`medical_conditions` — donnée de santé au sens de l'article 9 du RGPD.
+
+```bash
+curl "https://<ref>.supabase.co/rest/v1/profiles?select=*" -H "apikey: <clé publishable>"
+```
+
+**Correctif** : `FOR SELECT TO authenticated`. Un membre connecté lit encore
+les profils des autres — le planning affiche le nom du coach, la liste de
+présence celui des participants, et aucune vue ne couvre ce besoin. Le gain
+tient à ce qu'il faut désormais un compte, et qu'un compte se trace.
+
+### Une vue expose ce que son `SELECT` liste, pas ce que l'écran affiche
+
+`coach_profiles` portait `email` et `phone`, avec un `GRANT` à `anon`. Aucun
+écran ne les affichait : les deux pages qui lisent cette vue montrent le nom et
+la photo, et le type `CoachRef` ne déclare même pas ces colonnes. Elles étaient
+là par héritage, et lisibles par le monde entier.
+
+**Correctif** : les deux colonnes retirées, `anon` révoqué, et
+`security_invoker = true` — sans quoi une vue s'exécute avec les droits de son
+propriétaire et contourne le RLS des tables qu'elle lit.
+
+### Le piège d'ordre dans `install.sql`
+
+Le `REVOKE ALL ON coach_profiles FROM anon` **doit venir après la section 8**.
+Celle-ci fait `GRANT ... ON ALL TABLES IN SCHEMA public TO anon` — et `ALL
+TABLES` inclut les vues. Placé plus haut, le REVOKE est effacé quelques
+centaines de lignes plus bas, et une base neuve renaît avec la fuite.
+
+C'est le genre de défaut qu'aucun compteur ne voit : les objets sont là, les
+policies aussi, seuls les droits diffèrent.
+
+### La règle finale
+
+```sql
+CREATE POLICY "Profiles: own or staff" ON profiles
+  FOR SELECT TO authenticated
+  USING (auth.uid() = id
+         OR has_role(auth.uid(), 'coach')
+         OR has_role(auth.uid(), 'admin'));
+```
+
+Un membre lit **son seul profil**. Le staff lit tout — liste de présence, fiche
+membre, envoi d'un e-mail. Pour le reste, `profils_publics` expose `id`,
+`display_name`, `avatar_url` et rien d'autre : le planning y trouve le nom du
+coach, la liste des participants leurs noms.
+
+Cette vue est en **SECURITY DEFINER** (le défaut), contrairement à
+`coach_profiles` : c'est ce qui lui permet de traverser la policy restrictive.
+Le filtrage tient à sa liste de colonnes — trois champs inoffensifs n'ont rien
+de plus à filtrer. Une vue en `security_invoker` serait ici vide pour tout le
+monde.
+
+Vérifié sur une base réelle, avec l'identité d'un membre simple : 1 profil
+lisible, 1 téléphone visible — le sien —, et les 23 noms via la vue.
+
+### Ce que ces deux fuites enseignent
+
+**Ce qu'un écran affiche ne dit rien de ce qu'il rapatrie.** Les deux ont été
+trouvées en interrogeant l'API, pas en lisant le code. `curl` avec la clé
+publishable est le seul test qui prouve quelque chose :
+
+```bash
+curl "https://<ref>.supabase.co/rest/v1/<table>?select=*" -H "apikey: <clé publishable>"
+```
+
+À passer sur chaque table après toute modification de policy — et sur une base
+neuve avant sa mise en service.
+
+---
+
 ## Avis sur les cours
 
 ### L'avis porte sur la réservation, pas sur le cours

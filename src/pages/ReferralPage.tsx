@@ -44,9 +44,12 @@ export function ReferralPage() {
       // Fetch referee profiles
       if (refs.length > 0) {
         const refereeIds = refs.map(r => r.referee_id)
+        // Seul le nom du filleul s'affiche (l. 206) : l'e-mail etait rapatrie
+        // pour rien. Et `profils_publics` plutot que `profiles`, un membre ne
+        // lisant plus que son propre profil depuis le 2026-08-29.
         const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, display_name, email')
+          .from('profils_publics')
+          .select('id, display_name')
           .in('id', refereeIds)
         const profileMap = new Map((profiles ?? []).map(p => [p.id, p]))
         for (const r of refs) {

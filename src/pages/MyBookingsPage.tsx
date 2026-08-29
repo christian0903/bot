@@ -75,7 +75,7 @@ export function MyBookingsPage() {
       // Resolve coach profiles
       const coachIds = [...new Set(rawBookings.map(b => b.scheduled_class?.coach_id).filter(Boolean))]
       if (coachIds.length > 0) {
-        const { data: coaches } = await supabase.from('profiles').select('id, display_name').in('id', coachIds)
+        const { data: coaches } = await supabase.from('profils_publics').select('id, display_name').in('id', coachIds)
         const coachMap = new Map((coaches ?? []).map(c => [c.id, c]))
         for (const b of rawBookings) {
           if (b.scheduled_class?.coach_id) {

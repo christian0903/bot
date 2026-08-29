@@ -368,7 +368,9 @@ export function SchedulePage() {
     // Fetch coach profiles
     const coachIds = [...new Set(rawClasses.map(c => c.coach_id).filter(Boolean))]
     if (coachIds.length > 0) {
-      const { data: coachData } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', coachIds)
+      // `profils_publics` et non `profiles` : un membre ne lit plus que son propre
+      // profil depuis le 2026-08-29. La vue ne porte que le nom et la photo.
+      const { data: coachData } = await supabase.from('profils_publics').select('id, display_name, avatar_url').in('id', coachIds)
       const coachMap = new Map((coachData ?? []).map(c => [c.id, c]))
       for (const sc of rawClasses) {
         if (sc.coach_id) sc.coach = coachMap.get(sc.coach_id) as ScheduledClass['coach']
