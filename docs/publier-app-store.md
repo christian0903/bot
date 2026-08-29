@@ -188,5 +188,73 @@ ce serait le premier ajout utile : une place libérée en liste d'attente n'a qu
 deux heures de validité, et un e-mail se rate. Environ trois jours de travail,
 plan détaillé dans `plan-implementation-v2.md`, phase 8.
 
-**Android.** Le projet existe (`android/`), la permission caméra y est posée.
-Le Play Store a ses propres exigences, moins strictes sur la règle 4.2.
+---
+
+# Publier sur le Play Store (Android)
+
+Le projet est prêt : `android/`, identifiant `be.backontrackstudio.app`,
+permissions `INTERNET` et `CAMERA`, `targetSdk 36` — conforme aux exigences
+actuelles de Google.
+
+## Ce qui manque, et qui n'existe pas encore : la clé de signature
+
+Google exige que chaque envoi soit signé. **Cette clé ne se remplace jamais** :
+la perdre, c'est ne plus jamais pouvoir mettre l'application à jour — il
+faudrait la republier sous un autre identifiant, et les membres devraient la
+réinstaller.
+
+```bash
+keytool -genkey -v -keystore ~/backontrack-release.keystore \
+  -alias backontrack -keyalg RSA -keysize 2048 -validity 10000
+```
+
+> **Sauvegarder ce fichier ET son mot de passe hors de cette machine.** Un
+> gestionnaire de mots de passe, un disque externe. `.dumps/` et le dépôt ne
+> conviennent pas — le second partirait dans un commit.
+
+Puis, dans `android/app/build.gradle`, un bloc `signingConfigs` qui le
+référence. Les valeurs se lisent depuis un fichier hors dépôt, jamais écrites
+en dur.
+
+> **Google Play App Signing** peut prendre le relais : Google conserve alors la
+> clé finale, et une clé perdue se récupère. C'est proposé à la création de
+> l'application dans la console, et **c'est le choix à faire** — il retire
+> précisément le risque décrit plus haut.
+
+## Le compte développeur
+
+**25 $, une seule fois** — pas d'abonnement annuel, à la différence d'Apple.
+
+Depuis 2023, un compte individuel doit avoir **testé l'application avec 12
+personnes pendant 14 jours** avant de pouvoir publier. Cette exigence ne
+s'applique pas aux comptes d'organisation.
+
+> À vérifier avant de s'engager sur une date : c'est deux semaines
+> incompressibles, et les règles de Google changent souvent.
+
+## Ce qui diffère d'Apple
+
+| | Apple | Google |
+|---|---|---|
+| Coût | 99 $/an | 25 $ une fois |
+| Examen | 24-48 h | quelques heures à 7 jours |
+| Règle « site web emballé » | stricte (4.2) | bien plus souple |
+| Test préalable | non | 12 testeurs, 14 jours (compte individuel) |
+| Paiements | exemption à justifier | même principe, moins scruté |
+
+**Le rejet 4.2 n'a pas d'équivalent chez Google.** L'obstacle principal côté
+Android est administratif, pas technique.
+
+## La marche à suivre
+
+1. Créer la clé de signature, **et la sauvegarder ailleurs**
+2. Ouvrir un compte développeur Google Play (25 $)
+3. Activer **Google Play App Signing**
+4. `cp .env.ops .env && npm run build && npx cap sync android`
+5. Générer un **Android App Bundle** (`.aab`) — le `.apk` n'est plus accepté
+6. Fiche : mêmes éléments qu'Apple, avec ses propres formats de captures
+7. Questionnaire *Data safety* — l'équivalent d'App Privacy, à remplir avec
+   les mêmes réponses (données de santé comprises)
+
+> **Faire Apple d'abord.** Ses contraintes sont plus strictes : ce qui passe
+> chez Apple passe chez Google, l'inverse n'est pas vrai.
