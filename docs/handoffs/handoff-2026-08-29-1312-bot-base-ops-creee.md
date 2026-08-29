@@ -44,11 +44,56 @@ tags:
 > `bot-ops`. `bot3` vit sur une **autre organisation**, en plan Free — un projet
 > Free se met en pause après une semaine d'inactivité.
 
-### `bot-ops` — ce qui reste à faire
+### `bot-ops` — installée le 2026-08-29 après-midi
 
-Rien n'y est installé. La marche à suivre est
-`docs/creer-base-operationnelle.md`, éprouvée le jour même sur `bot3` : douze
-étapes, un point d'arrêt après chacune.
+| | |
+|---|---|
+| Schéma | ✅ 27 tables, 89 policies, 80 fonctions, 14 triggers, 2 vues, 11 réglages |
+| Droits de lecture | ✅ les 27 tables |
+| Edge Functions | ✅ 10 actives |
+| SMTP Resend | ✅ inscription réelle testée |
+| Authentication | ✅ e-mail, 12 caractères, URLs sur `app.` |
+| Rate limits | ✅ 10 inscriptions/connexions par 5 min et par IP |
+| Webhook Stripe | ✅ 5 événements, `verify_jwt: False`, signature acceptée |
+| super_admin | ✅ `christian@aikicom.eu` |
+| `check-policies.sql` | ✅ muet |
+
+**Reste à faire** :
+
+- **La configuration métier** — types de cours, packs vendables, coachs,
+  planning. `install.sql` ne pose que le pack d'essai et les deux types de
+  crédits. Deux voies : ressaisir par l'interface, ou migrer depuis `bot3` puis
+  effacer les données de vie.
+- **Les fichiers du Storage** — `scripts/copier-storage.sh`, sinon les photos
+  de cours et de coachs restent introuvables.
+- **hCaptcha** — décidé le 29/08 : reporté. Il ne s'active pas d'un clic, il
+  demande aussi le widget dans `AuthPage` et un jeton à chaque inscription.
+  Activer la moitié dashboard sans le code casserait toutes les inscriptions.
+  En attendant : les rate limits, et la question « 3 + 4 » du formulaire.
+- **Le passage en Stripe live** — voir ci-dessous.
+
+> **Stripe est en mode TEST**, volontairement. Les clés et le webhook viennent
+> du bac à sable BackOnTrack, où `bot3` et `bot-ops` ont chacun leur endpoint.
+> Pour passer en live : créer l'endpoint sur le compte Stripe réel, poser
+> `STRIPE_SECRET_KEY_LIVE` et `STRIPE_WEBHOOK_SECRET_LIVE`, redéployer
+> `stripe-webhook --no-verify-jwt`, puis basculer `stripe_mode` depuis
+> Administration → Réglages.
+
+### Les fichiers `.env`, et le piège du build
+
+`.env` n'est jamais déployé — mais Vite **grave ses valeurs dans `dist/`** au
+moment du build. Un `dist` est donc déjà lié à une base avant d'être envoyé.
+
+```bash
+cp .env.jag .env && npm run build    # pour jag.  (bot3)
+cp .env.ops .env && npm run build    # pour app.  (bot-ops)
+```
+
+**Contrôler avant chaque envoi** — une seule référence doit apparaître :
+
+```bash
+grep -oh "cvyslqnojcgnjfgynczw\|xgwrxbkrfypklrnqbftv" dist/assets/*.js | sort | uniq -c
+```
 
 Deux points propres à cette installation-ci :
 
