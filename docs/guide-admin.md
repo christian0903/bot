@@ -498,6 +498,51 @@ En mode test uniquement, un bouton de **remise à zéro** efface tous les achats
 
 ## Vendre — ce qu'il faut régler
 
+### Démarrer sur une base neuve — dans quel ordre
+
+Une installation neuve arrive avec le strict nécessaire : deux **types de
+crédits** (semi-privé, personal training), une **catégorie** « archives », la
+**séance d'essai offerte**, et les réglages du studio. Tout le reste est à
+créer.
+
+L'ordre n'est pas indifférent : chaque étape a besoin de la précédente.
+
+| | À créer | Pourquoi maintenant |
+|---|---|---|
+| 1 | **Types de crédits** | Vérifier que les deux fournis correspondent à vos prestations, en ajouter au besoin. Tout en dépend. |
+| 2 | **Catégories de membres** | **Avant les packs, impérativement.** Un pack désigne la catégorie qu'il attribue (« abonné ») et celle où le membre retombe à l'expiration (« standard ») : ces deux-là doivent exister au moment où on crée le pack. |
+| 3 | **Types de cours** | Chacun se rattache à un type de crédit. Sans eux, aucun cours ne se planifie. |
+| 4 | **Types de packs** | Ce que vous vendez. Le type de crédit détermine les cours réservables : **le vérifier en premier**, un pack mal rattaché est inutilisable. |
+| 5 | **Coachs** | Créer leur compte, puis leur donner le rôle depuis leur fiche. |
+| 6 | **Types de performances** | Facultatif, et rattrapable à tout moment. |
+| 7 | **Le planning** | Il a besoin des types de cours et des coachs. |
+
+> **Les prix se vérifient à deux.** Une erreur sur un montant ou une durée de
+> validité ne se voit qu'à la première vente — et un pack déjà vendu ne se
+> supprime plus.
+
+> **Le classement des membres est automatique, les catégories ne le sont pas.**
+> L'application range chaque membre toute seule — à l'achat d'un pack, à
+> l'expiration, à la résiliation d'un abonnement. Mais elle ne fait que suivre
+> ce que les packs déclarent, et un pack ne peut désigner qu'une catégorie qui
+> existe déjà.
+>
+> Créées après coup, les catégories ne rattrapent pas le passé : il faudrait
+> rouvrir chaque pack pour les y rattacher, et les membres déjà inscrits
+> resteraient non classés jusqu'à leur prochain achat.
+
+> **Les types de performances, eux, peuvent attendre.** Ils ne conditionnent
+> rien : un studio réserve et vend sans en avoir aucun.
+
+**Avant d'ouvrir aux membres**, trois contrôles :
+
+- Ouvrir **Administration → Diagnostic** : tout doit être au vert
+- Acheter un pack de bout en bout, avec une carte de test Stripe
+- Vérifier que l'e-mail de confirmation arrive, et que son lien mène au bon
+  domaine
+
+---
+
 ### Types de crédit — Administration → Types de crédits
 
 C'est la brique de base : « semi-privé », « personal training »… **Un crédit d'un type ne paie que les cours du même type.** Tout part de là.
