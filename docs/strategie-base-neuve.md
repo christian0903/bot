@@ -171,6 +171,36 @@ semaines comme filet, puis la supprimer avec un dump conservé en local.
 
 ---
 
+## Changer le domaine de l'application
+
+Prévu avec la base neuve : `desk.backontrackstudio.be` devient
+`app.backontrackstudio.be`.
+
+**Ce qui n'est PAS affecté** : le webhook Stripe, dont l'URL pointe sur
+`<ref>.supabase.co` et non sur le domaine. Le piège habituel ne joue pas ici.
+
+**Ce qui l'est** :
+
+| Où | Quoi |
+|---|---|
+| Secret `APP_URL` | Les liens de tous les e-mails. **Obligatoire** depuis le 2026-08-29 |
+| `.env` de production | `VITE_APP_URL` — était vide, ce qui cassait déjà les liens de confirmation |
+| Réglages Auth | Site URL et Redirect URLs, sinon la confirmation d'inscription échoue |
+| `capacitor.config.ts` | Ligne commentée, mais elle sert au prochain build iOS |
+| Déploiement | Le chemin rsync vers o2switch |
+
+> **Garder `desk.` vivant quelques semaines**, en redirection vers `app.`. Les
+> e-mails déjà partis portent l'ancienne adresse, et un membre peut cliquer un
+> lien reçu la semaine précédente.
+
+Le domaine n'est plus écrit en dur nulle part dans le code : les gabarits
+d'e-mails repliaient dessus, et **aucun des onze appels à `sendEmail()` ne
+passe `app_url`** — tous les liens transactionnels en dépendaient donc. Un
+changement de domaine les aurait laissés pointer sur l'ancien, sans que rien
+ne le signale tant que celui-ci répondait.
+
+---
+
 ## Ce qui ne se copie pas avec une base
 
 Une base neuve ne rapatrie rien de ce qui vit **à côté** d'elle. À refaire à

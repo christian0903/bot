@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   // Charger directement l'URL de production pour bénéficier des mises à jour
   // sans repasser par les stores. Commenter pour utiliser le build local (dist/).
   // server: {
-  //   url: 'https://desk.backontrackstudio.be',
+  //   url: 'https://app.backontrackstudio.be',
   //   cleartext: false,
   // },
   ios: {

@@ -76,8 +76,38 @@ function cta(url: string, label: string) {
   return `<div style="margin:24px 0 8px;"><a href="${url}" style="display:inline-block;background:#0a0a0a;color:#ffffff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px;">${label}</a></div>`
 }
 
+/**
+ * Origine des liens contenus dans les e-mails.
+ *
+ * `APP_URL` d'abord : c'est le seul endroit qui suit la base et le domaine en
+ * service. Le paramètre `app_url` reste prioritaire pour l'appelant qui sait
+ * mieux — `admin-update-email` le passe explicitement.
+ *
+ * L'ancien repli était le domaine écrit en dur. Aucun des onze appels à
+ * `sendEmail()` ne renseigne `app_url` : TOUS les liens des e-mails
+ * transactionnels tombaient donc dessus. Un changement de domaine les aurait
+ * laissés pointer sur l'ancien — et le défaut serait resté invisible tant que
+ * celui-ci répondait, puisque les liens auraient continué de fonctionner, sur
+ * l'ancienne base.
+ *
+ * Sans `APP_URL`, on renvoie une chaîne vide plutôt qu'une adresse fausse :
+ * un lien relatif est cassé de façon visible, là où un lien vers le mauvais
+ * domaine se cliquerait sans que personne ne le signale.
+ */
+function origineApplication(v: TemplateVars): string {
+  const url = v.app_url || Deno.env.get('APP_URL')
+  if (!url) {
+    // Pas de throw : un e-mail sans lien cliquable reste utile — il annonce
+    // l'annulation d'un cours. Mais la trace doit exister, sinon le secret
+    // manquant ne se remarque qu'au signalement d'un membre.
+    console.error('[send-email] APP_URL absent : les liens de cet e-mail seront relatifs, donc morts.')
+    return ''
+  }
+  return url
+}
+
 export function buildTemplate(template: TemplateKey, v: TemplateVars): { subject: string; html: string } {
-  const appUrl = v.app_url ?? 'https://desk.backontrackstudio.be'
+  const appUrl = origineApplication(v)
   const hello = v.user_name ? `Bonjour ${v.user_name},` : 'Bonjour,'
 
   switch (template) {

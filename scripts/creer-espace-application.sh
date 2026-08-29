@@ -281,6 +281,16 @@ for s in "${SECRETS[@]}"; do
   [[ -n "${!s:-}" ]] && A_POSER+=("$s=${!s}") || alerte "$s absent — non pose"
 done
 
+# APP_URL n'est plus facultatif : depuis le 2026-08-29 les gabarits d'e-mails
+# n'ont plus de domaine de repli. Sans ce secret, tous les liens envoyes aux
+# membres sont relatifs — donc morts.
+if [[ -z "${APP_URL:-}" ]]; then
+  echo
+  alerte "APP_URL manquant : les liens de TOUS les e-mails seront morts."
+  demander APP_URL "URL publique de l'application (https://...)"
+  [[ -n "${APP_URL:-}" ]] && A_POSER+=("APP_URL=$APP_URL")
+fi
+
 if [[ ${#A_POSER[@]} -gt 0 ]]; then
   # Les valeurs passent par l'argument de la commande : elles n'apparaissent
   # ni dans un fichier temporaire, ni dans l'historique du shell (le script
