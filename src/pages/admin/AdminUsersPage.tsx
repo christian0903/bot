@@ -46,6 +46,17 @@ interface UserWithRole extends Profile {
   credits: number
   /** Le membre a un pack illimité valide : la colonne Crédits affiche "Illimité". */
   hasUnlimited: boolean
+  /** Date de la dernière réservation, `null` s'il n'en a jamais fait. */
+  derniereReservation: string | null
+}
+
+/** Mêmes teintes que la fiche du membre : un statut se reconnaît à sa couleur. */
+const COULEURS_STATUT: Record<string, string> = {
+  visitor: 'bg-gray-100 text-gray-800',
+  potential: 'bg-yellow-100 text-yellow-800',
+  active: 'bg-green-100 text-green-800',
+  inactive: 'bg-orange-100 text-orange-800',
+  former: 'bg-red-100 text-red-800',
 }
 
 const exportCsv = (data: Record<string, unknown>[], filename: string) => {
@@ -113,7 +124,7 @@ export function AdminUsersPage() {
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const fetchUsers = async () => {
-    const [profilesRes, rolesRes, packsRes, catRes] = await Promise.all([
+    const [profilesRes, rolesRes, packsRes, catRes, bookingsRes] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('user_roles').select('user_id, role'),
       supabase
@@ -122,6 +133,13 @@ export function AdminUsersPage() {
         .select('user_id, credits_remaining, expires_at, pack_type:pack_types(is_unlimited)')
         .gt('expires_at', new Date().toISOString()),
       supabase.from('member_categories').select('*').order('name'),
+      // La derniere reservation, et non la derniere connexion : quelqu'un qui
+      // ouvre l'application sans jamais reserver n'est pas un membre actif.
+      // C'est la reservation qui dit si le studio le voit encore.
+      supabase
+        .from('bookings')
+        .select('user_id, created_at')
+        .order('created_at', { ascending: false }),
     ])
 
     setCategories((catRes.data as MemberCategory[]) ?? [])
@@ -146,6 +164,15 @@ export function AdminUsersPage() {
       }
     }
 
+    // Les reservations arrivent deja triees par date decroissante : la
+    // premiere rencontree pour un membre est donc la plus recente.
+    const derniereReservation = new Map<string, string>()
+    for (const b of bookingsRes.data ?? []) {
+      if (!derniereReservation.has(b.user_id)) {
+        derniereReservation.set(b.user_id, b.created_at)
+      }
+    }
+
     // Primary role for display: super_admin > admin > coach > client
     const primaryRole = (roles: UserRole[]): UserRole => {
       if (roles.includes('super_admin')) return 'super_admin'
@@ -162,6 +189,7 @@ export function AdminUsersPage() {
         roles: userRoles,
         credits: creditMap.get(p.id) ?? 0,
         hasUnlimited: unlimitedSet.has(p.id),
+        derniereReservation: derniereReservation.get(p.id) ?? null,
       }
     })
     // Exclude coaches and admins — they have their own page
@@ -252,7 +280,9 @@ export function AdminUsersPage() {
       // Visible à l'écran, donc attendue dans le fichier : une colonne qu'on
       // voit et qu'on ne retrouve pas à l'export se remarque tout de suite.
       category: categories.find(c => c.id === u.member_category_id)?.name ?? '',
+      status: u.member_status,
       credits: u.hasUnlimited ? (isFr ? 'Illimité' : 'Unlimited') : u.credits,
+      last_booking: u.derniereReservation ?? '',
       joined: u.created_at,
     }))
     exportCsv(data, 'users')
@@ -586,7 +616,7 @@ export function AdminUsersPage() {
                     La catégorie, elle, commande les packs achetables — la voir
                     ici évite de cocher à l'aveugle avant une attribution. */}
                 <TableHead className="hidden sm:table-cell">
-                  {isFr ? 'Catégorie' : 'Category'}
+                  {isFr ? 'Catégorie / Statut' : 'Category / Status'}
                 </TableHead>
                 <TableHead className="text-center">
                   <span className="flex items-center gap-1 justify-center">
@@ -594,7 +624,12 @@ export function AdminUsersPage() {
                     {isFr ? 'Crédits' : 'Credits'}
                   </span>
                 </TableHead>
-                <TableHead className="hidden md:table-cell">{t('admin.users.lastLogin')}</TableHead>
+                {/* La dernière réservation, et non la dernière connexion :
+                    ouvrir l'application ne dit rien de la fréquentation. La
+                    connexion reste consultable sur la fiche du membre. */}
+                <TableHead className="hidden md:table-cell">
+                  {isFr ? 'Dernière réservation' : 'Last booking'}
+                </TableHead>
                 <TableHead>{t('admin.users.actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -647,17 +682,26 @@ export function AdminUsersPage() {
                     })()}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
-                    {(() => {
-                      const cat = categories.find(c => c.id === user.member_category_id)
-                      // Un tiret plutôt qu'une case vide : sans catégorie est un
-                      // état légitime, pas une donnée manquante.
-                      if (!cat) return <span className="text-xs text-muted-foreground">—</span>
-                      return (
-                        <Badge variant="secondary" className="text-[10px] font-normal">
-                          {cat.name}
-                        </Badge>
-                      )
-                    })()}
+                    {/* Les deux côte à côte, parce qu'ils se lisent ensemble et
+                        qu'on les confond : la catégorie se règle à la main et
+                        commande ce que le membre peut acheter ; le statut est
+                        calculé à partir des faits et dit où il en est. */}
+                    <div className="flex flex-col gap-1 items-start">
+                      {(() => {
+                        const cat = categories.find(c => c.id === user.member_category_id)
+                        // Un tiret plutôt qu'une case vide : sans catégorie est
+                        // un état légitime, pas une donnée manquante.
+                        if (!cat) return <span className="text-xs text-muted-foreground">—</span>
+                        return (
+                          <Badge variant="secondary" className="text-[10px] font-normal">
+                            {cat.name}
+                          </Badge>
+                        )
+                      })()}
+                      <Badge className={`text-[10px] font-normal ${COULEURS_STATUT[user.member_status] ?? COULEURS_STATUT.visitor}`}>
+                        {t(`profile.status.${user.member_status}`)}
+                      </Badge>
+                    </div>
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge
@@ -668,9 +712,9 @@ export function AdminUsersPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                    {user.last_sign_in_at
-                      ? format(new Date(user.last_sign_in_at), 'dd/MM/yyyy HH:mm', { locale })
-                      : '-'}
+                    {user.derniereReservation
+                      ? format(new Date(user.derniereReservation), 'dd/MM/yyyy HH:mm', { locale })
+                      : '—'}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">

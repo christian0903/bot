@@ -998,6 +998,17 @@ export function AdminUserDetailPage() {
               {profile.phone}
             </a>
           )}
+          {/* La dernière connexion a quitté la liste des membres, où elle
+              induisait en erreur : ouvrir l'application ne dit rien de la
+              fréquentation. Elle garde sa place ici, où l'on regarde un
+              dossier — utile pour un membre qui dit ne pas recevoir ses
+              e-mails, ou qui prétend ne jamais s'être inscrit. */}
+          {profile.last_sign_in_at && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {isFr ? 'Dernière connexion : ' : 'Last sign-in: '}
+              {format(new Date(profile.last_sign_in_at), 'dd/MM/yyyy HH:mm', { locale })}
+            </p>
+          )}
         </div>
       </div>
 
