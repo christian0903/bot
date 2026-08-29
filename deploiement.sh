@@ -44,6 +44,12 @@ echec()  { echo "  ${ROUGE}ECHEC${RAZ} $*" >&2; }
 REF_JAG='cvyslqnojcgnjfgynczw'
 REF_OPS='xgwrxbkrfypklrnqbftv'
 
+# o2switch. La cle `~/.ssh/o2switch` est sans phrase de passe : c'est ce qui
+# permet a rsync de tourner sans rien demander. L'ancienne (`bot_o2switch`)
+# en avait une, oubliee — le serveur acceptait la cle et refusait quand meme.
+SERVEUR='vach5679@109.234.165.117'
+CLE_SSH="$HOME/.ssh/o2switch"
+
 CIBLE="${1:-}"
 case "$CIBLE" in
   jag) FICHIER='.env.jag'; REF_ATTENDUE="$REF_JAG"; REF_INTERDITE="$REF_OPS"
@@ -141,20 +147,64 @@ else
 fi
 
 # ── 4. Ce qu'il reste a faire ───────────────────────────────────────────────
+# ── 4. Envoi ────────────────────────────────────────────────────────────────
 echo
-echo "${GRAS}=== Pret pour $DOMAINE ===${RAZ}"
+if [[ ! -f "$CLE_SSH" ]]; then
+  alerte "Cle SSH introuvable ($CLE_SSH) — envoi manuel."
+  info "Deposer le contenu de dist/ dans le dossier $DOMAINE"
+  exit 0
+fi
+
+# Un dernier mot avant d'ecrire sur la production. `--delete` efface sur le
+# serveur ce qui n'est pas dans dist/ : c'est voulu pour un site construit,
+# mais le dossier vise doit etre le bon.
+if [[ "$CIBLE" == "ops" ]]; then
+  echo "  ${ROUGE}${GRAS}Cible : PRODUCTION ($DOMAINE)${RAZ}"
+  read -rp "  taper OUI pour envoyer : " REPONSE
+  [[ "$REPONSE" == "OUI" ]] || { info "envoi annule — dist/ reste pret."; exit 0; }
+fi
+
+info "envoi vers $DOMAINE..."
+
+# `--exclude` protege ce qui vit sur le serveur et n'a pas d'equivalent local :
+# la configuration Apache, les certificats, les scripts CGI. Sans eux,
+# `--delete` les emporterait.
+if rsync -avz --delete \
+     --exclude=cgi-bin --exclude=.htaccess --exclude=.well-known \
+     -e "ssh -i $CLE_SSH -o StrictHostKeyChecking=accept-new" \
+     dist/ "$SERVEUR:~/$DOMAINE/" > /tmp/rsync-$$.log 2>&1; then
+  N=$(grep -c '^[a-zA-Z]' /tmp/rsync-$$.log 2>/dev/null || echo '?')
+  ok "envoi termine"
+else
+  echec "l'envoi a echoue :"
+  tail -12 /tmp/rsync-$$.log >&2
+  rm -f /tmp/rsync-$$.log
+  exit 1
+fi
+rm -f /tmp/rsync-$$.log
+
+# ── 5. Controle sur le site en ligne ────────────────────────────────────────
+# Ce que le serveur sert reellement, et non ce qu'on croit lui avoir envoye.
+sleep 2
+VERSION_LIGNE=$(curl -s --max-time 15 "https://$DOMAINE/sw.js" 2>/dev/null | grep -oE "APP_VERSION = '[0-9.]+'" | grep -oE "[0-9.]+" || echo '')
+if [[ "$VERSION_LIGNE" == "$VERSION" ]]; then
+  ok "$DOMAINE sert bien la version $VERSION"
+else
+  alerte "le site annonce « ${VERSION_LIGNE:-rien} » et non $VERSION"
+  info "Le cache du serveur met parfois une minute. Recontroler :"
+  info "  curl -s https://$DOMAINE/sw.js | sed -n '3p'"
+fi
+
 echo
-info "Envoyer le contenu de ${GRAS}dist/${RAZ} dans le dossier ${GRAS}$DOMAINE${RAZ}"
-info "(Transmit, ou tout autre client de transfert)"
-echo
-info "Apres l'envoi, controler :"
-info "  curl -s https://$DOMAINE/sw.js | sed -n '3p'"
-info "  -> doit afficher : const APP_VERSION = '$VERSION'"
+echo "${GRAS}=== $DOMAINE est a jour ===${RAZ}"
 echo
 if [[ "$CIBLE" == "ops" ]]; then
   alerte "C'est la PRODUCTION. Verifier a l'ecran qu'aucun bandeau orange ne s'affiche."
   echo
 fi
+info "Un navigateur qui a deja visite le site peut servir l'ancienne version :"
+info "le service worker garde son cache. Forcer avec Cmd+Shift+R."
+echo
 
 # `.env` reste sur la derniere cible construite. Le dire evite qu'un
 # `npm run build` lance a la main plus tard produise un dist pour la mauvaise
