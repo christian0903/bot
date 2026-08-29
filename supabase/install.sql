@@ -3744,7 +3744,6 @@ RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
 AS $fn$
 DECLARE
-  v_window_days NUMERIC;
   v_is_admin BOOLEAN := has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin');
   v_is_coach BOOLEAN := has_role(auth.uid(), 'coach');
   v_class RECORD;
@@ -3752,6 +3751,7 @@ DECLARE
   v_pack RECORD;
   v_booking_id UUID;
   v_member TEXT;
+  v_window_days NUMERIC;
 BEGIN
   IF NOT (v_is_admin OR v_is_coach) THEN
     RAISE EXCEPTION 'Reserve au staff du studio';
