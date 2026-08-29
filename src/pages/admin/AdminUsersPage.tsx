@@ -106,6 +106,7 @@ export function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState<MemberCategory[]>([])
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterStatut, setFilterStatut] = useState<string>('all')
 
   // Sélection multiple. Les catégories et statuts se changeaient un membre à la
   // fois, depuis sa fiche : ranger une saison entière d'anciens membres
@@ -389,6 +390,8 @@ export function AdminUsersPage() {
 
   const filteredUsers = users.filter(u => {
     if (roleFilter !== 'all' && roleFilter !== u.role) return false
+    if (filterStatut !== 'all' && u.member_status !== filterStatut) return false
+
     if (filterCategory !== 'all') {
       if (filterCategory === 'none') {
         if (u.member_category_id) return false
@@ -553,6 +556,23 @@ export function AdminUsersPage() {
             </SelectContent>
           </Select>
         )}
+        {/* Le statut se filtre comme la categorie, et pour la meme raison :
+            reperer d'un coup ceux qui decrochent, ou ceux qui n'ont jamais
+            franchi le pas. Les cinq valeurs sont figees dans la base, elles
+            ne s'inventent pas. */}
+        <Select value={filterStatut} onValueChange={(v) => setFilterStatut(v ?? 'all')}>
+          <SelectTrigger className="h-8 text-xs w-auto min-w-[140px]">
+            <span>{filterStatut === 'all'
+              ? (isFr ? 'Tous statuts' : 'All statuses')
+              : t(`profile.status.${filterStatut}`)}</span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{isFr ? 'Tous statuts' : 'All statuses'}</SelectItem>
+            {(['visitor', 'potential', 'active', 'inactive', 'former'] as const).map(st => (
+              <SelectItem key={st} value={st}>{t(`profile.status.${st}`)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {(['all', 'client'] as const).map((role) => (

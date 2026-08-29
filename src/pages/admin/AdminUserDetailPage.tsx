@@ -1003,12 +1003,22 @@ export function AdminUserDetailPage() {
               fréquentation. Elle garde sa place ici, où l'on regarde un
               dossier — utile pour un membre qui dit ne pas recevoir ses
               e-mails, ou qui prétend ne jamais s'être inscrit. */}
+          {/* Les deux dates ensemble, parce qu'elles se lisent l'une contre
+              l'autre : quelqu'un qui se connecte sans jamais reserver n'est pas
+              dans la meme situation que quelqu'un qui a cesse de venir.
+              `bookings` arrive deja trie par date decroissante. */}
           {profile.last_sign_in_at && (
             <p className="text-xs text-muted-foreground mt-1">
               {isFr ? 'Dernière connexion : ' : 'Last sign-in: '}
               {format(new Date(profile.last_sign_in_at), 'dd/MM/yyyy HH:mm', { locale })}
             </p>
           )}
+          <p className="text-xs text-muted-foreground">
+            {isFr ? 'Dernière réservation : ' : 'Last booking: '}
+            {bookings.length > 0
+              ? format(new Date(bookings[0].created_at), 'dd/MM/yyyy HH:mm', { locale })
+              : (isFr ? 'aucune' : 'none')}
+          </p>
         </div>
       </div>
 
