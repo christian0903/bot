@@ -171,6 +171,27 @@ semaines comme filet, puis la supprimer avec un dump conservé en local.
 
 ---
 
+## Déployer : `./deploiement.sh`
+
+```bash
+./deploiement.sh jag     # base de test   -> jag.backontrackstudio.be
+./deploiement.sh ops     # PRODUCTION     -> app.backontrackstudio.be
+```
+
+Le script bascule le `.env`, reconstruit, **et contrôle**. C'est le contrôle
+qui justifie son existence : il refuse de rendre la main si `dist/` porte une
+trace de la mauvaise base, si la version ne concorde pas, ou si le bandeau
+d'avertissement se retrouve du mauvais côté.
+
+Il ne fait pas l'envoi — l'accès SSH depuis le Mac mini est refusé
+(`Permission denied (publickey)`, 2026-08-29). Le transfert se fait par
+Transmit, une fois `dist/` préparé.
+
+> **Ce que le script ne peut pas empêcher** : envoyer un `dist/` correct dans
+> le mauvais dossier. Il prépare et vérifie, il ne transfère pas.
+
+---
+
 ## Les fichiers `.env`, et le piège du `cp` machinal
 
 La bascule d'une base à l'autre se fait par `cp .env.<nom> .env && npm run build`.
