@@ -434,7 +434,16 @@ export function AdminPackTypesPage() {
               ) : (
                 <TableRow key={entry.pt.id}>
                   {(() => { const pt = entry.pt; return <>
-                  <TableCell className="font-medium">{pt.name}</TableCell>
+                  {/* Meme code couleur que le menu d'attribution d'un pack
+                      (AdminUsersPage) : ambre et puce pour ce qui est hors
+                      catalogue. Deux ecrans qui montrent la meme chose doivent
+                      la montrer pareil — sinon on croit voir autre chose. */}
+                  <TableCell className={cn('font-medium', !pt.is_active && 'text-amber-700 dark:text-amber-500')}>
+                    {!pt.is_active && (
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 mr-1.5 align-middle" />
+                    )}
+                    {pt.name}
+                  </TableCell>
                   <TableCell className="hidden lg:table-cell">{pt.credit_type?.label_fr ?? '-'}</TableCell>
                   <TableCell className="hidden sm:table-cell">{pt.is_unlimited ? '∞' : pt.credit_count}</TableCell>
                   <TableCell>{formatEuros(pt.price_cents)}</TableCell>
@@ -472,6 +481,8 @@ export function AdminPackTypesPage() {
                         className={cn(
                           'cursor-pointer hover:opacity-80 transition-opacity',
                           pt.is_featured && 'gap-1',
+                          !pt.is_active && !pt.is_featured &&
+                            'text-amber-700 dark:text-amber-500 border-amber-500/40 bg-amber-500/10',
                         )}
                       >
                         {pt.is_featured && <Flame className="h-3 w-3" />}
