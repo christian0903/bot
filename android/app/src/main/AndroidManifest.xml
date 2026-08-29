@@ -32,4 +32,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Le scanner de QR du coach passe par getUserMedia dans la WebView :
+         sans cette permission, la camera ne demarre pas. `required="false"`
+         pour ne pas exclure du Play Store les appareils sans camera. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>

@@ -306,8 +306,8 @@ L'admin peut modifier le délai de 12 heures (par exemple le passer à 6h ou 24h
 ### Rappels automatiques
 
 Pour éviter les oublis, l'app envoie des rappels :
-- **24 heures avant** le cours (notification push)
-- **2 heures avant** le cours (notification push)
+- **24 heures avant** le cours (notification dans l'application)
+- **2 heures avant** le cours (notification dans l'application)
 
 ### Cas pratique
 

@@ -1070,8 +1070,12 @@ signale :
   l'option — c'est une limite d'iOS, pas un défaut de l'application.
 - **Supprimer l'icône déconnecte.** Le stockage local part avec elle, donc la
   session. Rien n'est perdu, mais il faudra se reconnecter.
-- **Les notifications push exigent l'installation.** Un membre resté dans Safari
-  n'en recevra aucune.
+- **Les notifications restent dans l'application.** La cloche s'allume quand un
+  membre ouvre l'application ; rien n'arrive sur son écran verrouillé. Les
+  vraies notifications système — celles qui préviennent sans ouvrir l'app —
+  demandent un travail non fait à ce jour. Un membre qui doit être joint
+  rapidement l'est par e-mail : c'est le cas d'une place libérée en liste
+  d'attente, valable deux heures.
 
 Procédure de test détaillée : `docs/guide-test-iphone.md`.
 

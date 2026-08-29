@@ -42,7 +42,7 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 **Les deux prérequis bloquants sont levés** (2026-08-07) :
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
-2. **Politique de confidentialité avec URL publique** — livrée, page `/privacy`.
+2. **Politique de confidentialité avec URL publique** — livrée, page `/confidentialite` (et non `/privacy`, corrigé le 2026-08-29 : c'est cette URL qu'App Store Connect attend, une adresse fausse dans la fiche vaut rejet).
 
 ---
 

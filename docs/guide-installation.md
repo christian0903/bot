@@ -253,7 +253,15 @@ qui signale un problème.
 
 ### 5.4 Mobile (Capacitor)
 
-L'application charge l'URL de production (`desk.backontrackstudio.be`) via Capacitor. Les mises à jour web sont automatiques sans passer par les stores.
+**L'application embarque son propre build** : `capacitor.config.ts` a bien un
+bloc `server.url`, mais il est **commenté**, et doit le rester.
+
+Une application qui se contente de charger un site distant est le cas type du
+rejet Apple 4.2 (« Minimum Functionality »). Le décommenter ferait gagner les
+mises à jour sans passer par les stores, et perdre la publication.
+
+Chaque mise à jour passe donc par `npm run cap:sync`, puis par un envoi à App
+Store Connect.
 
 ```bash
 npm run cap:sync
