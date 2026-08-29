@@ -21,8 +21,10 @@ import {
   UserSearch,
   Download,
   HelpCircle,
+  Stethoscope,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 
 const adminNav = [
   { path: '/admin/users', icon: Users, labelKey: 'admin.users.title' },
@@ -46,6 +48,10 @@ const adminNav = [
   { path: '/admin/dashboard', icon: BarChart3, labelKey: 'admin.dashboard.title' },
   { path: '/admin/exports', icon: Download, labelKey: 'admin.exports.title' },
   { path: '/admin/settings', icon: Settings, labelKey: 'admin.settings.title' },
+  // Réservé au super_admin : le diagnostic dit l'état de l'installation, pas
+  // celui du studio. Un gérant n'a rien à y faire, et la première entrée de ce
+  // menu à dépendre d'un rôle.
+  { path: '/admin/diagnostic', icon: Stethoscope, labelKey: 'admin.diagnostic.title', superAdminOnly: true },
   // L'aide vit hors de /admin (page publique aux membres) : le lien y mène
   // directement, l'onglet « Guide coach & admin » s'y affiche selon le rôle.
   { path: '/help', icon: HelpCircle, labelKey: 'nav.help' },
@@ -53,13 +59,15 @@ const adminNav = [
 
 export function AdminLayout() {
   const { t } = useTranslation()
+  const { hasRole } = useAuth()
+  const entrees = adminNav.filter((item) => !item.superAdminOnly || hasRole('super_admin'))
 
   return (
     <div className="flex flex-col md:flex-row gap-6">
       {/* Sidebar desktop / Horizontal scroll mobile */}
       <nav className="md:w-56 shrink-0 sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:static md:mx-0 md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none">
         <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible md:sticky md:top-20">
-          {adminNav.map(({ path, icon: Icon, labelKey }) => (
+          {entrees.map(({ path, icon: Icon, labelKey }) => (
             <NavLink
               key={path}
               to={path}

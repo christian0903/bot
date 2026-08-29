@@ -66,6 +66,7 @@ const AdminReferralsPage = lazy(() => import('@/pages/admin/AdminReferralsPage')
 const AdminReviewsPage = lazy(() => import('@/pages/admin/AdminReviewsPage').then(m => ({ default: m.AdminReviewsPage })))
 const AdminClientTrackingPage = lazy(() => import('@/pages/admin/AdminClientTrackingPage').then(m => ({ default: m.AdminClientTrackingPage })))
 const AdminExportsPage = lazy(() => import('@/pages/admin/AdminExportsPage').then(m => ({ default: m.AdminExportsPage })))
+const AdminDiagnosticPage = lazy(() => import('@/pages/admin/AdminDiagnosticPage').then(m => ({ default: m.AdminDiagnosticPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>
@@ -140,6 +141,9 @@ function App() {
                     <Route path="reviews" element={<Lazy><AdminReviewsPage /></Lazy>} />
                     <Route path="client-tracking" element={<Lazy><AdminClientTrackingPage /></Lazy>} />
                     <Route path="exports" element={<Lazy><AdminExportsPage /></Lazy>} />
+                    {/* Second RoleGuard : la route parente n'exige que `admin`,
+                        et le diagnostic expose la structure de la base. */}
+                    <Route path="diagnostic" element={<RoleGuard roles={['super_admin']}><Lazy><AdminDiagnosticPage /></Lazy></RoleGuard>} />
                   </Route>
                 </Route>
               </Routes>

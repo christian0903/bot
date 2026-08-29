@@ -201,6 +201,61 @@ ne le signale tant que celui-ci répondait.
 
 ---
 
+## Les trois sous-domaines
+
+| Sous-domaine | Base | Fichier `.env` |
+|---|---|---|
+| `app.backontrackstudio.be` | production | `.env.ops` |
+| `jag.backontrackstudio.be` | test des évolutions | `.env.test` |
+| `desk.backontrackstudio.be` | **redirection 301 vers `app.`** | — |
+
+**Pourquoi `desk.` ne peut pas devenir l'environnement de test.** Les e-mails
+déjà envoyés portent des liens vers `desk.`. S'il servait le test, un membre
+cliquant un lien reçu la semaine précédente atterrirait sur la base de test —
+et y verrait de fausses données, voire y réserverait un cours qui n'existe pas.
+En redirection vers `app.`, ces liens continuent de fonctionner.
+
+**Pourquoi `jag.` et non `test.`** : un nom neutre attire moins les robots
+d'exploration. Mais l'obscurité ne protège pas — les certificats TLS sont
+publics (Certificate Transparency) et tout sous-domaine finit répertorié.
+C'est la protection ci-dessous qui compte, pas le nom.
+
+Pour chaque base, ne pas oublier : les **Redirect URLs** d'Auth doivent lister
+son domaine, et le secret **`APP_URL`** doit porter le sien — sinon les e-mails
+de la base de test renvoient vers la production.
+
+---
+
+## Empêcher la création de faux comptes
+
+`/auth` est publique et l'inscription est ouverte à tous : rien n'empêche
+aujourd'hui un robot de créer des profils en série. Le risque n'est pas
+théorique — c'est le mode de nuisance le plus courant sur un formulaire
+d'inscription ouvert.
+
+Trois niveaux, du plus simple au plus solide :
+
+1. **Sur `jag.` — mot de passe HTTP** (`.htaccess` o2switch). L'environnement
+   de test n'a aucune raison d'être atteignable : c'est deux lignes de
+   configuration et le problème disparaît entièrement.
+
+2. **Sur `app.` — protection anti-robot de Supabase.** Dashboard →
+   Authentication → Attack Protection : Supabase intègre un CAPTCHA (hCaptcha
+   ou Turnstile) qui s'applique à l'inscription sans toucher au code, plus une
+   limitation du nombre d'inscriptions par heure. **C'est le bon niveau pour la
+   production** : invisible pour un membre légitime, bloquant pour un script.
+
+3. **Ne pas indexer** — `robots.txt` et une balise `noindex` sur `jag.`
+   Empêche l'apparition dans les moteurs, mais **ne bloque aucun accès** : un
+   robot malveillant ignore `robots.txt`. À ne pas confondre avec une
+   protection.
+
+> Le point 2 est à activer **avant** l'ouverture aux vrais membres. Après, le
+> ménage des faux comptes se fait à la main, et un compte créé porte déjà des
+> données liées par clé étrangère.
+
+---
+
 ## Ce qui ne se copie pas avec une base
 
 Une base neuve ne rapatrie rien de ce qui vit **à côté** d'elle. À refaire à

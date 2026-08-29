@@ -332,6 +332,9 @@
     },
     "exports": {
       "title": "Exports"
+    },
+    "diagnostic": {
+      "title": "Diagnostic"
     }
   },
   "coach": {
