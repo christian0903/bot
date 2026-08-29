@@ -19,7 +19,6 @@ import { useMode } from '@/contexts/ModeContext'
 import { ModeSwitcher } from '@/components/layout/ModeSwitcher'
 import { urlImage } from '@/lib/url-image'
 import { estHorsProduction } from '@/lib/base-en-service'
-import { cn } from '@/lib/utils'
 import { Logo } from '@/components/common/Logo'
 
 /** Injectée au build depuis package.json (cf. vite.config.ts). */
@@ -123,19 +122,20 @@ export function Header() {
               le pied de page est hors de vue sur téléphone. Reste affiché sous
               640px, où le nom du studio disparaît.
 
-              Le suffixe dit à quelle base ce build parle. Le bandeau
-              d'avertissement ne le disait qu'à moitié : il signale une base de
-              test, mais reste MUET en production — un build de production
-              déployé par erreur sur le sous-domaine de test n'affichait donc
-              rien du tout. Ici les deux cas se lisent, et se distinguent. */}
+              Le suffixe `-dev` ne s'affiche qu'en développement. La
+              production reste silencieuse : un membre n'a que faire de savoir
+              sur quelle base il est, et un marquage permanent finit par ne
+              plus être lu — c'est déjà le parti pris du bandeau.
+
+              Le pied de page, lui, nomme les deux cas : on va l'y chercher
+              quand on doute, il n'a pas à être discret. */}
           <span className="text-[11px] font-normal text-muted-foreground tabular-nums">
             v{__APP_VERSION__}
-            <span className={cn(
-              'ml-0.5 font-semibold',
-              estHorsProduction ? 'text-amber-600 dark:text-amber-500' : 'text-primary',
-            )}>
-              {estHorsProduction ? '-test' : '-ops'}
-            </span>
+            {estHorsProduction && (
+              <span className="ml-0.5 font-semibold text-amber-600 dark:text-amber-500">
+                -dev
+              </span>
+            )}
           </span>
         </Link>
 

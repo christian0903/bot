@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Heart } from 'lucide-react'
+import { estHorsProduction } from '@/lib/base-en-service'
 
 /** Injectée au build depuis package.json (cf. vite.config.ts). */
 declare const __APP_VERSION__: string
@@ -26,7 +27,16 @@ export function Footer() {
           <Link to="/help" className="hover:text-foreground transition-colors">
             {t('nav.help')}
           </Link>
-          <span>{t('footer.version', { version: __APP_VERSION__ })}</span>
+          {/* Ici les DEUX cas sont nommes, `-ops` compris : on vient lire le
+              pied de page quand on doute de ce qu'on regarde, et un silence
+              n'aurait alors rien repondu. L'en-tete, lui, ne signale que le
+              developpement — il est sous les yeux en permanence. */}
+          <span>
+            {t('footer.version', { version: __APP_VERSION__ })}
+            <span className={estHorsProduction ? 'text-amber-600 dark:text-amber-500' : undefined}>
+              {estHorsProduction ? '-dev' : '-ops'}
+            </span>
+          </span>
           <Link to="/packs" className="flex items-center gap-1 hover:text-foreground transition-colors">
             <Heart className="h-3 w-3" />
             {t('footer.support')}
