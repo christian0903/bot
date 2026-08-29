@@ -226,11 +226,19 @@ ne le signale tant que celui-ci répondait.
 
 ## Les trois sous-domaines
 
-| Sous-domaine | Base | Fichier `.env` |
-|---|---|---|
-| `app.backontrackstudio.be` | production | `.env.ops` |
-| `jag.backontrackstudio.be` | test des évolutions | `.env.test` |
-| `desk.backontrackstudio.be` | **redirection 301 vers `app.`** | — |
+| Sous-domaine | Base | Fichier `.env` | État au 2026-08-29 |
+|---|---|---|---|
+| `app.backontrackstudio.be` | production | `.env.ops` | **à créer** |
+| `jag.backontrackstudio.be` | test et développement | `.env.jag` | **en service** — `bot3`, Paris |
+| `desk.backontrackstudio.be` | redirection 301 vers `app.` | — | à poser à la bascule |
+
+**Répartition arrêtée le 2026-08-29** : `jag.` reste l'environnement de test,
+`app.` sera la production. `bot3` a remplacé `bot`, qui n'a jamais servi de
+production — c'était la base de développement, sauvegardée puis abandonnée.
+
+> `.env.ops` et `.env.test` portent le suffixe `.perime` depuis le 2026-08-29 :
+> ils visaient `bot` et une base supprimée. `.env.ops` reprendra son nom quand
+> la base de production existera.
 
 **Pourquoi `desk.` ne peut pas devenir l'environnement de test.** Les e-mails
 déjà envoyés portent des liens vers `desk.`. S'il servait le test, un membre
