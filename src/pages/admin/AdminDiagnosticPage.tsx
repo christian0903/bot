@@ -159,9 +159,13 @@ export function AdminDiagnosticPage() {
     // l'en-tête compte, ce qui rend les 27 sondes peu coûteuses.
     const sondes = await Promise.all(
       TABLES.map(async (table) => {
+        // `*` et non `id` : les tables de liaison (pack_type_categories,
+        // coupon_categories) n'ont pas de colonne `id`, et la sonde y échouait
+        // en annonçant une erreur là où la table se portait bien. Avec
+        // `head: true`, aucune ligne ne remonte : l'étoile ne coûte rien.
         const { count, error } = await supabase
           .from(table)
-          .select('id', { count: 'exact', head: true })
+          .select('*', { count: 'exact', head: true })
         return { table, count, error }
       }),
     )
@@ -303,10 +307,12 @@ export function AdminDiagnosticPage() {
       icone: Database,
       lignes: [{
         libelle: isFr ? 'Dernier pack crédité' : 'Last credited pack',
-        etat: jours === null ? 'attention' : jours > 30 ? 'attention' : 'ok',
+        etat: jours === null || jours > 30 ? 'attention' : 'ok',
         detail: jours === null
           ? (isFr ? 'aucun achat en base' : 'no purchase recorded')
-          : (isFr ? `il y a ${jours} jour(s)` : `${jours} day(s) ago`),
+          : jours === 0
+            ? (isFr ? "aujourd'hui" : 'today')
+            : (isFr ? `il y a ${jours} jour(s)` : `${jours} day(s) ago`),
         remede: isFr
           ? 'Le webhook Stripe est le seul endroit qui crédite. Un silence prolongé alors que des ventes ont lieu est son symptôme : contrôler dans Stripe → Webhooks → Tentatives, et que la fonction est déployée avec --no-verify-jwt.'
           : 'The Stripe webhook is the only place that credits. Check Stripe → Webhooks → Attempts.',
@@ -340,31 +346,43 @@ export function AdminDiagnosticPage() {
     // En OPTIONS : les fonctions répondent au préflight CORS sans rien
     // exécuter. Les appeler pour de vrai enverrait des e-mails et ouvrirait
     // des sessions de paiement.
+    // `HEAD` en `no-cors`, et non `OPTIONS`.
+    //
+    // Deux essais ont échoué avant celui-ci, tous deux sur bot3 le 2026-08-29 :
+    // un `OPTIONS` ordinaire est rejeté par le contrôle d'origine avant même de
+    // partir (« Failed to fetch »), et `OPTIONS` en `no-cors` est refusé par le
+    // navigateur lui-même — la méthode n'y est pas autorisée. Les dix fonctions
+    // étaient alors annoncées absentes alors qu'elles répondaient toutes.
+    //
+    // `HEAD` passe, mais la réponse est opaque : son code de statut est
+    // illisible. On ne distingue donc que « a répondu » de « n'a pas répondu ».
+    // C'est assez pour repérer un déploiement oublié, pas pour affirmer qu'une
+    // fonction est absente — d'où le libellé prudent plus bas.
     const sondesFn = await Promise.all(
       FONCTIONS.map(async (nom) => {
         try {
-          const r = await fetch(`${urlSupabase}/functions/v1/${nom}`, { method: 'OPTIONS' })
-          return { nom, deployee: r.status !== 404 }
+          await fetch(`${urlSupabase}/functions/v1/${nom}`, { method: 'HEAD', mode: 'no-cors' })
+          return { nom, repond: true }
         } catch {
-          return { nom, deployee: false }
+          return { nom, repond: false }
         }
       }),
     )
-    const absentesFn = sondesFn.filter((f) => !f.deployee)
+    const absentesFn = sondesFn.filter((f) => !f.repond)
 
     resultat.push({
       titre: 'Edge Functions',
       icone: Server,
       lignes: [{
         libelle: isFr ? 'Fonctions déployées' : 'Deployed functions',
-        etat: absentesFn.length === 0 ? 'ok' : 'panne',
+        etat: absentesFn.length === 0 ? 'ok' : 'attention',
         detail: absentesFn.length === 0
           ? (isFr ? `les ${FONCTIONS.length} fonctions répondent` : `all ${FONCTIONS.length} functions respond`)
-          : (isFr ? `absentes : ${absentesFn.map((f) => f.nom).join(', ')}` : `missing: ${absentesFn.map((f) => f.nom).join(', ')}`),
+          : (isFr ? `sans réponse : ${absentesFn.map((f) => f.nom).join(', ')}` : `no answer: ${absentesFn.map((f) => f.nom).join(', ')}`),
         remede: absentesFn.length > 0
           ? (isFr
-            ? `Déployer : ${absentesFn.map((f) => `npx supabase functions deploy ${f.nom}${f.nom === 'stripe-webhook' ? ' --no-verify-jwt' : ''}`).join(' ; ')}`
-            : `Deploy: ${absentesFn.map((f) => f.nom).join(', ')}`)
+            ? `Le navigateur n'a pas obtenu de réponse. Contrôler d'abord avec npx supabase functions list --project-ref <ref> : si elles y sont ACTIVE, c'est la sonde du navigateur qui est en défaut, pas le déploiement.`
+            : `No answer from the browser. Check with npx supabase functions list first.`)
           : (isFr
             ? 'Répondre au préflight ne prouve ni que les secrets sont posés, ni que stripe-webhook porte bien --no-verify-jwt : cela se vérifie avec npx supabase functions list.'
             : 'Responding to preflight does not prove secrets are set.'),
