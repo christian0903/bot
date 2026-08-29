@@ -51,6 +51,10 @@ voit à la première vente, et un pack déjà vendu ne se supprime plus.
 
 ### 3. Pour Android : installer l'application et la garder
 
+> **Peut-être sans objet.** Cette étape ne concerne que les comptes ouverts au
+> nom d'une personne. Si le studio ouvre le sien au nom de la société, Google
+> ne demande aucun test préalable — on vous préviendra.
+
 Google demande que **12 personnes** aient l'application installée pendant
 **14 jours d'affilée** avant d'autoriser sa publication.
 
@@ -88,8 +92,12 @@ proches. N'importe qui avec un téléphone Android et une adresse Google.
 | **Maintenant** | Vous remplissez l'application |
 | **+ 2 jours** | On envoie à Apple |
 | **+ 4 jours** | Réponse d'Apple — accepté, ou une correction à faire |
-| **En parallèle** | Les 12 personnes installent la version Android |
-| **+ 14 jours** | Google autorise la publication |
+| **En parallèle** | La version Android est préparée |
+| **+ 7 à 14 jours** | Google autorise la publication |
+
+Le délai Android dépend du type de compte : deux semaines si douze personnes
+doivent tester, une semaine environ si le studio ouvre un compte au nom de la
+société.
 
 > **Rien n'est garanti sur les dates.** Un refus d'Apple arrive souvent au
 > premier envoi ; il se corrige et se renvoie. Mieux vaut ne rien promettre

@@ -221,16 +221,32 @@ en dur.
 > l'application dans la console, et **c'est le choix à faire** — il retire
 > précisément le risque décrit plus haut.
 
-## Le compte développeur
+## Le compte développeur : individuel ou organisation
 
 **25 $, une seule fois** — pas d'abonnement annuel, à la différence d'Apple.
 
-Depuis 2023, un compte individuel doit avoir **testé l'application avec 12
-personnes pendant 14 jours** avant de pouvoir publier. Cette exigence ne
-s'applique pas aux comptes d'organisation.
+Depuis 2023, un compte **individuel** doit avoir fait installer l'application
+par **12 personnes pendant 14 jours** avant de pouvoir publier. Un compte
+**d'organisation** en est dispensé, mais exige un numéro **D-U-N-S**.
 
-> À vérifier avant de s'engager sur une date : c'est deux semaines
-> incompressibles, et les règles de Google changent souvent.
+Le calcul penche nettement du côté de l'organisation :
+
+| | Individuel | Organisation |
+|---|---|---|
+| D-U-N-S | — | 5 à 10 jours ouvrés |
+| Test préalable | **14 jours** | aucun |
+| **Avant publication** | ~14 jours | **~7 à 10 jours** |
+
+Et le D-U-N-S ne bloque rien : pendant qu'il se fait, les coachs remplissent
+l'application et la fiche Apple se prépare. C'est du temps parallèle, pas du
+temps ajouté.
+
+> **Le même D-U-N-S sert pour Apple.** Le jour où le compte Apple passera au
+> nom de la SRL, il sera déjà là — c'est ce qui avait fait écarter
+> l'organisation côté Apple, pour cause de délai.
+
+> Les 5 à 10 jours sont l'ordre de grandeur habituel, à confirmer auprès de
+> D&B au moment de la demande. Les règles de Google changent souvent.
 
 ## Ce qui diffère d'Apple
 
@@ -239,7 +255,7 @@ s'applique pas aux comptes d'organisation.
 | Coût | 99 $/an | 25 $ une fois |
 | Examen | 24-48 h | quelques heures à 7 jours |
 | Règle « site web emballé » | stricte (4.2) | bien plus souple |
-| Test préalable | non | 12 testeurs, 14 jours (compte individuel) |
+| Test préalable | non | 12 testeurs, 14 jours — **compte individuel seulement** |
 | Paiements | exemption à justifier | même principe, moins scruté |
 
 **Le rejet 4.2 n'a pas d'équivalent chez Google.** L'obstacle principal côté
