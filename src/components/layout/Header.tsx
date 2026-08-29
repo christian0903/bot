@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { User, LogOut, Settings, Shield, Gift, CreditCard, ShoppingBag, FileText } from 'lucide-react'
+import { User, LogOut, Settings, Shield, Gift, CreditCard, ShoppingBag, FileText, BarChart3 } from 'lucide-react'
 import { useMode } from '@/contexts/ModeContext'
 import { ModeSwitcher } from '@/components/layout/ModeSwitcher'
 import { urlImage } from '@/lib/url-image'
@@ -78,6 +78,10 @@ export function Header() {
     // Même ordre que la barre du bas (accueil | planning | mes cours | mes
     // performances) : deux navigations qui se contredisent obligent à chercher.
     { label: t('nav.performances'), path: '/performances', show: !!user && enMembre },
+    // Les performances mesurent chaque seance, les statistiques racontent
+    // l'assiduite sur la duree. Voisines a l'ecran parce qu'on passe de l'une
+    // a l'autre — la page existait sans qu'aucun lien n'y mene.
+    { label: t('nav.stats'), path: '/stats', show: !!user && enMembre },
     { label: t('nav.myPacks'), path: '/my-packs', show: !!user && enMembre },
     { label: t('nav.packs'), path: '/packs', show: !!user && enMembre },
     // L'admin y a droit — la route accepte déjà `['coach', 'admin']`. Sans ce
@@ -171,6 +175,10 @@ export function Header() {
                       <DropdownMenuItem onClick={() => navigate('/packs')}>
                         <ShoppingBag className="mr-2 h-4 w-4" />
                         {t('nav.packs')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/stats')}>
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        {t('nav.stats')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate('/invoice-request')}>
                         <FileText className="mr-2 h-4 w-4" />

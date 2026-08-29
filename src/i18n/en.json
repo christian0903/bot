@@ -18,7 +18,8 @@
     "login": "Login",
     "logout": "Logout",
     "myInvoices": "My invoices",
-    "coachMembers": "Members"
+    "coachMembers": "Members",
+    "stats": "My statistics"
   },
   "auth": {
     "login": "Login",

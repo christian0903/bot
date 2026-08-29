@@ -4394,7 +4394,18 @@ ALTER TABLE member_badges          ENABLE ROW LEVEL SECURITY;
 -- ============================================
 
 -- PROFILES
-CREATE POLICY "Profiles: public read" ON profiles FOR SELECT USING (true);
+-- `TO authenticated` est essentiel : sans mention de role, une policy vaut
+-- pour PUBLIC, donc pour `anon`. C'est ce qui rendait la table lisible SANS
+-- COMPTE, avec la seule cle publishable que porte le code du site — 23
+-- profils complets sur bot3 le 2026-08-29, telephones, adresses et un
+-- `medical_conditions` compris.
+--
+-- Un membre connecte lit encore les profils des autres : le planning affiche
+-- le nom du coach, la liste de presence celui des participants. Restreindre
+-- davantage demanderait une vue dediee. Le gain tient a ce qu'il faut
+-- desormais un compte, et qu'un compte se trace.
+CREATE POLICY "Profiles: read when signed in" ON profiles
+  FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Profiles: own update" ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Profiles: admin update all" ON profiles FOR UPDATE USING (has_role(auth.uid(), 'admin'));
 CREATE POLICY "Profiles: insert on signup" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);

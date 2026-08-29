@@ -290,6 +290,7 @@ Depuis **Profil**, en bas de page. La demande est définitive et prend effet imm
 | **Planning** | Voir les cours et **réserver** |
 | **Mes cours** | Tes séances à venir (et, au choix, le passé et les annulations), **annuler** |
 | **Mes performances** | Tes mesures, leur évolution, et ton objectif |
+| **Mes statistiques** | Ton assiduité : séances, régularité, types de cours, badges |
 | **Mes packs** | Tes crédits, ton abonnement, sa prochaine échéance |
 | **Acheter un pack** | Les formules, les abonnements, les frais d'inscription |
 | **Mes factures** | Demander une facture pour un achat |
@@ -299,11 +300,12 @@ Depuis **Profil**, en bas de page. La demande est définitive et prend effet imm
 | **Aide** | Ce guide |
 
 **Sur mobile** : la barre du bas donne Accueil · Planning · Mes cours · Mes
-performances. Le reste — mes packs, acheter un pack, mes factures, parrainage,
-profil — se trouve en touchant **ta photo, en haut à droite**.
+performances. Le reste — mes packs, acheter un pack, mes statistiques, mes
+factures, parrainage, profil — se trouve en touchant **ta photo, en haut à
+droite**.
 
 **Sur ordinateur** : la barre du haut donne Accueil, Planning, Mes cours, Mes
-performances, Mes packs et Acheter un pack. **Ta photo, en haut à droite**,
+performances, Mes statistiques, Mes packs et Acheter un pack. **Ta photo, en haut à droite**,
 ouvre en plus Profil, Mes factures et Parrainage.
 
 ---

@@ -18,7 +18,8 @@
     "login": "Connexion",
     "logout": "Déconnexion",
     "myInvoices": "Mes factures",
-    "coachMembers": "Membres"
+    "coachMembers": "Membres",
+    "stats": "Mes statistiques"
   },
   "auth": {
     "login": "Connexion",

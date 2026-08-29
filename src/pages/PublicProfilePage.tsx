@@ -5,20 +5,38 @@ import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { LoadingState } from '@/components/common/LoadingState'
-import type { Profile } from '@/types'
 import { urlImage } from '@/lib/url-image'
+
+/**
+ * Ce que cette page montre, et donc tout ce qu'elle demande.
+ *
+ * Le type `Profile` complet declarait trente colonnes ; s'en servir ici
+ * invitait au `select('*')` qui rapatriait telephone, adresse et donnees
+ * medicales pour afficher un nom et une bio.
+ */
+interface ProfilPublic {
+  id: string
+  display_name: string | null
+  avatar_url: string | null
+  bio: string | null
+}
 
 export function PublicProfilePage() {
   const { id } = useParams<{ id: string }>()
   const { t } = useTranslation()
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [profile, setProfile] = useState<ProfilPublic | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!id) return
+    // Les trois champs affiches, et rien d'autre. `select('*')` rapatriait le
+    // telephone, l'adresse, la date de naissance, le contact d'urgence et les
+    // `medical_conditions` — des donnees de sante au sens de l'article 9 du
+    // RGPD — pour n'en montrer aucun. Ce qui ne s'affiche pas n'a pas a
+    // transiter : c'est vrai meme quand la policy autorise la lecture.
     supabase
       .from('profiles')
-      .select('*')
+      .select('id, display_name, avatar_url, bio')
       .eq('id', id)
       .single()
       .then(({ data }) => {
