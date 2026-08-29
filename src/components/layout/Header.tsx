@@ -18,6 +18,8 @@ import { User, LogOut, Settings, Shield, Gift, CreditCard, ShoppingBag, FileText
 import { useMode } from '@/contexts/ModeContext'
 import { ModeSwitcher } from '@/components/layout/ModeSwitcher'
 import { urlImage } from '@/lib/url-image'
+import { estHorsProduction } from '@/lib/base-en-service'
+import { cn } from '@/lib/utils'
 import { Logo } from '@/components/common/Logo'
 
 /** Injectée au build depuis package.json (cf. vite.config.ts). */
@@ -119,9 +121,21 @@ export function Header() {
           {/* Visible sur toutes les pages, sans défiler : c'est le premier
               renseignement à demander à un testeur qui signale un problème, et
               le pied de page est hors de vue sur téléphone. Reste affiché sous
-              640px, où le nom du studio disparaît. */}
+              640px, où le nom du studio disparaît.
+
+              Le suffixe dit à quelle base ce build parle. Le bandeau
+              d'avertissement ne le disait qu'à moitié : il signale une base de
+              test, mais reste MUET en production — un build de production
+              déployé par erreur sur le sous-domaine de test n'affichait donc
+              rien du tout. Ici les deux cas se lisent, et se distinguent. */}
           <span className="text-[11px] font-normal text-muted-foreground tabular-nums">
             v{__APP_VERSION__}
+            <span className={cn(
+              'ml-0.5 font-semibold',
+              estHorsProduction ? 'text-amber-600 dark:text-amber-500' : 'text-primary',
+            )}>
+              {estHorsProduction ? '-test' : '-ops'}
+            </span>
           </span>
         </Link>
 

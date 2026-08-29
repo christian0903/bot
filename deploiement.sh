@@ -187,6 +187,19 @@ rm -f /tmp/rsync-$$.log
 # Ce que le serveur sert reellement, et non ce qu'on croit lui avoir envoye.
 sleep 2
 VERSION_LIGNE=$(curl -s --max-time 15 "https://$DOMAINE/sw.js" 2>/dev/null | grep -oE "APP_VERSION = '[0-9.]+'" | grep -oE "[0-9.]+" || echo '')
+# La reference de la base, lue dans les fichiers SERVIS. C'est le seul controle
+# qui prouve que le bon build est arrive au bon endroit : la version seule ne
+# distingue pas deux dist construits le meme jour pour des bases differentes.
+REF_LIGNE=$(curl -s --max-time 20 "https://$DOMAINE/" 2>/dev/null | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+if [[ -n "$REF_LIGNE" ]]; then
+  if curl -s --max-time 25 "https://$DOMAINE/$REF_LIGNE" 2>/dev/null | grep -q "$REF_INTERDITE"; then
+    echec "$DOMAINE sert un build qui vise la MAUVAISE base."
+    info "Renvoyer immediatement : ./deploiement.sh $CIBLE"
+    exit 1
+  fi
+  ok "$DOMAINE vise bien $REF_ATTENDUE"
+fi
+
 if [[ "$VERSION_LIGNE" == "$VERSION" ]]; then
   ok "$DOMAINE sert bien la version $VERSION"
 else
