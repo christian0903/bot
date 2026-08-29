@@ -20,13 +20,9 @@ PostgreSQL exige que les valeurs d'enum soient committées avant utilisation.
 
 #### 1.2 Storage
 
-Dans le **Supabase Dashboard** :
-1. Aller dans **Storage → New bucket**
-2. Nom : `avatars`
-3. Public : oui
-4. Taille max : 5 MB
-
-Les policies de storage sont créées par le `install.sql`.
+Rien à faire : `install.sql` crée le bucket `avatars` et ses policies
+(section 8b). Reste à vérifier au dashboard que la **taille maximale est bien
+de 5 Mo** — c'est le seul réglage que l'`INSERT` ne pose pas.
 
 #### 1.3 Authentication
 

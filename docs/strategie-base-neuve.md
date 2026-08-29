@@ -99,10 +99,15 @@ connue des six lignes sur `performances`, expliquées dans le fichier lui-même.
 
 ### 3. Le bucket Storage
 
-`install.sql` crée les **policies** de storage, pas le bucket. À faire à la
-main : Storage → New bucket → nom `avatars`, public, 5 MB.
+`install.sql` crée le bucket `avatars` **et** ses policies — l'`INSERT INTO
+storage.buckets` est en section 8b. Rien à faire à la main.
 
-Sans lui, l'envoi d'un avatar échoue silencieusement.
+> *Corrigé le 2026-08-29 : ce paragraphe demandait de créer le bucket au
+> dashboard. Le geste était inoffensif (`ON CONFLICT DO NOTHING`) mais inutile.*
+
+Une seule chose échappe à cet `INSERT` : la **limite de 5 Mo par fichier**,
+que `file_size_limit` ne renseigne pas. `creer-espace-application.sh` la pose ;
+à la main, c'est Storage → `avatars` → Settings.
 
 ### 4. Authentication
 

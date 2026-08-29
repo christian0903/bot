@@ -4727,9 +4727,14 @@ INSERT INTO app_settings (key, value) VALUES
 -- ============================================
 -- 8b. STORAGE : bucket pour photos (avatars, cours, coaches)
 -- ============================================
--- Note : le bucket doit aussi être créé via le Dashboard Supabase
--- (Storage → New bucket → "avatars" → Public → 5MB max)
-
+-- Le bucket est créé ICI : `storage.buckets` est une table ordinaire, et
+-- l'INSERT ci-dessous suffit. Trois documents ont longtemps demandé de le
+-- créer au dashboard — geste inoffensif mais inutile (corrigé le 2026-08-29).
+--
+-- `file_size_limit` reste à poser hors de ce fichier : la colonne existe,
+-- mais la renseigner ici figerait dans le SQL une limite que le studio peut
+-- vouloir ajuster sans migration. C'est `creer-espace-application.sh` qui
+-- l'applique, à 5 Mo.
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT (id) DO NOTHING;

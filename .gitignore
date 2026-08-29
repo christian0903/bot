@@ -29,6 +29,10 @@ dist-ssr
 .env
 .env.*
 !.env.example
+# Modele des scripts de migration : aucune cle, uniquement des noms de
+# variables a remplir. C'est `.env.migration` (sans suffixe) qui porte les
+# valeurs, et que la ligne `.env.*` ci-dessus exclut.
+!.env.migration.example
 
 # Capacitor build artifacts
 ios/App/build/

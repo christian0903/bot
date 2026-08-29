@@ -74,7 +74,7 @@ réglages de projet et non du SQL :
 | Réglages Auth (redirections, gabarits d'e-mails) | ✅ via `config.toml`, **absent du dépôt** |
 | Repointer le webhook Stripe | ❌ manuel — vit chez Stripe, pointe sur l'URL du projet |
 | Promouvoir le premier `super_admin` | `supabase/promouvoir-super-admin.sql` |
-| **Cocher « Automatically expose new tables »** à la création | Sinon la base refuse toute lecture (incident du 27 août) |
+| **Décocher « Automatically expose new tables »** à la création | Sans objet depuis que `install.sql` pose ses propres `GRANT` (section 8) — décocher reste le plus sûr : rien n'est exposé avant d'être protégé. *Corrigé le 2026-08-29 : cette ligne disait « cocher », ce qui décrivait l'état d'avant le correctif du 28.* |
 
 > **Le webhook Stripe est le piège du déménagement.** Un déménagement rate
 > rarement sur le SQL ; il rate sur un webhook oublié, qui coupe les

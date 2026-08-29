@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth, urlApplication } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { notifyMember } from '@/lib/notify-member'
 import { Button } from '@/components/ui/button'
@@ -100,11 +100,10 @@ export function ProfilePage() {
     const newEmail = form.email.trim()
     let emailChangeRequested = false
     if (newEmail && newEmail !== currentEmail) {
-      // Always redirect to a production URL so the link works regardless
-      // of where the user submitted from. VITE_APP_URL must point to the
-      // deployed app's origin; the path lands on a dedicated confirmation
-      // screen so users get clear feedback after clicking the email link.
-      const appUrl = import.meta.env.VITE_APP_URL ?? window.location.origin
+      // Toujours viser l'URL de production : le lien doit fonctionner d'où
+      // que la demande soit partie. La destination est un écran de
+      // confirmation dédié, pour que le membre sache où il atterrit.
+      const appUrl = urlApplication()
       const { error: authError } = await supabase.auth.updateUser(
         { email: newEmail },
         { emailRedirectTo: `${appUrl}/auth/email-changed` },

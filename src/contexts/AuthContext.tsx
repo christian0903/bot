@@ -44,9 +44,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
  * quel que soit l'endroit d'où la demande est partie — une inscription faite
  * depuis un serveur de développement enverrait sinon un lien vers `localhost`,
  * inutilisable depuis le téléphone qui reçoit l'e-mail.
+ *
+ * `||` et non `??` : la variable est *déclarée mais vide* dans le `.env` de
+ * production, et `??` ne bascule que sur `undefined`. La chaîne vide passait
+ * donc, et les liens partaient sur `/auth/email-changed` sans origine —
+ * inutilisables. C'est le même piège que sur les montants Stripe, où `0` est
+ * une valeur légitime et `''` ne l'est jamais ici.
  */
-function urlApplication(): string {
-  return import.meta.env.VITE_APP_URL ?? window.location.origin
+export function urlApplication(): string {
+  return import.meta.env.VITE_APP_URL || window.location.origin
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
