@@ -14,10 +14,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { User, LogOut, Settings, Shield, Dumbbell, Gift, CreditCard, ShoppingBag, FileText } from 'lucide-react'
+import { User, LogOut, Settings, Shield, Gift, CreditCard, ShoppingBag, FileText } from 'lucide-react'
 import { useMode } from '@/contexts/ModeContext'
 import { ModeSwitcher } from '@/components/layout/ModeSwitcher'
 import { urlImage } from '@/lib/url-image'
+import { Logo } from '@/components/common/Logo'
 
 /** Injectée au build depuis package.json (cf. vite.config.ts). */
 declare const __APP_VERSION__: string
@@ -109,7 +110,7 @@ export function Header() {
     >
       <div className="container flex h-14 items-center px-4 mx-auto max-w-7xl">
         <Link to="/" className="flex items-center gap-2 mr-6">
-          <Dumbbell className="h-6 w-6 text-primary" />
+          <Logo />
           <span className="font-bold text-lg hidden sm:inline">{t('app.name')}</span>
           {/* Visible sur toutes les pages, sans défiler : c'est le premier
               renseignement à demander à un testeur qui signale un problème, et

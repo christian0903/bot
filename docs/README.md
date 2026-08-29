@@ -22,6 +22,7 @@ Les deux guides sont **servis par la page d'aide de l'application**, mais depuis
 | [guide-installation.md](guide-installation.md) | Installer une base neuve, importer des données, déployer |
 | [strategie-base-neuve.md](strategie-base-neuve.md) | Passer d'une base de test à une base de production, dans quel ordre et avec quel filet |
 | [creer-base-operationnelle.md](creer-base-operationnelle.md) | **Marche à suivre guidée, étape par étape**, pour créer une base de zéro — à copier au début d'une conversation Claude |
+| [adapter-le-style.md](adapter-le-style.md) | Changer le logo (sans recompiler) et les couleurs de l'application |
 | [stripe-deploiement.md](stripe-deploiement.md) | Configurer Stripe, les clés, le webhook |
 | [cadrage-bons-achat.md](cadrage-bons-achat.md) | Les règles réelles des bons d'achat et du parrainage |
 | [dossier-fonctionnel-abonnement.md](dossier-fonctionnel-abonnement.md) | Le besoin recueilli auprès des coachs sur les abonnements |

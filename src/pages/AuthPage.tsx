@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { Logo } from '@/components/common/Logo'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Dumbbell, ChevronRight, ChevronLeft, Check, MailCheck, RefreshCw } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Check, MailCheck, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { landingRouteFor } from '@/lib/landing-route'
 import { cn } from '@/lib/utils'
@@ -426,7 +427,7 @@ export function AuthPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
-            <Dumbbell className="h-10 w-10 text-primary" />
+            <Logo taille="auth" />
           </div>
           <CardTitle>{t('app.name')}</CardTitle>
           <CardDescription>{t('app.tagline')}</CardDescription>

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Logo } from '@/components/common/Logo'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { CalendarDays, ShoppingBag, Megaphone, Dumbbell, ArrowRight } from 'lucide-react'
+import { CalendarDays, ShoppingBag, Megaphone, ArrowRight } from 'lucide-react'
 import { AnnonceMarkdown } from '@/components/common/AnnonceMarkdown'
 import { motion } from 'framer-motion'
 import { landingRouteFor } from '@/lib/landing-route'
@@ -51,7 +52,7 @@ export function HomePage() {
         className="text-center py-12 md:py-20"
       >
         <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-primary/10 mb-6">
-          <Dumbbell className="h-8 w-8 text-primary" />
+          <Logo taille="home" />
         </div>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
           {t('home.welcome').replace('Back on Track', '')}
