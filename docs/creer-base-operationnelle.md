@@ -173,6 +173,28 @@ Ensuite **URL Configuration** :
 > Les `**` comptent : sans eux, seule la racine est autorisée et les liens de
 > confirmation échouent.
 
+### Le serveur d'envoi des e-mails — à ne pas oublier
+
+**Project Settings → Authentication → SMTP Settings**
+
+| Champ | Valeur |
+|---|---|
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Username | `resend` |
+| Password | la clé API Resend (celle de `RESEND_API_KEY`) |
+| Sender email | `no-reply@backontrackstudio.be` |
+| Sender name | `Back On Track` |
+
+> **Sans ce réglage, Supabase limite les e-mails d'authentification à DEUX PAR
+> HEURE.** Passé ce quota, toute inscription échoue — et l'écran affiche un
+> « Load failed » qui ne dit ni ce qui a échoué, ni quoi faire. Un coach a
+> abandonné dessus le 2026-08-29 sur `bot3`.
+>
+> Ce réglage ne voyage **ni avec `install.sql`, ni avec un dump** : c'est un
+> réglage de projet, comme les Redirect URLs. Il était posé sur l'ancienne base
+> depuis des mois, et personne ne s'en souvenait — d'où l'oubli.
+
 **Pour la base de production, activer aussi Attack Protection** (CAPTCHA) :
 `/auth` est publique et l'inscription ouverte à tous. À faire **avant**
 l'ouverture aux vrais membres — après, le ménage des faux comptes se fait à la

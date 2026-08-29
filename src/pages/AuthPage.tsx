@@ -238,6 +238,29 @@ export function AuthPage() {
         'Unable to validate email address': { fr: 'Adresse email invalide.', en: 'Invalid email address.' },
         'Signups not allowed': { fr: 'Les inscriptions sont désactivées.', en: 'Signups are disabled.' },
         'Database error': { fr: 'Erreur serveur. Veuillez réessayer.', en: 'Server error. Please try again.' },
+        // Supabase limite les e-mails d'authentification a deux par heure tant
+        // qu'aucun serveur d'envoi n'est configure. L'inscription echouait
+        // alors sur un « Load failed » que personne ne peut interpreter — un
+        // coach a abandonne dessus le 2026-08-29.
+        'email rate limit': {
+          fr: 'Trop de demandes en peu de temps. Réessayez dans une heure, ou prévenez le studio.',
+          en: 'Too many requests. Try again in an hour, or let the studio know.',
+        },
+        'over_email_send_rate_limit': {
+          fr: 'Trop de demandes en peu de temps. Réessayez dans une heure, ou prévenez le studio.',
+          en: 'Too many requests. Try again in an hour, or let the studio know.',
+        },
+        // Safari dit « Load failed », Chrome « Failed to fetch » : le reseau
+        // n'a pas repondu. Le message brut ne dit ni quoi faire, ni que
+        // l'inscription n'a PAS abouti.
+        'Load failed': {
+          fr: "La connexion au serveur a échoué. Vérifiez votre réseau et réessayez — votre compte n'a pas été créé.",
+          en: 'Could not reach the server. Check your connection and try again — your account was not created.',
+        },
+        'Failed to fetch': {
+          fr: "La connexion au serveur a échoué. Vérifiez votre réseau et réessayez — votre compte n'a pas été créé.",
+          en: 'Could not reach the server. Check your connection and try again — your account was not created.',
+        },
       }
       const key = Object.keys(friendlyMessages).find(k => error.message?.includes(k))
       const msg = key

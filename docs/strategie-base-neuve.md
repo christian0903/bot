@@ -295,6 +295,8 @@ chaque fois :
 - le bucket `avatars`
 - les Edge Functions et leurs secrets
 - les réglages Authentication
+- **le serveur SMTP d'envoi des e-mails** — sans lui, deux e-mails
+  d'authentification par heure, et les inscriptions échouent au-delà
 - le webhook Stripe, repointé sur la nouvelle URL, avec son nouveau `whsec_`
 
 Et surtout : les **abonnements Stripe** portent le `stripe_customer_id` de

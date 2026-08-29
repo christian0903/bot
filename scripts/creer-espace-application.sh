@@ -369,6 +369,18 @@ confirmer "Authentication" \
   "  - Site URL : ${APP_URL:-<URL de l application>}" \
   "  - Redirect URLs : ${APP_URL:-<URL>}/**  et  http://localhost:5173/**"
 
+confirmer "Serveur d'envoi des e-mails (SMTP)" \
+  "Dashboard > Project Settings > Authentication > SMTP Settings" \
+  "  Host     : smtp.resend.com" \
+  "  Port     : 465" \
+  "  Username : resend" \
+  "  Password : la cle API Resend (celle de RESEND_API_KEY)" \
+  "  Sender   : no-reply@backontrackstudio.be — Back On Track" \
+  "  Sans ce reglage, Supabase limite les e-mails d'authentification a DEUX" \
+  "  PAR HEURE. Passe ce quota, toute inscription echoue — et le message" \
+  "  affiche ne dit pas pourquoi. Un coach a abandonne dessus le 2026-08-29." \
+  "  Ce reglage ne voyage ni avec install.sql, ni avec un dump."
+
 confirmer "Webhook Stripe" \
   "Stripe > Developers > Webhooks > Add endpoint" \
   "  - URL : https://$CIBLE_REF.supabase.co/functions/v1/stripe-webhook" \
