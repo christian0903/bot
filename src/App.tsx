@@ -27,7 +27,6 @@ const MyBookingsPage = lazy(() => import('@/pages/MyBookingsPage').then(m => ({ 
 const MyPacksPage = lazy(() => import('@/pages/MyPacksPage').then(m => ({ default: m.MyPacksPage })))
 const PacksPage = lazy(() => import('@/pages/PacksPage').then(m => ({ default: m.PacksPage })))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
-const PublicProfilePage = lazy(() => import('@/pages/PublicProfilePage').then(m => ({ default: m.PublicProfilePage })))
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })))
 const HelpPage = lazy(() => import('@/pages/HelpPage').then(m => ({ default: m.HelpPage })))
 const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m.TermsPage })))
@@ -102,7 +101,6 @@ function App() {
                   <Route path="/my-packs" element={<AuthGuard><Lazy><MyPacksPage /></Lazy></AuthGuard>} />
                   <Route path="/packs" element={<AuthGuard><Lazy><PacksPage /></Lazy></AuthGuard>} />
                   <Route path="/profile" element={<AuthGuard><Lazy><ProfilePage /></Lazy></AuthGuard>} />
-                  <Route path="/profile/:id" element={<AuthGuard><Lazy><PublicProfilePage /></Lazy></AuthGuard>} />
                   <Route path="/notifications" element={<AuthGuard><Lazy><NotificationsPage /></Lazy></AuthGuard>} />
                   <Route path="/invoice-request" element={<AuthGuard><Lazy><InvoiceRequestPage /></Lazy></AuthGuard>} />
                   <Route path="/referral" element={<AuthGuard><Lazy><ReferralPage /></Lazy></AuthGuard>} />
