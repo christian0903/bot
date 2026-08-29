@@ -29,6 +29,7 @@ Tout passe par le **menu Administration**, dans la barre latérale à gauche (su
 | **Tableau de bord** | Les chiffres de l'activité | [§](#tableau-de-bord--administration--tableau-de-bord) |
 | **Exports** | **Sortir les données en CSV pour un tableur** | [§](#exports--administration--exports) |
 | **Paramètres** | Tous les réglages du studio | [§](#réglages--administration--paramètres) |
+| **Diagnostic** | L'état de l'installation, réservé au super administrateur | [§](#diagnostic--administration--diagnostic) |
 | **Aide** | Ce guide, consultable dans l'application | — |
 
 > **Le menu s'adapte au rôle.** Un coach ne voit que ses cours et son planning ; les entrées de configuration et de vente sont réservées aux administrateurs.
@@ -607,6 +608,15 @@ choisi », « Nouveauté », « -20 % ». Laissé vide, il affiche « Recommand�
 > **Tout mettre en avant revient à ne rien mettre en avant.** Rien ne limite le
 > nombre de packs promus : c'est à vous de doser.
 
+**Les packs hors catalogue sont repliés.** Un pack retiré de la vente reste en
+base tant que des membres le détiennent — c'est le sens du statut « inactif ».
+Mais il encombrerait la liste : ils sont donc masqués par défaut, avec leur
+nombre affiché pour qu'on ne les oublie pas. Un clic les déplie.
+
+Ils apparaissent alors **en ambre, avec une pastille** — le même repère que
+dans le menu d'attribution d'un pack à un membre. Deux écrans qui montrent la
+même chose la montrent pareil : sinon on croit voir autre chose.
+
 **Périodicité d'un abonnement** : semaines ou mois. Un **abonnement annuel** se
 règle sur « 12 mois » — il s'affichera « chaque année » chez le membre. Les
 maximums (52 semaines, 12 mois) viennent de Stripe, pas de l'application.
@@ -1058,6 +1068,55 @@ signale :
   n'en recevra aucune.
 
 Procédure de test détaillée : `docs/guide-test-iphone.md`.
+
+---
+
+## Diagnostic — Administration → Diagnostic
+
+**Réservé au super administrateur.** Cette page dit si l'installation est
+saine, en regardant la base **avec les yeux de l'application** : mêmes droits,
+mêmes autorisations qu'un écran ordinaire.
+
+C'est le point de vue qui compte. Une base peut paraître juste vue du tableau
+de bord de l'hébergeur, et refuser toute lecture vue d'ici — c'est arrivé le
+28 août : l'application se chargeait, la connexion réussissait, et tous les
+écrans restaient vides. Aucun compteur ne le voyait.
+
+**Quand l'ouvrir**
+
+- Après avoir installé ou déplacé la base
+- Quand plusieurs écrans se vident d'un coup sans explication
+- Quand un membre du staff perd ses accès sans raison apparente
+- Avant d'annoncer aux membres que tout est rentré dans l'ordre
+
+**Comment la lire**
+
+Un bandeau en haut donne le verdict : installation saine, points à connaître,
+ou problèmes à corriger. En dessous, sept blocs. **Chaque défaut affiche ce
+qu'il faut faire**, pas seulement qu'il existe.
+
+| Bloc | Ce qu'il vérifie |
+|---|---|
+| Environnement | Quelle base répond vraiment, sa version, l'adresse des liens d'e-mails |
+| Droits de lecture | Que les 27 tables répondent — le contrôle le plus utile |
+| Rôles | Que l'application et la base disent la même chose de vos rôles |
+| Réglages | Que les réglages du studio sont en place, et le mode de paiement |
+| Encaissements | La date du dernier pack crédité |
+| Storage | Que le stockage des photos répond |
+| Edge Functions | Que les dix services répondent |
+
+**Deux mentions en orange sont normales** : « base de test » quand vous n'êtes
+pas en production, et « tables sans aucune ligne » sur une base neuve ou peu
+remplie.
+
+> **Un silence prolongé sur « dernier pack crédité » mérite un coup d'œil.**
+> Si des ventes ont lieu et que la date ne bouge plus, c'est le symptôme d'un
+> encaissement qui n'arrive plus jusqu'à l'application. Le tableau de bord
+> Stripe le confirmera.
+
+> Cette page ne remplace pas les contrôles techniques faits à l'installation.
+> Elle dit ce que l'application voit, ce qui suffit à repérer la grande
+> majorité des pannes — et à savoir qu'il n'y en a pas.
 
 ---
 

@@ -1,5 +1,11 @@
 # Coach & Administrator Guide — Back on Track
 
+> **This English guide lags behind the French one.** It was last brought fully
+> into line in early August 2026; the French version has grown since. When the
+> two disagree, `guide-admin.md` is right. Sections describing installation and
+> deployment were removed on 2026-08-29 — they had drifted out of date and
+> belong to the technical documentation, not to a usage guide.
+
 This guide covers features reserved for coaches and administrators.
 
 ---
@@ -563,40 +569,29 @@ Counting from the end of the class avoids having to account for each class's dur
 
 ---
 
-## Supabase Edge Functions
+## Diagnostic — Administration → Diagnostic
 
-Three server functions:
+**Super administrators only.** This page tells you whether the installation is
+sound, by looking at the database **through the application's own eyes** — same
+permissions, same access as any ordinary screen.
 
-| Function | Role |
-|---|---|
-| `create-checkout-session` | Creates a Stripe Checkout session for pack purchase |
-| `stripe-webhook` | Receives Stripe events and creates pack_purchase after payment |
-| `send-notification` | Sends in-app notifications |
+That viewpoint is what matters. A database can look correct from the hosting
+dashboard and still refuse every read from here.
 
-### Configuring Supabase Secrets
-```bash
-supabase secrets set STRIPE_SECRET_KEY_TEST=sk_test_...
-supabase secrets set STRIPE_SECRET_KEY_LIVE=sk_live_...
-supabase secrets set STRIPE_WEBHOOK_SECRET_TEST=whsec_...
-supabase secrets set STRIPE_WEBHOOK_SECRET_LIVE=whsec_...
-```
+**When to open it**
 
----
+- After installing or moving the database
+- When several screens go blank at once, with no explanation
+- When a staff member loses access for no apparent reason
 
-## Clean Install
+**How to read it**
 
-To install the application on a new Supabase project:
+A banner at the top gives the verdict. Below it, seven blocks: environment,
+read permissions, roles, settings, payments, storage, edge functions. **Every
+fault shows what to do about it**, not merely that it exists.
 
-1. Create a Supabase project
-2. Run **`supabase/install.sql`** in the SQL Editor (single file, 581 lines)
-3. Configure `.env` with the URL and anon key
-4. Create an account via the application
-5. Promote to admin:
-```sql
-UPDATE user_roles SET role = 'admin'
-WHERE user_id = (SELECT id FROM auth.users WHERE email = 'your@email.com');
-```
-6. Configure credit types, packs, and classes via the admin interface
+Two amber notes are normal: "test database" when you are not in production, and
+"tables with no rows" on a new or lightly used database.
 
 ---
 
@@ -624,10 +619,3 @@ Open-source analytics, no cookies, GDPR compliant:
 
 ---
 
-## Deployment
-
-The project is deployed on an OVH VPS with Nginx:
-```bash
-git pull && npm install && npm run build
-```
-Nginx serves static files from the `dist/` folder with `try_files $uri $uri/ /index.html` for SPA routing. HTTPS via Let's Encrypt / Certbot.
