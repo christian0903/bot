@@ -372,8 +372,12 @@ confirmer "Authentication" \
 confirmer "Webhook Stripe" \
   "Stripe > Developers > Webhooks > Add endpoint" \
   "  - URL : https://$CIBLE_REF.supabase.co/functions/v1/stripe-webhook" \
-  "  - Evenements : checkout.session.completed, customer.subscription.*," \
-  "                 invoice.payment_succeeded, invoice.payment_failed" \
+  "  - Les CINQ evenements, releves dans stripe-webhook/index.ts :" \
+  "      checkout.session.completed" \
+  "      invoice.paid                    <- credite les abonnements" \
+  "      invoice.payment_failed" \
+  "      customer.subscription.updated" \
+  "      customer.subscription.deleted" \
   "  - Relever le 'whsec_' et le poser en secret (voir ci-dessus)" \
   "  C'est ICI que rate un demenagement : un webhook oublie coupe les" \
   "  encaissements sans aucun signal visible."
