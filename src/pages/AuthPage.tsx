@@ -300,6 +300,15 @@ export function AuthPage() {
     if (error) {
       toast.error(error.message)
     } else {
+      // Sans cette trace, le journal ne montrait rien : des coachs disaient
+      // avoir fait la demande, et il n'y avait aucun moyen de trancher — ni de
+      // savoir si l'e-mail etait parti.
+      //
+      // Sans `await` : la trace ne doit pas retarder l'affichage, et un echec
+      // d'ecriture ne doit pas transformer une demande reussie en erreur. La
+      // fonction ne dit rien d'une adresse inconnue — repondre differemment
+      // revelerait qui frequente le studio.
+      void supabase.rpc('log_password_reset_request', { p_email: forgotEmail })
       toast.success(t('auth.resetEmailSent'))
     }
   }

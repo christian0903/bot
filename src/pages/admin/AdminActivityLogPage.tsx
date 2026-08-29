@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from '@/components/ui/select'
-import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag, UserPlus, Receipt, LogIn, Star, ScanLine, AlertTriangle, Download, Trash2, Eraser, UserRoundPlus, UserRoundX, Banknote } from 'lucide-react'
+import { ScrollText, ChevronDown, Gift, Pencil, CalendarDays, X, Clock3, UserCog, ShoppingBag, UserPlus, Receipt, LogIn, KeyRound, Star, ScanLine, AlertTriangle, Download, Trash2, Eraser, UserRoundPlus, UserRoundX, Banknote } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
@@ -46,6 +46,11 @@ const ACTION_CONFIG: Record<string, { icon: typeof Gift; color: string; label_fr
   signup_attempt: { icon: UserRoundPlus, color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-950', label_fr: 'Inscription', label_en: 'Sign-up' },
   registration_fee_paid: { icon: Receipt, color: 'text-green-600 bg-green-50 dark:bg-green-950', label_fr: 'Frais inscription', label_en: 'Registration fee' },
   user_login: { icon: LogIn, color: 'text-sky-600 bg-sky-50 dark:bg-sky-950', label_fr: 'Connexion', label_en: 'Login' },
+  // Deux entrees distinctes, et la nuance compte : l'une est un geste de
+  // support — le studio reinitialise pour quelqu'un —, l'autre un signal : le
+  // membre s'est retrouve bloque tout seul.
+  password_reset_requested: { icon: KeyRound, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950', label_fr: 'Mot de passe oublié', label_en: 'Password forgotten' },
+  password_reset_by_admin: { icon: KeyRound, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950', label_fr: 'Mot de passe réinitialisé', label_en: 'Password reset by staff' },
   trial_booked: { icon: Star, color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950', label_fr: 'Séance d\'essai', label_en: 'Trial session' },
   check_in: { icon: ScanLine, color: 'text-green-600 bg-green-50 dark:bg-green-950', label_fr: 'Check-in', label_en: 'Check-in' },
   no_show: { icon: AlertTriangle, color: 'text-red-600 bg-red-50 dark:bg-red-950', label_fr: 'No-show', label_en: 'No-show' },

@@ -40,6 +40,9 @@ CREATE TYPE activity_action AS ENUM (
   'user_created', 'signup_attempt', 'registration_fee_paid', 'user_login',
   'trial_booked', 'check_in', 'no_show', 'account_deleted',
   'password_reset_by_admin',
+  -- Demande par le MEMBRE lui-meme, a distinguer de la precedente : l'une est
+  -- un geste de support, l'autre un signal.
+  'password_reset_requested',
   'email_change_by_admin',
   'subscription_cancelled',
   'subscription_paused',
@@ -1766,6 +1769,50 @@ $fn$;
 
 REVOKE ALL ON FUNCTION log_duplicate_signup(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION log_duplicate_signup(TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION log_password_reset_request(p_email TEXT)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  SELECT id INTO v_user_id FROM auth.users WHERE email = lower(trim(p_email));
+
+  -- Adresse inconnue : rien a tracer, et surtout rien a signaler a l'appelant.
+  -- Une difference de comportement serait elle-meme une reponse.
+  IF v_user_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- Une seule trace par heure et par adresse.
+  IF EXISTS (
+    SELECT 1 FROM activity_log
+    WHERE action = 'password_reset_requested'
+      AND target_user_id = v_user_id
+      AND created_at > NOW() - INTERVAL '1 hour'
+  ) THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO activity_log (action, actor_id, target_user_id, entity_type, entity_id, description)
+  VALUES (
+    'password_reset_requested',
+    v_user_id,          -- le membre agit pour lui-meme
+    v_user_id,
+    'user',
+    v_user_id,
+    format('%s a demande la reinitialisation de son mot de passe',
+           COALESCE((SELECT display_name FROM profiles WHERE id = v_user_id), p_email))
+  );
+END;
+$fn$;
+
+-- `anon` doit pouvoir l'appeler : on demande un nouveau mot de passe
+-- PRECISEMENT quand on n'est pas connecte.
+GRANT EXECUTE ON FUNCTION log_password_reset_request(TEXT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION purge_parasite_account(p_user_id UUID)
 RETURNS JSONB
