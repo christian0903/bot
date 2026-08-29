@@ -1345,7 +1345,11 @@ BEGIN
        WHERE pp.user_id = p_user_id AND NOT pt.is_trial;
 
       IF v_fin_dernier_pack IS NULL OR v_fin_dernier_pack > NOW() - INTERVAL '4 weeks' THEN
-        v_status := 'inactive';
+        -- Quatre semaines de grace : entre deux achats, on reste un membre.
+        -- Seul changement du 2026-08-29 — la version precedente posait
+        -- `inactive` ici, un troisieme etat pour dire ce que `active` disait
+        -- deja : le membre n'a pas quitte le studio.
+        v_status := 'active';
       ELSE
         v_status := 'former';
       END IF;

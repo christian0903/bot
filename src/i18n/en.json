@@ -172,10 +172,10 @@
     "referralShareText": "Join Back on Track with my code {{code}} and get €30 off!",
     "status": {
       "visitor": "First contact",
-      "potential": "Potential member",
-      "active": "Active member",
-      "inactive": "Inactive member",
-      "former": "Former member"
+      "potential": "Potential",
+      "active": "Active",
+      "inactive": "Inactive",
+      "former": "Inactive"
     }
   },
   "notifications": {

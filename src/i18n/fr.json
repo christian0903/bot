@@ -172,10 +172,10 @@
     "referralShareText": "Rejoins Back on Track avec mon code {{code}} et obtiens 30€ de réduction !",
     "status": {
       "visitor": "Premier contact",
-      "potential": "Membre potentiel",
-      "active": "Membre actif",
-      "inactive": "Membre inactif",
-      "former": "Ancien membre"
+      "potential": "Potentiel",
+      "active": "Actif",
+      "inactive": "Inactif",
+      "former": "Inactif"
     }
   },
   "notifications": {

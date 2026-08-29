@@ -38,6 +38,15 @@ import { fr, enUS } from 'date-fns/locale'
 import { cn, formatEuros } from '@/lib/utils'
 import { urlImage } from '@/lib/url-image'
 
+/** Memes teintes que AdminUsersPage et ProfilePage : lisibles clair et sombre. */
+const COULEURS_STATUT: Record<string, string> = {
+  visitor: 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30',
+  potential: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  active: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30',
+  inactive: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30',
+  former: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30',
+}
+
 export function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, i18n } = useTranslation()
@@ -1049,7 +1058,10 @@ export function AdminUserDetailPage() {
 
       {/* Statut + Rôle + Catégorie + Frais d'inscription */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Badge variant="outline" className={profile.member_status === 'active' ? 'border-green-500 text-green-600' : profile.member_status === 'inactive' ? 'border-orange-500 text-orange-600' : profile.member_status === 'former' ? 'border-red-500 text-red-600' : ''}>
+        {/* Memes teintes que la liste des membres et que la fiche du membre
+            lui-meme : un statut se reconnait a sa couleur, elle ne peut pas
+            changer d'un ecran a l'autre. */}
+        <Badge variant="outline" className={COULEURS_STATUT[profile.member_status] ?? COULEURS_STATUT.visitor}>
           {t(`profile.status.${profile.member_status}`)}
         </Badge>
 

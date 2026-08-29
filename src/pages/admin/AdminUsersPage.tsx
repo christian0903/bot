@@ -52,11 +52,17 @@ interface UserWithRole extends Profile {
 
 /** Mêmes teintes que la fiche du membre : un statut se reconnaît à sa couleur. */
 const COULEURS_STATUT: Record<string, string> = {
-  visitor: 'bg-gray-100 text-gray-800',
-  potential: 'bg-yellow-100 text-yellow-800',
-  active: 'bg-green-100 text-green-800',
-  inactive: 'bg-orange-100 text-orange-800',
-  former: 'bg-red-100 text-red-800',
+  // Teintes lisibles sur fond clair ET sombre : les `bg-*-100` d'origine
+  // viraient au blanc laiteux en mode sombre, et le texte foncé par-dessus
+  // devenait illisible. Un fond translucide prend la couleur du thème.
+  visitor: 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30',
+  potential: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  active: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30',
+  // `former` partage la teinte d'`inactive` : les deux se lisent « Inactif ».
+  // La base garde la distinction — quatre semaines d'écart, et `former` marque
+  // aussi un compte supprimé — mais elle n'intéresse pas qui lit une liste.
+  inactive: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30',
+  former: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30',
 }
 
 const exportCsv = (data: Record<string, unknown>[], filename: string) => {
@@ -390,7 +396,14 @@ export function AdminUsersPage() {
 
   const filteredUsers = users.filter(u => {
     if (roleFilter !== 'all' && roleFilter !== u.role) return false
-    if (filterStatut !== 'all' && u.member_status !== filterStatut) return false
+    if (filterStatut !== 'all') {
+      // « Inactif » couvre `inactive` ET `former` : ce sont deux nuances de la
+      // même chose pour qui parcourt la liste.
+      const correspond = filterStatut === 'former'
+        ? (u.member_status === 'former' || u.member_status === 'inactive')
+        : u.member_status === filterStatut
+      if (!correspond) return false
+    }
 
     if (filterCategory !== 'all') {
       if (filterCategory === 'none') {
@@ -568,7 +581,12 @@ export function AdminUsersPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{isFr ? 'Tous statuts' : 'All statuses'}</SelectItem>
-            {(['visitor', 'potential', 'active', 'inactive', 'former'] as const).map(st => (
+            {/* Trois etats seulement. `inactive` n'est plus attribue depuis
+                le 2026-08-29 — un membre reste actif quatre semaines apres
+                l'expiration de son pack, puis devient `former`. Le filtre
+                « Inactif » couvre les deux, le temps que les anciennes lignes
+                se recalculent. */}
+            {(['visitor', 'potential', 'active', 'former'] as const).map(st => (
               <SelectItem key={st} value={st}>{t(`profile.status.${st}`)}</SelectItem>
             ))}
           </SelectContent>

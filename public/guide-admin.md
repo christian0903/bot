@@ -4,32 +4,105 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 
 ---
 
+## Table des matières
+
+- [Où trouver quoi](#ou-trouver-quoi)
+- [Qui peut faire quoi](#qui-peut-faire-quoi)
+- [Au quotidien](#au-quotidien)
+  - [Changer de casquette — le sélecteur Membre / Coach / Admin](#changer-de-casquette-le-selecteur-membre-coach-admin)
+  - [Le planning — Administration → Gestion du planning](#le-planning-administration-gestion-du-planning)
+  - [Lire le statut d'un cours](#lire-le-statut-d-un-cours)
+  - [Trois chemins vers le pointage](#trois-chemins-vers-le-pointage)
+  - [La fiche d'un cours](#la-fiche-d-un-cours)
+  - [La liste d'attente](#la-liste-d-attente)
+  - [Scanner un code à l'arrivée](#scanner-un-code-a-l-arrivee)
+  - [Inscrire ou désinscrire quelqu'un](#inscrire-ou-desinscrire-quelqu-un)
+  - [Check-in et absences](#check-in-et-absences)
+- [L'espace coach](#l-espace-coach)
+  - [Consulter les performances d'un membre](#consulter-les-performances-d-un-membre)
+  - [Le menu suit le mode choisi](#le-menu-suit-le-mode-choisi)
+  - [Types de performances — menu Types de perfs](#types-de-performances-menu-types-de-perfs)
+- [Les membres — Administration → Utilisateurs](#les-membres-administration-utilisateurs)
+  - [Ce que montre la liste](#ce-que-montre-la-liste)
+  - [Le statut d'un membre — calculé, jamais saisi](#le-statut-d-un-membre-calcule-jamais-saisi)
+  - [Ranger plusieurs membres à la fois](#ranger-plusieurs-membres-a-la-fois)
+  - [Ce qu'on voit en tête](#ce-qu-on-voit-en-tete)
+  - [Onglet Packs](#onglet-packs)
+  - [Onglet Réservations et onglet Annulations](#onglet-reservations-et-onglet-annulations)
+  - [Onglet Abonnement](#onglet-abonnement)
+  - [Onglet Bons](#onglet-bons)
+  - [Désigner un coach ou un admin](#designer-un-coach-ou-un-admin)
+  - [Supprimer un compte](#supprimer-un-compte)
+  - [Autres actions sur la fiche](#autres-actions-sur-la-fiche)
+- [Vendre — ce qu'il faut régler](#vendre-ce-qu-il-faut-regler)
+  - [Démarrer sur une base neuve — dans quel ordre](#demarrer-sur-une-base-neuve-dans-quel-ordre)
+  - [Types de crédit — Administration → Types de crédits](#types-de-credit-administration-types-de-credits)
+  - [Plafond de fréquentation — Administration → Types de packs](#plafond-de-frequentation-administration-types-de-packs)
+  - [Vendre en août un abonnement qui commence en septembre](#vendre-en-aout-un-abonnement-qui-commence-en-septembre)
+  - [La séance d'essai](#la-seance-d-essai)
+  - [Fin d'abonnement et réservations](#fin-d-abonnement-et-reservations)
+  - [Quatre situations, et ce que le membre voit](#quatre-situations-et-ce-que-le-membre-voit)
+  - [Types de packs — Administration → Types de packs](#types-de-packs-administration-types-de-packs)
+  - [Types de cours — Administration → Types de cours](#types-de-cours-administration-types-de-cours)
+  - [Catégories de membres — Administration → Catégories de membres](#categories-de-membres-administration-categories-de-membres)
+  - [Coupons — Administration → Coupons](#coupons-administration-coupons)
+- [Réglages — Administration → Paramètres](#reglages-administration-parametres)
+  - [Règles de réservation](#regles-de-reservation)
+  - [Parrainage](#parrainage)
+  - [Autres réglages](#autres-reglages)
+  - [Coordonnées légales du studio — à remplir en premier](#coordonnees-legales-du-studio-a-remplir-en-premier)
+  - [Conditions générales et confidentialité](#conditions-generales-et-confidentialite)
+  - [Réseaux sociaux](#reseaux-sociaux)
+- [Suivi des clients — Administration → Suivi clients](#suivi-des-clients-administration-suivi-clients)
+  - [Les quatre états](#les-quatre-etats)
+  - [Réservé / pointé — pourquoi deux colonnes](#reserve-pointe-pourquoi-deux-colonnes)
+  - [La tendance](#la-tendance)
+  - [Le chiffre d'affaires](#le-chiffre-d-affaires)
+  - [Régler les seuils](#regler-les-seuils)
+  - [Ce que la page ne fait pas](#ce-que-la-page-ne-fait-pas)
+- [Suivre l'activité](#suivre-l-activite)
+  - [Tableau de bord — Administration → Tableau de bord](#tableau-de-bord-administration-tableau-de-bord)
+  - [Évaluations — Administration → Évaluations](#evaluations-administration-evaluations)
+  - [Parrainages — Administration → Parrainages](#parrainages-administration-parrainages)
+  - [Clients professionnels (B2B) — commander sur facture](#clients-professionnels-b2b-commander-sur-facture)
+  - [Demandes de facture — Administration → Demandes de factures](#demandes-de-facture-administration-demandes-de-factures)
+  - [Exports — Administration → Exports](#exports-administration-exports)
+  - [Journal d'activité — Administration → Journal d'activité](#journal-d-activite-administration-journal-d-activite)
+  - [Annonces — Administration → Annonces](#annonces-administration-annonces)
+- [L'application sur le téléphone des membres](#l-application-sur-le-telephone-des-membres)
+- [Diagnostic — Administration → Diagnostic](#diagnostic-administration-diagnostic)
+- [Points de vigilance](#points-de-vigilance)
+
+---
+
+
+
 ## Où trouver quoi
 
 Tout passe par le **menu Administration**, dans la barre latérale à gauche (sur mobile, par le bouton menu en haut). Les entrées apparaissent dans cet ordre :
 
 | Entrée du menu | À quoi ça sert | Détail |
 |---|---|---|
-| **Utilisateurs** | La fiche de chaque membre : packs, réservations, abonnement, rôles | [§](#les-membres--administration--utilisateurs) |
-| **Gestion du planning** | Créer, modifier, annuler les cours | [§](#le-planning--administration--gestion-du-planning) |
-| **Coaches & Admins** | Les membres du staff et leurs cours | [§](#lespace-coach) |
+| **Utilisateurs** | La fiche de chaque membre : packs, réservations, abonnement, rôles | [§](#les-membres-administration-utilisateurs) |
+| **Gestion du planning** | Créer, modifier, annuler les cours | [§](#le-planning-administration-gestion-du-planning) |
+| **Coaches & Admins** | Les membres du staff et leurs cours | [§](#l-espace-coach) |
 | **Catégories de membres** | Qui a droit à quels packs | [§](#catégories-de-membres--administration--catégories-de-membres) |
 | **Types de crédits** | La brique de base : semi-privé, personal training… | [§](#types-de-crédit--administration--types-de-crédits) |
-| **Types de packs** | Les formules vendues, leur prix, leur durée | [§](#types-de-packs--administration--types-de-packs) |
-| **Types de cours** | Les cours proposés et leur type de crédit | [§](#types-de-cours--administration--types-de-cours) |
+| **Types de packs** | Les formules vendues, leur prix, leur durée | [§](#types-de-packs-administration-types-de-packs) |
+| **Types de cours** | Les cours proposés et leur type de crédit | [§](#types-de-cours-administration-types-de-cours) |
 | **Types de perfs** | Les mesures suivies (charge, temps, répétitions…) | — |
 | **Réservations** | Toutes les réservations, tous membres confondus | — |
-| **Coupons** | Codes de réduction collectifs | [§](#coupons--administration--coupons) |
+| **Coupons** | Codes de réduction collectifs | [§](#coupons-administration-coupons) |
 | **Annonces** | Messages diffusés aux membres | — |
 | **Journal d'activité** | Qui a fait quoi, quand | — |
 | **Demandes de factures** | Les demandes des membres à traiter | — |
 | **Parrainages** | Qui a parrainé qui, et les bons émis | — |
 | **Évaluations** | Les avis laissés sur les cours | [§](#évaluations--administration--évaluations) |
-| **Suivi clients** | **Qui vient moins, qui ne vient plus, qui rapporte quoi** | [§](#suivi-des-clients--administration--suivi-clients) |
-| **Tableau de bord** | Les chiffres de l'activité | [§](#tableau-de-bord--administration--tableau-de-bord) |
-| **Exports** | **Sortir les données en CSV pour un tableur** | [§](#exports--administration--exports) |
+| **Suivi clients** | **Qui vient moins, qui ne vient plus, qui rapporte quoi** | [§](#suivi-des-clients-administration-suivi-clients) |
+| **Tableau de bord** | Les chiffres de l'activité | [§](#tableau-de-bord-administration-tableau-de-bord) |
+| **Exports** | **Sortir les données en CSV pour un tableur** | [§](#exports-administration-exports) |
 | **Paramètres** | Tous les réglages du studio | [§](#réglages--administration--paramètres) |
-| **Diagnostic** | L'état de l'installation, réservé au super administrateur | [§](#diagnostic--administration--diagnostic) |
+| **Diagnostic** | L'état de l'installation, réservé au super administrateur | [§](#diagnostic-administration-diagnostic) |
 | **Aide** | Ce guide, consultable dans l'application | — |
 
 > **Le menu s'adapte au rôle.** Un coach ne voit que ses cours et son planning ; les entrées de configuration et de vente sont réservées aux administrateurs.
@@ -359,10 +432,18 @@ dernière pour le temps qui passe, qui ne produit aucun événement.
 | Statut | Règle |
 |---|---|
 | **Premier contact** | Compte créé, aucun cours d'essai réservé |
-| **Membre potentiel** | A réservé son cours d'essai — la réservation suffit, la séance n'a pas à avoir eu lieu |
-| **Membre actif** | A acheté un pack payant, et en a un en cours |
-| **Membre inactif** | A acheté, plus de pack valide, échéance de moins de 4 semaines |
-| **Ancien membre** | Échéance du dernier pack dépassée de plus de 4 semaines |
+| **Potentiel** | A réservé son cours d'essai — la réservation suffit, la séance n'a pas à avoir eu lieu |
+| **Actif** | A acheté un pack payant : soit il en a un en cours, soit le dernier a expiré **il y a moins de 4 semaines** |
+| **Inactif** | Échéance du dernier pack dépassée de plus de 4 semaines |
+
+> **Un pack expiré ne fait pas sortir du studio.** Quatre semaines de grâce
+> avant qu'un membre ne bascule : entre deux achats, il reste actif. C'est ce
+> qui distingue quelqu'un qui hésite de quelqu'un qui est parti — et ce sont
+> deux relances très différentes.
+>
+> *Modifié le 2026-08-29 : un statut « inactif » intermédiaire existait pour
+> ces quatre semaines. Trois états disaient la même chose, et « inactif »
+> désignait quelqu'un qui venait encore la semaine précédente.*
 
 > **Les frais d'inscription n'entrent pas dans le calcul.** On ne peut pas
 > acheter un pack sans les avoir payés : les tester une seconde fois serait

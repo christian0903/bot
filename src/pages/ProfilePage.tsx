@@ -21,11 +21,17 @@ import { QRCodeSVG } from 'qrcode.react'
 import { urlImage } from '@/lib/url-image'
 
 const STATUS_COLORS: Record<string, string> = {
-  visitor: 'bg-gray-100 text-gray-800',
-  potential: 'bg-yellow-100 text-yellow-800',
-  active: 'bg-green-100 text-green-800',
-  inactive: 'bg-orange-100 text-orange-800',
-  former: 'bg-red-100 text-red-800',
+  // Teintes lisibles sur fond clair ET sombre : les `bg-*-100` d'origine
+  // viraient au blanc laiteux en mode sombre, et le texte foncé par-dessus
+  // devenait illisible. Un fond translucide prend la couleur du thème.
+  visitor: 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30',
+  potential: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  active: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30',
+  // `former` partage la teinte d'`inactive` : les deux se lisent « Inactif ».
+  // La base garde la distinction — quatre semaines d'écart, et `former` marque
+  // aussi un compte supprimé — mais elle n'intéresse pas qui lit une liste.
+  inactive: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30',
+  former: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30',
 }
 
 export function ProfilePage() {

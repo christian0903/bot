@@ -66,6 +66,12 @@ export function MarkdownDoc({ content, isFr }: { content: string; isFr: boolean 
             h2: ({ children }) => (
               <h2 id={slugify(String(children))} className="scroll-mt-20">{children}</h2>
             ),
+            // Les sous-sections aussi : le guide admin en compte cinquante-quatre,
+            // et sa table des matières y renvoie. Sans ancre, chaque lien y
+            // tombait dans le vide.
+            h3: ({ children }) => (
+              <h3 id={slugify(String(children))} className="scroll-mt-20">{children}</h3>
+            ),
             // Un tableau large doit défiler dans son cadre, sans pousser la page.
             table: ({ children }) => (
               <div className="md-table-wrap"><table>{children}</table></div>
