@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn, getClassStatus, classStatusLabel } from '@/lib/utils'
 import type { ScheduledClass, Booking } from '@/types'
 import { urlImage } from '@/lib/url-image'
+import { one } from '@/lib/supabase-joins'
 
 /** Une façon de payer une séance : abonnement ou pack, telle que renvoyée par get_available_credits. */
 type CreditSource = {
@@ -90,6 +91,15 @@ export function SchedulePage() {
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
   const [classes, setClasses] = useState<ScheduledClass[]>([])
+  /**
+   * Les types de credits du CATALOGUE, et non ceux de la periode affichee.
+   *
+   * Les onglets se deduisaient des cours charges — quatorze jours. Une semaine
+   * sans personal training les faisait donc disparaitre, et le membre perdait
+   * le moyen de revenir a ce qu'il regardait. Le catalogue, lui, ne varie pas
+   * d'une semaine a l'autre.
+   */
+  const [typesAuCatalogue, setTypesAuCatalogue] = useState<{ id: string; label: string; name: string }[]>([])
   const [userBookings, setUserBookings] = useState<Set<string>>(new Set())
   const [userWaitlist, setUserWaitlist] = useState<Map<string, { id: string; position: number; status: string }>>(new Map())
   const [bookingCounts, setBookingCounts] = useState<Map<string, number>>(new Map())
@@ -206,30 +216,15 @@ export function SchedulePage() {
    * programmé n'a rien à proposer, son onglet serait un cul-de-sac.
    */
   const creditTypeTabs = useMemo(() => {
-    const map = new Map<string, string>()
-    /** Nom technique (`semi_prive`, `personal_training`) : sert au tri. */
-    const nomsInternes = new Map<string, string>()
-    for (const sc of classes) {
-      const id = sc.class_type?.credit_type_id
-      if (!id || map.has(id)) continue
-      const ct = sc.class_type?.credit_type
-      const label = (isFr ? ct?.label_fr : ct?.label_en) ?? ct?.name
-      if (label) {
-        map.set(id, label)
-        if (ct?.name) nomsInternes.set(id, ct.name)
-      }
-    }
     // Le semi-privé d'abord : c'est la prestation courante du studio, donc
     // l'onglet ouvert par défaut. Un tri alphabétique aurait mis « Personal
     // Training » en tête, ce qui n'a rien à voir avec l'usage.
-    const rang = (id: string) => {
-      const nom = nomsInternes.get(id)
-      return nom === 'semi_prive' ? 0 : nom === 'personal_training' ? 1 : 2
-    }
-    return [...map.entries()]
-      .map(([id, label]) => ({ id, label }))
-      .sort((a, b) => rang(a.id) - rang(b.id) || a.label.localeCompare(b.label))
-  }, [classes, isFr])
+    const rang = (nom: string) =>
+      nom === 'semi_prive' ? 0 : nom === 'personal_training' ? 1 : 2
+    return [...typesAuCatalogue]
+      .sort((a, b) => rang(a.name) - rang(b.name) || a.label.localeCompare(b.label))
+      .map(({ id, label }) => ({ id, label }))
+  }, [typesAuCatalogue])
 
   /**
    * Onglet réellement affiché : le choix du membre, ou le premier de la liste.
@@ -430,6 +425,24 @@ export function SchedulePage() {
   }, [isFr])
 
   useEffect(() => { fetchData() }, [currentDate, user])
+
+  // Une seule fois : le catalogue ne change pas quand on tourne les semaines.
+  useEffect(() => {
+    supabase
+      .from('class_types')
+      .select('credit_type_id, credit_type:credit_types(name, label_fr, label_en)')
+      .then(({ data }) => {
+        const vus = new Map<string, { id: string; label: string; name: string }>()
+        for (const ct of data ?? []) {
+          const id = ct.credit_type_id
+          const c = one(ct.credit_type) as { name?: string; label_fr?: string; label_en?: string } | null
+          if (!id || vus.has(id) || !c) continue
+          const label = (isFr ? c.label_fr : c.label_en) ?? c.name
+          if (label) vus.set(id, { id, label, name: c.name ?? '' })
+        }
+        setTypesAuCatalogue([...vus.values()])
+      })
+  }, [isFr])
 
   // Build email vars from a scheduled class
   const classEmailVars = (sc: ScheduledClass, userName?: string) => ({
@@ -1574,12 +1587,19 @@ export function SchedulePage() {
 
       {/* Title — porte le type affiché : « Planning des cours » quand on voit
           tout, « Planning Personal Training » quand on filtre. L'écran dit
-          alors ce qu'il montre, sans qu'on ait à remonter aux onglets. */}
+          alors ce qu'il montre, sans qu'on ait à remonter aux onglets.
+          
+          Le titre suit `ongletActif` seul, sans regarder combien d'onglets
+          existent. Le `creditTypeTabs.length > 1` d'avant le faisait retomber
+          sur « des cours » dès qu'une semaine ne proposait qu'un seul type :
+          l'écran montrait du personal training et s'annonçait générique. Or
+          les onglets se déduisent des cours de la période — leur nombre varie
+          d'une semaine à l'autre, le titre n'a pas à en dépendre. */}
       <div>
         <h1 className="text-3xl font-bold">
           {isFr ? 'Planning ' : 'Class '}
           <span className="text-primary">
-            {creditTypeTabs.length > 1 && ongletActif !== 'all'
+            {ongletActif !== 'all'
               ? (creditTypeTabs.find(t => t.id === ongletActif)?.label ?? (isFr ? 'des cours' : 'Schedule'))
               : (isFr ? 'des cours' : 'Schedule')}
           </span>

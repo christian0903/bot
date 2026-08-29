@@ -432,7 +432,7 @@ export function PacksPage() {
   // c'est arrivé en test. Il devient donc le premier niveau de lecture, et les
   // formules se rangent dessous.
   const creditTypeGroups = (() => {
-    const map = new Map<string, { label: string; subscriptions: PackType[]; oneOff: PackType[] }>()
+    const map = new Map<string, { label: string; nomInterne: string; subscriptions: PackType[]; oneOff: PackType[] }>()
     for (const p of packTypes) {
       // Un professionnel ne voit pas les abonnements : ils se prélèvent
       // automatiquement par carte, ce qui n'a pas de sens sur facture. Le
@@ -445,7 +445,8 @@ export function PacksPage() {
       const label = (isFr ? p.credit_type?.label_fr : p.credit_type?.label_en)
         ?? p.credit_type?.name
         ?? (isFr ? 'Autres' : 'Other')
-      if (!map.has(key)) map.set(key, { label, subscriptions: [], oneOff: [] })
+      // Le nom technique sert au tri, comme au planning.
+      if (!map.has(key)) map.set(key, { label, nomInterne: p.credit_type?.name ?? '', subscriptions: [], oneOff: [] })
       const g = map.get(key)!
       if (p.is_recurring) g.subscriptions.push(p)
       else g.oneOff.push(p)
@@ -458,13 +459,15 @@ export function PacksPage() {
       g.subscriptions.sort(promuDAbord)
       g.oneOff.sort(promuDAbord)
     }
-    // Les types proposant un abonnement d'abord : c'est ce que le studio vend.
-    return [...map.values()].sort((a, b) => {
-      const aSub = a.subscriptions.length > 0 ? 0 : 1
-      const bSub = b.subscriptions.length > 0 ? 0 : 1
-      if (aSub !== bSub) return aSub - bSub
-      return a.label.localeCompare(b.label)
-    })
+    // Le semi-prive d'abord, le personal training ensuite — le meme ordre
+    // qu'au planning, ou l'onglet semi-prive s'ouvre par defaut. Le tri
+    // precedent partait de « qui propose un abonnement », puis de l'ordre
+    // alphabetique : « Personal Training » passait donc avant « Semi-prive »,
+    // et les deux ecrans se contredisaient sur ce que le studio vend d'abord.
+    const rang = (nom: string) =>
+      nom === 'semi_prive' ? 0 : nom === 'personal_training' ? 1 : 2
+    return [...map.values()].sort((a, b) =>
+      rang(a.nomInterne) - rang(b.nomInterne) || a.label.localeCompare(b.label))
   })()
 
   /**
