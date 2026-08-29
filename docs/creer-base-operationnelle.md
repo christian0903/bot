@@ -384,10 +384,73 @@ npx supabase functions list --project-ref "$CIBLE_REF" | grep stripe-webhook'
 > en 401 et plus rien n'est jamais crédité. L'authenticité est garantie par la
 > signature du webhook, que la fonction vérifie elle-même.
 
-**Contrôle** : la ligne `stripe-webhook` doit porter `VERIFY JWT = false`.
+**Contrôle du drapeau** — la sortie tabulaire ne montre pas toujours la
+colonne ; la lire en JSON est sans ambiguïté :
 
-**Puis, dans Stripe → Webhooks → l'endpoint → Tentatives** : envoyer un
-événement de test et vérifier un **200**.
+```bash
+cd ~/bot && bash -c '
+set -a; source .env.migration; set +a
+npx supabase functions list --project-ref "$CIBLE_REF" --output json 2>/dev/null | python3 -c "
+import sys, json
+for f in json.load(sys.stdin):
+    if \"stripe\" in f.get(\"name\",\"\"):
+        print(\"verify_jwt :\", f.get(\"verify_jwt\"), \"| statut :\", f.get(\"status\"))"'
+```
+
+Attendu : **`verify_jwt : False`**.
+
+**Contrôle de la chaîne** — un appel sans JWT, avec une signature volontairement
+fausse. C'est le test le plus parlant, et il ne touche à rien :
+
+```bash
+curl -s -X POST "https://<ref>.supabase.co/functions/v1/stripe-webhook" \
+  -H "stripe-signature: t=1,v1=faux" -H "Content-Type: application/json" \
+  -d '{"type":"test"}' -w "\nHTTP %{http_code}\n"
+```
+
+Comment lire la réponse :
+
+| Réponse | Ce que ça dit |
+|---|---|
+| **400 « Signature invalide »** | ✅ Tout est en place : la plateforme laisse passer (drapeau OK) et la fonction lit son secret |
+| 401 | ❌ Le drapeau `--no-verify-jwt` manque — redéployer |
+| 500 « Configuration Stripe incomplète » | ❌ Le secret du webhook n'est pas posé, ou la fonction n'a pas été redéployée depuis |
+
+**Enfin, un vrai événement** : sur la page du webhook, bouton **« Envoyer des
+événements de test »** → `checkout.session.completed` → attendu **200**.
+
+> Le bouton renvoie vers la CLI Stripe (`stripe trigger`), qui demande une
+> installation. L'API `/v1/test_helpers/.../send_event`, elle, n'existe pas.
+
+**Sans rien installer**, on peut signer un événement soi-même avec le `whsec_`,
+exactement comme le fait Stripe. Le type `ping.test` est inconnu du `switch` de
+la fonction : elle répond 200 par sa branche `default`, **sans rien écrire en
+base**.
+
+```bash
+cd ~/bot && bash -c '
+set -a; source .env.migration; set +a
+python3 - <<PY
+import hmac, hashlib, json, os, time, urllib.request
+secret = os.environ["STRIPE_WEBHOOK_SECRET_TEST"]
+ts = int(time.time())
+corps = json.dumps({"id":"evt_test","object":"event","type":"ping.test",
+                    "data":{"object":{}}}, separators=(",",":"))
+signe = hmac.new(secret.encode(), f"{ts}.{corps}".encode(), hashlib.sha256).hexdigest()
+req = urllib.request.Request(
+    f"https://{os.environ[\"CIBLE_REF\"]}.supabase.co/functions/v1/stripe-webhook",
+    data=corps.encode(),
+    headers={"Content-Type":"application/json","stripe-signature":f"t={ts},v1={signe}"},
+    method="POST")
+try:
+    with urllib.request.urlopen(req) as r: print("HTTP", r.status, "|", r.read(200).decode())
+except urllib.error.HTTPError as e: print("HTTP", e.code, "|", e.read(200).decode())
+PY'
+```
+
+Attendu : **`HTTP 200 | {"received":true}`**. C'est la preuve des trois maillons
+à la fois — le drapeau laisse passer, le secret est lu, la signature est
+vérifiée.
 
 ---
 
