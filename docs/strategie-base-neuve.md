@@ -171,6 +171,29 @@ semaines comme filet, puis la supprimer avec un dump conservé en local.
 
 ---
 
+## Les fichiers `.env`, et le piège du `cp` machinal
+
+La bascule d'une base à l'autre se fait par `cp .env.<nom> .env && npm run build`.
+Volontairement bête — mais rien n'empêche de copier un fichier qui vise une base
+morte, et le build ne le signale pas.
+
+**Règle** : dès qu'une base est abandonnée, renommer son `.env` en
+`.env.<nom>.perime`. Le `cp` échoue alors sur un fichier introuvable, au lieu
+de produire une application qui interroge le vide.
+
+Fait le 2026-08-29 pour `.env.ops` (visait `bot`, remplacée par `bot3`) et
+`.env.test` (visait une base supprimée depuis des semaines).
+
+> **Contrôler ce que le build a réellement embarqué**, avant de déployer :
+> ```bash
+> grep -oh "<ref attendue>\|<ref a eviter>" dist/assets/*.js | sort | uniq -c
+> grep "APP_VERSION = " dist/sw.js
+> ```
+> La référence du projet est écrite en clair dans les fichiers construits :
+> une seule doit apparaître.
+
+---
+
 ## Changer le domaine de l'application
 
 Prévu avec la base neuve : `desk.backontrackstudio.be` devient

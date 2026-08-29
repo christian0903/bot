@@ -22,8 +22,19 @@
 set -euo pipefail
 
 PG_BIN="/opt/homebrew/opt/libpq/bin"
-REF="aojguoqxbzqcganxgqem"          # bot — production, région eu-west-1
-POOLER="${POOLER:-}"                 # surchargeable : POOLER=aws-1-eu-west-1...
+
+# `.env.migration` porte deja la reference, le pooler et le mot de passe :
+# les redemander a chaque sauvegarde est une invitation a se tromper de base.
+# Ce qui vient de l'environnement reste prioritaire — on sauvegarde parfois
+# une autre base que celle du fichier.
+CONF="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env.migration"
+if [[ -f "$CONF" ]]; then
+  set -a; source "$CONF"; set +a
+fi
+
+REF="${REF:-${SOURCE_REF:-aojguoqxbzqcganxgqem}}"
+POOLER="${POOLER:-${SOURCE_POOLER:-}}"
+PW_FICHIER="${SOURCE_PASSWORD:-}"     # evite la saisie si le fichier le porte
 
 RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DUMP_DIR="$RACINE/.dumps"
@@ -56,7 +67,12 @@ mkdir -p "$DUMP_DIR"
 echo "=== Export de bot (données seules) ==="
 echo "    hôte : $POOLER"
 echo "    user : postgres.$REF"
-read -rsp "Mot de passe de bot : " PW; echo
+if [[ -n "$PW_FICHIER" ]]; then
+  PW="$PW_FICHIER"
+  echo "    mot de passe lu dans .env.migration"
+else
+  read -rsp "Mot de passe de bot : " PW; echo
+fi
 export PGPASSWORD="$PW"
 
 # Le pooler ferme les connexions inactives ; sur une base volumineuse le dump
@@ -71,6 +87,13 @@ export PGPASSWORD="$PW"
 
 unset PGPASSWORD PW
 
+# Un pg_dump interrompu ne laisse pas toujours de fichier : sans ce controle,
+# le `du` qui suit echoue en « syntax error », message qui n'a aucun rapport
+# avec la cause et envoie chercher un defaut dans le script (2026-08-29).
+if [[ ! -s "$DUMP" ]]; then
+  echo "    ECHEC : aucun dump produit — l'export a ete interrompu." >&2
+  exit 1
+fi
 echo "    → $DUMP  ($(du -h "$DUMP" | cut -f1))"
 echo
 echo "=== Contrôle : lignes par table dans le dump ==="
