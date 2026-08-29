@@ -2877,6 +2877,7 @@ DECLARE
   v_class_hour INTEGER;
   v_cutoff TIMESTAMPTZ;
   v_class_date DATE;
+  v_window_days NUMERIC;
 BEGIN
   SELECT * INTO v_class FROM scheduled_classes WHERE id = p_class_id;
   IF NOT FOUND THEN
@@ -2891,6 +2892,21 @@ BEGIN
   END IF;
   IF v_class.is_cancelled THEN
     RETURN jsonb_build_object(''can_book'', false, ''reason'', ''class_cancelled'');
+  END IF;
+
+  -- Fenetre d''ouverture : au-dela de N jours, le cours se voit mais ne se
+  -- reserve pas. Fenetre glissante — les N prochains jours sont ouverts a tout
+  -- instant. Absent du reglage, aucune limite : une base qui ne connait pas
+  -- encore ce champ ne doit rien bloquer.
+  v_window_days := (v_rules->>''booking_window_days'')::NUMERIC;
+  IF v_window_days IS NOT NULL AND v_window_days > 0
+     AND v_class.starts_at > v_now + (v_window_days || '' days'')::INTERVAL THEN
+    RETURN jsonb_build_object(
+      ''can_book'', false,
+      ''reason'', ''outside_booking_window'',
+      ''window_days'', v_window_days,
+      ''opens_at'', v_class.starts_at - (v_window_days || '' days'')::INTERVAL
+    );
   END IF;
   IF EXISTS(SELECT 1 FROM bookings WHERE scheduled_class_id = p_class_id AND user_id = p_user_id AND status = ''confirmed'') THEN
     RETURN jsonb_build_object(''can_book'', false, ''reason'', ''already_booked'');
@@ -3728,6 +3744,7 @@ RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
 AS $fn$
 DECLARE
+  v_window_days NUMERIC;
   v_is_admin BOOLEAN := has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin');
   v_is_coach BOOLEAN := has_role(auth.uid(), 'coach');
   v_class RECORD;
@@ -3753,6 +3770,19 @@ BEGIN
 
   IF v_class.is_cancelled THEN
     RETURN jsonb_build_object('ok', false, 'error', 'class_cancelled');
+  END IF;
+
+  -- La fenetre d'ouverture vaut AUSSI pour le staff (decision du 2026-08-29) :
+  -- deux regimes auraient produit des plannings incoherents, et personne
+  -- n'aurait su lequel faisait foi.
+  --
+  -- Elle ne borne que le futur : un cours passe reste inscriptible, c'est ce
+  -- qui permet a un coach de regulariser quelqu'un qui est venu.
+  SELECT (value->>'booking_window_days')::NUMERIC INTO v_window_days
+    FROM app_settings WHERE key = 'booking_rules';
+  IF v_window_days IS NOT NULL AND v_window_days > 0
+     AND v_class.starts_at > NOW() + (v_window_days || ' days')::INTERVAL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'outside_booking_window');
   END IF;
 
   -- Le cours passé reste inscriptible : un coach peut régulariser après coup
@@ -4768,6 +4798,7 @@ INSERT INTO app_settings (key, value) VALUES
     "morning_class_before_hour": 12,
     "afternoon_hours_before_no_bookings": 3,
     "afternoon_minutes_before_with_bookings": 30,
+    "booking_window_days": 10,
     "cancellation_free_hours": 12,
     "cancellation_penalty": "credit_lost",
     "no_show_penalty": "credit_lost",

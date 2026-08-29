@@ -472,6 +472,22 @@ export function SchedulePage() {
         class_full: isFr ? 'Ce cours est complet' : 'This class is full',
         booking_closed: isFr ? 'Les réservations sont fermées pour ce cours' : 'Bookings are closed for this class',
       }
+      // La fenetre d'ouverture merite sa date : « trop tot » sans dire quand
+      // revenir laisse chercher. `opens_at` vient de can_book_class.
+      if (reason === 'outside_booking_window') {
+        const ouvre = checkResult.opens_at
+          ? format(new Date(checkResult.opens_at as string), 'dd/MM à HH:mm', { locale })
+          : null
+        toast.error(isFr
+          ? (ouvre
+            ? `Ce cours ouvre à la réservation le ${ouvre}.`
+            : 'Ce cours est encore trop loin pour être réservé.')
+          : (ouvre
+            ? `Bookings for this class open on ${ouvre}.`
+            : 'This class is too far ahead to be booked yet.'))
+        setBookingInProgress(null)
+        return
+      }
       toast.error(messages[reason] || t('common.error'))
       setBookingInProgress(null)
       return

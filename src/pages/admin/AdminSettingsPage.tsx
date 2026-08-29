@@ -17,6 +17,8 @@ interface RoomNames {
 }
 
 interface BookingRules {
+  /** Fenêtre d'ouverture : au-delà, le cours se voit mais ne se réserve pas. */
+  booking_window_days: number
   morning_cutoff_hour: number
   morning_class_before_hour: number
   afternoon_hours_before_no_bookings: number
@@ -71,6 +73,7 @@ export function AdminSettingsPage() {
 
   // Booking rules
   const [rules, setRules] = useState<BookingRules>({
+    booking_window_days: 10,
     morning_cutoff_hour: 20,
     morning_class_before_hour: 12,
     afternoon_hours_before_no_bookings: 3,
@@ -469,6 +472,29 @@ export function AdminSettingsPage() {
                 {isFr
                   ? `Sépare les deux régimes ci-dessous. À ${rules.morning_class_before_hour} h : un cours de 9 h suit la règle du matin, un cours de 14 h celle de l'après-midi.`
                   : `Separates the two rules below. At ${rules.morning_class_before_hour}h: a 9am class follows the morning rule, a 2pm class the afternoon one.`}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">
+                {isFr ? 'Réservations ouvertes' : 'Bookings open'}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={0} max={365} className="w-20"
+                  value={rules.booking_window_days}
+                  onChange={e => setRules(r => ({ ...r, booking_window_days: parseInt(e.target.value) || 0 }))} />
+                <span className="text-sm text-muted-foreground">
+                  {isFr ? 'jours à l\'avance' : 'days ahead'}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? rules.booking_window_days > 0
+                    ? `Un membre voit tout le planning, mais ne réserve que les cours des ${rules.booking_window_days} prochains jours. La fenêtre avance en continu : un cours dans ${rules.booking_window_days + 1} jours s'ouvrira demain à la même heure. La règle vaut aussi pour les coachs.`
+                    : 'Aucune limite : tout le planning est réservable.'
+                  : rules.booking_window_days > 0
+                    ? `Members see the whole schedule but can only book classes within the next ${rules.booking_window_days} days. The window rolls forward continuously, and applies to coaches too.`
+                    : 'No limit: the whole schedule is bookable.'}
               </p>
             </div>
 

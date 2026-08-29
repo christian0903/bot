@@ -39,6 +39,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
   - [Types de crédit — Administration → Types de crédits](#types-de-credit-administration-types-de-credits)
   - [Plafond de fréquentation — Administration → Types de packs](#plafond-de-frequentation-administration-types-de-packs)
   - [Vendre en août un abonnement qui commence en septembre](#vendre-en-aout-un-abonnement-qui-commence-en-septembre)
+  - [Fenêtre d'ouverture des réservations](#fenetre-d-ouverture-des-reservations)
   - [La séance d'essai](#la-seance-d-essai)
   - [Fin d'abonnement et réservations](#fin-d-abonnement-et-reservations)
   - [Quatre situations, et ce que le membre voit](#quatre-situations-et-ce-que-le-membre-voit)
@@ -74,6 +75,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 - [Points de vigilance](#points-de-vigilance)
 
 ---
+
 
 
 
@@ -664,6 +666,30 @@ Ce qui se passe alors :
 **Point à surveiller.** La carte est validée à la vente mais débitée à la date de début. Si elle expire entre-temps, l'échec apparaît le jour du prélèvement — le client reçoit l'e-mail « paiement refusé », et vous le voyez dans son abonnement.
 
 **Pour un pack ponctuel, il n'y a pas d'équivalent** — et ce n'est pas nécessaire : vendez un pack dont la durée de validité couvre la période. Trois mois achetés le 15 août portent jusqu'à mi-novembre. Seule limite, rien n'empêche le client de consommer des séances avant la date prévue ; si cela compte, dites-le-lui.
+
+### Fenêtre d'ouverture des réservations
+
+**Administration → Paramètres → Réservations ouvertes N jours à l'avance.**
+
+Un membre voit **tout le planning** — savoir ce qui l'attend fait partie du
+service — mais ne peut réserver que les cours des N prochains jours. Au-delà,
+le bouton refuse et annonce la date d'ouverture.
+
+**La fenêtre avance en continu.** Avec 10 jours, un cours dans 11 jours
+s'ouvrira demain à la même heure. Il n'y a pas d'heure de bascule, donc pas de
+ruée à midi.
+
+> **La règle vaut aussi pour les coachs et les administrateurs.** Un coach ne
+> peut pas inscrire quelqu'un au-delà de la fenêtre depuis la fiche d'un cours.
+> Deux régimes auraient produit des plannings incohérents, et personne n'aurait
+> su lequel faisait foi.
+>
+> Un cours **passé**, lui, reste inscriptible par le staff : c'est ce qui
+> permet de régulariser quelqu'un qui est venu sans avoir réservé.
+
+**Mettre 0 désactive la limite** : tout le planning redevient réservable.
+
+---
 
 ### La séance d'essai
 
