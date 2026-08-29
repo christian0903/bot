@@ -4626,15 +4626,28 @@ CREATE POLICY "badges_insert" ON member_badges
 
 -- DISTINCT ON (p.id) + ORDER BY rang du rôle : un coach qui a plusieurs rôles
 -- (ex. coach ET admin) ne sort qu'une seule fois, avec son rôle le plus élevé.
-CREATE OR REPLACE VIEW coach_profiles AS
-SELECT DISTINCT ON (p.id) p.id, p.display_name, p.avatar_url, p.email, p.phone, ur.role
+-- Ni `email` ni `phone` : la vue les exposait, avec un GRANT a `anon`. Ces
+-- deux colonnes se lisaient donc SANS COMPTE, avec la seule cle publishable
+-- que porte le code du site (verifie sur bot3 le 2026-08-29 — fuite de
+-- donnees personnelles au sens du RGPD). Aucun ecran ne les affichait : les
+-- deux pages qui lisent cette vue montrent le nom et la photo, et le type
+-- `CoachRef` ne declare que `id`, `display_name` et `avatar_url`.
+--
+-- `security_invoker = true` : sans cette option, une vue s'execute avec les
+-- droits de son proprietaire et contourne le RLS des tables qu'elle lit.
+-- C'est ce que l'advisor Supabase signalait en ERROR.
+CREATE OR REPLACE VIEW coach_profiles
+WITH (security_invoker = true) AS
+SELECT DISTINCT ON (p.id) p.id, p.display_name, p.avatar_url, ur.role
 FROM profiles p
 JOIN user_roles ur ON ur.user_id = p.id
 WHERE ur.role IN ('coach', 'admin', 'super_admin')
 ORDER BY p.id, CASE ur.role WHEN 'super_admin' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END;
 
+-- `anon` exclu volontairement : les deux ecrans qui lisent cette vue sont des
+-- pages d'administration.
+REVOKE ALL ON coach_profiles FROM anon;
 GRANT SELECT ON coach_profiles TO authenticated;
-GRANT SELECT ON coach_profiles TO anon;
 
 -- ============================================
 -- 7. REALTIME
