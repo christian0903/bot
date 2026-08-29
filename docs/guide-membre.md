@@ -149,6 +149,11 @@ Si c'est l'horaire ou le type de cours qui change, le message te propose explici
 
 Une coche sur chaque ligne permet de la marquer lue sans l'ouvrir, et un filtre n'affiche que les non lues. Le bouton **Écarter** retire un message de ton écran — il n'est pas supprimé pour autant, le studio en garde la trace.
 
+**La cloche, en haut à droite**, porte une pastille dès qu'un message t'attend.
+Elle ouvre la liste complète, y compris ce que tu as déjà écarté de l'accueil.
+C'est là qu'arrivent les places libérées en liste d'attente, les cours annulés
+et les rappels du studio.
+
 ### Si un cours est complet
 
 Depuis **Planning**, clique sur **Liste d'attente**. Dès qu'une place se libère, elle t'est proposée — par notification **et** par e-mail.
@@ -264,7 +269,6 @@ en cours de route.
 Tes coachs peuvent consulter tes performances et ton objectif. Ils ne les
 modifient pas : c'est toi qui enregistres tes mesures.
 
-**Stats** — nombre de séances, régularité, types de cours.
 
 ### Supprimer mon compte
 
@@ -291,13 +295,16 @@ Depuis **Profil**, en bas de page. La demande est définitive et prend effet imm
 | **Mes factures** | Demander une facture pour un achat |
 | **Profil** | Coordonnées, photo, langue, thème, **supprimer ton compte** |
 | **Parrainage** | Ton code à partager et tes bons d'achat |
+| **Notifications** | La cloche en haut à droite : places libérées, cours annulés, rappels |
 | **Aide** | Ce guide |
 
 **Sur mobile** : la barre du bas donne Accueil · Planning · Mes cours · Mes
 performances. Le reste — mes packs, acheter un pack, mes factures, parrainage,
 profil — se trouve en touchant **ta photo, en haut à droite**.
 
-**Sur ordinateur** : tout est dans le menu du haut ; Profil et Parrainage sont sous ton nom, à droite.
+**Sur ordinateur** : la barre du haut donne Accueil, Planning, Mes cours, Mes
+performances, Mes packs et Acheter un pack. **Ta photo, en haut à droite**,
+ouvre en plus Profil, Mes factures et Parrainage.
 
 ---
 

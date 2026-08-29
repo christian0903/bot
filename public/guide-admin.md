@@ -54,6 +54,7 @@ Tout passe par le **menu Administration**, dans la barre latérale à gauche (su
 | Tableau de bord financier et exports | — | ✅ |
 | Gestes commerciaux (remises, bons, reports) | — | ✅ |
 | **Effacer les entrées anciennes du journal d'activité** | — | super admin |
+| **Voir le diagnostic de l'installation** | — | super admin |
 
 Un coach n'agit que sur **ses propres cours** : il ne peut ni inscrire ni annuler dans le cours d'un collègue.
 
@@ -78,6 +79,17 @@ autres, et c'est là que vous le faites.
 > **Surtout utile sur téléphone.** La barre du bas ne tient que quatre entrées :
 > elle suit le mode choisi. Sans ce sélecteur, un gérant n'avait aucun moyen
 > d'atteindre ses propres cours ou ses packs depuis son mobile.
+
+Ce que chaque casquette donne sous le pouce :
+
+| Mode | Les quatre entrées de la barre du bas |
+|---|---|
+| **Admin** | Tableau · Membres · Planning · Réglages |
+| **Coach** | Accueil · Mes cours · Planning · Membres |
+| **Membre** | Accueil · Planning · Mes cours · Mes performances |
+
+Le reste — vos packs, la boutique, vos factures, le parrainage — se trouve en
+touchant **votre photo, en haut à droite**.
 
 Le mode est retenu d'une visite à l'autre. Et ouvrir un lien direct vers une
 page d'administration bascule l'affichage tout seul.
@@ -472,22 +484,9 @@ L'opération est tracée au journal d'activité.
 #### Le cas particulier du compte parasite
 
 Un compte inscrit par erreur ou par un robot — **jamais confirmé, sans le
-moindre achat ni réservation** — s'efface pour de bon, depuis le **journal
-d'activité** et non depuis la fiche. Il n'y a là rien à conserver : aucune
-écriture comptable n'a été produite, et l'anonymiser laisserait une ligne
-« Membre supprimé #a1b2c3d4 » à vie.
-
-Le serveur refuse dès que le compte est autre chose qu'un parasite :
-
-| Refus | Raison |
-|---|---|
-| Adresse confirmée | La personne est allée au bout de sa démarche |
-| Un pack payé, un abonnement, des frais | La loi impose de conserver |
-| Une réservation | Le compte a servi |
-| Coach ou admin | Jamais effaçable ainsi |
-
-> La **séance d'essai offerte** ne compte pas : attribuée à toute inscription,
-> elle bloquerait sinon chaque effacement.
+moindre achat ni réservation** — s'efface pour de bon. Mais pas depuis la
+fiche : le bouton est dans le **journal d'activité**, et la marche à suivre est
+décrite là-bas, [au paragraphe correspondant](#effacer-un-compte-parasite).
 
 ### Autres actions sur la fiche
 
@@ -593,6 +592,8 @@ Pour chaque pack :
 | **Validité** | Durée pendant laquelle les crédits restent utilisables. |
 | **Abonnement** | Renouvellement automatique. Demande une périodicité. |
 | **Catégories éligibles** | Restreint la vente à certaines catégories. Vide = ouvert à tous. |
+| **Catégorie attribuée** | Ce que l'achat donne au membre. Vide = ne change rien. |
+| **Catégorie après expiration** | Où il retombe quand plus aucun pack n'en accorde. |
 
 **Le statut se change d'un clic** sur le badge de la liste, qui fait tourner :
 
@@ -629,10 +630,15 @@ maximums (52 semaines, 12 mois) viennent de Stripe, pas de l'application.
 > nommant la raison : l'achat deviendrait orphelin et le membre perdrait la trace
 > de crédits qu'il détient encore. Décochez **Actif** — le pack quitte le
 > catalogue, personne n'est touché.
-| **Catégorie attribuée** | Ce que l'achat donne au membre. Vide = ne change rien. |
-| **Catégorie après expiration** | Où il retombe quand plus aucun pack n'en accorde. |
 
-> **Sur un abonnement, la validité doit correspondre au cycle.** Un cycle de 4 semaines va avec une validité de 28 jours. L'application vous alerte si les deux divergent.
+> **Sur un abonnement, la validité saisie ne s'applique pas.** Les crédits
+> expirent à la fin du cycle payé, quelle qu'en soit la durée — c'est Stripe
+> qui donne la date, à la seconde près. Le champ « Validité » ne vaut que pour
+> un pack ponctuel.
+>
+> Une alerte signalait autrefois une divergence entre les deux durées. Elle
+> annonçait un problème qui ne peut pas se produire, et bloquait les cycles qui
+> ne tombent pas sur un multiple de sept jours. Elle a été retirée.
 
 > **Attention aux 13 échéances.** Un cycle de 4 semaines revient **13 fois par an**, pas 12. À prendre en compte dans vos prix.
 
@@ -1127,5 +1133,15 @@ remplie.
 **Les gestes commerciaux sont tracés.** Réductions, bons, reports d'échéance : tout est enregistré au journal, avec l'auteur. C'est une protection, pas une surveillance — elle permet de répondre à un membre qui conteste.
 
 **Le mode test et le mode production sont étanches.** Un abonnement créé en test ne sera jamais facturé réellement. Vérifiez le mode avant de vendre.
+
+**Le bandeau orange dit sur quelle base vous êtes.** « BASE DE TEST » en tête de
+page signifie que rien de ce que vous faites n'est réel : ni les membres, ni les
+paiements, ni les cours. En production, il n'y a **aucun bandeau** — un
+avertissement permanent finirait par ne plus être lu.
+
+> **Ce bandeau et le mode de paiement sont deux choses différentes.** Le premier
+> dit quelle base répond, le second si Stripe encaisse pour de vrai. Une base de
+> test en mode paiement réel est possible, et c'est une erreur que le diagnostic
+> signale en rouge.
 
 **En cas de doute sur un paiement**, le tableau de bord Stripe montre l'historique complet : ce qui a été payé, refusé, remboursé.
