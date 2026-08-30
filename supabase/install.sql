@@ -1731,6 +1731,59 @@ $fn$;
 REVOKE ALL ON FUNCTION delete_member_account(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION delete_member_account(UUID) TO authenticated;
 
+-- Seconde étape, pour le super_admin : effacer pour de bon un compte déjà
+-- anonymisé sur lequel il ne reste aucune trace comptable. Libère l'adresse
+-- e-mail, que `delete_member_account` laisse prise dans auth.users.
+CREATE OR REPLACE FUNCTION effacer_membre_anonymise(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_nom       TEXT;
+  v_traces    INTEGER;
+BEGIN
+  -- Le super_admin seul : un admin peut anonymiser, pas effacer.
+  IF NOT has_role(auth.uid(), 'super_admin') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'forbidden');
+  END IF;
+
+  SELECT display_name INTO v_nom FROM profiles WHERE id = p_user_id;
+  IF v_nom IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_found');
+  END IF;
+
+  -- Effacer un membre encore vivant ferait par la bande ce que
+  -- `delete_member_account` refuse de faire : on exige l'anonymisation d'abord.
+  IF v_nom NOT LIKE 'Membre supprimé #%' THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'pas_anonymise');
+  END IF;
+
+  -- Rien de comptable ne doit rester : sinon la ligne a une raison d'être, et
+  -- l'effacer laisserait des enregistrements pointant dans le vide.
+  SELECT
+    (SELECT count(*) FROM bookings          WHERE user_id = p_user_id)
+  + (SELECT count(*) FROM pack_purchases    WHERE user_id = p_user_id)
+  + (SELECT count(*) FROM invoice_requests  WHERE user_id = p_user_id)
+  + (SELECT count(*) FROM subscriptions     WHERE user_id = p_user_id)
+  + (SELECT count(*) FROM registration_fees WHERE user_id = p_user_id)
+  INTO v_traces;
+
+  IF v_traces > 0 THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'traces_comptables', 'traces', v_traces);
+  END IF;
+
+  DELETE FROM profiles   WHERE id = p_user_id;
+  DELETE FROM auth.users WHERE id = p_user_id;
+
+  RETURN jsonb_build_object('ok', true);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION effacer_membre_anonymise(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION effacer_membre_anonymise(UUID) TO authenticated;
+
 -- ---------------------------------------------------------------------------
 -- Inscriptions : tracer les tentatives, effacer les parasites
 -- ---------------------------------------------------------------------------

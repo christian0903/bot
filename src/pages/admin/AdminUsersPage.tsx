@@ -78,7 +78,7 @@ const exportCsv = (data: Record<string, unknown>[], filename: string) => {
 
 export function AdminUsersPage() {
   const { t, i18n } = useTranslation()
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, hasRole } = useAuth()
   const navigate = useNavigate()
   const locale = i18n.language === 'fr' ? fr : enUS
   const isFr = i18n.language === 'fr'
@@ -201,6 +201,7 @@ export function AdminUsersPage() {
     })
     // Exclude coaches and admins — they have their own page
     const clientsOnly = merged.filter(u => !u.roles.includes('coach') && !u.roles.includes('admin') && !u.roles.includes('super_admin'))
+
     setUsers(clientsOnly)
     setLoading(false)
   }
@@ -270,10 +271,43 @@ export function AdminUsersPage() {
       .then(({ data }) => setPackTypes((data as PackType[]) ?? []))
   }, [])
 
+  /**
+   * Efface définitivement un compte déjà anonymisé.
+   *
+   * Le `delete` direct sur `profiles` qui se trouvait ici ne supprimait rien :
+   * aucune policy DELETE n'existe sur la table, et RLS refuse sans lever
+   * d'erreur — l'écran annonçait donc une suppression qui n'avait pas eu lieu,
+   * et le compte auth restait de toute façon, son adresse avec lui.
+   *
+   * Le serveur refuse s'il reste la moindre trace comptable.
+   */
   const handleDelete = async () => {
     if (!deleteTarget) return
-    const { error } = await supabase.from('profiles').delete().eq('id', deleteTarget.id)
-    if (error) { toast.error(t('common.error')); return }
+
+    const { data, error } = await supabase.rpc('effacer_membre_anonymise', {
+      p_user_id: deleteTarget.id,
+    })
+
+    const r = data as { ok?: boolean; reason?: string; traces?: number } | null
+
+    if (error || !r?.ok) {
+      toast.error(
+        r?.reason === 'traces_comptables'
+          ? (isFr
+              ? `Effacement refusé : ${r.traces} enregistrement(s) y font encore référence.`
+              : `Deletion refused: ${r.traces} record(s) still reference this member.`)
+          : r?.reason === 'pas_anonymise'
+            ? (isFr
+                ? "Ce compte doit d'abord être supprimé depuis sa fiche."
+                : 'This account must first be deleted from its detail page.')
+            : r?.reason === 'forbidden'
+              ? (isFr ? 'Réservé au super administrateur.' : 'Super admin only.')
+              : (error?.message ?? t('common.error'))
+      )
+      setDeleteTarget(null)
+      return
+    }
+
     setUsers(prev => prev.filter(u => u.id !== deleteTarget.id))
     toast.success(t('common.deleteSuccess'))
     setDeleteTarget(null)
@@ -395,6 +429,12 @@ export function AdminUsersPage() {
   if (loading) return <LoadingState />
 
   const filteredUsers = users.filter(u => {
+    // Les comptes anonymisés restent en base pour que packs, factures et
+    // réservations passées gardent leur référence — mais ils n'ont plus rien à
+    // dire à un coach, et encombrent la liste à chaque suppression. Seul le
+    // super_admin les voit, parce que lui seul peut les effacer pour de bon.
+    if (!hasRole('super_admin') && (u.display_name ?? '').startsWith('Membre supprimé #')) return false
+
     if (roleFilter !== 'all' && roleFilter !== u.role) return false
     if (filterStatut !== 'all') {
       // « Inactif » couvre `inactive` ET `former` : ce sont deux nuances de la
@@ -765,14 +805,22 @@ export function AdminUsersPage() {
                       >
                         <Gift className="h-4 w-4 text-primary" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setDeleteTarget(user)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {/* Effacement définitif : seulement sur un compte déjà
+                          anonymisé, et pour le super_admin. Sur un membre
+                          vivant, la suppression passe par sa fiche — elle
+                          anonymise, et c'est volontaire. La corbeille était
+                          proposée partout alors que rien ne se supprimait. */}
+                      {hasRole('super_admin') && (user.display_name ?? '').startsWith('Membre supprimé #') && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title={isFr ? 'Effacer définitivement' : 'Delete permanently'}
+                          onClick={() => setDeleteTarget(user)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -1014,8 +1062,10 @@ export function AdminUsersPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title={t('admin.users.delete')}
-        description={t('admin.users.deleteConfirm')}
+        title={isFr ? 'Effacer définitivement ?' : 'Delete permanently?'}
+        description={isFr
+          ? "Ce compte anonymisé sera effacé, connexion comprise. Son adresse e-mail redeviendra libre. Irréversible."
+          : 'This anonymised account will be erased, login included. Its email address becomes available again. This cannot be undone.'}
         onConfirm={handleDelete}
       />
 
