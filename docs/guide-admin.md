@@ -71,11 +71,13 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
   - [Exports — Administration → Exports](#exports-administration-exports)
   - [Journal d'activité — Administration → Journal d'activité](#journal-d-activite-administration-journal-d-activite)
   - [Annonces — Administration → Annonces](#annonces-administration-annonces)
+- [Le planning sur le site du studio](#le-planning-sur-le-site-du-studio)
 - [L'application sur le téléphone des membres](#l-application-sur-le-telephone-des-membres)
 - [Diagnostic — Administration → Diagnostic](#diagnostic-administration-diagnostic)
 - [Points de vigilance](#points-de-vigilance)
 
 ---
+
 
 
 
@@ -1223,6 +1225,53 @@ Un bloc encadré de rouge, visible du seul **super admin**, efface les entrées 
 ### Annonces — Administration → Annonces
 
 Le message affiché en haut de la page d'accueil des membres.
+
+---
+
+## Le planning sur le site du studio
+
+Le site `backontrackstudio.be` peut afficher le planning de l'application, à
+jour en permanence. C'est ce qui remplace le widget Technogym de la page
+« Horaires ».
+
+**Le code à coller dans la page WordPress**, en bloc HTML :
+
+```html
+<iframe
+  src="https://app.backontrackstudio.be/planning-public"
+  width="100%"
+  height="1200"
+  style="border:0"
+  title="Planning des cours"
+  loading="lazy"></iframe>
+```
+
+La hauteur est fixe : un cadre ne s'ajuste pas tout seul à ce qu'il contient.
+1200 pixels conviennent à une journée bien remplie ; ajustez ce nombre une fois
+le planning en place.
+
+**Ce que les visiteurs voient** : les cours du jour choisi, avec l'heure, la
+durée et la photo du type de cours. Une bande de dates permet de passer d'un
+jour à l'autre, avec le nombre de cours sous chacune.
+
+**Ce qu'ils ne voient pas**, et c'est délibéré :
+
+| | |
+|---|---|
+| Les places restantes | Elles diraient votre taux de remplissage à qui passe, concurrents compris |
+| Le nom du coach | Il n'est pas public |
+| Un bouton pour réserver | Un visiteur sans compte ne peut rien réserver ; un lien renvoie vers l'application |
+
+Les **cours annulés n'apparaissent pas** : un planning parsemé d'« Annulé »
+donne une mauvaise image à qui découvre le studio.
+
+> **Rien à entretenir.** Le cadre montre ce que contient le planning : un cours
+> ajouté ou déplacé s'y reflète aussitôt, sans toucher au site.
+
+> **Les photos viennent des types de cours.** Tant qu'aucune n'est déposée, un
+> aplat de la couleur du type s'affiche à la place. C'est dans
+> Administration → Types de cours que ça se règle — et c'est ce qui donne au
+> planning public son allure.
 
 ---
 
