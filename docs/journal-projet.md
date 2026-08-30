@@ -12,6 +12,8 @@
 **Phase 11** (admin avancé) : **largement livrée** — rôles, statuts de cours, espace coach autonome.
 **Phase 12** (abonnements récurrents) : **livrée et éprouvée**. Renouvellement vérifié au *test clock* Stripe le 2026-08-07.
 **Séance d'essai** : **livrée** — vrai pack gratuit attribué à l'inscription (2026-08-07). **Désactivable depuis l'administration** (2026-08-30) : le réglage existait en base depuis l'origine, aucun écran ne le proposait. Le **retrait individuel** sur la fiche d'un membre est écrit mais **pas encore appliqué** — voir la session du 30.
+**Stripe** : **en live depuis le 2026-08-30**. Le compte qui encaisse est **Aikicom Perspectives SRL** — le compte « BackOnTrack » n'a jamais été activé, ne pas s'y tromper. Premier paiement réel encaissé le soir même.
+**Suppression de compte** : anonymisation (inchangée), plus un **effacement définitif** réservé au super admin pour les comptes créés par erreur (2026-08-30).
 **Communications** : **livrées** — tout e-mail laisse une trace dans l'application.
 **Parrainage & bons d'achat** : livré, **toujours non testé de bout en bout**.
 **Avis sur les cours** : **livré et vu à l'écran** — étoiles et commentaire, consultation admin nominative, correction et suppression par le membre. 67 avis de démonstration en base depuis le 2026-08-08.
@@ -276,6 +278,68 @@ pas l'usage de la valeur dans la même transaction), la reporter dans
 
 **À ne pas oublier** : la séance d'essai est **active** sur `app.`. L'éteindre
 avant d'inviter les membres actuels à s'inscrire.
+
+### Soirée du 30 — Stripe en live, et l'effacement d'un compte
+
+**Stripe est passé en production.** Le compte qui encaisse est **Aikicom
+Perspectives SRL** (`acct_1RyvQUFXRrGYb9N4`), confirmé par Christian comme
+l'entité qui exploite le studio. Le compte « BackOnTrack » qu'on avait sous les
+yeux n'a **jamais été activé** : il n'existe qu'en test, et son onboarding en
+était resté au premier écran. C'est pourtant lui qui s'ouvre par défaut.
+
+Webhook `we_1UAERwFXRrGYb9N49NuwCuRt` créé avec les cinq événements traités.
+Stripe impose l'API `2025-07-30.basil` quand le code déclare `2023-10-16` —
+sans conséquence, le webhook lit déjà les deux emplacements du champ
+`subscription`. Secrets live posés, mode basculé. **Un premier paiement réel
+est passé le soir même.**
+
+### Effacer un compte créé par erreur
+
+Un coach a supprimé un compte de test et s'est retrouvé avec une ligne
+« Membre supprimé #1ddf3cd3 » dont il ne pouvait rien faire — l'adresse e-mail
+restant prise dans `auth.users`.
+
+**Décidé** : `effacer_membre_anonymise`, réservée au super_admin, exige que le
+compte soit déjà anonymisé et refuse s'il reste une réservation, un pack, une
+facture, un abonnement, des frais d'inscription ou un cours encadré. Les fiches
+anonymisées disparaissent de la liste pour les coachs et les admins ; le
+super_admin les garde, puisque lui seul peut les effacer.
+
+**Écarté** : supprimer sans condition. La ligne anonymisée porte les références
+comptables — c'est sa raison d'être, et elle reste la bonne réponse pour un
+membre qui a fréquenté le studio.
+
+### L'erreur qui a coûté un aller-retour
+
+J'avais affirmé que toutes les clés étrangères étaient en `CASCADE`, sur la foi
+d'une requête `information_schema` revenue **vide**. Or `information_schema`
+**ne voit pas le schéma `auth`** : quatorze contraintes en `NO ACTION` pointent
+vers `auth.users`. La première version de la fonction échouait sur
+`activity_log_actor_id_fkey`, et Christian l'a découvert à l'écran.
+
+**À retenir** : pour les clés étrangères touchant `auth`, interroger
+`pg_constraint`, jamais `information_schema` — et se méfier d'un résultat vide
+là où il devrait forcément y avoir des lignes.
+
+Le journal d'activité méritait un traitement à part : ses descriptions gardent
+**l'adresse e-mail en clair**, que l'anonymisation ne touche pas. Le laisser
+derrière un effacement « complet » aurait été un mensonge.
+
+### Deux bugs trouvés en chemin
+
+Le **bouton corbeille de la liste des membres ne supprimait rien** : `DELETE`
+direct sur `profiles`, table sans policy `DELETE`, donc refus RLS **sans
+erreur** et écran annonçant une suppression fictive. Le piège même que le
+CLAUDE.md documente.
+
+Les **titres `h4` n'avaient pas d'ancre** dans `MarkdownDoc.tsx` : les renvois
+entre chapitres du guide pointaient dans le vide sur `/help`.
+
+### Toujours ouvert
+
+Le **retrait de la séance d'essai** d'un membre (chantier de la veille) reste
+écrit mais non appliqué et non commité — **seule migration des dix du 29-30 non
+reportée dans `install.sql`**. Détail dans le handoff du 30 à 22:29.
 
 ---
 
