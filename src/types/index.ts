@@ -39,6 +39,8 @@ export interface Profile {
    */
   deleted_at: string | null
   referral_code: string | null
+  /** Séances suivies avant la mise en service, reprises de l'ancien système. */
+  seances_anterieures: number
   member_status: MemberStatus
   weekly_goal: number
   instagram_url: string | null

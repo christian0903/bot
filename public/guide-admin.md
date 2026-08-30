@@ -27,6 +27,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
   - [Le statut d'un membre — calculé, jamais saisi](#le-statut-d-un-membre-calcule-jamais-saisi)
   - [Ranger plusieurs membres à la fois](#ranger-plusieurs-membres-a-la-fois)
   - [Ce qu'on voit en tête](#ce-qu-on-voit-en-tete)
+  - [Séances suivies avant l'application](#seances-suivies-avant-l-application)
   - [Onglet Packs](#onglet-packs)
   - [Onglet Réservations et onglet Annulations](#onglet-reservations-et-onglet-annulations)
   - [Onglet Abonnement](#onglet-abonnement)
@@ -75,6 +76,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 - [Points de vigilance](#points-de-vigilance)
 
 ---
+
 
 
 
@@ -484,6 +486,38 @@ Statut, **rôle**, catégorie, frais d'inscription, et trois compteurs : crédit
 > Pour mettre de côté d'anciens membres, utiliser la **catégorie** « archives ».
 
 **Les frais d'inscription** se valident ou se retirent à la main — utile quand quelqu'un a payé autrement que par l'application.
+
+### Séances suivies avant l'application
+
+**Sur la fiche du membre**, sous les frais d'inscription : un champ
+« Séances avant l'application ».
+
+Il sert à **reprendre un client venu de l'ancien système**. Quelqu'un qui
+s'entraînait depuis deux ans repartirait sinon de zéro, et devrait refaire cent
+séances pour retrouver son badge.
+
+Saisissez le nombre total de séances qu'il a suivies avant la bascule, tous
+types confondus, et enregistrez. Le bouton n'apparaît que si la valeur a
+changé.
+
+**Ce que ce nombre fait, et ce qu'il ne fait pas :**
+
+| | |
+|---|---|
+| Compte pour les **badges** d'assiduité (10, 25, 50, 100 séances) | ✅ |
+| Apparaît dans le **total** de ses statistiques | ✅ |
+| Compte dans « cette semaine » ou « ce mois » | ❌ |
+| Donne des **crédits** réservables | ❌ — les crédits se donnent par un pack |
+
+> **Les séries de semaines consécutives repartent de zéro.** Sans les dates de
+> chaque séance passée, une régularité ne se reconstitue pas : le client devra
+> refaire 4 semaines pour son premier badge de série. C'est une limite du
+> procédé, pas un oubli.
+
+> **À saisir une fois, à la reprise.** Ensuite l'application compte toute
+> seule. Y revenir plus tard pour « rattraper » fausserait le total.
+
+---
 
 ### Onglet Packs
 

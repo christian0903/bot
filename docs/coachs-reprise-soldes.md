@@ -79,6 +79,22 @@ saisie à la main est plus rapide que la préparation du fichier.
 
 ---
 
+## Les séances déjà suivies
+
+Si vous voulez que les badges d'assiduité tiennent compte du passé — « 50
+séances », « 100 séances » —, il y a un champ pour ça sur la fiche du membre,
+sous les frais d'inscription : **« Séances avant l'application »**.
+
+Saisissez le nombre total de séances suivies avant la bascule, tous types
+confondus. Un client repris avec 47 séances décrochera son badge des 50 après
+trois cours chez vous.
+
+> **Les badges de régularité repartent de zéro** — les séries de 4, 8 ou 12
+> semaines consécutives. Sans les dates de chaque séance passée, il n'y a pas
+> moyen de reconstituer une assiduité.
+
+---
+
 ## Ce qui se passe ensuite, tout seul
 
 Une fois les séances attribuées, l'application se charge du reste :

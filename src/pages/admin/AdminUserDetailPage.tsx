@@ -80,6 +80,9 @@ export function AdminUserDetailPage() {
   const [memberRoles, setMemberRoles] = useState<string[]>([])
   const [roleSaving, setRoleSaving] = useState<string | null>(null)
   const [regFeeSaving, setRegFeeSaving] = useState(false)
+  const [seancesAnterieures, setSeancesAnterieures] = useState(0)
+  const [seancesSaisie, setSeancesSaisie] = useState('')
+  const [seancesSaving, setSeancesSaving] = useState(false)
 
   // Book class dialog
   const [bookDialogOpen, setBookDialogOpen] = useState(false)
@@ -223,6 +226,10 @@ export function AdminUserDetailPage() {
 
     const loadedProfile = profileRes.data as Profile
     setProfile(loadedProfile)
+
+    const anterieures = loadedProfile.seances_anterieures ?? 0
+    setSeancesAnterieures(anterieures)
+    setSeancesSaisie(anterieures > 0 ? String(anterieures) : '')
 
     // Le formulaire part de ce qui est enregistré : sans cela il s'ouvrirait
     // vide sur un profil déjà qualifié, et l'enregistrer effacerait tout.
@@ -533,6 +540,27 @@ export function AdminUserDetailPage() {
     } finally {
       setResetRunning(false)
     }
+  }
+
+  /**
+   * Seances suivies AVANT la mise en service.
+   *
+   * Saisi ici parce que c'est l'ecran ou l'on reprend un client : ses packs,
+   * ses frais, son historique. Le champ ne sert qu'une fois par personne, au
+   * moment de la bascule — il n'avait pas sa place dans le profil du membre,
+   * qui ne doit pas pouvoir se l'attribuer.
+   */
+  const enregistrerSeancesAnterieures = async (valeur: number) => {
+    if (!id) return
+    setSeancesSaving(true)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ seances_anterieures: valeur })
+      .eq('id', id)
+    setSeancesSaving(false)
+    if (error) { toast.error(error.message); return }
+    setSeancesAnterieures(valeur)
+    toast.success(isFr ? 'Historique enregistré' : 'History saved')
   }
 
   const handleToggleRegFee = async () => {
@@ -1130,6 +1158,35 @@ export function AdminUserDetailPage() {
               ? (isFr ? 'Retirer' : 'Remove')
               : (isFr ? 'Valider' : 'Confirm')}
           </Button>
+        </div>
+
+        {/* Séances suivies avant la mise en service. Se saisit une fois, à la
+            reprise d'un client venu de l'ancien système. Elles comptent pour
+            ses badges d'assiduité, et pour rien d'autre : ni le solde de
+            crédits, ni les statistiques de la semaine. */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">
+            {isFr ? 'Séances avant l\'application' : 'Sessions before the app'}
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            className="h-7 w-20 text-xs"
+            placeholder="0"
+            value={seancesSaisie}
+            onChange={e => setSeancesSaisie(e.target.value)}
+          />
+          {String(seancesAnterieures) !== (seancesSaisie || '0') && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={seancesSaving}
+              onClick={() => enregistrerSeancesAnterieures(parseInt(seancesSaisie) || 0)}
+            >
+              {seancesSaving ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+            </Button>
+          )}
         </div>
 
         {/* Rôles. Un admin gère les coachs ; seul un super admin promeut
