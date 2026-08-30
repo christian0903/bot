@@ -61,10 +61,16 @@ admises — le site du studio, et lui seul.
 
 ## Ce que la page montre, et ce qu'elle tait
 
+La présentation reprend celle du planning de l'application : une bande de
+jours qu'on fait défiler, avec le nombre de cours sous chaque date, puis les
+cours en cartes avec la photo du type de cours. Un visiteur qui téléchargera
+l'application y retrouvera ce qu'il a vu sur le site.
+
 | | |
 |---|---|
 | Le nom du cours, l'heure, la durée | ✅ |
-| La couleur du type de cours | ✅ |
+| La photo du type de cours | ✅ — un aplat de couleur tant qu'aucune n'est déposée |
+| Le nombre de cours par jour | ✅ |
 | **Les places restantes** | ❌ — volontaire |
 | Le nom du coach | ❌ |
 | Un bouton pour réserver | ❌ — un lien vers l'application |
