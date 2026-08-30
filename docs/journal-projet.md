@@ -11,7 +11,7 @@
 
 **Phase 11** (admin avancé) : **largement livrée** — rôles, statuts de cours, espace coach autonome.
 **Phase 12** (abonnements récurrents) : **livrée et éprouvée**. Renouvellement vérifié au *test clock* Stripe le 2026-08-07.
-**Séance d'essai** : **livrée** — vrai pack gratuit attribué à l'inscription (2026-08-07).
+**Séance d'essai** : **livrée** — vrai pack gratuit attribué à l'inscription (2026-08-07). **Désactivable depuis l'administration** (2026-08-30) : le réglage existait en base depuis l'origine, aucun écran ne le proposait. Le **retrait individuel** sur la fiche d'un membre est écrit mais **pas encore appliqué** — voir la session du 30.
 **Communications** : **livrées** — tout e-mail laisse une trace dans l'application.
 **Parrainage & bons d'achat** : livré, **toujours non testé de bout en bout**.
 **Avis sur les cours** : **livré et vu à l'écran** — étoiles et commentaire, consultation admin nominative, correction et suppression par le membre. 67 avis de démonstration en base depuis le 2026-08-08.
@@ -235,6 +235,47 @@ le signale. Il faut contrôler entre les deux lots.
 
 Rien n'est développé. `docs/coachs-reprise-clients.md` explique la solution aux
 coachs, sans la leur imposer.
+
+### Soirée du 30 — coupons, séance d'essai
+
+**Coupons, une utilisation par personne** (3.84.0). `check_coupon` refuse un
+second usage du même coupon par le même membre (`already_used`). Le `max_uses`
+du coupon reste un plafond **global** : deux limites distinctes, la doc admin le
+dit désormais.
+
+**Séance d'essai désactivable** (3.85.0). Administration → Paramètres reçoit un
+interrupteur et le champ de validité. Le mécanisme était **déjà entier en base**
+— `grant_trial_pack` teste `trial_pack.enabled` et refuse avec `disabled`, et
+lit `validity_days` au même endroit. Seul l'écran manquait : aucune migration.
+
+Éprouvé sur bot-ops en transaction annulée. Éteindre ne retire rien à qui a
+déjà reçu sa séance ; la durée ne vaut que pour les attributions à venir.
+
+Les deux sont **en production**, `app.` et `jag.` sont en 3.85.0.
+
+### Chantier ouvert — retirer l'essai d'un membre
+
+Le réglage global arrête la distribution à venir, pas les séances déjà données.
+**Six existent en production**, et chaque membre repris de l'ancien système en
+recevra une qu'il a déjà consommée au studio.
+
+**Décidé** : `retirer_pack_essai(p_user_id)` supprime un essai **intact**, et se
+contente de **vider et périmer** un essai **déjà utilisé**.
+
+**Pourquoi pas une suppression franche** : `bookings.pack_purchase_id` et
+`invoice_requests.pack_purchase_id` référencent le pack sans `ON DELETE`,
+Postgres refuse donc d'effacer un pack qui a servi. Et l'effacer détacherait la
+réservation de ce qui l'a payée — la séance resterait au planning sans qu'on
+sache d'où venait le crédit. C'est une perte d'information, pas un nettoyage.
+
+Le front est écrit et compile, la migration aussi. **Rien n'est commité** :
+elle n'est appliquée sur aucune base, le front appellerait une fonction absente.
+Reste à l'appliquer (en **deux exécutions** — `ALTER TYPE ADD VALUE` ne tolère
+pas l'usage de la valeur dans la même transaction), la reporter dans
+`install.sql`, documenter et tester. Détail dans le handoff du 30 à 19:54.
+
+**À ne pas oublier** : la séance d'essai est **active** sur `app.`. L'éteindre
+avant d'inviter les membres actuels à s'inscrire.
 
 ---
 
