@@ -92,7 +92,15 @@ export function AdminCouponsPage() {
     setForm({
       code: c.code,
       discount_percent: c.discount_percent?.toString() ?? '',
-      discount_amount_cents: c.discount_amount_cents ? formatEuros(c.discount_amount_cents) : '',
+      // `(c.discount_amount_cents / 100)` et non `formatEuros` : celui-ci met en
+      // forme pour l'affichage — « 25,00 € », virgule et symbole compris. Un
+      // champ `type="number"` refuse cette valeur et se rend VIDE, sans rien
+      // signaler : le formulaire s'ouvrait donc sans le montant, et l'on
+      // croyait que l'enregistrement precedent n'avait rien retenu.
+      //
+      // Le champ attend la meme forme que celle relue a l'enregistrement, qui
+      // fait `parseFloat(...) * 100`.
+      discount_amount_cents: c.discount_amount_cents ? String(c.discount_amount_cents / 100) : '',
       max_uses: c.max_uses?.toString() ?? '',
       valid_from: c.valid_from ? format(new Date(c.valid_from), 'yyyy-MM-dd') : '',
       valid_until: c.valid_until ? format(new Date(c.valid_until), 'yyyy-MM-dd') : '',
