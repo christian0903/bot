@@ -72,6 +72,12 @@ export function MarkdownDoc({ content, isFr }: { content: string; isFr: boolean 
             h3: ({ children }) => (
               <h3 id={slugify(String(children))} className="scroll-mt-20">{children}</h3>
             ),
+            // Les h4 aussi : le guide admin y renvoie d'un chapitre à l'autre
+            // (deux façons d'effacer un compte, à ne pas confondre), et un lien
+            // qui ne saute nulle part passe pour un bug de la page d'aide.
+            h4: ({ children }) => (
+              <h4 id={slugify(String(children))} className="scroll-mt-20">{children}</h4>
+            ),
             // Un tableau large doit défiler dans son cadre, sans pousser la page.
             table: ({ children }) => (
               <div className="md-table-wrap"><table>{children}</table></div>

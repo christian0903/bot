@@ -1768,11 +1768,27 @@ BEGIN
   + (SELECT count(*) FROM invoice_requests  WHERE user_id = p_user_id)
   + (SELECT count(*) FROM subscriptions     WHERE user_id = p_user_id)
   + (SELECT count(*) FROM registration_fees WHERE user_id = p_user_id)
+  -- Un coach qui a encadré des cours n'est pas un compte créé par erreur : on
+  -- refuse plutôt que de délier des séances de celui qui les a données.
+  + (SELECT count(*) FROM scheduled_classes WHERE coach_id = p_user_id)
   INTO v_traces;
 
   IF v_traces > 0 THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'traces_comptables', 'traces', v_traces);
   END IF;
+
+  -- Ces tables référencent auth.users sans ON DELETE CASCADE : sans ce
+  -- nettoyage, le DELETE échoue sur une violation de clé étrangère.
+  DELETE FROM activity_log         WHERE actor_id = p_user_id OR target_user_id = p_user_id;
+  DELETE FROM member_badges        WHERE user_id = p_user_id;
+  DELETE FROM referral_rewards     WHERE user_id = p_user_id OR granted_by = p_user_id;
+  DELETE FROM referrals            WHERE referrer_id = p_user_id OR referee_id = p_user_id;
+
+  -- Traces d'un compte qui aurait encadré ou saisi : un membre créé par erreur
+  -- n'en a pas, mais le DELETE échouerait sans cela.
+  UPDATE performances          SET created_by = NULL WHERE created_by = p_user_id;
+  UPDATE app_settings          SET updated_by = NULL WHERE updated_by = p_user_id;
+  UPDATE subscription_discounts SET applied_by = NULL WHERE applied_by = p_user_id;
 
   DELETE FROM profiles   WHERE id = p_user_id;
   DELETE FROM auth.users WHERE id = p_user_id;

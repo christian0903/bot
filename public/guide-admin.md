@@ -85,6 +85,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 
 
 
+
 ## Où trouver quoi
 
 Tout passe par le **menu Administration**, dans la barre latérale à gauche (sur mobile, par le bouton menu en haut). Les entrées apparaissent dans cet ordre :
@@ -598,9 +599,57 @@ Deux chemins mènent au même résultat : le membre le fait depuis son profil, o
 
 Concrètement : le membre ne peut plus se connecter, il sort de vos listes, mais votre chiffre d'affaires reste juste.
 
+Sa fiche prend le nom **« Membre supprimé #a1b2c3d4 »** — un repère technique,
+qui permet de retrouver à quelle ligne comptable se rattache un ancien
+paiement.
+
 > **Un abonnement actif bloque l'opération.** Il faut le résilier d'abord — sans compte, le membre ne pourrait plus l'arrêter et continuerait d'être prélevé.
 
 L'opération est tracée au journal d'activité.
+
+#### Ces fiches ne vous encombrent pas
+
+**Vous ne les voyez pas.** Coachs et administrateurs ont la liste des membres
+débarrassée de ces lignes : elles n'apprennent plus rien sur personne, et
+s'accumuleraient à chaque départ.
+
+Le **super administrateur**, lui, les voit — parce que lui seul peut les
+effacer définitivement.
+
+#### Effacer définitivement (super administrateur)
+
+> **Où** : **Administration → Utilisateurs**, la corbeille rouge au bout de la
+> ligne. Elle n'apparaît que sur les fiches « Membre supprimé # », et seulement
+> pour le super administrateur.
+
+Anonymiser suffit pour un membre qui a fréquenté le studio. C'est trop peu pour
+un **compte créé par erreur** : la fiche fantôme reste à vie, et surtout son
+adresse e-mail demeure prise — impossible de recréer un compte avec la même
+adresse.
+
+L'effacement définitif règle ce cas : la fiche, le compte de connexion et les
+traces du journal partent ensemble, et **l'adresse redevient utilisable**.
+
+**Il est refusé dès qu'il reste quelque chose au dossier.** Précisément, si le
+membre a au moins :
+
+| Ce qui bloque | Pourquoi |
+|---|---|
+| Une réservation, même passée ou annulée | Elle raconte une séance qui a eu lieu |
+| Un pack acheté ou offert | Ligne comptable, sept ans de conservation |
+| Une demande de facture | Idem |
+| Un abonnement, même résilié | Idem |
+| Des frais d'inscription | Idem |
+| Un cours encadré comme coach | Une séance ne se détache pas de qui l'a donnée |
+
+Le message vous dit alors **combien d'enregistrements** s'y rattachent, et rien
+n'est touché. Dans ce cas, la fiche anonymisée est la bonne réponse : elle
+existe justement pour ça.
+
+> **C'est irréversible**, et il n'y a pas de corbeille : le compte, ses
+> connexions et ses traces au journal disparaissent. En pratique, cela ne
+> concerne qu'un compte créé la veille par erreur — dès qu'un membre a réservé
+> ou reçu un pack, l'effacement est refusé de lui-même.
 
 #### Le cas particulier du compte parasite
 
@@ -1205,6 +1254,11 @@ Un export ne se charge qu'au clic : rien n'est rapatrié tant qu'on ne demande r
 
 **Les comptes supprimés figurent dans l'export des membres**, avec la date de leur suppression. Les masquer ferait mentir un état des lieux comptable — leurs achats existent toujours. Leurs données personnelles ayant été anonymisées, il n'y a rien à protéger de plus.
 
+Ils n'apparaissent en revanche plus **à l'écran**, sauf pour le super
+administrateur : l'export sert à recouper des chiffres, la liste des membres à
+travailler au quotidien. Un compte effacé définitivement, lui, ne figure nulle
+part — mais l'effacement n'est possible que s'il n'a jamais rien acheté.
+
 > Les pages **Membres** et **Tableau de bord** gardent leurs propres boutons d'export : ceux-là sortent **ce qu'on regarde**, filtres compris. La page Exports sert à venir chercher des données pour les emporter.
 
 ### Journal d'activité — Administration → Journal d'activité
@@ -1249,6 +1303,12 @@ l'exige la conservation comptable.
 
 > La séance d'essai offerte à l'inscription **ne bloque pas** l'effacement :
 > elle est attribuée à tout le monde, elle empêcherait sinon toute purge.
+
+> **Deux effacements, deux moments.** Celui-ci vise l'inscription **jamais
+> confirmée**, avant qu'un compte existe vraiment. Pour un compte confirmé mais
+> créé par erreur, il faut d'abord le supprimer depuis sa fiche — il devient
+> « Membre supprimé # » — puis l'effacer depuis la liste des membres. Voir
+> [Effacer définitivement](#effacer-definitivement-super-administrateur).
 
 #### Effacer les entrées anciennes — super admin seulement
 
