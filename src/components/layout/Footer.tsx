@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { Heart } from 'lucide-react'
 import { estHorsProduction } from '@/lib/base-en-service'
 
 /** Injectée au build depuis package.json (cf. vite.config.ts). */
@@ -37,10 +36,6 @@ export function Footer() {
               {estHorsProduction ? '-dev' : '-ops'}
             </span>
           </span>
-          <Link to="/packs" className="flex items-center gap-1 hover:text-foreground transition-colors">
-            <Heart className="h-3 w-3" />
-            {t('footer.support')}
-          </Link>
         </div>
       </div>
     </footer>

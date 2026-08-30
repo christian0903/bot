@@ -379,7 +379,6 @@
   },
   "footer": {
     "version": "Version {{version}}",
-    "support": "Support",
     "rights": "All rights reserved.",
     "copyright": "Christian Vanhenten pour Back on Track",
     "terms": "Terms",
