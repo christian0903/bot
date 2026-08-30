@@ -83,6 +83,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 
 
 
+
 ## Où trouver quoi
 
 Tout passe par le **menu Administration**, dans la barre latérale à gauche (sur mobile, par le bouton menu en haut). Les entrées apparaissent dans cet ordre :
@@ -878,6 +879,27 @@ Le membre saisit le code **sur la fenêtre de confirmation, au moment de payer**
 > **Un seul code par achat** : coupon *ou* bon d'achat, jamais les deux.
 
 Le champ n'apparaît pas chez un client professionnel — non par une règle dédiée, mais parce qu'il paie sur facture et ne passe pas par cet écran.
+
+#### Deux limites qu'il ne faut pas confondre
+
+| | Ce que ça veut dire |
+|---|---|
+| **Utilisations maximum** | Le nombre total de fois où le code peut servir, **tous membres confondus**. À 50, il fonctionne 50 fois puis s'épuise. Laissé vide, il n'y a pas de plafond |
+| **Une fois par personne** | **Toujours appliqué**, sans réglage. Personne ne peut utiliser deux fois le même code |
+
+La seconde règle vaut pour tous les coupons, et ne se désactive pas. Un membre
+qui réessaie voit *« Tu as déjà utilisé ce code — il ne vaut qu'une fois. »*
+
+> **Le message est distinct de « limite atteinte ».** Les deux appellent des
+> réactions différentes : « je suis arrivé trop tard » n'est pas « j'en ai déjà
+> profité », et confondre les deux ferait croire à une injustice.
+
+> **Ce qui compte, c'est l'achat, pas la saisie.** Un membre qui saisit un code
+> puis abandonne avant de payer peut le réutiliser — rien n'a été consommé.
+
+**Le parrainage, lui, fonctionne à l'inverse** : un parrain peut parrainer
+autant de personnes qu'il veut, mais chacun ne peut être parrainé **qu'une
+seule fois dans sa vie**. Il n'y a aucun maximum à régler.
 
 ---
 

@@ -2790,6 +2790,19 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'reason', 'expired');
   END IF;
 
+  -- Une fois par personne. `pack_purchases.coupon_id` garde la trace de ce qui
+  -- a servi : pas besoin d'une table de plus.
+  --
+  -- Le motif est distinct d'`exhausted` : « vous avez deja utilise ce code » et
+  -- « ce code est epuise » appellent des reactions differentes, et le second
+  -- laisserait croire a une injustice.
+  IF EXISTS (
+    SELECT 1 FROM pack_purchases
+     WHERE user_id = v_uid AND coupon_id = v_coupon.id
+  ) THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'already_used');
+  END IF;
+
   IF v_coupon.max_uses IS NOT NULL AND v_coupon.current_uses >= v_coupon.max_uses THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'exhausted');
   END IF;

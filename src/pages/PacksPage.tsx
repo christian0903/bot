@@ -330,6 +330,12 @@ export function PacksPage() {
         expired: isFr ? 'Ce code a expiré.' : 'This code has expired.',
         not_yet_valid: isFr ? 'Ce code n\'est pas encore actif.' : 'This code is not active yet.',
         exhausted: isFr ? 'Ce code a atteint sa limite d\'utilisation.' : 'This code reached its usage limit.',
+        // Distinct d'`exhausted` : « tu l'as déjà utilisé » et « il est épuisé »
+        // appellent des réactions différentes, et le second laisserait croire
+        // qu'on est arrivé trop tard alors qu'on en a déjà profité.
+        already_used: isFr
+          ? 'Tu as déjà utilisé ce code — il ne vaut qu\'une fois.'
+          : 'You have already used this code — it works once per person.',
         not_eligible: isFr
           ? 'Ce code ne s\'applique pas à ton profil.'
           : 'This code does not apply to your profile.',

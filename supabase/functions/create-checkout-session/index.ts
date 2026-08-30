@@ -284,7 +284,19 @@ serve(async (req) => {
             (c: { member_category_id: string }) => c.member_category_id === profile?.member_category_id,
           )
 
-        if (categoryOk && now >= validFrom && (!validUntil || now <= validUntil) && usesLeft) {
+        // Un coupon ne sert qu'une fois par personne. Le controle est refait
+        // ici et pas seulement dans `check_coupon` : cette fonction est
+        // appelable directement, et l'ecran n'est qu'une politesse.
+        const { data: dejaUtilise } = await admin
+          .from('pack_purchases')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('coupon_id', coupon.id)
+          .limit(1)
+
+        const jamaisUtilise = !dejaUtilise || dejaUtilise.length === 0
+
+        if (categoryOk && jamaisUtilise && now >= validFrom && (!validUntil || now <= validUntil) && usesLeft) {
           couponId = coupon.id
           if (packType.is_recurring) {
             // Sur un abonnement, la remise passe par un coupon Stripe
