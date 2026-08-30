@@ -25,6 +25,7 @@ Les deux guides sont **servis par la page d'aide de l'application**, mais depuis
 | [adapter-le-style.md](adapter-le-style.md) | Changer le logo (sans recompiler) et les couleurs de l'application |
 | [publier-app-store.md](publier-app-store.md) | **Soumettre l'application à l'App Store** — ce qui est prêt, ce qui manque, et les pièges du rejet 4.2 |
 | [coachs-mise-en-ligne-app.md](coachs-mise-en-ligne-app.md) | À transmettre aux coachs : ce qu'on attend d'eux pour la publication sur les stores |
+| [coachs-reprise-clients.md](coachs-reprise-clients.md) | À transmettre aux coachs : reprendre les clients existants et leurs crédits par un tableur |
 | [stripe-deploiement.md](stripe-deploiement.md) | Configurer Stripe, les clés, le webhook |
 | [cadrage-bons-achat.md](cadrage-bons-achat.md) | Les règles réelles des bons d'achat et du parrainage |
 | [dossier-fonctionnel-abonnement.md](dossier-fonctionnel-abonnement.md) | Le besoin recueilli auprès des coachs sur les abonnements |
