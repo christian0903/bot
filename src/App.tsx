@@ -66,6 +66,7 @@ const AdminReviewsPage = lazy(() => import('@/pages/admin/AdminReviewsPage').the
 const AdminClientTrackingPage = lazy(() => import('@/pages/admin/AdminClientTrackingPage').then(m => ({ default: m.AdminClientTrackingPage })))
 const AdminExportsPage = lazy(() => import('@/pages/admin/AdminExportsPage').then(m => ({ default: m.AdminExportsPage })))
 const AdminDiagnosticPage = lazy(() => import('@/pages/admin/AdminDiagnosticPage').then(m => ({ default: m.AdminDiagnosticPage })))
+const PlanningPublicPage = lazy(() => import('@/pages/PlanningPublicPage').then(m => ({ default: m.PlanningPublicPage })))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>
@@ -80,6 +81,10 @@ function App() {
           <NotificationProvider>
             <TooltipProvider>
               <Routes>
+                {/* HORS du Layout : cette page vit dans un iframe sur le site
+                    public, qui a deja son menu et son pied de page. Les
+                    empiler en ferait deux l'un sous l'autre. */}
+                <Route path="/planning-public" element={<Lazy><PlanningPublicPage /></Lazy>} />
                 <Route element={<Layout />}>
                   {/* Public */}
                   <Route path="/" element={<HomePage />} />

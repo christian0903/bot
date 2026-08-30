@@ -50,7 +50,21 @@
 # Sécurité
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
-  Header set X-Frame-Options "SAMEORIGIN"
   Header set X-XSS-Protection "1; mode=block"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # Qui a le droit d'afficher l'application dans un cadre.
+  #
+  # `X-Frame-Options: SAMEORIGIN` interdisait tout site tiers — c'est la bonne
+  # règle par défaut : elle empêche qu'une page piégée superpose un bouton
+  # invisible au-dessus des nôtres et fasse cliquer un membre à son insu.
+  #
+  # Mais le site vitrine doit pouvoir intégrer `/planning-public`. Une SPA
+  # renvoie toujours le même index.html, et Apache ne peut donc PAS distinguer
+  # cette URL des autres : l'autorisation vaut forcément pour tout le domaine.
+  #
+  # `frame-ancestors` remplace `X-Frame-Options`, qu'il rend caduc là où les
+  # deux coexistent, et permet de nommer les origines admises. Le site du
+  # studio et lui seul — tout autre domaine reste refusé.
+  Header always set Content-Security-Policy "frame-ancestors 'self' https://backontrackstudio.be https://www.backontrackstudio.be"
 </IfModule>
