@@ -100,6 +100,11 @@ CREATE TABLE profiles (
   company_vat TEXT,
   company_address TEXT,
   referral_code TEXT UNIQUE,
+  -- Seances suivies AVANT la mise en service, reprises de l'ancien systeme.
+  -- Ajoutees au total pour les badges d'assiduite ; sans effet sur les periodes
+  -- recentes. Sans elle, un client qui s'entraine depuis deux ans repartirait a
+  -- zero le jour de la bascule.
+  seances_anterieures INTEGER NOT NULL DEFAULT 0 CHECK (seances_anterieures >= 0),
   member_status TEXT DEFAULT 'visitor'
     CHECK (member_status IN ('visitor', 'potential', 'active', 'inactive', 'former')),
   weekly_goal INTEGER DEFAULT 3,
@@ -3688,12 +3693,26 @@ CREATE OR REPLACE FUNCTION member_sessions_count(p_user_id UUID, p_from DATE, p_
 RETURNS INTEGER
 LANGUAGE sql SECURITY DEFINER STABLE
 AS $$
-  SELECT COUNT(*)::INTEGER FROM bookings b
-  JOIN scheduled_classes sc ON b.scheduled_class_id = sc.id
-  WHERE b.user_id = p_user_id
-    AND b.status = 'confirmed'
-    AND (b.checked_in_at IS NOT NULL OR sc.starts_at > NOW())
-    AND sc.starts_at::DATE BETWEEN p_from AND p_to;
+  -- L'historique repris ne s'ajoute qu'au total de TOUJOURS. La fonction sert a
+  -- trois usages depuis le meme ecran — le total, la semaine, le mois — et un
+  -- client repris afficherait sinon quarante-sept seances « cette semaine ».
+  --
+  -- Le seuil de 2021 est arbitraire mais sur : le studio n'existait pas, et
+  -- aucune periode d'interet ne commence avant.
+  SELECT (
+    SELECT COUNT(*)::INTEGER FROM bookings b
+    JOIN scheduled_classes sc ON b.scheduled_class_id = sc.id
+    WHERE b.user_id = p_user_id
+      AND b.status = 'confirmed'
+      AND (b.checked_in_at IS NOT NULL OR sc.starts_at > NOW())
+      AND sc.starts_at::DATE BETWEEN p_from AND p_to
+  ) + COALESCE((
+    -- Le COALESCE couvre le profil absent : sans lui, NULL + n'importe quoi
+    -- vaut NULL, et l'ecran afficherait un vide la ou il attend un nombre.
+    SELECT CASE WHEN p_from <= DATE '2021-01-01'
+                THEN seances_anterieures ELSE 0 END
+      FROM profiles WHERE id = p_user_id
+  ), 0);
 $$;
 
 -- 2. Répartition par type de cours
