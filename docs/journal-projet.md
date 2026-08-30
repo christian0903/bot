@@ -337,9 +337,28 @@ entre chapitres du guide pointaient dans le vide sur `/help`.
 
 ### Toujours ouvert
 
-Le **retrait de la séance d'essai** d'un membre (chantier de la veille) reste
-écrit mais non appliqué et non commité — **seule migration des dix du 29-30 non
-reportée dans `install.sql`**. Détail dans le handoff du 30 à 22:29.
+Le **retrait de la séance d'essai** d'un membre reste écrit, **non appliqué et
+non commité** — Christian a demandé de s'arrêter là pour juger demain si ce
+chantier vaut d'être terminé.
+
+La question est légitime : le réglage global fonctionne et suffit peut-être. Ce
+qui reste ne concerne que les **six essais accordés avant** la coupure, dont
+deux comptes de l'équipe et un déjà consommé. Quatre membres réels, donc, avec
+un essai qui expire fin septembre. Le handoff du 30 à 22:29 pose les trois
+voies : terminer, abandonner, ou retirer les six à la main sans livrer la
+fonctionnalité.
+
+Le report dans `install.sql` a été fait ce soir — **à défaire si le chantier
+est abandonné**, sinon une base neuve porterait une fonction que l'application
+n'appelle pas.
+
+### Demandé pour demain
+
+**Pas d'écran blanc pendant un déploiement.** Le `rsync` remplace `index.html`
+avant les fichiers `assets/` qu'il nomme : un client qui charge la page à cet
+instant voit un écran blanc quelques secondes. Trois pistes dans le handoff, la
+moins coûteuse étant sans doute d'envoyer `assets/` d'abord et `index.html` en
+dernier.
 
 ---
 

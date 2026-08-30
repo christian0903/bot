@@ -146,6 +146,106 @@ pas l'usage de la valeur dans la même transaction), la reporter dans
 
 ---
 
+## À décider demain : le retrait de la séance d'essai
+
+**Christian a demandé de ne rien appliquer** ce soir — trop tard pour juger si
+ce chantier vaut d'être terminé. Tout est prêt, rien n'est commité ni déployé.
+
+### La question à trancher
+
+Le réglage global **fonctionne et est en production** : la distribution est
+coupée, les 56 comptes repris le 30 août n'ont reçu aucune séance d'essai.
+C'est peut-être suffisant.
+
+Ce qui reste ne concerne que les séances **déjà accordées avant** la coupure —
+**six** en production :
+
+| Membre | Crédit | Réservée ? |
+|---|---|---|
+| Christian Vht | 1 | non |
+| Joan Rodon | 1 | non |
+| Gauthier Wilhelmi | 1 | non |
+| Arnaud Bogaert | 1 | non |
+| Jonas Trine | 1 | non |
+| Anselme Meunier | 0 | **oui, déjà utilisée** |
+
+Deux sont des comptes de l'équipe. Restent **quatre membres** avec un essai en
+attente, et un qui l'a déjà consommé.
+
+**Si ces quatre essais ne dérangent pas** (ils expirent le 28-29 septembre), le
+chantier peut être abandonné : il suffira de supprimer les fichiers et de
+retirer le report de `install.sql`. **S'ils dérangent**, il reste une migration
+à appliquer et un déploiement.
+
+> Une troisième voie, plus économique : les retirer **à la main** en base une
+> seule fois, et ne jamais livrer la fonctionnalité. Six lignes, un cas
+> particulier — mais alors le geste n'existera pas si le besoin revient.
+
+### Ce qui est écrit et prêt
+
+| Fichier | État |
+|---|---|
+| `supabase/migrations/20260830_retirer_pack_essai.sql` | écrit, **appliqué nulle part** |
+| `supabase/install.sql` | report **fait** (enum `pack_removed` + fonction) |
+| `src/pages/admin/AdminUserDetailPage.tsx` | bouton + handler dans le dialogue de pack |
+| `src/lib/activity-log.ts`, `AdminActivityLogPage.tsx`, `types/index.ts` | action `pack_removed`, `PackType.is_trial` |
+| `docs/guide-admin.md` + `public/` | section « Retirer une séance déjà accordée » **écrite** |
+
+`tsc` passe, build vert, lint à 36. **Rien n'est commité.**
+
+### Si on termine
+
+1. Appliquer la migration sur bot3 puis bot-ops, **en deux exécutions** —
+   `ALTER TYPE ADD VALUE` ne tolère pas l'usage de la valeur dans la même
+   transaction, et l'éditeur Supabase enveloppe tout.
+2. Comparer les empreintes MD5 de `prosrc` entre les deux bases.
+3. Commiter, déployer sur `jag.`, tester, puis `app.`
+
+### Si on abandonne
+
+Supprimer `20260830_retirer_pack_essai.sql`, annuler les modifications des
+quatre fichiers `src/`, retirer du guide la section « Retirer une séance déjà
+accordée », et **défaire le report dans `install.sql`** (l'enum `pack_removed`
+et la fonction `retirer_pack_essai`) — sinon une base neuve porterait une
+fonction que l'application n'appelle pas.
+
+### La conception, pour ne pas la re-débattre
+
+Un essai **intact** est supprimé ; un essai **déjà utilisé** est vidé et
+périmé. Vérifié cette fois avec `pg_constraint` : `bookings.pack_purchase_id`
+et `invoice_requests.pack_purchase_id` référencent le pack **en NO ACTION**,
+la base refuserait donc de l'effacer. Et l'effacer détacherait la séance de ce
+qui l'a payée — elle resterait au planning sans qu'on sache d'où venait le
+crédit.
+
+---
+
+## Demandé pour demain : pas d'écran blanc pendant un déploiement
+
+Pendant le `rsync`, `index.html` est déjà remplacé alors que les fichiers
+`assets/` qu'il nomme ne le sont pas encore — un client qui charge la page à
+cet instant tombe sur un **écran blanc de quelques secondes**.
+
+Christian veut une **page d'attente** annonçant une mise à jour en cours.
+« C'est déjà de trop », dit-il de ces quelques secondes.
+
+Pistes à examiner (rien n'est décidé) :
+
+- **Déploiement atomique** : envoyer dans un dossier neuf, puis basculer d'un
+  coup (lien symbolique ou `mv`). Supprime le problème plutôt qu'il ne
+  l'habille — et ne demande rien au navigateur.
+- **Page de maintenance** posée par `.htaccess` le temps du transfert, retirée
+  ensuite. Simple, mais coupe le site pour tout le monde, y compris ceux qui
+  ne rechargent pas.
+- Envoyer **`assets/` d'abord et `index.html` en dernier** : les anciens
+  fichiers restent en place pendant le transfert, l'ancienne page continue
+  donc de fonctionner. Peu coûteux, à évaluer en premier.
+
+Le service worker complique le tableau : il sert déjà une version en cache et
+annonce les mises à jour. À regarder avant de choisir.
+
+---
+
 ## Ce qui reste ouvert par ailleurs
 
 - Déployer la **3.87.0** (documentation) sur `jag.` puis `app.`
