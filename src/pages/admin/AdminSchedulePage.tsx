@@ -1101,7 +1101,11 @@ export function AdminSchedulePage() {
             setPeriod(format(new Date(ancre.getTime() + d * pas * 86400000), 'yyyy-MM-dd'), '')
           }}
           onToday={() => setPeriod(format(new Date(), 'yyyy-MM-dd'), '')}
-          onOpenClass={(sc) => navigate(`/coach/class/${sc.id}`)}
+          // Ouvrir l'édition, et non la fiche coach : on est dans l'écran de
+          // GESTION du planning, où l'on vient changer un horaire, un coach ou
+          // une capacité. La fiche coach montre les participants — utile, mais
+          // c'est un autre geste, et elle ne permet pas de modifier.
+          onOpenClass={(sc) => openEdit(sc)}
           onCreateAt={(date, heure) => openAdd(date, heure)}
         />
       ) : filteredClasses.length === 0 ? (
