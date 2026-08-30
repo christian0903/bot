@@ -84,6 +84,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 
 
 
+
 ## Où trouver quoi
 
 Tout passe par le **menu Administration**, dans la barre latérale à gauche (sur mobile, par le bouton menu en haut). Les entrées apparaissent dans cet ordre :
@@ -737,6 +738,29 @@ Tout nouveau compte reçoit **une séance d'essai gratuite**, attribuée automat
 C'est un **vrai pack**, gratuit et hors catalogue. Conséquence pratique : la réservation qui en découle est une réservation ordinaire — elle apparaît dans « Mes réservations », **et sur votre liste de présence**. Personne ne se présente au studio sans que vous le sachiez.
 
 Trois règles fixées : **semi-privé uniquement**, **30 jours de validité** (réglable), et **nouveaux profils seulement** — un membre existant n'en reçoit pas.
+
+#### La suspendre pendant la reprise des membres
+
+**Administration → Paramètres → Séance d'essai offerte.** Un interrupteur
+l'arrête, et un second champ règle sa durée de validité.
+
+C'est ce qu'il faut faire **pendant la reprise des membres existants** : chacun
+d'eux s'inscrira sur l'application, et recevrait une séance d'essai qu'il a
+déjà consommée depuis longtemps chez vous. Cent inscriptions, cent séances
+offertes.
+
+**La marche à suivre :**
+
+1. Désactiver le réglage **avant** d'inviter les membres à s'inscrire
+2. Les laisser créer leur compte, et leur attribuer leurs séances
+3. **Réactiver** une fois la reprise terminée
+
+> **Désactiver ne retire rien** à ceux qui ont déjà reçu leur séance. Le
+> réglage ne vaut que pour les inscriptions à venir.
+
+> **Ne pas oublier de réactiver.** Sans séance d'essai, un nouveau venu ne peut
+> plus essayer avant d'acheter — c'est votre premier argument commercial qui
+> disparaît. L'écran affiche un rappel tant que le réglage est éteint.
 
 ### Fin d'abonnement et réservations
 

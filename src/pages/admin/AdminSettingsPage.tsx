@@ -123,6 +123,8 @@ export function AdminSettingsPage() {
   /** Minimum de participants pour qu'un cours compte comme donné. */
   const [minParticipants, setMinParticipants] = useState(1)
   /** Demande d'avis après un cours : active, et combien de jours affichée. */
+  const [trialEnabled, setTrialEnabled] = useState(true)
+  const [trialValidity, setTrialValidity] = useState(30)
   const [reviewsEnabled, setReviewsEnabled] = useState(true)
   /** Heures à attendre après la fin du cours avant de pouvoir noter. */
   const [reviewHoursBefore, setReviewHoursBefore] = useState(0)
@@ -139,7 +141,7 @@ export function AdminSettingsPage() {
       const { data } = await supabase
         .from('app_settings')
         .select('*')
-        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert', 'class_given_rule', 'referral_rules', 'class_reviews', 'client_tracking'])
+        .in('key', ['stripe_mode', 'booking_rules', 'studio_info', 'registration_fee', 'room_names', 'unlimited_session_cost', 'cancellation_alert', 'class_given_rule', 'referral_rules', 'class_reviews', 'client_tracking', 'trial_pack'])
 
       for (const setting of data ?? []) {
         if (setting.key === 'stripe_mode') {
@@ -175,6 +177,11 @@ export function AdminSettingsPage() {
           setReferrerReward((val.referrer_reward_cents ?? 3000) / 100)
           setRefereeReward((val.referee_reward_cents ?? 3000) / 100)
           setReferralValidity(val.reward_validity_days ?? 180)
+        }
+        if (setting.key === 'trial_pack') {
+          const v = setting.value as { enabled?: boolean; validity_days?: number }
+          setTrialEnabled(v.enabled ?? true)
+          setTrialValidity(v.validity_days ?? 30)
         }
         if (setting.key === 'class_reviews') {
           const v = setting.value as { enabled?: boolean; hours_to_review?: number; hours_before_review?: number }
@@ -782,6 +789,78 @@ export function AdminSettingsPage() {
       </Card>
 
       {/* Seuil d'alerte sur les annulations */}
+      {/* Séance d'essai. Le réglage existait en base depuis l'origine mais
+          aucun écran ne le proposait : le studio ne pouvait pas l'arrêter, et
+          chaque compte créé recevait sa séance — y compris ceux repris de
+          l'ancien système, qui l'avaient déjà consommée ailleurs. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Star className="h-4 w-4 text-primary" />
+            {isFr ? 'Séance d\'essai offerte' : 'Free trial session'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            {isFr
+              ? "À l'inscription, chaque nouveau membre reçoit une séance d'essai gratuite. Elle lui est attribuée automatiquement, sans intervention."
+              : 'On sign-up, every new member receives a free trial session, granted automatically.'}
+          </p>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">
+                {isFr ? 'Offrir une séance d\'essai à l\'inscription' : 'Grant a free trial on sign-up'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isFr
+                  ? 'Désactiver ne retire rien à ceux qui l\'ont déjà reçue.'
+                  : 'Turning this off does not remove trials already granted.'}
+              </p>
+            </div>
+            <Switch checked={trialEnabled} onCheckedChange={setTrialEnabled} />
+          </div>
+
+          {trialEnabled && (
+            <div className="space-y-2">
+              <Label>{isFr ? 'Validité de la séance d\'essai (jours)' : 'Trial validity (days)'}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                className="w-32"
+                value={trialValidity}
+                onChange={e => setTrialValidity(Math.max(1, parseInt(e.target.value) || 30))}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {isFr
+                  ? 'Appliquée à chaque nouvelle attribution. Les séances déjà offertes gardent leur échéance.'
+                  : 'Applied to each new grant. Trials already given keep their expiry date.'}
+              </p>
+            </div>
+          )}
+
+          {!trialEnabled && (
+            <p className="rounded-lg border border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs">
+              {isFr
+                ? 'Les nouveaux inscrits ne recevront plus de séance d\'essai. Pensez à réactiver ce réglage quand la reprise des membres existants sera terminée.'
+                : 'New members will not receive a trial session. Remember to turn this back on once existing members have been imported.'}
+            </p>
+          )}
+
+          <Button
+            size="sm"
+            disabled={saving === 'trial_pack'}
+            onClick={() => saveSetting('trial_pack', {
+              enabled: trialEnabled,
+              validity_days: trialValidity,
+            })}
+          >
+            {saving === 'trial_pack' ? '...' : (isFr ? 'Enregistrer' : 'Save')}
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
