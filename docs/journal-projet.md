@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-28**
+> Dernière mise à jour : **2026-08-30**
 
 ---
 
@@ -33,6 +33,26 @@ L'application tourne sur **Stripe** — la migration vers Mollie prévue au plan
 
 Une version de test tourne sur iPhone depuis le 2026-08-07 (signature de développement, valable 7 jours).
 
+### Les bases et les sous-domaines, au 2026-08-30
+
+| Base | Référence | Sert | État |
+|---|---|---|---|
+| `bot-ops` | `xgwrxbkrfypklrnqbftv` | `app.backontrackstudio.be` | **production, installée et VIDE** |
+| `bot3` | `cvyslqnojcgnjfgynczw` | `jag.backontrackstudio.be` | test et développement, chargée |
+| ~~`bot`~~ | — | — | supprimée le 2026-08-29 |
+
+`bot` n'a jamais été une production : c'était la base de développement,
+remplacée par `bot3`. Sa sauvegarde est dans `.dumps/`, **sur le Mac mini
+seulement**.
+
+**Le déploiement passe par `./deploiement.sh jag|ops`** — un `dist/` est lié à
+une base avant même d'être envoyé, le même dossier ne peut pas servir les deux
+sous-domaines.
+
+**Ce qui reste avant l'ouverture** : la configuration métier sur `bot-ops` (les
+coachs encodent), le SPF qui ne mentionne pas Resend, hCaptcha, et le passage de
+Stripe en mode live.
+
 ### Publication sur l'App Store
 
 Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décision du 2026-08-07.
@@ -43,6 +63,178 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
 2. **Politique de confidentialité avec URL publique** — livrée, page `/confidentialite` (et non `/privacy`, corrigé le 2026-08-29 : c'est cette URL qu'App Store Connect attend, une adresse fausse dans la fiche vaut rejet).
+
+---
+
+## Sessions des 2026-08-29 et 30 — la production existe
+
+> Deux journées enchaînées. **v3.74.0**, une trentaine de commits poussés
+> (`ac80010..849acac`), build vert, lint stable à 36.
+
+### Ce qui a changé pour de bon
+
+| | |
+|---|---|
+| `bot3` | base de test, Paris, sur `jag.backontrackstudio.be` — **en service, chargée** |
+| `bot-ops` | **production**, Paris, sur `app.backontrackstudio.be` — installée, **vide** |
+| ~~`bot`~~ | supprimée. Sauvegarde dans `.dumps/bot-20260829-120547.sql`, **sur le Mac mini seulement** |
+
+`bot` n'a jamais été une production : c'était la base de développement. Le plan
+Pro n'inclut qu'un projet actif — un second coûte 10 $/mois, vérifié auprès de
+l'API — d'où sa suppression avant la création de `bot-ops`.
+
+### La migration, éprouvée de bout en bout
+
+Le handoff du 28 posait l'objectif en notant qu'il n'avait jamais été atteint :
+la chaîne complète n'avait jamais tourné sans intervention. **Elle est passée
+d'un coup.** Onze compteurs identiques de part et d'autre, les 8 fichiers du
+bucket copiés, aucun orphelin, soldes de crédits concordants membre par membre.
+
+Deux scripts remplacent les quatre qui s'étaient empilés :
+`creer-espace-application.sh` et `migrer-donnees.sh`. Le second ne vide jamais
+rien — il refuse de tourner sur une cible habitée. C'est la différence avec
+`copier-bot-vers-bot2.sh`, commode pour une base de développement qu'on
+recharge sans cesse, dangereux pour une base qu'on met en service.
+
+**Zéro image en URL absolue** : le correctif du 28 tient. C'était le défaut que
+le journal redoutait le plus — il aurait survécu à la migration et n'aurait
+cassé qu'à la suppression de l'ancien projet.
+
+### Deux fuites de données personnelles, fermées
+
+Ni l'une ni l'autre n'est venue d'une revue de sécurité. La première d'une
+alerte du tableau de bord que Christian a pensé à signaler, la seconde d'une
+demande de lien de menu.
+
+**`coach_profiles`** exposait `email` et `phone` des coachs, avec un `GRANT` à
+`anon` — lisibles par n'importe qui avec la clé publishable du site.
+
+**`profiles`** exposait **tout** : 23 profils complets, 23 e-mails, 21
+téléphones, 17 adresses, des dates de naissance, des contacts d'urgence et un
+`medical_conditions` — donnée de santé au sens de l'article 9 du RGPD. Une
+policy `USING (true)` sans clause `TO` vaut pour `PUBLIC`, donc pour `anon`.
+
+**État final** : un membre ne lit que son propre profil, le staff lit tout, et
+la vue `profils_publics` (id, nom, photo) sert le planning et les listes.
+Vérifié avec l'identité d'un membre simple — 1 profil lisible, 1 téléphone
+visible, le sien.
+
+> **Un défaut d'ordre dans `install.sql`** aurait annulé tout cela sur une base
+> neuve : le `REVOKE` d'`anon` était posé en section 6, alors que la section 8
+> refait `GRANT ... ON ALL TABLES TO anon` — et `ALL TABLES` inclut les vues.
+> Les deux `REVOKE` sont désormais en fin de fichier.
+
+> **La leçon, à rejouer sur toute nouvelle base** : ce qu'un écran affiche ne
+> dit rien de ce qu'il rapatrie. Le seul test qui prouve quelque chose est un
+> `curl` avec la clé publishable, sur chaque table, après toute modification de
+> policy.
+
+### Une page de diagnostic
+
+`/admin/diagnostic`, réservée au `super_admin`. Sept contrôles, chacun avec son
+remède. Elle regarde la base **avec les yeux de l'application** — le point de
+vue qui manquait le 28, quand une base paraissait installée et refusait toute
+lecture.
+
+Son premier passage sur une base réelle a trouvé **trois faux positifs dans son
+propre code** : deux tables de liaison sans colonne `id`, et `OPTIONS` interdit
+en `no-cors` qui annonçait dix fonctions absentes. Aucun n'était visible à la
+lecture.
+
+### Le déploiement, en une commande
+
+```bash
+./deploiement.sh jag     # test
+./deploiement.sh ops     # production, avec confirmation écrite
+```
+
+Bascule du `.env`, build, contrôle que `dist/` ne porte aucune trace de l'autre
+base, envoi par rsync, puis **relecture du site en ligne**.
+
+Ce qui n'était écrit nulle part et que ce script formalise : `.env` n'est jamais
+déployé, mais **Vite grave ses valeurs dans `dist/`** — l'URL de la base
+apparaît dans onze fichiers minifiés. Un `dist` est donc déjà lié à une base
+avant d'être envoyé, et le même dossier ne peut pas servir les deux
+sous-domaines.
+
+L'accès SSH a été rétabli au passage. L'ancienne clé était protégée par une
+phrase de passe oubliée : le serveur l'acceptait puis refusait la connexion, ce
+qui donnait un « Permission denied (publickey) » trompeur.
+
+### Ce que les incidents ont appris
+
+**Un coach n'a pas pu créer son compte** : « Erreur : Load failed », rien
+d'autre. Supabase limite les e-mails d'authentification à **deux par heure**
+tant qu'aucun serveur SMTP n'est configuré. Le réglage manquait complètement de
+la procédure — il ne voyage ni avec `install.sql` ni avec un dump, et il était
+posé sur l'ancienne base depuis des mois sans que personne ne s'en souvienne.
+
+Sa seconde tentative, elle, était un vrai échec réseau — une barre de signal,
+4 % de batterie. Les journaux Supabase n'en portaient aucune trace : la requête
+n'avait jamais atteint le serveur. L'application dit maintenant *« votre compte
+n'a PAS été créé »*, ce qu'un membre a besoin de savoir pour décider s'il
+recommence.
+
+**Et le vrai défaut n'était pas dans le code** : le site déployé était en
+3.36.0 alors que le dépôt en était à 3.56.0. Trois correctifs existaient déjà
+et n'atteignaient personne.
+
+### Les règles métier revues
+
+**Statuts de membre** — un pack expiré ne fait plus sortir du studio : quatre
+semaines de grâce avant de basculer en « Inactif ». L'état intermédiaire a
+disparu, trois statuts disaient la même chose.
+
+**Fenêtre de réservation** — un cours ne se réserve que dans les N prochains
+jours, dix par défaut, réglable. Le planning le montre toujours ; seul le bouton
+refuse, en annonçant la date d'ouverture. Fenêtre glissante, choix de Christian
+contre l'ouverture par paliers qui aurait fait courir tout le monde à midi.
+
+> **Le piège** : `book_member_by_staff` ne passe pas par `can_book_class`, elle
+> refait ses propres contrôles. Il a fallu y ajouter la fenêtre séparément,
+> sinon un coach l'aurait contournée sans le savoir.
+
+**Journal d'activité** — « mot de passe oublié » laisse enfin une trace. Des
+coachs disaient l'avoir fait, le journal ne montrait rien, et rien ne permettait
+de trancher.
+
+### Mobile et stores
+
+Le compte développeur Apple est acheté, **au nom propre** de Christian.
+
+Le projet iOS était resté en 2.12.0 depuis le 7 août, et `Info.plist` ne
+déclarait **aucune permission** : le scanner de QR ne pouvait pas fonctionner
+dans l'application native. Un évaluateur aurait testé une fonction cassée — pire
+qu'une fonction absente, et c'est justement le meilleur argument contre le rejet
+4.2.
+
+`./scripts/verifier-mobile.sh` répond désormais à une seule question : peut-on
+envoyer aujourd'hui ? Il contrôle aussi **le contenu de la production** — une
+base vide fait rejeter pour « minimum functionality ».
+
+### Décisions prises
+
+| | |
+|---|---|
+| **Sous-domaines** | `jag.` test, `app.` production, `desk.` en redirection |
+| **hCaptcha** | reporté — il exige aussi le widget côté code, l'activer à moitié casserait toutes les inscriptions |
+| **Stripe** | reste en mode test sur `bot-ops` jusqu'à l'ouverture |
+| **Données de bot3** | **ne pas migrer** vers la production — les coachs ressaisiront proprement |
+| **Compte Apple** | individuel ; le transfert vers la SRL reste possible plus tard |
+
+### Étude de faisabilité — reprise des clients
+
+Cent clients à reprendre, chacun avec ses soldes et ses dates, parfois deux
+types de crédits. **Faisable** : `credits_remaining` et `expires_at` sont portés
+par l'achat, pas par le type de pack — deux packs support hors catalogue
+suffisent.
+
+Un seul tableur, mais deux phases à l'exécution : le déclencheur qui crée le
+profil **avale ses erreurs**, un compte peut naître sans profil sans que rien ne
+le signale. Il faut contrôler entre les deux lots.
+
+Rien n'est développé. `docs/coachs-reprise-clients.md` explique la solution aux
+coachs, sans la leur imposer.
 
 ---
 
