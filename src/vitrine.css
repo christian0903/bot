@@ -769,6 +769,16 @@
   .v-hero__explorer { transition: none; }
 }
 
+/* L'accroche du bloc « Coaching en entreprise » : le WordPress la detache du
+   paragraphe et la met en avant, c'est elle qui porte l'argument. */
+.v-formule__accroche {
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 1.375rem;
+  line-height: 1.2;
+  color: var(--v-encre);
+  margin: 0 0 var(--v-s1);
+}
+
 /* ---- Le bandeau de chiffres --------------------------------------------
    Ce qui distingue ce studio tient en trois nombres. Les poser juste sous le
    hero repond a la question du visiteur avant qu'il ait a la formuler. */
