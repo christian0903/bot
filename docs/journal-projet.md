@@ -261,6 +261,41 @@ tables, 84 fonctions**, vérifiées.
 
 ---
 
+## Session du 2026-08-31 (soir, suite) — arrêter la redirection sans toucher la base
+
+> **v3.99.0**. Documentation seule.
+
+**Retour de Christian : « je ne comprends rien à tout ce que tu viens de me
+décrire ».** La procédure précédente était juste, mais trop technique pour ce
+qui était demandé — arrêter une redirection, pas migrer un site.
+
+`docs/arreter-la-redirection-wp.md` : **deux lignes dans `wp-config.php`**
+(`WP_HOME` et `WP_SITEURL`), et la redirection s'arrête. Ces constantes priment
+sur ce qui est écrit en base **sans le modifier** — donc sans risque, et
+réversible en supprimant les deux lignes.
+
+C'est exactement le « piège » signalé dans la procédure longue, retourné en
+solution : ce qui empêchait un remplacement de base d'avoir un effet devient ici
+le moyen le plus court d'obtenir le résultat voulu.
+
+**Ce que le raccourci ne fait pas** : les 32 755 URL restent en base. Des images
+manqueront, des liens ramèneront à la vitrine. Pour une relecture de la
+présentation par les coachs, c'est suffisant — la réécriture complète reste
+documentée si le besoin se précise.
+
+### Le certificat SSL est auto-signé
+
+Christian a créé un certificat, mais le serveur présente encore un
+**auto-signé** (`issuer=CN=wp.backontrackstudio.be`) : les navigateurs
+afficheront « Connexion non privée ». **Sans rapport avec la redirection** —
+c'est AutoSSL qui reste à lancer dans cPanel. Pour une relecture interne, on
+peut passer outre l'alerte.
+
+**Boucle de redirection écartée** : `backontrackstudio.be` répond 200 et ne
+renvoie pas vers `wp.`. La manipulation est sans risque.
+
+---
+
 ## Session du 2026-08-31 (soir) — le sous-domaine est `wp.`, et il lui manque son certificat
 
 > **v3.98.0**. Documentation seule.
