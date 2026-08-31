@@ -385,18 +385,20 @@ export function VitrineAccueilPage() {
       </section>
 
       {/* ---- Le texte de bas de page (brxe-luowsb) ----------------------
-          Il porte le referencement local — « Studio Fitness à Rixensart » —
-          et l'invitation finale. */}
-      <section className="v-section v-section--alt v-seo">
+          Il porte le referencement local. Dans l'original c'est du texte
+          COURANT aligne a gauche, pas un grand titre centre : le relevé du
+          CSS ne pose aucun style de titre sur ces lignes, elles heritent du
+          corps de page. Seul le bouton est en Bebas Neue. */}
+      <section className="v-section v-seo">
         <div className="v-largeur">
-          <h2 className="v-titre-section">
+          <p className="v-seo__texte">
             Studio Fitness à Rixensart, votre espace dédié à la remise en forme
             et au bien-être.
-          </h2>
-          <p className="v-seo__accroche">
+          </p>
+          <p className="v-seo__texte">
             Et si vous veniez vivre une séance d'essai gratuite&nbsp;?
           </p>
-          <p className="v-chapeau">
+          <p className="v-seo__texte">
             Cliquez sur le bouton ci-dessous pour créer un compte et réserver
             votre séance gratuite
           </p>

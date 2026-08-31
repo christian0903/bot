@@ -1016,32 +1016,85 @@
 }
 
 /* ---- Le texte de bas de page --------------------------------------------
-   Il porte le referencement local. Son titre est plus long que les autres :
-   il descend donc d'un cran en taille pour ne pas ecraser la page. */
+   Il porte le referencement local. Le relevé du CSS d'origine ne pose AUCUN
+   style de titre sur ces lignes : elles heritent du corps de page, alignees a
+   gauche. La vitrine en avait fait un grand titre centre en Bebas Neue, ce qui
+   creusait un vide en bas de page — signale par Christian, comparaison a
+   l'appui. La section est aussi moins haute : `padding-bottom: 25px` dans
+   l'original. */
 .v-seo {
-  text-align: center;
+  padding-block: var(--v-s4) 25px;
 }
 
-.v-seo .v-titre-section {
-  font-size: clamp(1.75rem, 3.5vw, 42px);
-  max-width: 24ch;
-  margin-inline: auto;
-}
-
-.v-seo__accroche {
-  font-family: 'Bebas Neue', var(--v-police);
-  font-size: clamp(1.5rem, 3vw, 30px);
-  line-height: 1.2;
-  color: var(--v-encre);
+.v-seo__texte {
+  font-size: var(--v-t-corps);
+  line-height: 1.6;
+  color: var(--v-encre-douce);
+  max-width: 60ch;
   margin: 0 0 var(--v-s2);
 }
 
-.v-seo .v-chapeau {
+.v-seo .v-boutons {
+  margin-top: var(--v-s3);
+}
+
+/* ---- Les temoignages ----------------------------------------------------
+   Six avis clients, repris du site d'origine. Presentes en cartes, comme les
+   coachs et les formules : c'est la grille deja utilisee partout ailleurs. */
+.v-temoignage {
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  padding: var(--v-s3);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-s2);
+}
+
+.v-temoignage__texte {
+  margin: 0;
+  font-size: var(--v-t-corps);
+  line-height: 1.6;
+  color: #dddedf;
+}
+
+.v-temoignage__nom {
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 1.375rem;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  margin-top: auto;
+}
+
+.v-section--sombre .v-temoignage {
+  background: rgb(255 255 255 / 5%);
+  border-color: rgb(255 255 255 / 12%);
+}
+
+.v-section--sombre .v-temoignage__texte { color: #dddedf; }
+.v-section--sombre .v-temoignage__nom   { color: #fff; }
+
+/* ---- Les bandeaux d'appel ------------------------------------------------
+   « Pret-e a te (re)mettre en mouvement ? » et « Envie de faire bouger vos
+   collaborateurs ? » : meme composition centree dans le WordPress. */
+.v-appel-bandeau {
+  text-align: center;
+}
+
+/* Le titre est borne a 550 px comme dans le WordPress ; dans une section
+   centree, cette largeur doit se recentrer, sans quoi elle reste calee a
+   gauche et le titre parait desaxe. */
+.v-appel-bandeau .v-titre-section,
+.v-seo .v-titre-section {
+  margin-inline: auto;
+}
+
+.v-appel-bandeau .v-chapeau {
   margin-inline: auto;
   margin-bottom: var(--v-s3);
 }
 
-.v-seo .v-boutons {
+.v-appel-bandeau .v-boutons {
   justify-content: center;
 }
 
