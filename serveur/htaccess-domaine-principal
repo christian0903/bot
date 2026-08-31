@@ -17,9 +17,13 @@
 # 301 et non 302 : le deplacement est definitif, c'est ce qui transfere
 # l'anciennete acquise vers la nouvelle adresse.
 <IfModule mod_alias.c>
-  # Les pages qui portaient du contenu
-  Redirect 301 /tarifs                /#tarifs
-  Redirect 301 /cours-semi-prives     /#les-cours
+  # Les pages qui portaient du contenu.
+  #
+  # `/tarifs` et `/cours` ne sont PAS rediriges : ce sont desormais des pages du
+  # site. Les rediriger vers eux-memes bouclerait, et les renvoyer ailleurs
+  # priverait le referencement acquis de sa cible naturelle — l'ancienne adresse
+  # et la nouvelle disent la meme chose.
+  Redirect 301 /cours-semi-prives     /cours
   Redirect 301 /horaire               /planning
   Redirect 301 /seance-dessai         /contact
 
@@ -40,18 +44,18 @@
 
   # Les articles decrivant un cours : leur contenu est dans la fenetre de
   # detail du cours correspondant, sur la page d'accueil.
-  Redirect 301 /back-on-track         /#les-cours
-  Redirect 301 /ladies                /#les-cours
-  Redirect 301 /boxing                /#les-cours
-  Redirect 301 /crosstraining         /#les-cours
-  Redirect 301 /posture               /#les-cours
-  Redirect 301 /rush                  /#les-cours
+  Redirect 301 /back-on-track         /cours
+  Redirect 301 /ladies                /cours
+  Redirect 301 /boxing                /cours
+  Redirect 301 /crosstraining         /cours
+  Redirect 301 /posture               /cours
+  Redirect 301 /rush                  /cours
 
   # Les restes : doublons, essais et une annonce ponctuelle. Vers l'accueil,
   # faute de mieux — mais une 301 vaut mieux qu'une 404 pour un lien qui
   # traine encore quelque part.
   Redirect 301 /roi                                       /
-  Redirect 301 /cours-semi-prives-copier-copier-copier    /#les-cours
+  Redirect 301 /cours-semi-prives-copier-copier-copier    /cours
   Redirect 301 /merci-de-votre-participation              /
   Redirect 301 /test                                      /
   Redirect 301 /zdzdz                                     /

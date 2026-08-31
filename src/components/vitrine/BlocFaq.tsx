@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 
 /**
@@ -105,7 +106,7 @@ export function BlocFaq() {
       <div className="v-largeur">
         <h2 className="v-titre-section">Questions fréquentes</h2>
         <p className="v-chapeau">
-          Une question qui n'est pas ici ? <a href="/contact">Écrivez-nous</a>.
+          Une question qui n'est pas ici ? <Link to="/contact">Écrivez-nous</Link>.
         </p>
 
         <div className="v-faq">

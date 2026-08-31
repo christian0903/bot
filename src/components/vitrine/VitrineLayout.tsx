@@ -8,14 +8,18 @@ import '@/vitrine.css'
 // la vitrine de demonstration pointe vers `jag.` et non vers la production.
 const URL_APP = import.meta.env.VITE_URL_APPLICATION || 'https://app.backontrackstudio.be'
 
-// Les cours et les tarifs ne sont plus des pages : ils vivent dans la page
-// d'accueil, les cours derriere une fenetre de detail. Le menu pointe donc vers
-// des ancres pour ce qui est dans la page, et vers un chemin pour le reste.
+// Les cours et les tarifs ont LEUR PROPRE PAGE, et non une ancre dans la page
+// d'accueil. Une ancre ne se rejoue pas de facon fiable depuis une autre page :
+// le navigateur la cherche avant que React ait rendu la section, et on restait
+// en haut. Trois rattrapages n'ont pas tenu — l'un dependait de
+// `requestAnimationFrame`, suspendu dans un onglet d'arriere-plan.
+//
+// Une page repond a la meme question sans aucun de ces pieges.
 const MENU = [
   { chemin: '/', libelle: 'Accueil' },
-  { chemin: '/#les-cours', libelle: 'Les cours' },
+  { chemin: '/cours', libelle: 'Les cours' },
   { chemin: '/planning', libelle: 'Horaires' },
-  { chemin: '/#tarifs', libelle: 'Tarifs' },
+  { chemin: '/tarifs', libelle: 'Tarifs' },
   { chemin: '/contact', libelle: 'Contact' },
 ]
 
@@ -55,26 +59,17 @@ export function VitrineLayout() {
             className={`v-menu${menuOuvert ? ' est-ouvert' : ''}`}
             aria-label="Menu principal"
           >
-            {MENU.map(({ chemin, libelle }) =>
-              // Une entree qui vise une ancre de la page d'accueil passe par un
-              // `<a>` : `<Link>` confierait « /#les-cours » au routeur, qui n'y
-              // verrait qu'un chemin et ne ferait pas defiler la page.
-              chemin.includes('#') ? (
-                <a key={chemin} href={chemin} onClick={fermer}>
-                  {libelle}
-                </a>
-              ) : (
-                <NavLink
-                  key={chemin}
-                  to={chemin}
-                  end={chemin === '/'}
-                  onClick={fermer}
-                  aria-current={pathname === chemin ? 'page' : undefined}
-                >
-                  {libelle}
-                </NavLink>
-              )
-            )}
+            {MENU.map(({ chemin, libelle }) => (
+              <NavLink
+                key={chemin}
+                to={chemin}
+                end={chemin === '/'}
+                onClick={fermer}
+                aria-current={pathname === chemin ? 'page' : undefined}
+              >
+                {libelle}
+              </NavLink>
+            ))}
             <a className="v-bouton v-bouton--plein" href={`${URL_APP}/auth`}>
               Se connecter
             </a>
@@ -135,11 +130,7 @@ export function VitrineLayout() {
             <ul className="v-pied__liens">
               {MENU.slice(1).map(({ chemin, libelle }) => (
                 <li key={chemin}>
-                  {chemin.includes('#') ? (
-                    <a href={chemin}>{libelle}</a>
-                  ) : (
-                    <Link to={chemin}>{libelle}</Link>
-                  )}
+                  <Link to={chemin}>{libelle}</Link>
                 </li>
               ))}
             </ul>
