@@ -261,6 +261,97 @@ tables, 84 fonctions**, vérifiées.
 
 ---
 
+## Session du 2026-08-31 (après-midi) — le hero d'origine revient, WordPress redevient consultable
+
+> **v3.95.0**. Build vert, lint **stable à 37** (aucun ajout). Rien n'est
+> déployé ni poussé.
+
+**Les coachs n'ont pas aimé la vitrine livrée le matin.** Deux demandes
+distinctes : retrouver le hero à vidéo de l'ancien site, et pouvoir remettre le
+WordPress en ligne pour comparer.
+
+### La vidéo de fond revient sur l'accueil
+
+Le hero React posait une photo fixe. Le hero d'origine, retrouvé dans
+`.vitrine-source/pages/accueil.html`, tenait sur une **vidéo YouTube**
+(`A3FVv05feQI`) en fond plein écran, muette et en boucle.
+
+Toute la composition d'origine est reprise, pas seulement la vidéo : le nom du
+studio et l'adresse, le titre « Studio de fitness à Rixensart », les deux
+boutons « Découvrir nos cours » et « Séance d'essai gratuite », et l'invite à
+défiler — la souris animée et son mot « Explorer ». Les boutons pointent
+désormais vers les routes React, les anciennes URL WordPress étant mortes.
+
+**Trois écarts assumés par rapport à une reprise littérale :**
+
+- **La vidéo se charge en différé** (`requestIdleCallback`, repli sur un délai
+  pour Safari). L'iframe YouTube tire près d'un demi-mégaoctet de script : la
+  charger d'emblée retarderait le titre, c'est-à-dire la seule chose que le
+  visiteur est venu lire. La photo tient le fond pendant ce temps, et **reste
+  visible sous la vidéo** — si YouTube est bloqué ou lent, le hero ne devient
+  jamais un rectangle noir.
+- **`prefers-reduced-motion` est respecté** : la vidéo ne se charge pas du tout
+  pour qui a désactivé les animations système. Une vidéo plein écran en boucle
+  est précisément ce que ce réglage vise.
+- **Le voile est allégé** — de 92 % en bas à un dégradé 70 → 57 % uniforme,
+  celui du site d'origine. Le voile précédent avait été calculé pour un texte
+  calé en bas de photo ; sur une vidéo centrée, il l'aurait noyée.
+
+L'iframe garde `youtube-nocookie.com` : aucun cookie publicitaire n'est déposé
+tant que rien n'est joué, ce qui évite d'avoir à demander un consentement sur
+la page d'accueil.
+
+> **Vérification incomplète, à faire à l'écran.** Le DOM confirme que l'iframe
+> se pose, qu'elle couvre (2503×1408) et qu'aucune erreur console n'est levée.
+> **La lecture elle-même n'a pas pu être constatée** : le navigateur piloté
+> tient son onglet en `visibilityState: hidden`, où Chrome ne démarre pas
+> l'autoplay. C'est le piège déjà rencontré le matin même. À regarder dans un
+> vrai navigateur avant de déployer.
+
+### Remettre le WordPress : le sous-domaine était une fausse bonne idée
+
+Demande initiale : déplacer les fichiers WordPress dans un sous-domaine
+(`desk.` ou `site.`).
+
+**Écarté, et c'est la décision qui compte.** Les URL de WordPress vivent en
+base — `wp_options`, chaque lien de chaque page, et **sérialisées** dans les
+données Bricks. Servir depuis un autre domaine impose de réécrire la base, puis
+de la réécrire en sens inverse au retour : deux migrations là où aucune n'est
+nécessaire. Et un `sed` sur le dump ne peut pas faire ce travail — une chaîne
+sérialisée porte sa longueur (`s:29:"..."`), que le remplacement texte ne met
+pas à jour, et PHP jette alors la valeur **en silence**.
+
+**Retenu à la place** : WordPress reste sur `backontrackstudio.be`, URL
+intactes, et un `.htaccess` décide lequel des deux sites Apache sert. Les deux
+cohabitent dans `vitrine/` et `wordpress/` ; **basculer, c'est déplacer un `#`**,
+sans toucher à la base, et c'est réversible en dix secondes. Bénéfice
+secondaire : les coachs jugent l'ancien site à sa vraie adresse, pas une copie
+sur un sous-domaine qui se comporterait autrement.
+
+- `serveur/htaccess-bascule-wordpress` — le commutateur
+- `docs/remettre-le-wordpress.md` — la procédure, avec l'étape 0 de
+  vérification et le retour en arrière à chaque étape
+
+**Rien n'a été exécuté sur le serveur** : Christian lance la procédure
+lui-même. La question ouverte est à l'étape 0 — **la base WordPress
+existe-t-elle encore ?** Les fichiers sans la base ne servent à rien. Le dump
+`wp-backontrack-20260831.sql.gz` la reconstruit au besoin.
+
+**À savoir avant de comparer les deux sites** : l'archive WordPress n'est pas en
+bon état — `/seance-dessai` est cassée (reCaptcha invalide), `/horaire` renvoie
+vers Technogym, et le délai d'annulation s'y contredit (12 h contre 24 h). Sans
+cette mise en garde, les coachs compareront la vitrine à un souvenir plutôt
+qu'au site réel.
+
+### Point de vigilance
+
+`./deploiement.sh prod-site` envoie vers `~/backontrackstudio.be/` et **non**
+vers `~/backontrackstudio.be/vitrine/`. Une fois le rangement fait, ce script
+doit être corrigé avant d'être relancé, sans quoi il écraserait le commutateur.
+`app.` et `jag.` ne sont pas concernés.
+
+---
+
 ## Sessions des 2026-08-29 et 30 — la production existe
 
 > Deux journées enchaînées. **v3.74.0**, une trentaine de commits poussés

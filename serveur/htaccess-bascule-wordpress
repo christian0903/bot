@@ -1,0 +1,128 @@
+# ============================================================================
+# La bascule WordPress <-> vitrine, sur backontrackstudio.be
+# ============================================================================
+#
+# Destination : ~/backontrackstudio.be/.htaccess
+#
+# POURQUOI CE FICHIER EXISTE
+#
+# Les coachs veulent revoir l'ancien site. Le reflexe serait de reinstaller
+# WordPress sur un sous-domaine — et c'est precisement ce qu'il ne faut pas
+# faire : les URL de WordPress sont ecrites EN BASE, y compris sous forme
+# serialisee dans les donnees Bricks. Les reecrire pour un sous-domaine, puis
+# les reecrire en sens inverse le jour de la bascule, c'est deux migrations de
+# base de donnees la ou aucune n'est necessaire.
+#
+# Ici, WordPress garde ses fichiers, sa base et ses URL INTACTES, sur son
+# domaine d'origine. Ce fichier decide seulement lequel des deux sites Apache
+# doit servir. Basculer, c'est deplacer un `#` — rien d'autre, et c'est
+# reversible en dix secondes.
+#
+# CE QU'IL SUPPOSE, cote fichiers :
+#
+#   ~/backontrackstudio.be/           <- le dossier servi par Apache
+#     |- .htaccess                    <- CE fichier
+#     |- vitrine/                     <- le `dist/` de l'application React
+#     |- wordpress/                   <- les fichiers WordPress (wp-admin, ...)
+#
+# La mise en place est decrite dans docs/remettre-le-wordpress.md.
+#
+# ============================================================================
+# LE COMMUTATEUR — une seule des deux lignes doit etre active
+# ============================================================================
+#
+# `SITE_ACTIF` ne sert qu'a se relire : c'est la ligne `RewriteRule` du bloc
+# correspondant, plus bas, qui fait le travail.
+
+# --- Pour servir la VITRINE React (etat normal) -----------------------------
+SetEnv SITE_ACTIF vitrine
+
+# --- Pour servir le WORDPRESS (le temps de la relecture par les coachs) -----
+# SetEnv SITE_ACTIF wordpress
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # ==========================================================================
+  # BLOC VITRINE — actif tant que la ligne « RewriteRule ^ vitrine/ » ci-dessous
+  # n'est pas commentee.
+  # ==========================================================================
+
+  # Les fichiers reellement presents (assets, images, robots.txt) sont servis
+  # tels quels depuis `vitrine/`, sans passer par index.html.
+  RewriteCond %{DOCUMENT_ROOT}/vitrine%{REQUEST_URI} -f
+  RewriteRule ^(.*)$ vitrine/$1 [L]
+
+  # Un fichier statique absent doit repondre 404, pas index.html. Une icone
+  # manquante renvoyait la page d'accueil en 200 : iOS recevait du HTML la ou
+  # il attendait une image, et posait une icone generique sans rien signaler.
+  RewriteCond %{REQUEST_URI} \.(png|jpe?g|gif|webp|svg|ico|css|js|json|woff2?|ttf|map|txt|xml|md)$
+  RewriteRule ^ - [R=404,L]
+
+  # Tout le reste est une route React : c'est `index.html` qui repond.
+  #
+  # ===> POUR REMETTRE WORDPRESS : commenter la ligne qui suit. <===
+  RewriteRule ^ vitrine/index.html [QSA,L]
+
+  # ==========================================================================
+  # BLOC WORDPRESS — ce qui suit ne s'execute que si la ligne ci-dessus est
+  # commentee. C'est la regle de reecriture standard de WordPress, deplacee
+  # d'un cran dans `wordpress/`.
+  # ==========================================================================
+
+  RewriteRule ^index\.php$ - [L]
+
+  # Un fichier ou un dossier reellement present dans `wordpress/` est servi tel
+  # quel : c'est ce qui fait fonctionner wp-admin, les images de la
+  # mediatheque, et les fichiers des plugins.
+  RewriteCond %{DOCUMENT_ROOT}/wordpress%{REQUEST_URI} -f [OR]
+  RewriteCond %{DOCUMENT_ROOT}/wordpress%{REQUEST_URI} -d
+  RewriteRule ^(.*)$ wordpress/$1 [L]
+
+  # Tout le reste part vers l'index de WordPress, qui resout la page.
+  RewriteRule ^ wordpress/index.php [L]
+</IfModule>
+
+# ============================================================================
+# Ce qui suit vaut pour les deux sites
+# ============================================================================
+
+# Sans ceci, `/assets/` renvoie l'inventaire complet des fichiers construits.
+Options -Indexes
+
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+  AddType image/webp .webp
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Le service worker et le manifest ne portent pas de hash dans leur nom : mis
+  # en cache longtemps, ils figeraient l'application sur une version perimee
+  # chez le membre, sans aucun moyen de la corriger a distance.
+  <FilesMatch "^(sw\.js|manifest\.json|robots\.txt)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # Le WordPress affiche le planning de l'application dans un cadre : cette
+  # origine-ci doit donc rester autorisee a integrer `app.`, et reciproquement.
+  Header always set Content-Security-Policy "frame-ancestors 'self' https://backontrackstudio.be https://www.backontrackstudio.be"
+</IfModule>
