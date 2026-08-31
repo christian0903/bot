@@ -333,9 +333,9 @@ sur un sous-domaine qui se comporterait autrement.
   vérification et le retour en arrière à chaque étape
 
 **Rien n'a été exécuté sur le serveur** : Christian lance la procédure
-lui-même. La question ouverte est à l'étape 0 — **la base WordPress
-existe-t-elle encore ?** Les fichiers sans la base ne servent à rien. Le dump
-`wp-backontrack-20260831.sql.gz` la reconstruit au besoin.
+lui-même. **La base WordPress n'a pas été supprimée** — confirmé le jour même,
+ce qui lève la seule inconnue de la procédure. Le dump
+`wp-backontrack-20260831.sql.gz` reste le filet si elle venait à disparaître.
 
 **À savoir avant de comparer les deux sites** : l'archive WordPress n'est pas en
 bon état — `/seance-dessai` est cassée (reCaptcha invalide), `/horaire` renvoie

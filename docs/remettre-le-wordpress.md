@@ -41,7 +41,13 @@ différemment.
 
 ## Étape 0 — Vérifier avant de toucher
 
-Rien ne se déplace tant que ces trois réponses ne sont pas obtenues.
+> **Confirmé par Christian le 2026-08-31 : la base n'a pas été supprimée.**
+> Le cas « la base n'existe plus » ci-dessous ne devrait donc pas se présenter ;
+> il reste écrit parce que cette procédure servira encore dans plusieurs
+> semaines, quand ce ne sera plus frais.
+
+Un contrôle malgré tout, avant de déplacer quoi que ce soit — il coûte trente
+secondes et confirme que `siteurl` pointe bien encore vers le domaine d'origine.
 
 ```bash
 ssh -i ~/.ssh/o2switch vach5679@109.234.165.117
@@ -66,7 +72,7 @@ mysql -u LE_USER -p LA_BASE -e "SELECT option_name, option_value
 **Trois cas.**
 
 - **La requête répond `https://backontrackstudio.be`** → tout est intact,
-  continuer à l'étape 1. C'est le cas attendu.
+  continuer à l'étape 1. **C'est le cas attendu**, et celui qui est confirmé.
 - **La base n'existe plus** → la recréer dans cPanel, puis importer le dump :
   `zcat ~/wp-backontrack-20260831.sql.gz | mysql -u LE_USER -p LA_BASE`
   (le dump est aussi sur le Mac mini : `.dumps/wp-backontrack-20260831.sql.gz`).
