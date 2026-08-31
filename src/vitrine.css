@@ -1,0 +1,1141 @@
+/* ==========================================================================
+   Vitrine — la feuille de style du site public
+   ==========================================================================
+
+   TOUT le design de la vitrine tient dans ce fichier. Les pages ne portent que
+   du balisage et des noms de classe : pour changer une couleur, un espacement
+   ou une taille de titre, c'est ici, et nulle part ailleurs.
+
+   Les reglages sont regroupes en haut, dans `:root`. En pratique on ne modifie
+   que ces valeurs-la ; le reste du fichier s'y adapte tout seul.
+
+   Ce fichier est INDEPENDANT du design de l'application. La vitrine parle a
+   des visiteurs qui ne connaissent pas le studio, l'application a des membres
+   qui viennent reserver : les deux n'ont pas les memes besoins, et les lier
+   obligerait a arbitrer entre les deux a chaque retouche.
+
+   Il n'est charge que par les pages vitrine, jamais par l'application.
+   ========================================================================== */
+
+.vitrine {
+  /* ---- Couleurs ---------------------------------------------------------
+     `--v-accent` est LA couleur de la marque : boutons, liens, soulignes.
+     En changer une seule suffit a changer le ton du site.
+
+     Ce vert lime n'est pas un choix d'humeur : c'est la couleur `--primary`
+     du theme sombre de l'application, et c'est aussi celle des poignees
+     d'elastiques sur les photos du studio. La vitrine et l'application
+     parlent donc de la meme voix.                                         */
+  --v-accent: #c8f042;
+  --v-accent-sombre: #a8d022;
+  --v-accent-texte: #1a1f0d;
+
+  /* Le brun des lattes de bois du studio : c'est ce qu'on voit sur toutes
+     les photos, et ce qui donne au lieu son caractere chaleureux. */
+  --v-bois: #6b4f3a;
+
+  --v-encre: #14171a;
+  --v-encre-douce: #4a5158;
+  --v-fond: #ffffff;
+  --v-fond-alt: #f5f6f4;
+  --v-fond-sombre: #14171a;
+  --v-bordure: #e3e5e1;
+
+  /* ---- Rythme -----------------------------------------------------------
+     Une seule echelle d'espacements pour tout le site : c'est ce qui fait
+     qu'une page ressemble a la suivante sans qu'on ait a y penser.         */
+  --v-s1: 0.5rem;
+  --v-s2: 1rem;
+  --v-s3: 1.5rem;
+  --v-s4: 2.5rem;
+  --v-s5: 4rem;
+  --v-s6: 6rem;
+
+  --v-largeur: 1180px;
+  --v-rayon: 14px;
+  --v-rayon-l: 24px;
+
+  --v-ombre: 0 1px 3px rgb(20 23 26 / 6%), 0 8px 24px rgb(20 23 26 / 6%);
+  --v-ombre-forte: 0 4px 12px rgb(20 23 26 / 10%), 0 16px 48px rgb(20 23 26 / 10%);
+
+  /* ---- Texte ------------------------------------------------------------
+     Les titres sont fluides : `clamp()` les fait grandir avec l'ecran entre
+     une valeur mini et une maxi, sans qu'on ait a ecrire un seul point de
+     rupture. C'est ce qui evite les titres qui debordent sur iPhone.       */
+  --v-t-geant: clamp(2.5rem, 7vw, 4.5rem);
+  --v-t-grand: clamp(2rem, 4.5vw, 3rem);
+  --v-t-moyen: clamp(1.5rem, 3vw, 2rem);
+  --v-t-petit: 1.125rem;
+  --v-t-corps: 1.0625rem;
+  --v-t-menu: 0.9375rem;
+
+  --v-police: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+              Arial, sans-serif;
+
+  color: var(--v-encre);
+  background: var(--v-fond);
+  font-family: var(--v-police);
+  font-size: var(--v-t-corps);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* La vitrine s'affiche toujours en clair, meme si le visiteur a choisi le
+   theme sombre dans l'application : c'est une plaquette commerciale, dont les
+   photos et les contrastes sont regles pour un fond blanc. */
+.vitrine * { box-sizing: border-box; }
+
+/* --------------------------------------------------------------------------
+   Blocs de base
+   -------------------------------------------------------------------------- */
+
+.v-section {
+  padding: var(--v-s6) var(--v-s3);
+}
+
+.v-section--alt { background: var(--v-fond-alt); }
+
+.v-section--sombre {
+  background: var(--v-fond-sombre);
+  color: #fff;
+}
+
+.v-largeur {
+  max-width: var(--v-largeur);
+  margin-inline: auto;
+}
+
+.v-titre-section {
+  font-size: var(--v-t-grand);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--v-s2);
+  font-weight: 800;
+}
+
+.v-chapeau {
+  font-size: var(--v-t-petit);
+  color: var(--v-encre-douce);
+  max-width: 60ch;
+  margin: 0 0 var(--v-s4);
+}
+
+.v-section--sombre .v-chapeau { color: #b9c0c6; }
+
+/* --------------------------------------------------------------------------
+   Grilles
+
+   `auto-fit` + `minmax` remplacent les points de rupture : les cartes se
+   reorganisent d'elles-memes selon la place disponible. Une carte ne descend
+   jamais sous sa largeur minimale, et le nombre de colonnes suit l'ecran.
+   -------------------------------------------------------------------------- */
+
+.v-grille {
+  display: grid;
+  gap: var(--v-s3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+.v-grille--large {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+}
+
+/* --------------------------------------------------------------------------
+   Boutons
+   -------------------------------------------------------------------------- */
+
+.v-bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--v-s1);
+  padding: 0.85rem 1.6rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  font-size: var(--v-t-menu);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease,
+              border-color 0.15s ease, color 0.15s ease;
+  /* La cible tactile ne descend jamais sous 44 px : en dessous, un doigt
+     rate le bouton une fois sur trois. */
+  min-height: 44px;
+}
+
+.v-bouton:hover { transform: translateY(-1px); }
+.v-bouton:active { transform: translateY(0); }
+
+.v-bouton--plein {
+  background: var(--v-accent);
+  color: var(--v-accent-texte);
+}
+.v-bouton--plein:hover { background: var(--v-accent-sombre); }
+
+.v-bouton--ligne {
+  border-color: currentColor;
+  color: inherit;
+  background: transparent;
+}
+.v-bouton--ligne:hover {
+  background: var(--v-encre);
+  border-color: var(--v-encre);
+  color: #fff;
+}
+
+.v-section--sombre .v-bouton--ligne:hover {
+  background: #fff;
+  border-color: #fff;
+  color: var(--v-encre);
+}
+
+.v-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v-s2);
+}
+
+/* --------------------------------------------------------------------------
+   Cartes
+   -------------------------------------------------------------------------- */
+
+.v-carte {
+  background: var(--v-fond);
+  border: 1px solid var(--v-bordure);
+  border-radius: var(--v-rayon-l);
+  padding: var(--v-s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-s2);
+}
+
+.v-carte--photo { padding: 0; overflow: hidden; }
+
+.v-carte__image {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+  background: var(--v-fond-alt);
+}
+
+.v-carte__corps {
+  padding: var(--v-s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-s1);
+  flex: 1;
+}
+
+.v-carte__titre {
+  font-size: var(--v-t-moyen);
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.v-carte__texte {
+  color: var(--v-encre-douce);
+  margin: 0;
+  flex: 1;
+}
+
+/* --------------------------------------------------------------------------
+   En-tete et pied de page
+   -------------------------------------------------------------------------- */
+
+/* L'en-tete est SOMBRE, et ce n'est pas negociable : le logo du studio est
+   un aplat blanc sans contour. Sur fond clair, il disparait purement et
+   simplement. */
+.v-entete {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgb(20 23 26 / 92%);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.v-entete__barre {
+  max-width: var(--v-largeur);
+  margin-inline: auto;
+  padding: var(--v-s2) var(--v-s3);
+  display: flex;
+  align-items: center;
+  gap: var(--v-s3);
+}
+
+.v-entete__logo { display: flex; align-items: center; }
+.v-entete__logo img { height: 34px; width: auto; display: block; }
+
+.v-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--v-s3);
+  margin-left: auto;
+  /* Sans ce retrait, le bouton « Se connecter » touche le bord droit et se
+     fait rogner : la barre occupe toute la largeur du conteneur, et le bouton
+     depasse de son propre rayon. */
+  padding-right: var(--v-s1);
+}
+
+/* Le bouton du menu est plus compact que ceux du corps de page : a taille
+   pleine, il pousse les liens et deborde des 1180 px du conteneur.
+
+   La couleur du texte est reaffirmee ici parce que `.v-menu a` — plus
+   specifique que `.v-bouton--plein` — la remplacait par du blanc a 82 % :
+   du blanc sur le vert lime, illisible. Une regle de menu ne doit pas
+   deteindre sur un bouton qui se trouve etre un lien. */
+.v-menu .v-bouton--plein {
+  padding: 0.6rem 1.15rem;
+  min-height: 40px;
+  white-space: nowrap;
+  color: var(--v-accent-texte);
+}
+
+.v-menu .v-bouton--plein:hover {
+  color: var(--v-accent-texte);
+  background: var(--v-accent-sombre);
+}
+
+.v-menu a {
+  color: rgb(255 255 255 / 82%);
+  text-decoration: none;
+  font-size: var(--v-t-menu);
+  font-weight: 600;
+  padding: var(--v-s1) 0;
+}
+
+.v-menu a:hover { color: var(--v-accent); }
+.v-menu a[aria-current="page"] {
+  color: #fff;
+  box-shadow: inset 0 -2px 0 var(--v-accent);
+}
+
+/* Le menu se replie sous 860 px : en dessous, six entrees ne tiennent plus
+   sur une ligne sans se chevaucher. Le detail du repli est dans le composant
+   VitrineLayout, qui gere l'ouverture. */
+.v-menu--replie {
+  display: none;
+}
+
+/* Le bouton d'action de l'en-tete : masque sur grand ecran, ou il vit deja
+   dans le menu, et revele sous 860 px. */
+.v-entete__action {
+  display: none;
+  padding: 0.55rem 1rem;
+  min-height: 40px;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 860px) {
+  .v-menu { display: none; }
+  .v-menu--replie { display: flex; margin-left: auto; }
+
+  /* Le bouton « Se connecter » SORT du menu replie et reste visible en
+     permanence. C'est l'action que le site existe pour provoquer : la cacher
+     derriere deux gestes — ouvrir le menu, puis viser — coute des inscriptions
+     sur le seul appareil ou la majorite des visiteurs arrivent. */
+  .v-entete__action {
+    display: inline-flex;
+    margin-left: auto;
+  }
+
+  /* Il n'a donc plus rien a faire DANS le menu deplie, ou il ferait doublon. */
+  .v-menu.est-ouvert .v-bouton--plein { display: none; }
+
+  .v-menu.est-ouvert {
+    display: flex;
+    position: absolute;
+    inset: 100% 0 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: var(--v-fond-sombre);
+    border-bottom: 1px solid rgb(255 255 255 / 8%);
+    padding: var(--v-s2) var(--v-s3) var(--v-s3);
+    box-shadow: var(--v-ombre-forte);
+  }
+
+  .v-menu.est-ouvert a {
+    padding: var(--v-s2) 0;
+    border-bottom: 1px solid rgb(255 255 255 / 10%);
+  }
+
+  .v-menu.est-ouvert .v-bouton { margin-top: var(--v-s2); }
+}
+
+.v-bascule {
+  display: none;
+  background: none;
+  border: 0;
+  padding: var(--v-s1);
+  cursor: pointer;
+  color: #fff;
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 860px) { .v-bascule { display: inline-flex; } }
+
+.v-pied {
+  background: var(--v-fond-sombre);
+  color: #b9c0c6;
+  padding: var(--v-s5) var(--v-s3) var(--v-s3);
+}
+
+.v-pied a { color: #fff; text-decoration: none; }
+.v-pied a:hover { text-decoration: underline; }
+
+.v-pied__grille {
+  max-width: var(--v-largeur);
+  margin-inline: auto;
+  display: grid;
+  gap: var(--v-s4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+.v-pied__titre {
+  color: #fff;
+  font-size: var(--v-t-menu);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--v-s2);
+}
+
+.v-pied__liens {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-s1);
+}
+
+.v-pied__bas {
+  max-width: var(--v-largeur);
+  margin: var(--v-s4) auto 0;
+  padding-top: var(--v-s3);
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v-s2);
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+/* --------------------------------------------------------------------------
+   Accessibilite
+   -------------------------------------------------------------------------- */
+
+.vitrine :focus-visible {
+  outline: 3px solid var(--v-accent-sombre);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Un visiteur qui a demande a son systeme de reduire les animations ne doit
+   pas en subir ici : ce reglage existe souvent pour raison medicale. */
+@media (prefers-reduced-motion: reduce) {
+  .vitrine *,
+  .vitrine *::before,
+  .vitrine *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Le lien d'evitement : invisible jusqu'a ce qu'on l'atteigne au clavier.
+   C'est ce qui permet de sauter le menu pour aller droit au contenu. */
+.v-evitement {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--v-encre);
+  color: #fff;
+  padding: var(--v-s2) var(--v-s3);
+  z-index: 100;
+  border-radius: 0 0 var(--v-rayon) 0;
+}
+
+.v-evitement:focus {
+  left: 0;
+}
+
+/* ==========================================================================
+   Page d'accueil — OnePage
+   ==========================================================================
+   Les blocs qui suivent ne servent que la page d'accueil. Ils sont ici plutot
+   que dans un second fichier pour que TOUT le design du site reste a une seule
+   adresse : chercher ou l'on modifie une couleur ne doit jamais etre une
+   question.
+   ========================================================================== */
+
+/* ---- Le hero ------------------------------------------------------------
+   Une photo plein ecran, un voile sombre, le texte par-dessus. Le voile n'est
+   pas decoratif : sans lui, le texte blanc passe sur les zones claires de la
+   photo et devient illisible — c'est le defaut le plus courant des heros
+   photographiques. */
+.v-hero {
+  position: relative;
+  min-height: min(88vh, 780px);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background: var(--v-fond-sombre);
+}
+
+.v-hero__fond {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Le cadrage part du HAUT et non du centre. `cover` recadre pour remplir, et
+     centre par defaut : sur un ecran large, la photo se rogne alors en haut et
+     en bas, et il ne restait a l'ecran que les jambes et les pieds. En calant
+     sur le haut, on garde les visages et le buste — ce qu'on est venu voir. */
+  object-position: 50% 15%;
+  /* Le studio est photographie en lumiere chaude : desaturer legerement evite
+     que le vert lime de la marque se batte avec les bruns du bois. */
+  filter: saturate(0.85) contrast(1.05);
+}
+
+.v-hero__voile {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgb(10 12 14 / 92%) 0%,
+                            rgb(10 12 14 / 55%) 45%,
+                            rgb(10 12 14 / 35%) 100%);
+}
+
+.v-hero__contenu {
+  position: relative;
+  max-width: var(--v-largeur);
+  margin-inline: auto;
+  padding: var(--v-s6) var(--v-s3) var(--v-s5);
+  width: 100%;
+  color: #fff;
+}
+
+.v-hero__lieu {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v-s1);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--v-accent);
+  margin-bottom: var(--v-s2);
+}
+
+.v-hero__titre {
+  font-size: var(--v-t-geant);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  font-weight: 900;
+  margin: 0 0 var(--v-s3);
+  max-width: 16ch;
+  text-wrap: balance;
+}
+
+.v-hero__accroche {
+  font-size: clamp(1.0625rem, 2vw, 1.3125rem);
+  color: rgb(255 255 255 / 88%);
+  max-width: 46ch;
+  margin: 0 0 var(--v-s4);
+}
+
+/* ---- Le bandeau de chiffres --------------------------------------------
+   Ce qui distingue ce studio tient en trois nombres. Les poser juste sous le
+   hero repond a la question du visiteur avant qu'il ait a la formuler. */
+.v-chiffres {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--v-s3);
+  background: var(--v-fond-sombre);
+  color: #fff;
+  padding: var(--v-s4) var(--v-s3);
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+
+.v-chiffres__grille {
+  max-width: var(--v-largeur);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--v-s3);
+  width: 100%;
+}
+
+.v-chiffre__valeur {
+  font-size: clamp(2.25rem, 5vw, 3.25rem);
+  font-weight: 900;
+  line-height: 1;
+  color: var(--v-accent);
+  letter-spacing: -0.02em;
+}
+
+.v-chiffre__libelle {
+  color: rgb(255 255 255 / 70%);
+  font-size: 0.9375rem;
+  margin-top: var(--v-s1);
+}
+
+/* ---- Les arguments, en liste cochee ------------------------------------ */
+.v-arguments {
+  list-style: none;
+  padding: 0;
+  margin: var(--v-s3) 0 0;
+  display: grid;
+  gap: var(--v-s2);
+}
+
+.v-argument {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--v-s2);
+  align-items: start;
+}
+
+.v-argument__puce {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--v-accent);
+  color: var(--v-accent-texte);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ---- Le bloc « deux colonnes » : texte d'un cote, photo de l'autre ----- */
+.v-duo {
+  display: grid;
+  gap: var(--v-s5);
+  align-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+}
+
+.v-duo__image {
+  width: 100%;
+  border-radius: var(--v-rayon-l);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  box-shadow: var(--v-ombre-forte);
+}
+
+/* ---- Les formules ------------------------------------------------------ */
+.v-formule {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--v-rayon-l);
+  background: var(--v-fond);
+  border: 1px solid var(--v-bordure);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.v-formule:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--v-ombre-forte);
+}
+
+.v-formule__image {
+  aspect-ratio: 3 / 2;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.v-formule__corps {
+  padding: var(--v-s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-s2);
+  flex: 1;
+}
+
+.v-formule__lien {
+  margin-top: auto;
+  font-weight: 700;
+  color: var(--v-encre);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v-s1);
+}
+
+.v-formule__lien:hover { color: var(--v-accent-sombre); }
+
+/* ---- Les coachs -------------------------------------------------------- */
+.v-coach {
+  text-align: left;
+}
+
+.v-coach__photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: var(--v-rayon-l);
+  margin-bottom: var(--v-s2);
+  background: var(--v-fond-alt);
+}
+
+.v-coach__nom {
+  font-size: var(--v-t-moyen);
+  font-weight: 800;
+  margin: 0 0 var(--v-s1);
+}
+
+.v-coach__objectif {
+  border-left: 3px solid var(--v-accent);
+  padding-left: var(--v-s2);
+  margin-top: var(--v-s2);
+  font-style: italic;
+  color: var(--v-encre-douce);
+}
+
+.v-section--sombre .v-coach__objectif { color: #b9c0c6; }
+
+/* ---- Les cours, en pastilles ------------------------------------------- */
+.v-cours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v-s2);
+  margin-top: var(--v-s3);
+}
+
+.v-cours__pastille {
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--v-bordure);
+  background: var(--v-fond);
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+.v-section--sombre .v-cours__pastille {
+  background: rgb(255 255 255 / 6%);
+  border-color: rgb(255 255 255 / 14%);
+  color: #fff;
+}
+
+/* ---- L'appel final ----------------------------------------------------- */
+.v-appel {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--v-rayon-l);
+  padding: var(--v-s5) var(--v-s4);
+  text-align: center;
+  background: var(--v-fond-sombre);
+  color: #fff;
+}
+
+.v-appel__titre {
+  font-size: var(--v-t-grand);
+  font-weight: 900;
+  line-height: 1.1;
+  margin: 0 0 var(--v-s2);
+  text-wrap: balance;
+}
+
+.v-appel__texte {
+  color: rgb(255 255 255 / 78%);
+  max-width: 52ch;
+  margin: 0 auto var(--v-s4);
+}
+
+.v-appel .v-boutons { justify-content: center; }
+
+/* ---- La fenetre de detail d'un cours ------------------------------------
+   Construite sur l'element `<dialog>` du navigateur plutot que sur un
+   empilement de `div` : il apporte gratuitement le fond assombri, le piege du
+   focus au clavier, la fermeture par Echap et le retour du focus au bouton
+   d'ou l'on vient. Tout cela demanderait cent lignes de JavaScript a refaire,
+   et serait refait moins bien. */
+.v-modale {
+  border: 0;
+  padding: 0;
+  border-radius: var(--v-rayon-l);
+  max-width: min(560px, calc(100vw - 2rem));
+  width: 100%;
+  background: var(--v-fond);
+  color: var(--v-encre);
+  box-shadow: var(--v-ombre-forte);
+  /* `<dialog>` s'ouvre centre horizontalement mais colle en haut : cette
+     marge automatique le centre aussi verticalement. */
+  margin: auto;
+}
+
+.v-modale::backdrop {
+  background: rgb(10 12 14 / 72%);
+  backdrop-filter: blur(3px);
+}
+
+.v-modale__image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+  background: var(--v-fond-alt);
+}
+
+.v-modale__corps {
+  padding: var(--v-s4) var(--v-s3) var(--v-s3);
+}
+
+.v-modale__categorie {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--v-accent-sombre);
+  margin: 0 0 var(--v-s1);
+}
+
+.v-modale__titre {
+  font-size: var(--v-t-moyen);
+  font-weight: 900;
+  margin: 0 0 var(--v-s2);
+  line-height: 1.15;
+}
+
+.v-modale__texte {
+  color: var(--v-encre-douce);
+  margin: 0 0 var(--v-s3);
+}
+
+.v-modale__fermer {
+  position: absolute;
+  top: var(--v-s2);
+  right: var(--v-s2);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 0;
+  background: rgb(10 12 14 / 55%);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.v-modale__fermer:hover { background: rgb(10 12 14 / 80%); }
+
+/* Les pastilles deviennent cliquables : elles doivent donc le montrer. */
+button.v-cours__pastille {
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+              color 0.15s ease, transform 0.15s ease;
+}
+
+button.v-cours__pastille:hover {
+  transform: translateY(-2px);
+  border-color: var(--v-accent);
+  color: var(--v-accent);
+}
+
+/* Le defilement vers une ancre s'arrete SOUS l'en-tete collant, qui masquerait
+   sinon le titre de la section vers laquelle on vient de sauter. La valeur
+   couvre la hauteur de la barre plus un peu d'air. */
+.vitrine [id] { scroll-margin-top: 84px; }
+
+/* Et il glisse plutot qu'il ne saute — sauf pour qui a demande a son systeme
+   de reduire les animations, ou la regle `prefers-reduced-motion` plus haut
+   remet `scroll-behavior: auto`. */
+html { scroll-behavior: smooth; }
+
+/* ---- Les tarifs --------------------------------------------------------- */
+.v-tarifs__famille {
+  font-size: var(--v-t-moyen);
+  font-weight: 800;
+  margin: 0 0 var(--v-s3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--v-s2);
+}
+
+.v-tarifs__famille span {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--v-encre-douce);
+}
+
+.v-tarif {
+  background: var(--v-fond);
+  border: 1px solid var(--v-bordure);
+  border-radius: var(--v-rayon-l);
+  padding: var(--v-s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-s1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.v-tarif:hover {
+  transform: translateY(-4px);
+  border-color: var(--v-accent);
+  box-shadow: var(--v-ombre-forte);
+}
+
+.v-tarif__nom {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--v-encre-douce);
+}
+
+.v-tarif__prix {
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: var(--v-s1) 0 0;
+}
+
+.v-tarif__unite {
+  color: var(--v-encre-douce);
+  font-size: 0.9375rem;
+  margin: 0 0 var(--v-s2);
+}
+
+.v-tarif__details {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--v-s3);
+  /* Pousse le bouton en bas : sans cela, les boutons de cartes de hauteurs
+     differentes ne s'alignent pas, et la grille parait bancale. */
+  flex: 1;
+  display: grid;
+  gap: var(--v-s1);
+  font-size: 0.9375rem;
+  color: var(--v-encre-douce);
+}
+
+.v-tarif__details li {
+  padding-left: 1.1rem;
+  position: relative;
+}
+
+.v-tarif__details li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--v-accent);
+}
+
+.v-tarifs__notes {
+  border-top: 1px solid var(--v-bordure);
+  padding-top: var(--v-s3);
+  display: grid;
+  gap: var(--v-s2);
+  font-size: 0.9375rem;
+  color: var(--v-encre-douce);
+  max-width: 76ch;
+}
+
+.v-tarifs__notes p { margin: 0; }
+.v-tarifs__notes strong { color: var(--v-encre); }
+
+/* ---- La FAQ -------------------------------------------------------------
+   Batie sur `<details>`, pas sur un accordeon en JavaScript : le navigateur
+   gere l'ouverture, la fermeture et le clavier, et le texte reste trouvable
+   avec Ctrl+F meme replie — ce qu'un accordeon maison casse presque toujours. */
+.v-faq {
+  display: grid;
+  gap: var(--v-s1);
+  max-width: 78ch;
+}
+
+.v-faq__item {
+  border: 1px solid var(--v-bordure);
+  border-radius: var(--v-rayon);
+  background: var(--v-fond);
+  overflow: hidden;
+}
+
+.v-faq__item[open] { border-color: var(--v-accent); }
+
+.v-faq__question {
+  padding: var(--v-s2) var(--v-s3);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--v-s2);
+  min-height: 56px;
+}
+
+/* Le triangle par defaut de `<details>` ne se met pas en forme : on le retire
+   des deux facons qui existent, puis on dessine le signe soi-meme. */
+.v-faq__question::-webkit-details-marker { display: none; }
+.v-faq__question::marker { content: ''; }
+
+.v-faq__question::after {
+  content: '+';
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--v-accent-sombre);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.v-faq__item[open] .v-faq__question::after {
+  content: '−';
+}
+
+.v-faq__question:hover { color: var(--v-accent-sombre); }
+
+.v-faq__reponse {
+  padding: 0 var(--v-s3) var(--v-s3);
+  color: var(--v-encre-douce);
+}
+
+.v-chapeau a {
+  color: var(--v-encre);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--v-accent);
+  text-decoration-thickness: 2px;
+}
+
+.v-chapeau a:hover { color: var(--v-accent-sombre); }
+
+/* ---- La page contact ---------------------------------------------------- */
+.v-contact {
+  display: grid;
+  gap: var(--v-s5);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: start;
+}
+
+.v-contact__titre {
+  font-size: var(--v-t-moyen);
+  font-weight: 800;
+  margin: 0 0 var(--v-s3);
+}
+
+.v-contact__ligne {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--v-s2);
+  align-items: start;
+  padding: var(--v-s2) 0;
+  border-bottom: 1px solid var(--v-bordure);
+  color: var(--v-encre);
+  text-decoration: none;
+}
+
+.v-contact__ligne:hover { color: var(--v-accent-sombre); }
+.v-contact__ligne svg { margin-top: 3px; color: var(--v-accent-sombre); }
+
+.v-contact__essai {
+  margin-top: var(--v-s4);
+  padding: var(--v-s3);
+  border-radius: var(--v-rayon-l);
+  background: var(--v-fond-alt);
+}
+
+.v-contact__essai p { margin: 0 0 var(--v-s3); }
+
+.v-contact__formulaire {
+  background: var(--v-fond);
+  border: 1px solid var(--v-bordure);
+  border-radius: var(--v-rayon-l);
+  padding: var(--v-s4) var(--v-s3);
+}
+
+.v-champ {
+  display: grid;
+  gap: var(--v-s1);
+  margin-bottom: var(--v-s3);
+}
+
+.v-champ > span {
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+.v-champ em {
+  color: var(--v-accent-sombre);
+  font-style: normal;
+}
+
+.v-champ input,
+.v-champ textarea {
+  font-family: inherit;
+  /* 16 px au minimum : en dessous, iOS zoome automatiquement a la mise au point
+     et le formulaire deborde de l'ecran. */
+  font-size: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--v-bordure);
+  border-radius: var(--v-rayon);
+  background: var(--v-fond);
+  color: var(--v-encre);
+  width: 100%;
+  resize: vertical;
+}
+
+.v-champ input:focus,
+.v-champ textarea:focus {
+  outline: 2px solid var(--v-accent-sombre);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+/* Le champ-piege : hors de l'ecran plutot que `display: none`, que certains
+   robots savent detecter et contourner. */
+.v-piege {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.v-contact__erreur {
+  color: #b3261e;
+  background: #fdecea;
+  border-radius: var(--v-rayon);
+  padding: var(--v-s2);
+  margin: 0 0 var(--v-s2);
+  font-size: 0.9375rem;
+}
+
+.v-contact__mention {
+  font-size: 0.875rem;
+  color: var(--v-encre-douce);
+  margin: var(--v-s2) 0 0;
+}
+
+.v-contact__succes {
+  text-align: center;
+  padding: var(--v-s4) var(--v-s2);
+}
+
+.v-contact__succes .v-argument__puce {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto var(--v-s2);
+}

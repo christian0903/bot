@@ -1,0 +1,95 @@
+# ============================================================================
+# Vitrine — site.backontrackstudio.be
+#
+# Repris du .htaccess de app., dont il partage l'essentiel : meme application
+# construite, memes contraintes de cache et de types MIME.
+#
+# Ce fichier vit sur le SERVEUR et n'est jamais ecrase par un deploiement :
+# `deploiement.sh` l'exclut explicitement du rsync. Le modifier ici est donc
+# sans effet tant qu'on ne le recopie pas sur le serveur.
+#
+# Le jour de la bascule sur backontrackstudio.be, ce fichier sera repris tel
+# quel, PLUS les redirections 301 des anciennes URL WordPress.
+# ============================================================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Ne pas réécrire les fichiers et dossiers existants
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+
+  # Un fichier statique absent doit répondre 404, pas index.html. Une icône
+  # manquante renvoyait la page d'accueil en 200 : iOS recevait du HTML là où il
+  # attendait une image, et posait une icône générique sans rien signaler.
+  RewriteCond %{REQUEST_URI} !\.(png|jpe?g|gif|webp|svg|ico|css|js|json|woff2?|ttf|map|txt|xml|md)$
+
+  # Rediriger tout vers index.html (SPA routing)
+  RewriteRule ^ index.html [QSA,L]
+</IfModule>
+
+# Types MIME : sans en-tête correct, un navigateur peut refuser le manifest.
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+  AddType image/webp .webp
+</IfModule>
+
+# Compression gzip
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+# Cache des assets (fichiers avec hash dans le nom)
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# Le service worker et le manifest ne portent pas de hash dans leur nom : mis en
+# cache longtemps, ils figeraient le site sur une version périmée chez le
+# visiteur, sans aucun moyen de la corriger à distance.
+#
+# `robots.txt` est ici pour une raison propre à la vitrine : il dit
+# « Disallow » pendant la démonstration et « Allow » après la bascule. Un cache
+# d'un an sur ce fichier laisserait le site désindexé longtemps après qu'on ait
+# ouvert l'indexation — sans le moindre signal.
+<IfModule mod_headers.c>
+  <FilesMatch "^(sw\.js|manifest\.json|robots\.txt)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# Sécurité
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # La vitrine n'a aucune raison d'être affichée dans un cadre : elle ne
+  # contient ni formulaire de connexion ni action authentifiée, mais l'y
+  # autoriser sans besoin serait offrir une surface pour rien.
+  #
+  # C'est la différence avec app., qui doit rester intégrable parce que le
+  # site WordPress y affiche le planning en iframe. Cette contrainte disparaît
+  # ici : le planning est une page de la vitrine, pas un cadre.
+  Header always set Content-Security-Policy "frame-ancestors 'self'"
+
+  # Pendant la démonstration, une ceinture de plus que robots.txt : cet en-tête
+  # est respecté même si le fichier n'est pas lu, et il vaut pour une page
+  # atteinte par un lien direct. À RETIRER le jour de la bascule.
+  Header set X-Robots-Tag "noindex, nofollow"
+</IfModule>
+
+# Le listage automatique des dossiers : Apache l'active par defaut, et
+# `/assets/` renvoyait donc l'inventaire complet des fichiers construits.
+# Ce ne sont pas des donnees — un visiteur les telecharge de toute facon —
+# mais la liste nomme chaque page de l'administration et chaque module, ce qui
+# renseigne gratuitement sur la structure de l'application.
+Options -Indexes

@@ -56,12 +56,27 @@ case "$CIBLE" in
        DOMAINE='jag.backontrackstudio.be'; ROLE='base de TEST' ;;
   ops) FICHIER='.env.ops'; REF_ATTENDUE="$REF_OPS"; REF_INTERDITE="$REF_JAG"
        DOMAINE='app.backontrackstudio.be'; ROLE='PRODUCTION' ;;
+  # La vitrine lit la base de production — le planning et les tarifs qu'elle
+  # affiche sont les vrais. Elle n'ecrit rien.
+  #
+  # Tant que les coachs n'ont pas tranche, elle se deploie sur `site.` et le
+  # WordPress reste en place sur le domaine principal. Le jour de la bascule,
+  # une seule ligne change : DOMAINE devient 'backontrackstudio.be'.
+  site) FICHIER='.env.site'; REF_ATTENDUE="$REF_OPS"; REF_INTERDITE="$REF_JAG"
+       DOMAINE='site.backontrackstudio.be'; ROLE='vitrine (demonstration)' ;;
+  # Le domaine principal, en remplacement du WordPress. Difference avec `site` :
+  # l'indexation est OUVERTE (VITE_VITRINE_PUBLIQUE=oui), et le `.htaccess` du
+  # serveur porte les redirections 301 des anciennes URL.
+  prod-site) FICHIER='.env.prod-site'; REF_ATTENDUE="$REF_OPS"; REF_INTERDITE="$REF_JAG"
+       DOMAINE='backontrackstudio.be'; ROLE='VITRINE PUBLIQUE' ;;
   *)
     echo
-    echo "${GRAS}Usage :${RAZ} ./deploiement.sh [jag|ops]"
+    echo "${GRAS}Usage :${RAZ} ./deploiement.sh [jag|ops|site|prod-site]"
     echo
     echo "  jag   base de test    -> jag.backontrackstudio.be"
     echo "  ops   PRODUCTION      -> app.backontrackstudio.be"
+    echo "  site  vitrine (demo)  -> site.backontrackstudio.be"
+    echo "  prod-site  VITRINE    -> backontrackstudio.be"
     echo
     exit 1 ;;
 esac
@@ -137,7 +152,24 @@ fi
 # `ops` l'affiche. Le controler evite de mettre en ligne une production qui
 # s'annonce comme un environnement de test — ou l'inverse, plus grave.
 BASE=$(grep '^VITE_BASE=' "$FICHIER" | cut -d= -f2)
-if [[ "$CIBLE" == "ops" && "$BASE" != "ops" ]]; then
+if [[ "$CIBLE" == "site" || "$CIBLE" == "prod-site" ]]; then
+  # La vitrine n'a pas de bandeau : il vit dans le layout de l'application, et
+  # la vitrine a le sien. En revanche, c'est `VITE_VITRINE` qui decide de ce que
+  # sert la racine — sans lui, `site.` afficherait l'application. Le controler
+  # ici evite de mettre en ligne une vitrine qui n'en est pas une.
+  if [[ "$(grep '^VITE_VITRINE=' "$FICHIER" | cut -d= -f2)" != "oui" ]]; then
+    echec "VITE_VITRINE n'est pas a 'oui' dans $FICHIER."
+    info "Sans lui, $DOMAINE servirait l'application au lieu de la vitrine."
+    exit 1
+  fi
+  if ! grep -q 'VITE_VITRINE' dist/assets/*.js 2>/dev/null && \
+     ! grep -qi 'v-entete\|v-titre-section' dist/assets/*.css 2>/dev/null; then
+    echec "dist/ ne porte aucune trace de la vitrine."
+    info "Le build n'a pas pris .env.site — ne pas envoyer."
+    exit 1
+  fi
+  ok "vitrine : la racine sert le site public"
+elif [[ "$CIBLE" == "ops" && "$BASE" != "ops" ]]; then
   alerte "VITE_BASE=$BASE : le bandeau « base de test » s'affichera en PRODUCTION"
 elif [[ "$CIBLE" == "jag" && "$BASE" == "ops" ]]; then
   echec "VITE_BASE=ops sur la base de test : aucun bandeau n'avertira."
@@ -158,7 +190,7 @@ fi
 # Un dernier mot avant d'ecrire sur la production. `--delete` efface sur le
 # serveur ce qui n'est pas dans dist/ : c'est voulu pour un site construit,
 # mais le dossier vise doit etre le bon.
-if [[ "$CIBLE" == "ops" ]]; then
+if [[ "$CIBLE" == "ops" || "$CIBLE" == "prod-site" ]]; then
   echo "  ${ROUGE}${GRAS}Cible : PRODUCTION ($DOMAINE)${RAZ}"
   read -rp "  taper OUI pour envoyer : " REPONSE
   [[ "$REPONSE" == "OUI" ]] || { info "envoi annule — dist/ reste pret."; exit 0; }

@@ -34,7 +34,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TYPE user_role AS ENUM ('admin', 'coach', 'client', 'super_admin');
 
 CREATE TYPE activity_action AS ENUM (
-  'pack_purchased', 'pack_assigned', 'pack_modified',
+  'pack_purchased', 'pack_assigned', 'pack_modified', 'pack_removed',
   'booking_created', 'booking_cancelled', 'booking_assigned',
   'role_changed', 'waitlist_joined', 'waitlist_promoted',
   'user_created', 'signup_attempt', 'registration_fee_paid', 'user_login',
@@ -1493,6 +1493,69 @@ BEGIN
   );
 END;
 $fn$;
+
+-- Retirer la séance d'essai d'un membre, depuis sa fiche (espace admin).
+-- Un essai intact est supprimé ; un essai déjà utilisé est vidé et périmé —
+-- `bookings.pack_purchase_id` le référence sans ON DELETE, et l'effacer
+-- détacherait la réservation de ce qui l'a payée.
+
+CREATE OR REPLACE FUNCTION retirer_pack_essai(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_pack       RECORD;
+  v_utilise    INTEGER;
+  v_supprimes  INTEGER := 0;
+  v_neutralises INTEGER := 0;
+BEGIN
+  -- Réservé au staff : le membre ne retire pas sa propre séance d'essai, et
+  -- surtout ne retire pas celle d'un autre.
+  IF NOT (has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin')) THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'forbidden');
+  END IF;
+
+  FOR v_pack IN
+    SELECT pp.id, pp.credits_remaining
+      FROM pack_purchases pp
+      JOIN pack_types pt ON pt.id = pp.pack_type_id
+     WHERE pp.user_id = p_user_id AND pt.is_trial
+  LOOP
+    SELECT count(*) INTO v_utilise
+      FROM (
+        SELECT 1 FROM bookings WHERE pack_purchase_id = v_pack.id
+        UNION ALL
+        SELECT 1 FROM invoice_requests WHERE pack_purchase_id = v_pack.id
+      ) AS traces;
+
+    IF v_utilise = 0 THEN
+      DELETE FROM pack_purchases WHERE id = v_pack.id;
+      v_supprimes := v_supprimes + 1;
+    ELSE
+      UPDATE pack_purchases
+         SET credits_remaining = 0,
+             expires_at = LEAST(expires_at, NOW())
+       WHERE id = v_pack.id;
+      v_neutralises := v_neutralises + 1;
+    END IF;
+  END LOOP;
+
+  IF v_supprimes = 0 AND v_neutralises = 0 THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'aucun_essai');
+  END IF;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'supprimes', v_supprimes,
+    'neutralises', v_neutralises
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION retirer_pack_essai(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION retirer_pack_essai(UUID) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.grant_trial_on_profile_create()
 RETURNS TRIGGER
@@ -5269,6 +5332,66 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
+
+-- ============================================
+-- FORMULAIRE DE CONTACT — limitation du débit
+-- ============================================
+-- Le site vitrine expose un formulaire ouvert, sans authentification. Sa
+-- protection anti-abus a besoin d'un compteur PARTAGÉ : la première version
+-- comptait en mémoire de l'Edge Function, et dix envois consécutifs sont
+-- passés sans être refusés — Supabase répartit les requêtes sur plusieurs
+-- instances, chacune repartant de zéro.
+
+CREATE TABLE IF NOT EXISTS contact_envois (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Donnée personnelle au sens du RGPD : d'où la purge automatique ci-dessous.
+  ip TEXT NOT NULL,
+  envoye_le TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_contact_envois_ip_date
+  ON contact_envois (ip, envoye_le DESC);
+
+-- Aucune policy : seule la clé de service accède à cette table, et RLS activé
+-- sans policy refuse tout le monde d'autre. C'est l'effet recherché.
+ALTER TABLE contact_envois ENABLE ROW LEVEL SECURITY;
+
+-- Compte, enregistre et tranche en un seul aller-retour : deux requêtes
+-- séparées laisseraient passer deux envois simultanés.
+CREATE OR REPLACE FUNCTION contact_debit_depasse(
+  p_ip TEXT,
+  p_max INTEGER DEFAULT 5,
+  p_fenetre INTERVAL DEFAULT INTERVAL '1 hour'
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_recents INTEGER;
+BEGIN
+  SELECT count(*) INTO v_recents
+  FROM contact_envois
+  WHERE ip = p_ip AND envoye_le > now() - p_fenetre;
+
+  IF v_recents >= p_max THEN
+    RETURN TRUE;
+  END IF;
+
+  INSERT INTO contact_envois (ip) VALUES (p_ip);
+
+  -- Purge opportuniste, une fois sur vingt environ : les IP ne sont pas
+  -- conservées au-delà de ce que la protection exige.
+  IF random() < 0.05 THEN
+    DELETE FROM contact_envois WHERE envoye_le < now() - INTERVAL '24 hours';
+  END IF;
+
+  RETURN FALSE;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION contact_debit_depasse(TEXT, INTEGER, INTERVAL) FROM PUBLIC, anon, authenticated;
 
 -- ============================================
 -- INSTALLATION TERMINÉE

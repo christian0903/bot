@@ -68,6 +68,24 @@ const AdminExportsPage = lazy(() => import('@/pages/admin/AdminExportsPage').the
 const AdminDiagnosticPage = lazy(() => import('@/pages/admin/AdminDiagnosticPage').then(m => ({ default: m.AdminDiagnosticPage })))
 const PlanningPublicPage = lazy(() => import('@/pages/PlanningPublicPage').then(m => ({ default: m.PlanningPublicPage })))
 
+// Vitrine (lazy) — le site public. Tout est en chargement differe, y compris
+// le layout et sa feuille de style : sur `app.`, personne ne visite ces routes,
+// donc rien de tout cela n'est jamais telecharge. L'application ne s'alourdit
+// pas d'un octet de la vitrine, et reciproquement.
+const VitrineLayout = lazy(() => import('@/components/vitrine/VitrineLayout').then(m => ({ default: m.VitrineLayout })))
+const VitrineAccueilPage = lazy(() => import('@/pages/vitrine/VitrineAccueilPage').then(m => ({ default: m.VitrineAccueilPage })))
+const VitrineContactPage = lazy(() => import('@/pages/vitrine/VitrineContactPage').then(m => ({ default: m.VitrineContactPage })))
+
+// Ce que sert la racine `/` depend du domaine, et de rien d'autre.
+//
+//   backontrackstudio.be  -> la vitrine       (VITE_VITRINE=oui)
+//   app.backontrackstudio.be -> l'application (variable absente)
+//
+// Le meme `dist/` part aux deux endroits : c'est le `.env` de la cible qui
+// tranche, comme il tranche deja la base de donnees visee. On ne maintient
+// donc qu'une seule construction.
+const MODE_VITRINE = import.meta.env.VITE_VITRINE === 'oui'
+
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>
 }
@@ -85,9 +103,28 @@ function App() {
                     public, qui a deja son menu et son pied de page. Les
                     empiler en ferait deux l'un sous l'autre. */}
                 <Route path="/planning-public" element={<Lazy><PlanningPublicPage /></Lazy>} />
+
+                {/* Vitrine : son propre layout, en-tete et pied de page
+                    compris. Ces routes existent sur les deux domaines mais ne
+                    sont liees que depuis la vitrine — sur `app.`, personne n'y
+                    arrive, et leur code n'est donc jamais telecharge. */}
+                {MODE_VITRINE && (
+                  <Route element={<Lazy><VitrineLayout /></Lazy>}>
+                    <Route path="/" element={<Lazy><VitrineAccueilPage /></Lazy>} />
+                    <Route path="/contact" element={<Lazy><VitrineContactPage /></Lazy>} />
+                    {/* Le planning reel, dans l'ossature de la vitrine. La page
+                        est celle que le site WordPress affichait deja en
+                        iframe : elle n'a plus a l'etre, elle est chez elle. */}
+                    <Route path="/planning" element={<Lazy><PlanningPublicPage /></Lazy>} />
+                  </Route>
+                )}
+
                 <Route element={<Layout />}>
                   {/* Public */}
-                  <Route path="/" element={<HomePage />} />
+                  {/* Sur le domaine vitrine, `/` est pris par la page d'accueil
+                      du studio, declaree plus haut : React Router retient la
+                      premiere route qui correspond. */}
+                  {!MODE_VITRINE && <Route path="/" element={<HomePage />} />}
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
                   <Route path="/auth/confirm" element={<ConfirmEmailPage />} />

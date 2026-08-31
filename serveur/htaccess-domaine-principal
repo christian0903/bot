@@ -1,0 +1,135 @@
+# ============================================================================
+# backontrackstudio.be — la vitrine, en remplacement du WordPress
+#
+# Repris de `htaccess-vitrine`, PLUS les redirections 301 des anciennes URL et
+# SANS le `X-Robots-Tag: noindex` qui protegeait la demonstration.
+#
+# Ce fichier vit sur le SERVEUR : `deploiement.sh` exclut `.htaccess` du rsync,
+# sinon `--delete` emporterait la configuration Apache a chaque envoi.
+# ============================================================================
+
+# ── Redirections des anciennes URL ──────────────────────────────────────────
+# Elles passent AVANT la reecriture SPA : sans cela, la regle qui renvoie tout
+# vers index.html les avalerait, et chaque ancienne adresse afficherait la page
+# d'accueil en 200 — Google n'y verrait aucun changement d'adresse, et le
+# referencement local sur « studio fitness Rixensart » se diluerait.
+#
+# 301 et non 302 : le deplacement est definitif, c'est ce qui transfere
+# l'anciennete acquise vers la nouvelle adresse.
+<IfModule mod_alias.c>
+  # Les pages qui portaient du contenu
+  Redirect 301 /tarifs                /#tarifs
+  Redirect 301 /cours-semi-prives     /#les-cours
+  Redirect 301 /horaire               /planning
+  Redirect 301 /seance-dessai         /contact
+
+  # Les mentions legales vivent desormais dans l'application, qui en est la
+  # source unique. `/rgpd` n'a pas d'equivalent : la politique de
+  # confidentialite la remplace, et l'ancienne page decrivait un traitement qui
+  # n'existe plus (Technogym responsable conjoint).
+  Redirect 301 /cgv                   https://app.backontrackstudio.be/cgv
+  Redirect 301 /rgpd                  https://app.backontrackstudio.be/confidentialite
+
+  # L'ancien espace membre, remplace par l'application. Ces trois pages
+  # existaient encore et faisaient doublon.
+  Redirect 301 /login                 https://app.backontrackstudio.be/auth
+  Redirect 301 /mon-compte            https://app.backontrackstudio.be/auth
+  Redirect 301 /mot-de-passe-oublie   https://app.backontrackstudio.be/auth
+  Redirect 301 /compte-client-3       https://app.backontrackstudio.be/auth
+  Redirect 301 /compte-client-4       https://app.backontrackstudio.be/auth
+
+  # Les articles decrivant un cours : leur contenu est dans la fenetre de
+  # detail du cours correspondant, sur la page d'accueil.
+  Redirect 301 /back-on-track         /#les-cours
+  Redirect 301 /ladies                /#les-cours
+  Redirect 301 /boxing                /#les-cours
+  Redirect 301 /crosstraining         /#les-cours
+  Redirect 301 /posture               /#les-cours
+  Redirect 301 /rush                  /#les-cours
+
+  # Les restes : doublons, essais et une annonce ponctuelle. Vers l'accueil,
+  # faute de mieux — mais une 301 vaut mieux qu'une 404 pour un lien qui
+  # traine encore quelque part.
+  Redirect 301 /roi                                       /
+  Redirect 301 /cours-semi-prives-copier-copier-copier    /#les-cours
+  Redirect 301 /merci-de-votre-participation              /
+  Redirect 301 /test                                      /
+  Redirect 301 /zdzdz                                     /
+
+  # Les adresses techniques de WordPress. Un robot qui cherche `/wp-admin`
+  # trouvera une 404 de toute facon ; ces deux-la sont redirigees parce
+  # qu'elles etaient publiques et indexees.
+  Redirect 301 /feed                  /
+  Redirect 301 /comments/feed         /
+</IfModule>
+
+# ── Reecriture SPA ──────────────────────────────────────────────────────────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Ne pas réécrire les fichiers et dossiers existants
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+
+  # Un fichier statique absent doit répondre 404, pas index.html. Une icône
+  # manquante renvoyait la page d'accueil en 200 : iOS recevait du HTML là où il
+  # attendait une image, et posait une icône générique sans rien signaler.
+  RewriteCond %{REQUEST_URI} !\.(png|jpe?g|gif|webp|svg|ico|css|js|json|woff2?|ttf|map|txt|xml|md)$
+
+  # Rediriger tout vers index.html (SPA routing)
+  RewriteRule ^ index.html [QSA,L]
+</IfModule>
+
+# Types MIME : sans en-tête correct, un navigateur peut refuser le manifest.
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+  AddType image/webp .webp
+</IfModule>
+
+# Compression gzip
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+# Cache des assets (fichiers avec hash dans le nom)
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# Le service worker et le manifest ne portent pas de hash dans leur nom : mis en
+# cache longtemps, ils figeraient le site sur une version périmée chez le
+# visiteur, sans aucun moyen de la corriger à distance.
+#
+# `robots.txt` est ici pour une raison propre a la vitrine : il a dit
+# « Disallow » pendant toute la demonstration. Un cache d'un an le laisserait
+# repeter ce refus longtemps apres l'ouverture de l'indexation.
+<IfModule mod_headers.c>
+  <FilesMatch "^(sw\.js|manifest\.json|robots\.txt)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# Sécurité
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # La vitrine n'a aucune raison d'être affichée dans un cadre.
+  Header always set Content-Security-Policy "frame-ancestors 'self'"
+
+  # PAS de X-Robots-Tag ici : c'est tout l'objet de la bascule. Le site doit
+  # etre indexe, et `robots.txt` dit desormais « Allow ».
+</IfModule>
+
+# Le listage automatique des dossiers : Apache l'active par defaut, et
+# `/assets/` renvoyait donc l'inventaire complet des fichiers construits.
+Options -Indexes
