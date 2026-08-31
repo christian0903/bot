@@ -955,8 +955,8 @@
   filter: saturate(0.85) contrast(1.05);
 }
 
-/* ---- Les cours, version « page cours semi-prives » -----------------------
-   La grille de la page `/cours-2`, reprise de celle du WordPress : trois
+/* ---- Les cours ----------------------------------------------------------
+   La grille de `/cours`, reprise de celle du WordPress : trois
    colonnes, chaque carte portant sa photo en haut, puis le nom, une pastille
    de couleur et le texte.
 
