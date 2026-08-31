@@ -36,6 +36,7 @@ const ACTION_CONFIG: Record<string, { icon: typeof Gift; color: string; label_fr
   pack_purchased: { icon: ShoppingBag, color: 'text-green-600 bg-green-50 dark:bg-green-950', label_fr: 'Achat pack', label_en: 'Pack purchased' },
   pack_assigned: { icon: Gift, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950', label_fr: 'Pack attribué', label_en: 'Pack assigned' },
   pack_modified: { icon: Pencil, color: 'text-orange-600 bg-orange-50 dark:bg-orange-950', label_fr: 'Pack modifié', label_en: 'Pack modified' },
+  pack_removed: { icon: Trash2, color: 'text-red-600 bg-red-50 dark:bg-red-950', label_fr: 'Pack retiré', label_en: 'Pack removed' },
   booking_created: { icon: CalendarDays, color: 'text-primary bg-primary/10', label_fr: 'Réservation', label_en: 'Booking' },
   booking_cancelled: { icon: X, color: 'text-destructive bg-destructive/10', label_fr: 'Annulation', label_en: 'Cancellation' },
   booking_assigned: { icon: UserCog, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950', label_fr: 'Inscription admin', label_en: 'Admin booking' },

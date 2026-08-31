@@ -603,6 +603,60 @@ export function AdminUserDetailPage() {
     fetchData()
   }, [id])
 
+  const [retraitEssaiSaving, setRetraitEssaiSaving] = useState(false)
+
+  /**
+   * Retire la séance d'essai d'un membre.
+   *
+   * Le réglage global arrête la distribution à venir ; il ne fait rien pour
+   * celles déjà accordées — et un membre repris de l'ancien système en a reçu
+   * une qu'il a consommée au studio depuis longtemps.
+   *
+   * Le serveur décide du sort exact : un essai intact est supprimé, un essai
+   * déjà utilisé est vidé et périmé. L'effacer détacherait sa réservation de
+   * ce qui l'a payée.
+   */
+  const handleRetirerEssai = async () => {
+    if (!id) return
+    setRetraitEssaiSaving(true)
+
+    const { data, error } = await supabase.rpc('retirer_pack_essai', { p_user_id: id })
+
+    if (error || !(data as { ok?: boolean })?.ok) {
+      const motif = (data as { reason?: string })?.reason
+      toast.error(
+        motif === 'aucun_essai'
+          ? (isFr ? "Ce membre n'a pas de séance d'essai." : 'This member has no trial session.')
+          : motif === 'forbidden'
+            ? (isFr ? "Vous n'avez pas le droit de faire cela." : 'You are not allowed to do this.')
+            : (error?.message ?? (isFr ? 'Le retrait a échoué.' : 'Removal failed.'))
+      )
+      setRetraitEssaiSaving(false)
+      return
+    }
+
+    const r = data as { supprimes: number; neutralises: number }
+    await logActivity({
+      action: 'pack_removed',
+      actor_id: currentUser?.id ?? null,
+      target_user_id: id,
+      entity_type: 'pack_purchase',
+      details: { supprimes: r.supprimes, neutralises: r.neutralises },
+      description: `Séance d'essai retirée à ${profile?.display_name}`,
+    })
+
+    toast.success(
+      r.neutralises > 0
+        ? (isFr
+            ? "Séance d'essai retirée. Elle avait déjà servi : la réservation reste, le crédit est à zéro."
+            : 'Trial removed. It had been used: the booking stays, credits set to zero.')
+        : (isFr ? "Séance d'essai retirée." : 'Trial session removed.')
+    )
+    setEditPackDialogOpen(false)
+    setRetraitEssaiSaving(false)
+    await fetchData()
+  }
+
   const openEditPack = (pack: PackPurchase) => {
     setEditingPack(pack)
     setEditCredits(pack.credits_remaining)
@@ -2628,6 +2682,36 @@ export function AdminUserDetailPage() {
                   )
                 })()}
               </div>
+            </div>
+          )}
+
+          {/* Retrait de la séance d'essai. Réservé au pack d'essai : les autres
+              packs ont été payés, on ne les fait pas disparaître d'un bouton. */}
+          {editingPack?.pack_type?.is_trial && (
+            <div className="rounded-lg border border-destructive/40 p-3 space-y-2">
+              <p className="text-sm font-medium">
+                {isFr ? "Retirer la séance d'essai" : 'Remove the trial session'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isFr
+                  ? "À utiliser pour un membre repris de l'ancien système : il a déjà eu son essai au studio."
+                  : 'Use this for a member carried over from the old system: they already had their trial at the studio.'}
+              </p>
+              {bookings.some(b => b.pack_purchase_id === editingPack.id) && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {isFr
+                    ? "Cet essai a déjà servi : la réservation ci-dessus est conservée, seul le crédit tombe à zéro."
+                    : 'This trial has been used: the booking above is kept, only the credit drops to zero.'}
+                </p>
+              )}
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={retraitEssaiSaving}
+                onClick={handleRetirerEssai}
+              >
+                {retraitEssaiSaving ? '...' : (isFr ? "Retirer l'essai" : 'Remove trial')}
+              </Button>
             </div>
           )}
 

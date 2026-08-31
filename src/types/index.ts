@@ -79,6 +79,8 @@ export interface PackType {
   validity_days: number
   /** Accès illimité : pas de décompte à la réservation, pas de recrédit à l'annulation. */
   is_unlimited: boolean
+  /** La séance d'essai offerte à l'inscription. Un seul pack la porte. */
+  is_trial: boolean
   /**
    * Plafond de cours sur une fenêtre glissante de `quota_days`, centrée sur la
    * séance visée. `null` = aucun plafond. Compté sur la DATE DES COURS.

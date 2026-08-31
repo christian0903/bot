@@ -4,6 +4,7 @@ type ActivityAction =
   | 'pack_purchased'
   | 'pack_assigned'
   | 'pack_modified'
+  | 'pack_removed'
   | 'booking_created'
   | 'booking_cancelled'
   | 'booking_assigned'

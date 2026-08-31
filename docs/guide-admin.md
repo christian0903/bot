@@ -86,6 +86,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 
 
 
+
 ## Où trouver quoi
 
 Tout passe par le **menu Administration**, dans la barre latérale à gauche (sur mobile, par le bouton menu en haut). Les entrées apparaissent dans cet ordre :
@@ -810,6 +811,31 @@ offertes.
 > **Ne pas oublier de réactiver.** Sans séance d'essai, un nouveau venu ne peut
 > plus essayer avant d'acheter — c'est votre premier argument commercial qui
 > disparaît. L'écran affiche un rappel tant que le réglage est éteint.
+
+#### Retirer une séance déjà accordée
+
+> **Où** : la fiche du membre, onglet **Packs**, cliquer sur la séance d'essai
+> puis **Retirer l'essai**.
+
+Le réglage ci-dessus arrête la distribution ; il ne touche pas aux séances
+**déjà données**. Pour un membre repris de l'ancien système qui en a reçu une
+avant que vous coupiez le robinet — alors qu'il a fait son essai au studio il y
+a deux ans — c'est ici que ça se corrige.
+
+Deux comportements, selon que la séance a servi ou non :
+
+| Situation | Ce qui se passe |
+|---|---|
+| L'essai n'a **pas** été réservé | Le pack disparaît, il ne reste rien |
+| L'essai **a déjà servi** | Le crédit tombe à zéro, **la réservation est conservée** |
+
+Le second cas mérite une explication : effacer un essai consommé détacherait sa
+séance de ce qui l'a payée. Elle resterait au planning sans qu'on sache d'où
+venait le crédit — une perte d'information, pas un nettoyage. L'écran vous
+prévient quand c'est le cas, et la réservation liée est affichée juste
+au-dessus du bouton.
+
+> Le retrait est tracé au journal d'activité.
 
 ### Fin d'abonnement et réservations
 
