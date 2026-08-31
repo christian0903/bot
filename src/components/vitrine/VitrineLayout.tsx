@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import '@/vitrine.css'
@@ -40,11 +40,43 @@ export function VitrineLayout() {
   // sur telephone, on cliquait un lien et le menu masquait la page d'arrivee.
   const fermer = () => setMenuOuvert(false)
 
+  /**
+   * La hauteur reelle de l'en-tete, reportee dans `--v-entete-hauteur`.
+   *
+   * L'en-tete est flottant (`position: absolute`) pour se poser par-dessus le
+   * hero, comme dans le WordPress : il ne pousse donc pas le contenu, et les
+   * pages sans hero doivent reserver sa place elles-memes.
+   *
+   * Une valeur ecrite en dur ne suffit pas : elle valait 78 px, mais l'en-tete
+   * en fait 109 des que le menu passe sur deux lignes. Le planning se
+   * retrouvait alors sous le menu — signale par Christian. On mesure donc, et
+   * on re-mesure a chaque changement de taille.
+   */
+  const entete = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const el = entete.current
+    if (!el) return
+
+    const mesurer = () => {
+      document.documentElement.style.setProperty(
+        '--v-entete-hauteur', `${Math.ceil(el.getBoundingClientRect().height)}px`,
+      )
+    }
+
+    mesurer()
+    // `ResizeObserver` plutot que l'evenement `resize` : la hauteur change
+    // aussi quand le menu se deplie, sans que la fenetre ne bouge.
+    const observateur = new ResizeObserver(mesurer)
+    observateur.observe(el)
+    return () => observateur.disconnect()
+  }, [])
+
   return (
     <div className="vitrine">
       <a className="v-evitement" href="#contenu">Aller au contenu</a>
 
-      <header className="v-entete">
+      <header className="v-entete" ref={entete}>
         <div className="v-entete__barre" style={{ position: 'relative' }}>
           <Link to="/" className="v-entete__logo" onClick={fermer}>
             <img

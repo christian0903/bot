@@ -22,6 +22,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Back on Track" />
 
+    <!-- La vitrine ouvre sur une video YouTube. Ces deux lignes font ouvrir la
+         connexion pendant que le navigateur lit encore la page, au lieu
+         d'attendre que l'iframe la demande : quelques centaines de
+         millisecondes gagnees sur son apparition, sans rien telecharger. -->
+    <link rel="preconnect" href="https://www.youtube-nocookie.com" />
+    <link rel="preconnect" href="https://i.ytimg.com" />
+
     <!-- Umami Analytics (RGPD-compliant, no cookies) -->
     <!-- Remplacer data-website-id par votre ID Umami -->
     <!-- <script defer src="https://your-umami-instance.com/script.js" data-website-id="YOUR-WEBSITE-ID"></script> -->

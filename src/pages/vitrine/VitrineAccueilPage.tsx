@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, ArrowRight } from 'lucide-react'
 import { BlocCours } from '@/components/vitrine/BlocCours'
-import { BlocTarifs } from '@/components/vitrine/BlocTarifs'
 import { BlocFaq } from '@/components/vitrine/BlocFaq'
 
 const URL_APP = import.meta.env.VITE_URL_APPLICATION || 'https://app.backontrackstudio.be'
@@ -116,29 +114,32 @@ const TEMOIGNAGES = [
 ]
 
 export function VitrineAccueilPage() {
-  // La video ne se pose qu'une fois la page affichee et interactive. L'iframe
-  // YouTube tire pres d'un demi-megaoctet de script : la charger d'emblee
-  // retarderait le titre, c'est-a-dire la seule chose que le visiteur est venu
-  // lire. La photo tient le fond en attendant, puis la video se substitue.
-  const [videoPosee, setVideoPosee] = useState(false)
-
-  useEffect(() => {
-    // Qui a demande moins d'animations garde la photo : une video plein ecran
-    // qui tourne en boucle est precisement ce que ce reglage systeme vise.
-    const sobre = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (sobre.matches) return
-
-    // `requestIdleCallback` attend que le navigateur n'ait plus rien d'urgent.
-    // Safari ne le connait pas, d'ou le repli sur un delai court.
-    const lancer = () => setVideoPosee(true)
-    const idle = window.requestIdleCallback
-    if (idle) {
-      const id = idle(lancer, { timeout: 2500 })
-      return () => window.cancelIdleCallback?.(id)
-    }
-    const t = window.setTimeout(lancer, 1200)
-    return () => window.clearTimeout(t)
-  }, [])
+  // La video part des l'ouverture de la page, sans attendre.
+  //
+  // Elle etait posee en differe (`requestIdleCallback`) pour ne pas retarder
+  // le titre : l'iframe YouTube tire 131 Ko rien que pour sa page
+  // d'integration, avant son lecteur de plusieurs centaines de kilo-octets.
+  //
+  // Mais le differe deplacait le probleme sans le resoudre : la video
+  // apparaissait d'un coup, plusieurs secondes apres le reste, ce qui se voit
+  // plus qu'un chargement un peu plus lent. Un coach l'a signale sur son Mac.
+  //
+  // Le WordPress differe lui aussi (`data-src`, `loading=lazy`) : la saccade
+  // ne venait donc pas de ce reglage, mais du poids de YouTube. La servir tot
+  // ne supprime pas ce poids — sur une connexion lente, l'apparition restera
+  // franche. La corriger vraiment demanderait un fichier video servi depuis
+  // o2switch, decision reportee faute de fichier source.
+  //
+  // Le calcul se fait a la volee plutot que dans un effet : rien n'a besoin
+  // d'etre mis en etat, la reponse est la meme a chaque rendu. Un `useState`
+  // pose dans un effet declenchait un rendu en cascade, que le lint signale a
+  // juste titre.
+  //
+  // Qui a demande moins d'animations garde le fond noir : une video plein
+  // ecran qui tourne en boucle est precisement ce que ce reglage systeme vise.
+  const videoPosee =
+    typeof window !== 'undefined' &&
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   return (
     <>
@@ -358,13 +359,6 @@ export function VitrineAccueilPage() {
           </div>
         </div>
       </section>
-
-      {/* ---- Les tarifs ---------------------------------------------------
-          Lus en base, et non figes comme dans le WordPress : c'est ce qui
-          empeche le site d'annoncer un jour un prix que l'application ne
-          pratique plus. Le WordPress affichait ainsi deux delais d'annulation
-          contradictoires, 12 h sur une page et 24 h sur l'autre. */}
-      <BlocTarifs />
 
       {/* ---- Les questions frequentes (brxe-qjmunu) --------------------- */}
       <BlocFaq />

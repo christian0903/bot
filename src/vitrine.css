@@ -75,6 +75,19 @@
   --v-s6: 6rem;
 
   --v-largeur: 1180px;
+
+  /* La hauteur de l'en-tete sert de reserve au contenu des pages sans hero :
+     l'en-tete etant flottant, rien ne le pousse.
+
+     La valeur reelle est mesuree au rendu et posee par VitrineLayout sur
+     `:root`. Celle-ci n'est qu'un repli, pour la premiere image avant que la
+     mesure n'arrive.
+
+     Elle se lit donc depuis `:root` et non depuis `.vitrine` : une variable
+     redefinie ici masquerait celle du JavaScript, qui est posee plus haut dans
+     l'arbre. C'est ce qui laissait le menu recouvrir le planning — la valeur
+     mesuree valait 83 px, la page en appliquait 78. */
+  --v-entete-hauteur-repli: 78px;
   --v-rayon: 14px;
   --v-rayon-l: 24px;
 
@@ -332,13 +345,30 @@
   border-bottom: 0;
 }
 
-/* L'en-tete etant desormais flottant, il ne pousse plus le contenu : sur les
-   pages SANS hero (contact, cours, tarifs), la premiere section doit reserver
-   sa hauteur elle-meme, sinon son titre passe dessous. Le hero, lui, garde le
-   plein ecran voulu et n'est pas concerne. */
-.v-page:not(.v-page--hero) > .v-section:first-child,
-.vitrine main > .v-section:first-child {
-  padding-top: calc(var(--v-s6) + 40px);
+/* L'en-tete est flottant (`position: absolute`) pour se poser par-dessus le
+   hero, comme dans le WordPress. Il ne pousse donc plus le contenu, et toute
+   page sans hero passe SOUS le menu.
+
+   La marge se pose ici, sur le conteneur du contenu, et non section par
+   section : la premiere tentative ne visait que `.v-section`, ce qui laissait
+   passer le planning — cette page est en Tailwind et n'utilise pas ces
+   classes. Le menu recouvrait son selecteur de jours (signale par Christian).
+
+   Poser la reserve sur `main` couvre toutes les pages, presentes et a venir,
+   quelle que soit leur facon d'etre ecrite. */
+.vitrine main {
+  padding-top: var(--v-entete-hauteur, var(--v-entete-hauteur-repli));
+}
+
+/* Le hero fait exception : il occupe l'ecran entier et doit passer SOUS le
+   menu, c'est tout l'effet recherche. Il remonte donc de la hauteur reservee.
+
+   Une marge negative plutot qu'un `:has()` sur le parent : `:has()` n'existe
+   pas sur les navigateurs plus anciens, et une regle qui echoue laisserait le
+   hero decale de 78 px — un defaut visible sur la page la plus vue du site.
+   La marge negative, elle, est comprise partout. */
+.v-hero {
+  margin-top: calc(-1 * var(--v-entete-hauteur, var(--v-entete-hauteur-repli)));
 }
 
 .v-entete__barre {
@@ -373,12 +403,18 @@
    deteindre sur un bouton qui se trouve etre un lien. */
 /* Le dernier lien de l'original est un bouton BLANC a texte noir, angles
    droits, padding 16px 35px — pas la pastille verte de l'application. */
+/* Mesure sur le site en ligne : 245 x 50 px, police 20 px, padding 8px 35px,
+   `min-height: 0`. La vitrine cumulait une police de 26 px, un padding de
+   16 px ET le `min-height: 44px` herite de `.v-bouton` : le bouton gonflait
+   bien au-dela de l'original — « beaucoup trop grand et laid », signale par
+   Christian. */
 .v-menu .v-bouton--plein {
   font-family: 'Bebas Neue', var(--v-police);
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 400;
   letter-spacing: 0.02em;
-  padding: 16px 35px;
+  padding: 8px 35px;
+  min-height: 0;
   border-radius: 0;
   background: #ffffff;
   color: #000000;
@@ -391,14 +427,14 @@
   color: #ffffff;
 }
 
-/* Bebas Neue 26 px, blanc — les valeurs relevees sur le site en ligne. La
-   vitrine servait du system-ui 15 px, ce qui donnait un menu d'application la
-   ou l'original a un menu d'affiche. */
+/* Bebas Neue 20 px, blanc — mesure sur le site en ligne. La premiere lecture
+   avait retenu 26 px, qui est la valeur du menu deplie sur mobile ; sur grand
+   ecran l'original en fait 20, et le menu tenait moins bien sur une ligne. */
 .v-menu a {
   color: #ffffff;
   text-decoration: none;
   font-family: 'Bebas Neue', var(--v-police);
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 400;
   letter-spacing: 0.02em;
   padding: var(--v-s1) 0;
