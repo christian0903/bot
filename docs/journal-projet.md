@@ -261,16 +261,50 @@ tables, 84 fonctions**, vérifiées.
 
 ---
 
-## Session du 2026-08-31 (fin d'après-midi) — WordPress ira bien sur `desk.`
+## Session du 2026-08-31 (soir) — le sous-domaine est `wp.`, et il lui manque son certificat
+
+> **v3.98.0**. Documentation seule.
+
+Christian a créé `wp.backontrackstudio.be` et y a déplacé les fichiers. La
+procédure est adaptée à cette adresse (`wordpress-sur-sous-domaine.md`, renommé
+de `wordpress-sur-desk.md`).
+
+**Deux vérifications faites avant de guider, et toutes deux ont servi :**
+
+**L'adresse portait une coquille.** Elle avait été annoncée comme
+`wp.backontractstudio.be` — un `c` à la place du `k`. Le DNS tranche :
+`wp.backontrackstudio.be` résout vers 109.234.165.117 (le serveur o2switch), la
+variante avec `c` ne résout pas. Sans ce contrôle, l'orthographe fautive
+partait en base **32 755 fois**.
+
+**Le certificat SSL n'existe pas encore.** Le sous-domaine répond en HTTP mais
+rien en HTTPS. L'ordre des opérations en dépend : écrire `https://` en base
+sans certificat rendrait le site inaccessible derrière une alerte de sécurité,
+et la cause serait cherchée du mauvais côté. C'est devenu l'étape 0 — AutoSSL
+dans cPanel, avant tout le reste.
+
+**L'état constaté confirme le diagnostic** posé plus tôt :
+
+```
+http://wp.backontrackstudio.be/  ->  301  ->  https://backontrackstudio.be/
+```
+
+Les fichiers ont bougé, la base non : WordPress y lit le domaine principal et
+renvoie tout le monde vers la vitrine. C'est exactement ce que le remplacement
+d'URL corrige, et la preuve que déplacer les fichiers ne suffit pas.
+
+---
+
+## Session du 2026-08-31 (fin d'après-midi) — WordPress ira sur un sous-domaine
 
 > **v3.97.0**. Documentation seule, aucun code touché.
 
-**Christian a tranché** : le WordPress tournera sur
-`desk.backontrackstudio.be`, et non par commutation sur le domaine principal.
+**Christian a tranché** : le WordPress tournera sur un sous-domaine — au final
+**`wp.backontrackstudio.be`** — et non par commutation sur le domaine principal.
 La voie sans réécriture de base reste documentée (`remettre-le-wordpress.md`)
 pour le cas où l'ancien site devrait un jour reprendre sa place.
 
-`docs/wordpress-sur-desk.md` décrit **cette** voie, correctement — parce que
+`docs/wordpress-sur-sous-domaine.md` décrit **cette** voie, correctement — parce que
 mal faite, elle casse le site en silence.
 
 ### Ce que le dump a appris
@@ -296,7 +330,7 @@ fait vérifier ce point avant tout le reste.
 
 ### Ce que coûte cette voie
 
-La base est réécrite pour pointer vers `desk.`. Remettre un jour ce WordPress
+La base est réécrite pour pointer vers `wp.`. Remettre un jour ce WordPress
 en production imposera le remplacement en sens inverse. C'est le prix du
 sous-domaine, assumé, et il est écrit dans la procédure.
 

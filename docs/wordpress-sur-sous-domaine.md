@@ -1,4 +1,4 @@
-# Faire tourner l'ancien WordPress sur `desk.backontrackstudio.be`
+# Faire tourner l'ancien WordPress sur `wp.backontrackstudio.be`
 
 > Écrit le 2026-08-31, à la demande de Christian, après que les coachs ont
 > souhaité revoir l'ancien site.
@@ -13,7 +13,7 @@
 ## Ce qu'il faut savoir avant de commencer
 
 Déplacer les fichiers **ne suffit pas**. WordPress garde son adresse en base de
-données : servi depuis `desk.`, il renverrait le visiteur vers
+données : servi depuis `wp.`, il renverrait le visiteur vers
 `backontrackstudio.be` — c'est-à-dire vers la vitrine React. Les coachs ne
 verraient jamais l'ancien site.
 
@@ -38,34 +38,51 @@ mesurés sur le dump du 2026-08-31 :
 
 ---
 
-## Étape 1 — Les fichiers
+## Étape 0 — Le certificat SSL, avant tout le reste
 
-Christian les déplace lui-même vers le dossier du sous-domaine. La cible :
+**Constaté le 2026-08-31 : `wp.backontrackstudio.be` n'a pas encore de
+certificat.** Le DNS résout bien (109.234.165.117) et le sous-domaine répond en
+HTTP, mais rien en HTTPS.
 
-```
-~/desk.backontrackstudio.be/
-   wp-config.php
-   wp-admin/
-   wp-content/
-   wp-includes/
-   index.php
-   ...
-```
+L'ordre compte. Écrire `https://` en base sans certificat rendrait le site
+inaccessible derrière une alerte de sécurité — et la cause serait cherchée du
+mauvais côté.
 
-> **`wp-config.php` doit suivre.** Sans lui, WordPress ne connaît plus sa base
-> et propose de réinstaller — écran qu'il ne faut surtout pas valider.
-
-Le sous-domaine doit exister dans cPanel et pointer sur ce dossier.
-
-Contrôler :
+Dans **cPanel → SSL/TLS Status**, cocher `wp.backontrackstudio.be` et lancer
+**Run AutoSSL**. Quelques minutes. Puis vérifier :
 
 ```bash
-ls ~/desk.backontrackstudio.be/wp-config.php
-ls ~/desk.backontrackstudio.be/wp-content/themes/
+curl -sI https://wp.backontrackstudio.be/ | head -3
 ```
 
-À ce stade le site répond, mais **redirige encore vers le domaine principal** :
-c'est normal, l'étape 2 le corrige.
+Une réponse — même une redirection — suffit : elle prouve que le certificat
+répond. **Ne pas continuer tant que cette commande ne renvoie rien.**
+
+---
+
+## Étape 1 — Vérifier les fichiers déplacés
+
+Les fichiers sont en place (déplacés par Christian le 2026-08-31). Contrôler
+qu'ils sont complets :
+
+```bash
+ls ~/wp.backontrackstudio.be/wp-config.php
+ls ~/wp.backontrackstudio.be/wp-content/themes/
+ls ~/wp.backontrackstudio.be/index.php
+```
+
+> **`wp-config.php` doit être là.** Sans lui, WordPress ne connaît plus sa base
+> et propose de réinstaller — écran qu'il ne faut surtout pas valider.
+
+**État constaté au 2026-08-31**, avant tout remplacement :
+
+```
+http://wp.backontrackstudio.be/  ->  301  ->  https://backontrackstudio.be/
+```
+
+C'est le symptôme attendu, et la preuve que seuls les fichiers ont bougé :
+WordPress lit son adresse en base, y voit le domaine principal, et y renvoie
+tout le monde — c'est-à-dire vers la vitrine. L'étape 2 corrige cela.
 
 ### Le piège à écarter tout de suite
 
@@ -73,15 +90,14 @@ Si `wp-config.php` **force les URL en dur**, aucun remplacement en base n'aura
 d'effet visible — WordPress lira la constante et ignorera la valeur enregistrée.
 
 ```bash
-grep -nE "WP_HOME|WP_SITEURL" ~/desk.backontrackstudio.be/wp-config.php
+grep -nE "WP_HOME|WP_SITEURL" ~/wp.backontrackstudio.be/wp-config.php
 ```
 
 - **Rien ne sort** → cas normal, continuer.
-- **Deux lignes sortent** → les modifier pour y mettre
-  `https://desk.backontrackstudio.be`. C'est alors le plus rapide : ces deux
-  lignes prennent le pas sur la base pour l'adresse du site, mais **ne
-  dispensent pas** du remplacement de l'étape 2 (les liens internes et les
-  images restent écrits en base).
+- **Deux lignes sortent** → y mettre `https://wp.backontrackstudio.be`. Elles
+  prennent le pas sur la base pour l'adresse du site, mais **ne dispensent pas**
+  du remplacement de l'étape 2 : les liens internes et les images restent
+  écrits en base.
 
 ---
 
@@ -92,11 +108,11 @@ grep -nE "WP_HOME|WP_SITEURL" ~/desk.backontrackstudio.be/wp-config.php
 Non négociable : l'étape suivante modifie 32 755 valeurs.
 
 ```bash
-cd ~/desk.backontrackstudio.be
+cd ~/wp.backontrackstudio.be
 
 # Les identifiants sont dans wp-config.php ; wp les lit tout seul.
-wp db export ~/wp-avant-bascule-desk.sql
-ls -lh ~/wp-avant-bascule-desk.sql
+wp db export ~/wp-avant-bascule.sql
+ls -lh ~/wp-avant-bascule.sql
 ```
 
 Si `wp` n'est pas trouvé, il est présent chez o2switch sous un autre nom
@@ -111,9 +127,9 @@ wp --info
 `--dry-run` ne modifie rien et annonce ce qui serait fait :
 
 ```bash
-cd ~/desk.backontrackstudio.be
+cd ~/wp.backontrackstudio.be
 
-wp search-replace 'https://backontrackstudio.be' 'https://desk.backontrackstudio.be' \
+wp search-replace 'https://backontrackstudio.be' 'https://wp.backontrackstudio.be' \
   --all-tables-with-prefix --precise --recurse-objects --dry-run
 ```
 
@@ -126,22 +142,22 @@ signifie que le domaine cherché ne correspond pas — s'arrêter et vérifier.
 La même commande, sans `--dry-run` :
 
 ```bash
-wp search-replace 'https://backontrackstudio.be' 'https://desk.backontrackstudio.be' \
+wp search-replace 'https://backontrackstudio.be' 'https://wp.backontrackstudio.be' \
   --all-tables-with-prefix --precise --recurse-objects
 ```
 
 Puis la variante sans protocole, pour les liens écrits en `//domaine` :
 
 ```bash
-wp search-replace '//backontrackstudio.be' '//desk.backontrackstudio.be' \
+wp search-replace '//backontrackstudio.be' '//wp.backontrackstudio.be' \
   --all-tables-with-prefix --precise --recurse-objects
 ```
 
 Vérifier :
 
 ```bash
-wp option get siteurl    # https://desk.backontrackstudio.be
-wp option get home       # https://desk.backontrackstudio.be
+wp option get siteurl    # https://wp.backontrackstudio.be
+wp option get home       # https://wp.backontrackstudio.be
 ```
 
 > **`--recurse-objects` est ce qui traite le sérialisé**, et `--precise` force
@@ -160,7 +176,7 @@ Deux caches sont présents dans cette installation : **W3 Total Cache** et
 **LiteSpeed** (o2switch tourne sur LiteSpeed).
 
 ```bash
-cd ~/desk.backontrackstudio.be
+cd ~/wp.backontrackstudio.be
 wp cache flush
 wp rewrite flush
 
@@ -188,7 +204,7 @@ rm -rf wp-content/cache/*
 Deux sites au contenu identique à deux adresses : Google choisit lui-même
 lequel garder, et ce peut être le mauvais.
 
-Poser dans `~/desk.backontrackstudio.be/.htaccess`, **avant** les règles
+Poser dans `~/wp.backontrackstudio.be/.htaccess`, **avant** les règles
 WordPress :
 
 ```apache
@@ -202,7 +218,7 @@ WordPress :
 Vérifier :
 
 ```bash
-curl -sI https://desk.backontrackstudio.be/ | grep -i x-robots-tag
+curl -sI https://wp.backontrackstudio.be/ | grep -i x-robots-tag
 ```
 
 ---
@@ -211,10 +227,10 @@ curl -sI https://desk.backontrackstudio.be/ | grep -i x-robots-tag
 
 ```bash
 # La page d'accueil répond sans rediriger vers le domaine principal
-curl -sI https://desk.backontrackstudio.be/ | head -3
+curl -sI https://wp.backontrackstudio.be/ | head -3
 
 # Aucune URL du domaine principal ne subsiste dans la page servie
-curl -s https://desk.backontrackstudio.be/ \
+curl -s https://wp.backontrackstudio.be/ \
   | grep -o 'https://backontrackstudio\.be[^"]*' | head
 ```
 
@@ -223,9 +239,9 @@ qu'un cache n'a pas été vidé (étape 3) ou qu'une variante d'URL a échappé 
 remplacement (`http://` sans `s`, ou `www.`) :
 
 ```bash
-wp search-replace 'http://backontrackstudio.be' 'https://desk.backontrackstudio.be' \
+wp search-replace 'http://backontrackstudio.be' 'https://wp.backontrackstudio.be' \
   --all-tables-with-prefix --precise --recurse-objects
-wp search-replace 'https://www.backontrackstudio.be' 'https://desk.backontrackstudio.be' \
+wp search-replace 'https://www.backontrackstudio.be' 'https://wp.backontrackstudio.be' \
   --all-tables-with-prefix --precise --recurse-objects
 ```
 
@@ -239,8 +255,8 @@ Puis ouvrir dans un navigateur : la page d'accueil, `/cours-semi-prives`,
 Si quelque chose tourne mal, la sauvegarde de l'étape 2a rend l'état exact :
 
 ```bash
-cd ~/desk.backontrackstudio.be
-wp db import ~/wp-avant-bascule-desk.sql
+cd ~/wp.backontrackstudio.be
+wp db import ~/wp-avant-bascule.sql
 ```
 
 ---
@@ -248,7 +264,7 @@ wp db import ~/wp-avant-bascule-desk.sql
 ## Le jour où l'ancien site n'a plus lieu d'être
 
 Les fichiers se suppriment, mais **la base a été réécrite** : elle pointe
-désormais vers `desk.`. Si l'idée est un jour de remettre ce WordPress en
+désormais vers `wp.`. Si l'idée est un jour de remettre ce WordPress en
 production, il faudra refaire le remplacement en sens inverse.
 
 C'est le coût de cette voie, et c'est ce qui la distingue de celle décrite dans
@@ -270,7 +286,7 @@ un souvenir plutôt qu'au site réel :
 4. **Les tarifs sont figés dans le page-builder** — ils ne suivent pas la base,
    et c'est ce qui a produit la contradiction ci-dessus.
 
-Sur `desk.`, deux effets supplémentaires, dus au sous-domaine lui-même :
+Sur `wp.`, deux effets supplémentaires, dus au sous-domaine lui-même :
 
 - **Le formulaire de contact restera cassé**, et le reCaptcha le sera plus
   encore : sa clé est enregistrée pour le domaine d'origine.
