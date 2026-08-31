@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-30**
+> Dernière mise à jour : **2026-08-31**
 
 ---
 
@@ -25,6 +25,7 @@
 **Réservation atomique** : **livrée** (2026-08-23) — `book_class` décide et écrit dans une seule transaction, sous verrou du cours. Ferme le dépassement de capacité et la réservation sans débit. Neuf cas éprouvés en base ; le verrou lui-même reste à voir en conditions réelles.
 **Exports CSV** : **livrés** (2026-08-23) — page dédiée, huit sorties, plus l'export du journal d'activité et sa purge réservée au super admin.
 **Index** : **posés** (2026-08-23) — `bookings` et `scheduled_classes` n'en avaient aucun. L'archivage n'est pas nécessaire : la base pèse 1,1 Mo pour 8 Go disponibles.
+**Site vitrine** : **livré et en ligne** (2026-08-31) — `backontrackstudio.be` sert désormais une page unique construite avec l'application, en remplacement du WordPress (Bricks + AutomaticCSS, 7,2 Go, quinze plugins). Tarifs, délais d'annulation et frais d'inscription **lus en base** : plus de divergence possible entre le site et l'application. Formulaire de contact par Edge Function + Resend, éprouvé. Le WordPress est écarté dans `~/wordpress-archive-20260831`, pas supprimé.
 **Documentation** : **à jour au 2026-08-23** en français, `public/` compris. Les versions **anglaises accusent un retard important** et attendent un chantier à part.
 **PWA** : **livrée** (2026-08-24) — l'application s'installe sur l'écran d'accueil iPhone et Android, sans passer par un store, et annonce ses mises à jour au lieu de les imposer. Sert la phase de test avant l'App Store.
 **Durée d'abonnement** : **libre** — jours, semaines ou mois, un nombre au choix. Un garde-fou infondé qui bloquait les durées non multiples de 7 a été levé.
@@ -65,6 +66,198 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
 2. **Politique de confidentialité avec URL publique** — livrée, page `/confidentialite` (et non `/privacy`, corrigé le 2026-08-29 : c'est cette URL qu'App Store Connect attend, une adresse fausse dans la fiche vaut rejet).
+
+---
+
+## Session du 2026-08-31 — le site vitrine remplace WordPress
+
+> **v3.90.0**, deux commits locaux (`eaa7bc9`, `5da3a04`), build vert, lint
+> stable à 36. `backontrackstudio.be` sert désormais la vitrine ; le WordPress
+> est écarté, pas supprimé.
+
+### Ce qui a changé
+
+Le site tournait sur **WordPress + Bricks + AutomaticCSS** — deux licences
+payantes, quinze plugins et **7,2 Go** pour cinq pages qui portaient du
+contenu. Les neuf autres étaient des doublons, des restes de l'ancien espace
+membre ou des essais (`zdzdz`, `test`,
+`cours-semi-prives-copier-copier-copier`).
+
+Sur ces 7,2 Go : **6,1 de sauvegardes UpdraftPlus** empilées depuis août 2025
+et jamais purgées, 629 Mo d'images, et **99 Mo d'Amelia + myCRED** — l'ancien
+système de réservation avec crédits, que l'application a remplacé mais dont le
+plugin est resté installé.
+
+**Trois choses y étaient cassées, en public :**
+
+1. Le formulaire de contact affichait « Google reCaptcha : Clé de site
+   invalide » et **n'envoyait rien**. La page censée capter les prospects était
+   hors service.
+2. `/horaire` renvoyait vers **Technogym** — « la réservation se fait uniquement
+   via notre application Technogym ».
+3. Le délai d'annulation se contredisait : **12 h** sur `/tarifs`, **24 h** sur
+   `/horaire`. Une clause contractuelle.
+
+### La vitrine est une route de l'application
+
+`VITE_VITRINE` décide de ce que sert la racine, et le **même `dist/`** part sur
+les deux domaines : une seule construction, un seul design, un seul
+déploiement.
+
+**Le surcoût pour un membre qui charge l'application est de 345 octets
+compressés** — mesuré en construisant avec et sans le branchement. Les pages
+vitrine sont en chargement différé : leur code n'est jamais téléchargé sur
+`app.`, et le CSS vitrine (5,7 Ko) vit dans un fichier séparé.
+
+### Ce qui compte le plus : les prix sont lus en base
+
+Ils étaient figés dans le page-builder — et c'est ainsi que le site avait fini
+par annoncer deux délais d'annulation différents. Les **sept packs**, les
+**deux délais** (12 h collectif, 24 h personal training) et les **frais
+d'inscription** viennent maintenant de `pack_types` et d'`app_settings`.
+
+Un montant modifié dans l'administration apparaît au rechargement suivant. **Il
+ne peut plus y avoir deux vérités.**
+
+### Le formulaire de contact, et la protection qui n'en était pas une
+
+Edge Function `contact`, **la seule du projet ouverte sans authentification** :
+un visiteur qui écrit n'a pas de compte. Elle se défend par un champ-piège, des
+bornes de longueur, un échappement HTML et une limite de cinq envois par heure
+et par IP.
+
+**Cette limite comptait d'abord en mémoire de l'instance.** Éprouvé en ligne :
+**dix envois consécutifs sont passés sans jamais être refusés** — Supabase
+répartit les requêtes sur plusieurs instances, chacune repartant de zéro. Le
+compteur vit donc en base (`contact_envois`), seul endroit où l'état est
+partagé, avec purge des IP après 24 h.
+
+> **Leçon générale** : un état qui doit être partagé ne peut pas vivre en
+> mémoire d'une Edge Function. Et une protection ne vaut que ce que vaut son
+> épreuve — celle-ci semblait fonctionner tant qu'on ne l'avait pas testée.
+
+**Second défaut** : `supabase.functions.invoke` remplit `error` mais **jette le
+corps de la réponse**. Le visiteur lisait « L'envoi a échoué » là où la fonction
+disait « Trop de messages envoyés, réessayez dans un moment » — un message qui,
+lui, indique quoi faire. Remplacé par `fetch`.
+
+Chaîne éprouvée de bout en bout le 31 au matin : les messages arrivent.
+
+### L'adresse e-mail du studio était fausse
+
+`app_settings.studio_info.email` portait **`info@backotrackstudio.be`** — sans
+le « n » de « track ». Ce n'était pas cosmétique : ce réglage alimente les CGV
+et la politique de confidentialité, où il apparaît **trois fois**, dont deux
+comme point de contact pour l'exercice des droits RGPD. Un membre qui écrivait
+à cette adresse n'atteignait personne.
+
+Corrigée en `info@backontrackstudio.be`, qui remplace aussi l'ancienne boîte
+Gmail partout sur le site.
+
+### Les images
+
+**95 Mo → 5 Mo.** Les photos étaient servies telles que sorties de l'appareil,
+jusqu'à 5590×4472 et 14 Mo pièce, pour des vignettes affichées à quelques
+centaines de pixels. Ramenées à 1600 px de large en WebP.
+
+Les originaux sont dans `.vitrine-source/` (ignoré par git), avec le HTML brut
+des sept pages et leurs textes en markdown.
+
+### Le design
+
+Tout tient dans **`src/vitrine.css`**, variables en tête. Les pages ne portent
+que du balisage : changer une couleur ou un espacement ne demande pas de lire
+le JSX.
+
+L'en-tête est **sombre par obligation** — le logo est un aplat blanc sans
+contour, il disparaît sur fond clair. Le vert lime n'est pas un choix
+d'humeur : c'est le `--primary` du thème sombre de l'application, et la couleur
+des poignées d'élastiques sur les photos du studio.
+
+Les six cours s'ouvrent en **fenêtre de détail**, bâtie sur `<dialog>` : le
+navigateur apporte le fond assombri, le piège du focus, la fermeture par Échap
+et le retour du focus au bouton d'origine.
+
+### La bascule
+
+Le WordPress n'est **pas supprimé** : il est écarté dans
+`~/wordpress-archive-20260831`, intact, avec son `wp-config.php`. Un `mv` le
+remet en place. À garder deux ou trois semaines.
+
+**Vingt-deux redirections 301**, dans `serveur/htaccess-domaine-principal` —
+vérifiées une par une. Sans elles, le référencement local sur « studio fitness
+Rixensart » se serait dilué et tout lien existant serait tombé en 404.
+
+`serveur/` est un dossier nouveau : `deploiement.sh` exclut `.htaccess` du
+rsync (sinon `--delete` emporterait la configuration Apache), ces fichiers ne
+sont donc **jamais déployés automatiquement** et se recopient à la main.
+
+---
+
+## Deux incidents de cette session, et ce qu'ils apprennent
+
+### `db push` est devenu dangereux, et l'ignorer a coûté
+
+**Ne plus jamais lancer `supabase db push` sur ce dépôt.**
+
+Supabase attend un horodatage à **14 chiffres** (`20260805143022_nom.sql`). Les
+67 migrations du projet n'en portent que **8** (`20260805_nom.sql`). Le CLI ne
+garde que ce préfixe comme identifiant : les huit migrations du 5 août portent
+donc toutes la version `20260805`, et sept d'entre elles lui paraissent
+absentes de la base.
+
+`db push --dry-run` veut aujourd'hui rejouer **50 migrations déjà
+appliquées** — dont `20260805_reset_member_test_data.sql`, sur une production
+de 64 comptes réels.
+
+Ce piège est resté invisible tant que les migrations s'appliquaient à la main
+par l'éditeur Supabase, comme le décrit la documentation technique. Il s'est
+révélé quand `db push` a été lancé : **trois migrations ont été appliquées
+avant l'échec**, dont `20260830_retirer_pack_essai.sql` — un chantier dont la
+décision n'était pas prise.
+
+**Cause première** : un `migration repair --status reverted` lancé sur une
+hypothèse non vérifiée, pour réparer une divergence d'historique. Le CLI a
+alors considéré l'historique comme incomplet et voulu tout rejouer.
+
+> **Règle** : ne jamais lancer `migration repair` sans avoir vérifié en base ce
+> que la migration visée a réellement créé. Et pour appliquer une migration :
+> l'éditeur SQL de Supabase, pas `db push`.
+
+Le renommage des 67 fichiers avec un horodatage complet reste à faire, **à
+froid**.
+
+### `install.sql` amputé de 713 lignes, rattrapé au contrôle
+
+En séparant les deux chantiers pour faire deux commits distincts, le découpage
+d'`install.sql` a supprimé **713 lignes** — vingt fonctions, dont `has_role`,
+`get_available_credits`, `promote_from_waitlist` et `update_member_status`. Le
+premier commit est parti avec ce fichier amputé.
+
+Détecté au contrôle qui suivait, restauré depuis la copie prise avant
+découpage, commit corrigé par `--amend`. Le fichier porte **5426 lignes, 28
+tables, 84 fonctions**, vérifiées.
+
+> C'est exactement le scénario que la règle n°1 du `CLAUDE.md` décrit : un
+> `install.sql` faux **en silence**, qui paraît fonctionner et produit une base
+> incomplète. Rien n'avait été déployé entre-temps.
+
+---
+
+## Ce qui reste ouvert au 2026-08-31
+
+- Soumettre le **sitemap** à Google Search Console
+- Supprimer `~/wordpress-archive-20260831` dans deux ou trois semaines (7,2 Go)
+- **Renommer les 67 migrations** avec un horodatage à 14 chiffres, à froid
+- La **décision sur le retrait de séance d'essai** : la fonction existe en base
+  (appliquée par accident), le front est commité mais **pas déployé**
+- SPF ne mentionne pas Resend ; hCaptcha ; comptes développeurs Apple et Google
+- Copier `.dumps/bot-20260829-120547.sql` et `wp-backontrack-20260831.sql.gz`
+  hors du Mac mini
+- La page `/rgpd` du WordPress déclarait **Technogym responsable conjoint** du
+  traitement, avec transfert vers les États-Unis. Elle disparaît avec le
+  WordPress (301 vers `/confidentialite`), mais la question de fond reste :
+  reste-t-il des données chez Technogym / mywellness ?
 
 ---
 

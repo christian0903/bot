@@ -24,7 +24,7 @@ de ce projet.
 
 ---
 
-## Les cinq règles qui coûtent cher quand on les oublie
+## Les six règles qui coûtent cher quand on les oublie
 
 Chacune correspond à un incident réel, raconté dans le journal.
 
@@ -71,7 +71,26 @@ supabase functions list    # contrôler : VERIFY JWT = false
 
 L'oublier coupe les encaissements sans aucun signal visible.
 
-### 5. Toujours tester `error` après une écriture Supabase
+### 5. Ne jamais lancer `supabase db push`
+
+Appliquer une migration par **l'éditeur SQL de Supabase**, jamais par le CLI.
+
+Supabase attend un horodatage à **14 chiffres** (`20260805143022_nom.sql`) ; les
+67 migrations du projet n'en portent que **8** (`20260805_nom.sql`). Le CLI ne
+retient que ce préfixe : les huit migrations du 5 août partagent donc la même
+version, et sept lui paraissent absentes de la base.
+
+`db push --dry-run` veut aujourd'hui rejouer **50 migrations déjà appliquées**,
+dont `20260805_reset_member_test_data.sql` — sur une production de 64 comptes.
+
+Le 31 août, un `db push` en a appliqué **trois** avant d'échouer, dont un
+chantier dont la décision n'était pas prise.
+
+Corollaire : `migration repair` ne se lance **jamais** sur une hypothèse.
+Vérifier d'abord en base ce que la migration visée a réellement créé — c'est un
+`repair` hasardeux qui a déclenché ce `db push`.
+
+### 6. Toujours tester `error` après une écriture Supabase
 
 Un refus d'écriture **ne lève pas d'exception** : l'erreur arrive dans l'objet
 de réponse, que le code peut ignorer sans rien remarquer. Un coach annulait son
