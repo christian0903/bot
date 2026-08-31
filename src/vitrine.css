@@ -50,13 +50,14 @@
      defaut est noir, l'encre est blanche, et il n'y a plus de section claire
      du tout. */
   --v-encre: #ffffff;
-  /* Mesure sur le site en ligne : les textes courants du WordPress sont en
-     `rgba(255,255,255,0.86)` — du BLANC TRANSPARENT, pas un gris. La nuance
-     n'est pas theorique : un blanc a 86 % laisse transparaitre le fond et
-     s'adoucit avec lui, tandis qu'un gris opaque garde sa propre teinte. Le
-     `#c8ccd0` employe jusqu'ici etait de surcroit legerement bleute, donc plus
-     froid et plus dur que l'original — ce que Christian a vu. */
-  --v-encre-douce: rgb(255 255 255 / 86%);
+  /* La couleur de texte du theme, donnee par Christian : #dddedf.
+     Elle equivaut a un blanc a 87 % sur le fond noir, ce que la mesure des
+     deux pages avait approche (rgba(255,255,255,0.86)) — autant poser la
+     valeur exacte plutot qu'une composition qui s'en rapproche.
+
+     Le `#c8ccd0` employe auparavant etait plus fonce ET plus bleute : c'est ce
+     qui rendait les textes plus durs que ceux du WordPress. */
+  --v-encre-douce: #dddedf;
   --v-encre-tres-douce: rgb(255 255 255 / 79%);
   --v-fond: #000000;
   --v-fond-alt: #0a0a0a;
@@ -935,7 +936,7 @@
   margin: 0;
   font-size: var(--v-t-corps);
   line-height: 1.6;
-  color: rgb(255 255 255 / 86%);
+  color: #dddedf;
 }
 
 .v-temoignage__nom {
@@ -951,7 +952,7 @@
   border-color: rgb(255 255 255 / 12%);
 }
 
-.v-section--sombre .v-temoignage__texte { color: rgb(255 255 255 / 86%); }
+.v-section--sombre .v-temoignage__texte { color: #dddedf; }
 .v-section--sombre .v-temoignage__nom   { color: #fff; }
 
 /* ---- Les bandeaux d'appel ------------------------------------------------
