@@ -261,6 +261,55 @@ tables, 84 fonctions**, vérifiées.
 
 ---
 
+## Session du 2026-08-31 (fin d'après-midi) — WordPress ira bien sur `desk.`
+
+> **v3.97.0**. Documentation seule, aucun code touché.
+
+**Christian a tranché** : le WordPress tournera sur
+`desk.backontrackstudio.be`, et non par commutation sur le domaine principal.
+La voie sans réécriture de base reste documentée (`remettre-le-wordpress.md`)
+pour le cas où l'ancien site devrait un jour reprendre sa place.
+
+`docs/wordpress-sur-desk.md` décrit **cette** voie, correctement — parce que
+mal faite, elle casse le site en silence.
+
+### Ce que le dump a appris
+
+Trois choses mesurées sur `wp-backontrack-20260831.sql.gz`, qui n'étaient pas
+connues quand la première procédure a été écrite :
+
+- **Le préfixe des tables est `wpbot_`**, pas `wp_`. La première procédure
+  interrogeait `wp_options` : la requête aurait échoué. Corrigé.
+- **32 755 occurrences** du domaine en base, dont **13 982 sérialisées**. Le
+  chiffre qui tranche : un `sed` sur le dump viderait silencieusement près de
+  quatorze mille valeurs — l'essentiel des mises en page Bricks. `wp
+  search-replace --precise --recurse-objects` est donc **obligatoire**, pas
+  préférable.
+- **Deux plugins de cache** — W3 Total Cache et LiteSpeed. Ils servent des
+  pages figées avec les anciennes URL, et font croire à un remplacement raté
+  alors qu'il a réussi. La procédure conseille de les désactiver le temps de la
+  relecture plutôt que de les vider.
+
+Un piège est écarté en préalable : si `wp-config.php` force `WP_HOME` et
+`WP_SITEURL`, **aucun remplacement en base n'a d'effet visible**. La procédure
+fait vérifier ce point avant tout le reste.
+
+### Ce que coûte cette voie
+
+La base est réécrite pour pointer vers `desk.`. Remettre un jour ce WordPress
+en production imposera le remplacement en sens inverse. C'est le prix du
+sous-domaine, assumé, et il est écrit dans la procédure.
+
+### Le hero vidéo n'est pas en ligne
+
+Signalé par Christian : le site sert toujours l'ancienne présentation. Vérifié —
+`backontrackstudio.be` sert `index-HPE8d5UG.js`, la construction du matin. Le
+hero vidéo est **commité et compilé** (`youtube-nocookie` présent dans
+`VitrineAccueilPage-B13ZSyB0.js`), mais **jamais déployé** : rien n'est parti
+sur le serveur de la journée.
+
+---
+
 ## Session du 2026-08-31 (après-midi) — le hero d'origine revient, WordPress redevient consultable
 
 > **v3.95.0**. Build vert, lint **stable à 37** (aucun ajout). Rien n'est

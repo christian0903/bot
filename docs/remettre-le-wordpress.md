@@ -3,6 +3,11 @@
 > Écrit le 2026-08-31, après que les coachs ont demandé à revoir l'ancien site.
 > **Rien dans cette procédure ne touche `app.backontrackstudio.be`** : l'application
 > des membres est sur un autre domaine et n'est pas concernée.
+>
+> **Christian a finalement retenu l'autre voie** — WordPress sur
+> `desk.backontrackstudio.be`, décrite dans `wordpress-sur-desk.md`. Ce
+> document reste : il documente une solution sans réécriture de base, utile si
+> l'ancien site devait un jour reprendre sa place en production.
 
 ## Le principe, et pourquoi celui-là
 
@@ -10,7 +15,7 @@ La demande de départ était : « je déplace les fichiers WordPress dans
 `desk.backontrackstudio.be` ». C'est faisable, mais ça coûte cher pour rien.
 
 **Les URL de WordPress sont écrites en base de données**, pas dans les fichiers :
-dans `wp_options` (`siteurl`, `home`), dans chaque lien de chaque page, et —
+dans `wpbot_options` (`siteurl`, `home`), dans chaque lien de chaque page, et —
 c'est le point qui pique — **sous forme sérialisée** dans les données Bricks.
 Servir WordPress depuis un autre domaine oblige donc à réécrire la base, puis à
 la réécrire en sens inverse le jour où on veut le remettre en production.
@@ -65,8 +70,9 @@ grep -E "DB_NAME|DB_USER|DB_HOST" ~/wordpress-archive-20260831/wp-config.php
 Puis, avec le nom de base et l'utilisateur lus ci-dessus :
 
 ```bash
+# Attention au préfixe : les tables sont en `wpbot_`, pas en `wp_`.
 mysql -u LE_USER -p LA_BASE -e "SELECT option_name, option_value
-  FROM wp_options WHERE option_name IN ('siteurl','home');"
+  FROM wpbot_options WHERE option_name IN ('siteurl','home');"
 ```
 
 **Trois cas.**
