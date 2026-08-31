@@ -200,7 +200,7 @@ export function VitrineAccueilPage() {
       <section className="v-section" id="le-studio">
         <div className="v-largeur v-duo">
           <div>
-            <h2 className="v-titre-section">Le studio à taille humaine</h2>
+            <h2 className="v-titre-section">Studio de fitness à Rixensart</h2>
             <p className="v-chapeau" style={{ marginBottom: 0 }}>
               Chez nous, pas de grandes salles impersonnelles ni de machines à
               perte de vue. Back on Track est né d'une conviction simple : le

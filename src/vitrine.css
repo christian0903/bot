@@ -1,3 +1,13 @@
+/* Bebas Neue — la police des titres du site d'origine, condensee et tout en
+   capitales. Elle est importee ICI et non dans `index.html` : ce fichier n'est
+   charge que par les pages vitrine, l'application des membres ne paie donc pas
+   une police qu'elle n'affiche jamais.
+
+   `display=swap` laisse le titre s'afficher dans la police de repli le temps
+   du chargement, plutot que de le laisser invisible — un titre qui apparait
+   apres coup vaut mieux qu'un blanc au premier regard. */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+
 /* ==========================================================================
    Vitrine — la feuille de style du site public
    ==========================================================================
@@ -482,157 +492,247 @@
    pas decoratif : sans lui, le texte blanc passe sur les zones claires de la
    photo et devient illisible — c'est le defaut le plus courant des heros
    photographiques. */
+/* ---- Le hero ------------------------------------------------------------
+   Copie fidele du hero WordPress. Chaque valeur ci-dessous est reprise du CSS
+   d'origine (Bricks), releve dans `.vitrine-source/pages/accueil.html` — les
+   identifiants `#brxe-...` sont cites en regard pour pouvoir y revenir.
+
+   Le titre est en Bebas Neue, condensee et tout en capitales : c'est elle qui
+   donne au hero son caractere, et la remplacer par la police du systeme suffit
+   a ne plus reconnaitre le site.                                            */
+
+/* #brxe-726fef */
 .v-hero {
   position: relative;
-  /* Le site d'origine occupait la hauteur entiere de l'ecran. `dvh` et non
-     `vh` : sur mobile, `vh` compte la barre d'adresse comme si elle etait
-     retractee, et le bas du hero se retrouve masque tant qu'on n'a pas
-     defile. */
-  min-height: 100dvh;
+  min-height: 100vh;
   display: flex;
+  justify-content: center;
   align-items: center;
   overflow: hidden;
   background: var(--v-fond-sombre);
 }
 
-/* La video de fond. L'iframe YouTube garde un format 16/9 quoi qu'on lui
-   demande : pour couvrir un ecran de proportion quelconque sans bande noire,
-   on l'agrandit au plus grand des deux besoins — d'ou les 177.78vh (16/9) en
-   largeur et les 56.25vw (9/16) en hauteur — puis on la centre et on rogne ce
-   qui depasse. C'est l'equivalent d'un `object-fit: cover`, que les iframes
-   ne savent pas faire. */
+@media (max-width: 767px) {
+  .v-hero {
+    min-height: auto;
+    justify-content: flex-start;
+    padding-top: 120px;
+    padding-bottom: 50px;
+  }
+}
+
+/* #brxe-emojml — la video n'est PAS plein ecran : elle part a 20 % de la
+   gauche et a 10 % du haut, ce qui degage la marge ou le texte se pose. */
 .v-hero__video {
   position: absolute;
-  inset: 0;
+  left: 20%;
+  right: 0;
+  top: 10%;
+  height: 90%;
   overflow: hidden;
-  /* Elle s'installe par-dessus la photo, une fois chargee. */
   z-index: 0;
 }
 
+@media (max-width: 767px) {
+  .v-hero__video { top: 20%; }
+}
+
+@media (max-width: 478px) {
+  .v-hero__video { left: 15%; top: 22%; height: 100%; }
+}
+
+/* #brxe-ohuyaa — l'iframe remplit son bloc. Les proportions se calculent sur
+   le CONTENEUR et non sur la fenetre : la video ne deborde donc jamais de la
+   zone qui lui est reservee. 177.78 % et 56.25 % sont les deux facons
+   d'exprimer le 16/9 ; on garde la plus grande, ce qui remplit sans bande
+   noire, exactement comme un `object-fit: cover`. */
 .v-hero__video iframe {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 100vw;
-  height: 56.25vw;
-  min-height: 100dvh;
-  min-width: 177.78dvh;
+  width: 100%;
+  height: 56.25%;
+  min-height: 100%;
+  min-width: 177.78%;
   border: 0;
   pointer-events: none;
 }
 
+/* La photo de repli, sous la video, cadree sur la meme zone : sans cela, elle
+   couvrirait tout l'ecran et la marge de gauche disparaitrait le temps du
+   chargement. */
+/* La photo de repli couvre TOUT le hero, contrairement a la video qui, elle,
+   est decalee. Raison : la video d'origine etait lumineuse et se detachait sur
+   le fond sombre de la section ; une photo sombre laissee dans le meme cadre
+   ne donne qu'un grand rectangle noir a cote d'un autre. En couvrant, elle
+   tient le fond seule tant que la video n'est pas arrivee, puis disparait
+   derriere elle. */
 .v-hero__fond {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Le cadrage part du HAUT et non du centre. `cover` recadre pour remplir, et
-     centre par defaut : sur un ecran large, la photo se rogne alors en haut et
-     en bas, et il ne restait a l'ecran que les jambes et les pieds. En calant
-     sur le haut, on garde les visages et le buste — ce qu'on est venu voir. */
-  object-position: 50% 15%;
-  /* Le studio est photographie en lumiere chaude : desaturer legerement evite
-     que le vert lime de la marque se batte avec les bruns du bois. */
+  object-position: 50% 25%;
   filter: saturate(0.85) contrast(1.05);
 }
 
+/* #brxe-726fef::before — le voile, exactement celui de l'original. */
 .v-hero__voile {
   position: absolute;
   inset: 0;
   z-index: 1;
-  /* Le voile du site d'origine : un noir presque uniforme, un peu plus dense
-     en haut. Il est plus leger que celui d'un hero photographique, parce que
-     la video se doit de rester visible — c'est elle qu'on est venu remettre.
-     Assez dense malgre tout pour que le texte blanc tienne le contraste
-     au-dessus des plans les plus clairs. */
-  background: linear-gradient(rgb(10 12 14 / 70%), rgb(10 12 14 / 57%));
+  background: linear-gradient(rgb(0 0 0 / 70%), rgb(0 0 0 / 57%));
 }
 
+/* #brxe-5b1b23 + #brxe-5a7865 */
 .v-hero__contenu {
   position: relative;
   z-index: 2;
   max-width: var(--v-largeur);
   margin-inline: auto;
-  /* La marge basse est plus large que la haute : elle laisse la place a
-     l'invite « Explorer », qui se pose sous le texte. */
-  padding: var(--v-s6) var(--v-s3) var(--v-s6);
+  padding: var(--v-s5) var(--v-s3);
   width: 100%;
   color: #fff;
-}
-
-/* Le nom du studio et son adresse, comme sur le site d'origine : la marque
-   d'abord, le lieu ensuite, en plus discret. */
-.v-hero__lieu {
   display: flex;
   flex-direction: column;
-  gap: 0.15em;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--v-accent);
-  margin-bottom: var(--v-s2);
+  align-items: flex-start;
+  gap: 20px;
+}
+
+/* #brxe-ewqphm — le nom du studio et l'adresse, derriere une barre verticale
+   blanche. C'est ce filet de 4 px qui signe le bloc. */
+.v-hero__lieu {
+  display: block;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  color: #fff;
+  padding-left: 10px;
+  border-left: 4px solid #ffffff;
+  margin: 0;
 }
 
 .v-hero__adresse {
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: rgb(255 255 255 / 80%);
+  display: block;
+  font-weight: 400;
 }
 
+/* #brxe-uxxmxn — 92 px, tout en capitales, interligne serre. */
 .v-hero__titre {
-  font-size: var(--v-t-geant);
-  line-height: 1.02;
-  letter-spacing: -0.03em;
-  font-weight: 900;
-  margin: 0 0 var(--v-s3);
-  max-width: 16ch;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 92px;
+  line-height: 90px;
+  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 0;
+  max-width: 550px;
+  margin: 0;
   text-wrap: balance;
 }
 
+@media (max-width: 767px) {
+  .v-hero__titre {
+    font-size: 60px;
+    line-height: 60px;
+    width: 100%;
+  }
+}
+
+/* #brxe-jnrjow */
 .v-hero__accroche {
-  font-size: clamp(1.0625rem, 2vw, 1.3125rem);
-  color: rgb(255 255 255 / 88%);
-  max-width: 46ch;
-  margin: 0 0 var(--v-s4);
+  max-width: 450px;
+  font-size: var(--v-t-corps);
+  color: #fff;
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .v-hero__accroche { font-size: 18px; line-height: 26px; }
+}
+
+/* #brxe-hxhgwy — les deux boutons, cote a cote. */
+.v-hero__contenu .v-boutons {
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+/* #brxe-tlxekz et #brxe-bgwdlp — Bebas Neue 20 px, angles droits. Le premier
+   bouton est sombre a filet blanc, le second blanc sur texte noir. */
+.v-hero__contenu .v-bouton {
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  padding: 10px 20px;
+  border-radius: 0;
+  line-height: 1.3;
+}
+
+.v-hero__contenu .v-bouton--plein {
+  background-color: #000000;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+}
+
+.v-hero__contenu .v-bouton--plein:hover {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.v-hero__contenu .v-bouton--ligne {
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
+}
+
+.v-hero__contenu .v-bouton--ligne:hover {
+  background-color: transparent;
+  color: #ffffff;
+}
+
+@media (max-width: 767px) {
+  .v-hero__contenu .v-bouton { font-size: 24px; }
 }
 
 /* ---- L'invite a defiler --------------------------------------------------
-   La souris et son point qui descend, repris du site d'origine. Elle dit au
-   visiteur que la page continue sous le hero — sans elle, un hero plein ecran
-   se prend facilement pour la page entiere. */
+   #brxe-qxmewi et #brxe-nfejai. Dans l'original elle n'est pas centree : elle
+   est calee a DROITE du bloc de contenu, la souris au-dessus du mot. */
 .v-hero__explorer {
   position: absolute;
   z-index: 2;
-  left: 50%;
-  bottom: var(--v-s3);
-  transform: translateX(-50%);
+  right: max(var(--v-s3), calc((100% - var(--v-largeur)) / 2 + var(--v-s3)));
+  bottom: var(--v-s4);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--v-s1);
-  color: #fff;
+  gap: 15px;
+  width: fit-content;
+  color: #ffffff;
   text-decoration: none;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 20px;
+  line-height: 1.2;
   text-transform: uppercase;
-  opacity: 0.85;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: 0.45s ease;
 }
 
 .v-hero__explorer:hover,
 .v-hero__explorer:focus-visible {
-  opacity: 1;
-  transform: translateX(-50%) translateY(-4px);
+  transform: translateY(-4px);
 }
 
+/* La souris, au pixel pres : c'est du CSS ecrit a la main dans le WordPress
+   (#brxe-fnssbo), repris tel quel. */
 .v-hero__souris {
+  border: 1px solid white;
   width: 25px;
   height: 45px;
-  border: 1px solid #fff;
   border-radius: 50px;
   display: block;
   position: relative;
@@ -640,14 +740,15 @@
 
 .v-hero__souris::before {
   content: '';
-  position: absolute;
   width: 3px;
   height: 10px;
-  background: #fff;
+  position: absolute;
+  background: white;
   left: 50%;
-  top: 10px;
   transform: translateX(-50%);
+  top: 10px;
   border-radius: 50px;
+  opacity: 1;
   animation: v-souris 3s infinite;
 }
 
