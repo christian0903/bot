@@ -1,10 +1,25 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapPin, Check, ArrowRight } from 'lucide-react'
+import { Check, ArrowRight } from 'lucide-react'
 import { BlocCours } from '@/components/vitrine/BlocCours'
 import { BlocTarifs } from '@/components/vitrine/BlocTarifs'
 import { BlocFaq } from '@/components/vitrine/BlocFaq'
 
 const URL_APP = import.meta.env.VITE_URL_APPLICATION || 'https://app.backontrackstudio.be'
+
+// La video de fond du hero, reprise du site WordPress. `nocookie` sert le
+// lecteur sans deposer de cookie publicitaire tant que rien n'est joue : c'est
+// ce qui evite d'avoir a demander un consentement pour la page d'accueil.
+//
+// Les parametres reproduisent l'ancien reglage : elle demarre seule, muette et
+// en boucle, sans commandes ni suggestions de fin. `playlist` valant l'id de la
+// video est la seule facon de faire boucler un `embed` isole — sans lui, `loop`
+// est ignore.
+const VIDEO_HERO = 'A3FVv05feQI'
+const VIDEO_HERO_SRC =
+  `https://www.youtube-nocookie.com/embed/${VIDEO_HERO}` +
+  `?autoplay=1&mute=1&loop=1&playlist=${VIDEO_HERO}` +
+  '&controls=0&rel=0&showinfo=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1'
 
 // Le contenu vit en tete de fichier, separe du balisage : corriger un texte ou
 // changer une photo ne demande pas de lire le JSX. Les textes sont ceux du site
@@ -70,9 +85,35 @@ const COACHS = [
 ]
 
 export function VitrineAccueilPage() {
+  // La video ne se pose qu'une fois la page affichee et interactive. L'iframe
+  // YouTube tire pres d'un demi-megaoctet de script : la charger d'emblee
+  // retarderait le titre, c'est-a-dire la seule chose que le visiteur est venu
+  // lire. La photo tient le fond en attendant, puis la video se substitue.
+  const [videoPosee, setVideoPosee] = useState(false)
+
+  useEffect(() => {
+    // Qui a demande moins d'animations garde la photo : une video plein ecran
+    // qui tourne en boucle est precisement ce que ce reglage systeme vise.
+    const sobre = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (sobre.matches) return
+
+    // `requestIdleCallback` attend que le navigateur n'ait plus rien d'urgent.
+    // Safari ne le connait pas, d'ou le repli sur un delai court.
+    const lancer = () => setVideoPosee(true)
+    const idle = window.requestIdleCallback
+    if (idle) {
+      const id = idle(lancer, { timeout: 2500 })
+      return () => window.cancelIdleCallback?.(id)
+    }
+    const t = window.setTimeout(lancer, 1200)
+    return () => window.clearTimeout(t)
+  }, [])
+
   return (
     <>
-      {/* ---- Le hero ---------------------------------------------------- */}
+      {/* ---- Le hero -----------------------------------------------------
+          La video de fond, le voile, le texte, et l'invite a defiler : c'est
+          la composition du site d'origine, que les coachs connaissent. */}
       <section className="v-hero">
         <img
           className="v-hero__fond"
@@ -86,32 +127,61 @@ export function VitrineAccueilPage() {
           height={1200}
           /* Cette image est le premier pixel affiche : la charger en priorite
              plutot qu'en differe est ce qui separe une page qui s'ouvre d'une
-             page qui clignote. */
+             page qui clignote. Elle reste sous la video — si YouTube est
+             bloque ou lent, le hero ne devient jamais un rectangle noir. */
           fetchPriority="high"
         />
+
+        {videoPosee && (
+          <div className="v-hero__video" aria-hidden="true">
+            <iframe
+              src={VIDEO_HERO_SRC}
+              title=""
+              /* La video n'est que decor : elle ne porte aucune information et
+                 ne doit donc pas se presenter au clavier ni aux lecteurs
+                 d'ecran, qui n'y trouveraient qu'un cadre vide a traverser. */
+              tabIndex={-1}
+              frameBorder="0"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              referrerPolicy="strict-origin-when-cross-origin"
+              loading="lazy"
+            />
+          </div>
+        )}
+
         <div className="v-hero__voile" />
+
         <div className="v-hero__contenu">
           <p className="v-hero__lieu">
-            <MapPin size={15} aria-hidden="true" />
-            Rixensart · Avenue de Merode 64
+            Back On Track
+            <span className="v-hero__adresse">
+              Avenue de Merode 64, 1330 Rixensart
+            </span>
           </p>
           <h1 className="v-hero__titre">
-            Le studio où chacun compte
+            Studio de fitness à Rixensart
           </h1>
           <p className="v-hero__accroche">
             Un accompagnement fitness adapté à VOTRE vie, dans une ambiance
-            où l'on se sent bien. Pas de grandes salles impersonnelles :
-            cinq personnes maximum, et un coach qui vous connaît.
+            où l'on se sent bien.
           </p>
           <div className="v-boutons">
-            <a className="v-bouton v-bouton--plein" href={`${URL_APP}/auth`}>
-              Réserver ma séance d'essai
-            </a>
-            <Link className="v-bouton v-bouton--ligne" to="/cours">
-              Découvrir les cours
+            <Link className="v-bouton v-bouton--plein" to="/cours">
+              Découvrir nos cours
             </Link>
+            <a className="v-bouton v-bouton--ligne" href={`${URL_APP}/auth`}>
+              Séance d'essai gratuite
+            </a>
           </div>
         </div>
+
+        {/* L'invite a defiler du site d'origine : la souris et son mot. Elle
+            mene a la premiere section, et se laisse donc activer au clavier
+            comme n'importe quel lien d'ancre. */}
+        <a className="v-hero__explorer" href="#le-studio">
+          <span className="v-hero__souris" aria-hidden="true" />
+          <span className="v-hero__explorer-mot">Explorer</span>
+        </a>
       </section>
 
       {/* ---- Les chiffres ----------------------------------------------- */}

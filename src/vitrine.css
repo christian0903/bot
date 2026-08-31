@@ -484,11 +484,42 @@
    photographiques. */
 .v-hero {
   position: relative;
-  min-height: min(88vh, 780px);
+  /* Le site d'origine occupait la hauteur entiere de l'ecran. `dvh` et non
+     `vh` : sur mobile, `vh` compte la barre d'adresse comme si elle etait
+     retractee, et le bas du hero se retrouve masque tant qu'on n'a pas
+     defile. */
+  min-height: 100dvh;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   overflow: hidden;
   background: var(--v-fond-sombre);
+}
+
+/* La video de fond. L'iframe YouTube garde un format 16/9 quoi qu'on lui
+   demande : pour couvrir un ecran de proportion quelconque sans bande noire,
+   on l'agrandit au plus grand des deux besoins — d'ou les 177.78vh (16/9) en
+   largeur et les 56.25vw (9/16) en hauteur — puis on la centre et on rogne ce
+   qui depasse. C'est l'equivalent d'un `object-fit: cover`, que les iframes
+   ne savent pas faire. */
+.v-hero__video {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Elle s'installe par-dessus la photo, une fois chargee. */
+  z-index: 0;
+}
+
+.v-hero__video iframe {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw;
+  height: 56.25vw;
+  min-height: 100dvh;
+  min-width: 177.78dvh;
+  border: 0;
+  pointer-events: none;
 }
 
 .v-hero__fond {
@@ -510,31 +541,45 @@
 .v-hero__voile {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(to top, rgb(10 12 14 / 92%) 0%,
-                            rgb(10 12 14 / 55%) 45%,
-                            rgb(10 12 14 / 35%) 100%);
+  z-index: 1;
+  /* Le voile du site d'origine : un noir presque uniforme, un peu plus dense
+     en haut. Il est plus leger que celui d'un hero photographique, parce que
+     la video se doit de rester visible — c'est elle qu'on est venu remettre.
+     Assez dense malgre tout pour que le texte blanc tienne le contraste
+     au-dessus des plans les plus clairs. */
+  background: linear-gradient(rgb(10 12 14 / 70%), rgb(10 12 14 / 57%));
 }
 
 .v-hero__contenu {
   position: relative;
+  z-index: 2;
   max-width: var(--v-largeur);
   margin-inline: auto;
-  padding: var(--v-s6) var(--v-s3) var(--v-s5);
+  /* La marge basse est plus large que la haute : elle laisse la place a
+     l'invite « Explorer », qui se pose sous le texte. */
+  padding: var(--v-s6) var(--v-s3) var(--v-s6);
   width: 100%;
   color: #fff;
 }
 
+/* Le nom du studio et son adresse, comme sur le site d'origine : la marque
+   d'abord, le lieu ensuite, en plus discret. */
 .v-hero__lieu {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--v-s1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
   font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--v-accent);
   margin-bottom: var(--v-s2);
+}
+
+.v-hero__adresse {
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: rgb(255 255 255 / 80%);
 }
 
 .v-hero__titre {
@@ -552,6 +597,75 @@
   color: rgb(255 255 255 / 88%);
   max-width: 46ch;
   margin: 0 0 var(--v-s4);
+}
+
+/* ---- L'invite a defiler --------------------------------------------------
+   La souris et son point qui descend, repris du site d'origine. Elle dit au
+   visiteur que la page continue sous le hero — sans elle, un hero plein ecran
+   se prend facilement pour la page entiere. */
+.v-hero__explorer {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: var(--v-s3);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--v-s1);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.v-hero__explorer:hover,
+.v-hero__explorer:focus-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.v-hero__souris {
+  width: 25px;
+  height: 45px;
+  border: 1px solid #fff;
+  border-radius: 50px;
+  display: block;
+  position: relative;
+}
+
+.v-hero__souris::before {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 10px;
+  background: #fff;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  border-radius: 50px;
+  animation: v-souris 3s infinite;
+}
+
+@keyframes v-souris {
+  from { opacity: 1; top: 5px; }
+  to   { opacity: 0; top: 30px; }
+}
+
+/* Sur un ecran court — un telephone en paysage — l'invite chevaucherait le
+   texte. Mieux vaut la retirer que la superposer. */
+@media (max-height: 560px) {
+  .v-hero__explorer { display: none; }
+}
+
+/* Qui a demande moins d'animations garde la souris, mais immobile. */
+@media (prefers-reduced-motion: reduce) {
+  .v-hero__souris::before { animation: none; opacity: 1; top: 10px; }
+  .v-hero__explorer { transition: none; }
 }
 
 /* ---- Le bandeau de chiffres --------------------------------------------
