@@ -50,7 +50,14 @@
      defaut est noir, l'encre est blanche, et il n'y a plus de section claire
      du tout. */
   --v-encre: #ffffff;
-  --v-encre-douce: #c8ccd0;
+  /* Mesure sur le site en ligne : les textes courants du WordPress sont en
+     `rgba(255,255,255,0.86)` — du BLANC TRANSPARENT, pas un gris. La nuance
+     n'est pas theorique : un blanc a 86 % laisse transparaitre le fond et
+     s'adoucit avec lui, tandis qu'un gris opaque garde sa propre teinte. Le
+     `#c8ccd0` employe jusqu'ici etait de surcroit legerement bleute, donc plus
+     froid et plus dur que l'original — ce que Christian a vu. */
+  --v-encre-douce: rgb(255 255 255 / 86%);
+  --v-encre-tres-douce: rgb(255 255 255 / 79%);
   --v-fond: #000000;
   --v-fond-alt: #0a0a0a;
   --v-fond-sombre: #000000;
@@ -159,7 +166,7 @@
   margin: 0 0 var(--v-s4);
 }
 
-.v-section--sombre .v-chapeau { color: #b9c0c6; }
+.v-section--sombre .v-chapeau { color: rgb(255 255 255 / 79%); }
 
 /* --------------------------------------------------------------------------
    Grilles
@@ -183,43 +190,57 @@
    Boutons
    -------------------------------------------------------------------------- */
 
+/* Les boutons, mesures sur le site en ligne. Deux styles seulement, et AUCUN
+   n'est vert : le vert lime venait de l'application, pas du site.
+
+     « Découvrir nos cours »     fond noir,  texte blanc, filet blanc
+     « Séance d'essai gratuite » fond blanc, texte noir,  sans filet
+
+   Communs aux deux : Bebas Neue 20 px, angles droits, padding 10px 20px. */
 .v-bouton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--v-s1);
-  padding: 0.85rem 1.6rem;
-  border: 2px solid transparent;
-  border-radius: 999px;
-  font-size: var(--v-t-menu);
-  font-weight: 700;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  padding: 10px 20px;
+  border: 1px solid transparent;
+  border-radius: 0;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.15s ease, background-color 0.15s ease,
-              border-color 0.15s ease, color 0.15s ease;
-  /* La cible tactile ne descend jamais sous 44 px : en dessous, un doigt
-     rate le bouton une fois sur trois. */
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+              color 0.2s ease;
+  /* La cible tactile ne descend jamais sous 44 px : en dessous, un doigt rate
+     le bouton une fois sur trois. Bebas Neue etant etroite, le padding de
+     l'original n'y suffit pas toujours. */
   min-height: 44px;
 }
 
-.v-bouton:hover { transform: translateY(-1px); }
-.v-bouton:active { transform: translateY(0); }
-
+/* Le bouton principal : blanc plein, texte noir. */
 .v-bouton--plein {
-  background: var(--v-accent);
-  color: var(--v-accent-texte);
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
 }
-.v-bouton--plein:hover { background: var(--v-accent-sombre); }
 
-.v-bouton--ligne {
-  border-color: currentColor;
-  color: inherit;
+.v-bouton--plein:hover {
   background: transparent;
+  color: #ffffff;
 }
+
+/* Le second : sombre a filet blanc. */
+.v-bouton--ligne {
+  background: #000000;
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
 .v-bouton--ligne:hover {
-  background: var(--v-encre);
-  border-color: var(--v-encre);
-  color: #fff;
+  background: #ffffff;
+  color: #000000;
 }
 
 .v-section--sombre .v-bouton--ligne:hover {
@@ -462,7 +483,7 @@
 
 .v-pied {
   background: var(--v-fond-sombre);
-  color: #b9c0c6;
+  color: rgb(255 255 255 / 79%);
   padding: var(--v-s5) var(--v-s3) var(--v-s3);
 }
 
@@ -914,7 +935,7 @@
   margin: 0;
   font-size: var(--v-t-corps);
   line-height: 1.6;
-  color: #d5dade;
+  color: rgb(255 255 255 / 86%);
 }
 
 .v-temoignage__nom {
@@ -930,7 +951,7 @@
   border-color: rgb(255 255 255 / 12%);
 }
 
-.v-section--sombre .v-temoignage__texte { color: #d5dade; }
+.v-section--sombre .v-temoignage__texte { color: rgb(255 255 255 / 86%); }
 .v-section--sombre .v-temoignage__nom   { color: #fff; }
 
 /* ---- Les bandeaux d'appel ------------------------------------------------
@@ -1032,23 +1053,21 @@
   gap: var(--v-s2);
 }
 
+/* #brxe-bprpbt — dans l'original, ces arguments ne portent AUCUNE icone : ce
+   sont des blocs de texte sur un fond beige translucide,
+   rgba(206,207,165,0.2). Les pastilles vertes cochees etaient une invention de
+   la vitrine, et le vert venait de l'application. */
 .v-argument {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--v-s2);
-  align-items: start;
+  display: block;
+  background: rgb(206 207 165 / 20%);
+  padding: 10px;
+  color: #ffffff;
 }
 
+/* La puce n'existe pas dans l'original : masquee plutot que retiree du
+   balisage, pour que le composant reste utilisable ailleurs si besoin. */
 .v-argument__puce {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--v-accent);
-  color: var(--v-accent-texte);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  margin-top: 2px;
+  display: none;
 }
 
 /* ---- Le bloc « deux colonnes » : texte d'un cote, photo de l'autre ----- */
@@ -1156,7 +1175,7 @@
   color: var(--v-encre-douce);
 }
 
-.v-section--sombre .v-coach__objectif { color: #b9c0c6; }
+.v-section--sombre .v-coach__objectif { color: rgb(255 255 255 / 79%); }
 
 /* ---- Les cours, en pastilles ------------------------------------------- */
 .v-cours {
