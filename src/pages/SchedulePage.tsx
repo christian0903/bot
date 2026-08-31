@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
+import { useMode } from '@/contexts/ModeContext'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
 import { Button } from '@/components/ui/button'
@@ -160,7 +161,24 @@ export function SchedulePage() {
 
   // Défini ici plutôt que plus bas : la navigation du planning en dépend, et
   // une constante utilisée avant sa déclaration casse à l'exécution.
-  const isStaff = !!user && (roles.includes('admin') || roles.includes('super_admin') || roles.includes('coach'))
+  //
+  // Le planning suit le MODE CHOISI, pas seulement le rôle. Auparavant, un
+  // admin qui basculait en « Membre » voyait le bouton passer au vert mais
+  // gardait la vue staff : mêmes alertes, mêmes codes de salle, un clic qui
+  // ouvrait la gestion au lieu de la réservation. Les deux boutons menaient au
+  // même écran, ce qui rendait la bascule incompréhensible.
+  //
+  // Il ne s'agit pas d'un contrôle d'accès : le mode ne donne aucun droit, et
+  // les routes comme les policies RLS restent inchangées. Un admin en mode
+  // Membre garde tous ses droits — il regarde simplement son studio avec les
+  // yeux d'un client.
+  //
+  // C'est ce qui manquait le 31 août, quand un coach a signalé « 5 places
+  // disponibles » sur un cours complet : le défaut ne touchait que les
+  // membres, et aucun écran interne ne pouvait le montrer.
+  const { mode } = useMode()
+  const aLeRoleStaff = !!user && (roles.includes('admin') || roles.includes('super_admin') || roles.includes('coach'))
+  const isStaff = aLeRoleStaff && mode !== 'membre'
 
   // Le bouton « Aujourd'hui » ne s'affiche que si on n'y est pas : proposer de
   // revenir là où l'on se trouve déjà n'apprend rien.
@@ -356,9 +374,12 @@ export function SchedulePage() {
 
     // Le staff voit les cours annulés (information de gestion) ; les clients
     // non, pour ne pas afficher un planning parsemé d'annulations.
-    const staffView = !!user && (roles.includes('admin') || roles.includes('super_admin') || roles.includes('coach'))
+    //
+    // `isStaff` et non le rôle seul : en mode Membre, un admin doit voir le
+    // planning débarrassé des annulations, comme son client. Sans cela, la
+    // bascule laissait passer la moitié de la vue staff.
     const rawClasses = ((classesRes.data as ScheduledClass[]) ?? [])
-      .filter(c => staffView || !c.is_cancelled)
+      .filter(c => isStaff || !c.is_cancelled)
 
     // Fetch coach profiles
     const coachIds = [...new Set(rawClasses.map(c => c.coach_id).filter(Boolean))]

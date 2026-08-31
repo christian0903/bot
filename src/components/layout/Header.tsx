@@ -50,8 +50,10 @@ export function Header() {
    * performance à suivre. Les écrans personnels n'ont donc rien à faire dans sa
    * barre — ils l'encombrent avec des fonctions qu'il n'ouvrira jamais.
    *
-   * Le planning fait exception : c'est l'outil de travail du staff, et lui seul
-   * y voit les cours à surveiller et les décisions en attente.
+   * Le planning reste dans les deux menus, mais il ne montre PAS la même chose :
+   * il suit le mode choisi. En mode Admin, les cours à surveiller et les
+   * décisions en attente ; en mode Membre, ce que voit un client — ses crédits,
+   * les noms de salles, la réservation au clic.
    *
    * Les routes, elles, restent ouvertes. Masquer un lien range un menu, ça ne
    * protège rien — et un membre qui deviendrait coach garde l'accès à son
