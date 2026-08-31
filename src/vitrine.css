@@ -955,6 +955,94 @@
   filter: saturate(0.85) contrast(1.05);
 }
 
+/* ---- Les cours, version « page cours semi-prives » -----------------------
+   La grille de la page `/cours-2`, reprise de celle du WordPress : trois
+   colonnes, chaque carte portant sa photo en haut, puis le nom, une pastille
+   de couleur et le texte.
+
+   Comme les cartes de formule, elles n'ont ni fond clair ni bordure : le
+   WordPress pose l'image directement sur le noir. Le corps de la carte est a
+   peine eclairci pour separer le texte de la photo. */
+.v-cours2__grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: var(--v-s3);
+}
+
+.v-cours2 {
+  display: flex;
+  flex-direction: column;
+  background: none;
+  border: 0;
+}
+
+.v-cours2__image {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  display: block;
+  /* Le WordPress desature legerement ces photos : elles tiennent ensemble
+     malgre des lumieres tres differentes d'une salle a l'autre. */
+  filter: saturate(0.85) contrast(1.05);
+}
+
+.v-cours2__corps {
+  background: rgb(255 255 255 / 4%);
+  padding: var(--v-s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-s2);
+  flex: 1;
+}
+
+.v-cours2__nom {
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: #ffffff;
+  margin: 0;
+}
+
+/* La pastille de categorie. Sa couleur arrive en style en ligne, depuis la
+   donnee : six teintes pour six cours, chacune n'ayant qu'un seul usage. */
+.v-cours2__pastille {
+  align-self: flex-start;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #ffffff;
+  padding: 4px 12px;
+  margin: 0;
+  /* Le texte le plus long — celui du cours Adolescent — passe sur deux lignes
+     dans l'original plutot que de deborder. */
+  max-width: 100%;
+}
+
+.v-cours2__texte {
+  font-size: var(--v-t-corps);
+  line-height: 1.6;
+  color: var(--v-encre-douce);
+  margin: 0;
+}
+
+/* Le titre de cette page est pose sur un aplat, comme dans le WordPress. */
+.v-cours2__titre {
+  display: inline-block;
+  background: #4d79ff;
+  padding: 2px 14px;
+  margin-bottom: var(--v-s2);
+}
+
+.v-cours2__chapeau {
+  font-size: var(--v-t-corps);
+  color: var(--v-encre-douce);
+  margin: 0 0 var(--v-s4);
+}
+
 /* ---- Les temoignages ----------------------------------------------------
    Six avis clients, repris du site d'origine. Presentes en cartes, comme les
    coachs et les formules : c'est la grille deja utilisee partout ailleurs. */

@@ -75,6 +75,9 @@ const PlanningPublicPage = lazy(() => import('@/pages/PlanningPublicPage').then(
 const VitrineLayout = lazy(() => import('@/components/vitrine/VitrineLayout').then(m => ({ default: m.VitrineLayout })))
 const VitrineAccueilPage = lazy(() => import('@/pages/vitrine/VitrineAccueilPage').then(m => ({ default: m.VitrineAccueilPage })))
 const VitrineCoursPage = lazy(() => import('@/pages/vitrine/VitrineCoursPage').then(m => ({ default: m.VitrineCoursPage })))
+// Seconde presentation des cours, le temps que les coachs choisissent entre
+// les deux. La page ecartee sera supprimee une fois la decision prise.
+const VitrineCours2Page = lazy(() => import('@/pages/vitrine/VitrineCours2Page').then(m => ({ default: m.VitrineCours2Page })))
 const VitrineTarifsPage = lazy(() => import('@/pages/vitrine/VitrineTarifsPage').then(m => ({ default: m.VitrineTarifsPage })))
 const VitrineContactPage = lazy(() => import('@/pages/vitrine/VitrineContactPage').then(m => ({ default: m.VitrineContactPage })))
 
@@ -114,6 +117,7 @@ function App() {
                   <Route element={<Lazy><VitrineLayout /></Lazy>}>
                     <Route path="/" element={<Lazy><VitrineAccueilPage /></Lazy>} />
                     <Route path="/cours" element={<Lazy><VitrineCoursPage /></Lazy>} />
+                    <Route path="/cours-2" element={<Lazy><VitrineCours2Page /></Lazy>} />
                     <Route path="/tarifs" element={<Lazy><VitrineTarifsPage /></Lazy>} />
                     <Route path="/contact" element={<Lazy><VitrineContactPage /></Lazy>} />
                     {/* Le planning reel, dans l'ossature de la vitrine. La page
