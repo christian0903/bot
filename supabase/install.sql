@@ -1284,6 +1284,42 @@ RETURNS INTEGER AS $$
   WHERE scheduled_class_id = p_scheduled_class_id AND status = 'confirmed';
 $$ LANGUAGE sql STABLE;
 
+-- Les places prises par cours, sans exposer QUI est inscrit.
+--
+-- Le front les comptait en lisant `bookings` directement. Or la policy de
+-- lecture est `auth.uid() = user_id` : un membre ne voit QUE SES PROPRES
+-- réservations. Sur un cours où il n'était pas inscrit, la requête revenait
+-- vide — zéro place prise, donc « 5 places disponibles » à l'écran — et la
+-- réservation répondait « Ce cours est complet ». Signalé par un coach le
+-- 2026-08-31.
+--
+-- Le défaut était invisible pour un admin ou un coach, qui lisent tout : il ne
+-- touchait que les membres.
+--
+-- `SECURITY DEFINER` est ici le point entier : la fonction compte sous les
+-- droits de son propriétaire, mais ne rend qu'un NOMBRE. Aucune identité ne
+-- sort. Et le critère est le MÊME que celui de `book_class`, au caractère
+-- près : toute divergence reproduirait le défaut qu'on corrige.
+CREATE OR REPLACE FUNCTION places_prises_par_cours(p_class_ids UUID[])
+RETURNS TABLE (scheduled_class_id UUID, places_prises INTEGER)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT b.scheduled_class_id, COUNT(*)::INTEGER
+  FROM bookings b
+  WHERE b.scheduled_class_id = ANY(p_class_ids)
+    AND b.status = 'confirmed'
+  GROUP BY b.scheduled_class_id;
+$$;
+
+COMMENT ON FUNCTION places_prises_par_cours(UUID[]) IS
+  'Places prises par cours, sans exposer qui est inscrit. Le front ne peut pas les compter lui-meme : la RLS de `bookings` ne montre a un membre que ses propres reservations.';
+
+REVOKE ALL ON FUNCTION places_prises_par_cours(UUID[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION places_prises_par_cours(UUID[]) TO anon, authenticated;
+
 -- Auto-update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$

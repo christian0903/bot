@@ -375,13 +375,41 @@ export function SchedulePage() {
     // Booking counts
     const classIds = rawClasses.map(c => c.id)
     if (classIds.length > 0) {
-      // Une annulation tardive compte comme une place occupée : le crédit a
-      // été consommé. Les présences servent à savoir si le cours a eu lieu.
+      // LES PLACES PRISES VIENNENT DU SERVEUR, et non d'un comptage ici.
+      //
+      // Elles se comptaient sur `bookings`, lu directement. Or la policy de
+      // lecture est `auth.uid() = user_id` : un membre ne voit QUE SES PROPRES
+      // reservations. Sur un cours ou il n'etait pas inscrit, la requete
+      // revenait vide — zero place prise, donc « 5 places disponibles » a
+      // l'ecran — et la reservation repondait « Ce cours est complet ».
+      //
+      // Le defaut etait invisible pour un admin ou un coach, qui lisent tout :
+      // il ne touchait que les membres. Signale par un coach le 31 aout.
+      //
+      // `places_prises_par_cours` applique le MEME critere que `book_class` :
+      // `status = 'confirmed'`. Une annulation tardive libere donc la place —
+      // le credit reste consomme, mais la place est physiquement libre, et
+      // c'est ce que la reservation appliquera.
+      const { data: placesData, error: placesError } = await supabase
+        .rpc('places_prises_par_cours', { p_class_ids: classIds })
+
+      const counts = new Map<string, number>()
+      if (placesError) {
+        // Tester `error` : un refus revient dans l'objet de reponse sans lever
+        // d'exception, et l'ecran afficherait tous les cours vides.
+        console.error('places_prises_par_cours:', placesError.message)
+      } else {
+        for (const row of (placesData ?? []) as { scheduled_class_id: string; places_prises: number }[]) {
+          counts.set(row.scheduled_class_id, row.places_prises)
+        }
+      }
+
+      // Les presences et les absences restent lues ici : elles ne servent qu'a
+      // l'espace coach, qui a le droit de tout voir.
       const { data: countData } = await supabase
         .from('bookings')
         .select('scheduled_class_id, status, is_no_show, checked_in_at')
         .in('scheduled_class_id', classIds)
-      const counts = new Map<string, number>()
       const attended = new Map<string, number>()
       const noShows = new Map<string, number>()
       for (const row of (countData ?? []) as {
@@ -390,8 +418,6 @@ export function SchedulePage() {
         if (row.checked_in_at) {
           attended.set(row.scheduled_class_id, (attended.get(row.scheduled_class_id) ?? 0) + 1)
         }
-        if (row.status !== 'confirmed' && !row.is_no_show) continue
-        counts.set(row.scheduled_class_id, (counts.get(row.scheduled_class_id) ?? 0) + 1)
         if (row.is_no_show) {
           noShows.set(row.scheduled_class_id, (noShows.get(row.scheduled_class_id) ?? 0) + 1)
         }
