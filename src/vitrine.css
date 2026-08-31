@@ -44,12 +44,17 @@
      les photos, et ce qui donne au lieu son caractere chaleureux. */
   --v-bois: #6b4f3a;
 
-  --v-encre: #14171a;
-  --v-encre-douce: #4a5158;
-  --v-fond: #ffffff;
-  --v-fond-alt: #f5f6f4;
-  --v-fond-sombre: #14171a;
-  --v-bordure: #e3e5e1;
+  /* Le WordPress n'est PAS un site clair avec des sections sombres : c'est
+     l'inverse. Aucune de ses sections ne declare de fond — elles heritent
+     toutes du theme, qui est noir. Ces valeurs le reproduisent : le fond par
+     defaut est noir, l'encre est blanche, et il n'y a plus de section claire
+     du tout. */
+  --v-encre: #ffffff;
+  --v-encre-douce: #c8ccd0;
+  --v-fond: #000000;
+  --v-fond-alt: #0a0a0a;
+  --v-fond-sombre: #000000;
+  --v-bordure: #2a2d30;
 
   /* ---- Rythme -----------------------------------------------------------
      Une seule echelle d'espacements pour tout le site : c'est ce qui fait
@@ -103,6 +108,8 @@
   padding: var(--v-s6) var(--v-s3);
 }
 
+/* Le WordPress alterne des noirs, jamais un clair. `--alt` sert donc a peine
+   a distinguer deux sections voisines, sans quitter le noir. */
 .v-section--alt { background: var(--v-fond-alt); }
 
 /* Le WordPress est en NOIR pur, pas dans un gris tres sombre : la difference
@@ -245,10 +252,15 @@
   flex: 1;
 }
 
+/* Les sous-titres du WordPress (#brxe-swaqxb, #brxe-ozteaa) sont en Bebas
+   Neue 30 px. La police est la meme sur toute la page : titres, sous-titres et
+   boutons. */
 .v-carte__titre {
-  font-size: var(--v-t-moyen);
-  font-weight: 800;
-  line-height: 1.2;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: clamp(1.5rem, 2.5vw, 30px);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
   margin: 0;
 }
 
@@ -579,14 +591,20 @@
   background: linear-gradient(rgb(0 0 0 / 70%), rgb(0 0 0 / 57%));
 }
 
-/* #brxe-5b1b23 + #brxe-5a7865 */
+/* #brxe-5b1b23 + #brxe-5a7865 + .brxe-container
+   La largeur du conteneur est celle du WordPress — `width: 90%` borne a
+   1400 px — et NON la largeur de la vitrine (1180 px). L'ecart n'est pas
+   cosmetique : la video commence a 20 % de la gauche, et c'est parce que ce
+   conteneur est plus large que le texte deborde par-dessus le noir, a gauche
+   du bord de la video. Avec 1180 px, le bloc restait entierement a l'interieur
+   de l'image — ce que Christian a vu et signale. */
 .v-hero__contenu {
   position: relative;
   z-index: 2;
-  max-width: var(--v-largeur);
+  width: 90%;
+  max-width: 1400px;
   margin-inline: auto;
-  padding: var(--v-s5) var(--v-s3);
-  width: 100%;
+  padding-block: var(--v-s5);
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -1031,8 +1049,10 @@
 }
 
 .v-coach__nom {
-  font-size: var(--v-t-moyen);
-  font-weight: 800;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: clamp(1.5rem, 2.5vw, 30px);
+  font-weight: 400;
+  letter-spacing: 0.01em;
   margin: 0 0 var(--v-s1);
 }
 
