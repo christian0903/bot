@@ -105,8 +105,10 @@
 
 .v-section--alt { background: var(--v-fond-alt); }
 
+/* Le WordPress est en NOIR pur, pas dans un gris tres sombre : la difference
+   se voit des que les deux sections se touchent. */
 .v-section--sombre {
-  background: var(--v-fond-sombre);
+  background: #000000;
   color: #fff;
 }
 
@@ -115,12 +117,18 @@
   margin-inline: auto;
 }
 
+/* Les titres de section sont en Bebas Neue capitales, comme le titre du hero :
+   c'est la meme police sur tout le site d'origine. */
 .v-titre-section {
-  font-size: var(--v-t-grand);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-family: 'Bebas Neue', var(--v-police);
+  /* 60 px, la taille des titres de section du WordPress (#brxe-aerqrm,
+     #brxe-lvvrvu, #brxe-kvkrmy). Bornee en bas pour les petits ecrans. */
+  font-size: clamp(2.5rem, 5vw, 60px);
+  line-height: 1.05;
+  letter-spacing: 0;
+  text-transform: uppercase;
   margin: 0 0 var(--v-s2);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .v-chapeau {
@@ -501,7 +509,8 @@
    donne au hero son caractere, et la remplacer par la police du systeme suffit
    a ne plus reconnaitre le site.                                            */
 
-/* #brxe-726fef */
+/* #brxe-726fef — fond NOIR, pas de photo. La video seule occupe le fond ;
+   avant qu'elle n'arrive, c'est du noir qu'on voit, comme sur le WordPress. */
 .v-hero {
   position: relative;
   min-height: 100vh;
@@ -509,7 +518,7 @@
   justify-content: center;
   align-items: center;
   overflow: hidden;
-  background: var(--v-fond-sombre);
+  background: #000000;
 }
 
 @media (max-width: 767px) {
@@ -562,22 +571,6 @@
 /* La photo de repli, sous la video, cadree sur la meme zone : sans cela, elle
    couvrirait tout l'ecran et la marge de gauche disparaitrait le temps du
    chargement. */
-/* La photo de repli couvre TOUT le hero, contrairement a la video qui, elle,
-   est decalee. Raison : la video d'origine etait lumineuse et se detachait sur
-   le fond sombre de la section ; une photo sombre laissee dans le meme cadre
-   ne donne qu'un grand rectangle noir a cote d'un autre. En couvrant, elle
-   tient le fond seule tant que la video n'est pas arrivee, puis disparait
-   derriere elle. */
-.v-hero__fond {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 25%;
-  filter: saturate(0.85) contrast(1.05);
-}
-
 /* #brxe-726fef::before — le voile, exactement celui de l'original. */
 .v-hero__voile {
   position: absolute;
@@ -777,6 +770,126 @@
   line-height: 1.2;
   color: var(--v-encre);
   margin: 0 0 var(--v-s1);
+}
+
+/* ---- Le carrousel de photos ----------------------------------------------
+   Le WordPress fait defiler ces photos avec Splide. Ici, un simple defilement
+   horizontal : `scroll-snap` cale chaque photo en place, et la piste reste
+   manipulable au doigt comme a la molette. Rien a charger, rien a initialiser,
+   et le defilement fonctionne meme si le JavaScript echoue. */
+.v-photos {
+  padding: 50px 0;
+  overflow: hidden;
+  background: #000000;
+}
+
+.v-photos__piste {
+  display: flex;
+  gap: var(--v-s2);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-inline: var(--v-s3);
+  /* La barre de defilement est masquee : la piste se manipule au doigt ou a la
+     molette, et une barre grise sous les photos casserait la bande. */
+  scrollbar-width: none;
+}
+
+.v-photos__piste::-webkit-scrollbar { display: none; }
+
+.v-photos__image {
+  flex: 0 0 auto;
+  width: min(70vw, 420px);
+  height: 280px;
+  object-fit: cover;
+  border-radius: var(--v-rayon);
+  scroll-snap-align: center;
+  /* Le WordPress applique un filtre a ces photos (classe `css-filter`) : elles
+     sont legerement desaturees, ce qui les fait tenir ensemble malgre des
+     lumieres differentes. */
+  filter: saturate(0.85) contrast(1.05);
+}
+
+/* ---- Les temoignages ----------------------------------------------------
+   Six avis clients, repris du site d'origine. Presentes en cartes, comme les
+   coachs et les formules : c'est la grille deja utilisee partout ailleurs. */
+.v-temoignage {
+  background: var(--v-fond-alt);
+  border: 1px solid var(--v-bordure);
+  border-radius: var(--v-rayon);
+  padding: var(--v-s3);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-s2);
+}
+
+.v-temoignage__texte {
+  margin: 0;
+  font-size: var(--v-t-corps);
+  line-height: 1.6;
+  color: var(--v-encre-douce);
+}
+
+.v-temoignage__nom {
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 1.375rem;
+  letter-spacing: 0.02em;
+  color: var(--v-encre);
+  margin-top: auto;
+}
+
+.v-section--sombre .v-temoignage {
+  background: rgb(255 255 255 / 5%);
+  border-color: rgb(255 255 255 / 12%);
+}
+
+.v-section--sombre .v-temoignage__texte { color: #d5dade; }
+.v-section--sombre .v-temoignage__nom   { color: #fff; }
+
+/* ---- Les bandeaux d'appel ------------------------------------------------
+   « Pret-e a te (re)mettre en mouvement ? » et « Envie de faire bouger vos
+   collaborateurs ? » : meme composition centree dans le WordPress. */
+.v-appel-bandeau {
+  text-align: center;
+}
+
+.v-appel-bandeau .v-chapeau {
+  margin-inline: auto;
+  margin-bottom: var(--v-s3);
+}
+
+.v-appel-bandeau .v-boutons {
+  justify-content: center;
+}
+
+/* ---- Le texte de bas de page --------------------------------------------
+   Il porte le referencement local. Son titre est plus long que les autres :
+   il descend donc d'un cran en taille pour ne pas ecraser la page. */
+.v-seo {
+  text-align: center;
+}
+
+.v-seo .v-titre-section {
+  font-size: clamp(1.75rem, 3.5vw, 42px);
+  max-width: 24ch;
+  margin-inline: auto;
+}
+
+.v-seo__accroche {
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: clamp(1.5rem, 3vw, 30px);
+  line-height: 1.2;
+  color: var(--v-encre);
+  margin: 0 0 var(--v-s2);
+}
+
+.v-seo .v-chapeau {
+  margin-inline: auto;
+  margin-bottom: var(--v-s3);
+}
+
+.v-seo .v-boutons {
+  justify-content: center;
 }
 
 /* ---- Le bandeau de chiffres --------------------------------------------

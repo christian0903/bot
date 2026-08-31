@@ -25,12 +25,6 @@ const VIDEO_HERO_SRC =
 // changer une photo ne demande pas de lire le JSX. Les textes sont ceux du site
 // WordPress, repris fidelement.
 
-const CHIFFRES = [
-  { valeur: '5', libelle: 'participants au maximum par cours' },
-  { valeur: '50', libelle: 'minutes par séance' },
-  { valeur: '7j/7', libelle: 'des créneaux matin et soir' },
-]
-
 const ARGUMENTS = [
   'Jamais plus de 5 personnes par cours (on apprend vraiment à vous connaître !)',
   'On s\'adapte à vous, pas l\'inverse',
@@ -86,6 +80,41 @@ const COACHS = [
   },
 ]
 
+// Les six temoignages du site d'origine, repris mot pour mot.
+// Le carrousel de photos du studio (brxe-myphqh), entre « Le studio » et
+// « Nos formules de cours ». Huit photos, dans l'ordre du site d'origine.
+const PHOTOS_STUDIO = [
+  'DSC01273', 'DSC00990', 'DSC02513', 'IMG_3269',
+  'PT', 'IMG_7631', 'DSC02749', 'IMG_5674',
+]
+
+const TEMOIGNAGES = [
+  {
+    nom: 'Claire & Alexis',
+    texte: "On a découvert Back on Track lors de RIXENFÊTE — trois jeunes souriants, un studio flambant neuf à deux pas de chez nous… on a tout de suite accroché ! Depuis, on y va régulièrement avec mon mari. Chaque coach a son style, les séances sont variées, le matériel top, et l'ambiance est toujours au rendez-vous. Continuez comme ça les gars, vous êtes au top !",
+  },
+  {
+    nom: 'Fabienne',
+    texte: "Je suis venue chez Back on Track pour soulager mes douleurs au dos avec le cours de posture. Même en collectif, on est vraiment bien suivi : les coachs s'adaptent à chacun et nous motivent à progresser. Depuis que j'ai commencé, j'ai beaucoup moins mal. Mon mari m'a rejoint, et on fait même du boxing maintenant ! On est ravis. Je recommande à 100 %.",
+  },
+  {
+    nom: 'Hanane',
+    texte: "Des super coachs d'un grand professionnalisme, ils sont très à l'écoute et attentifs aux besoins individuels des clients. La grille horaire est bien étoffée et les cours sont très variés ! Bravo !",
+  },
+  {
+    nom: 'Nadège',
+    texte: "Nous recherchions une activité sportive à faire en famille dans un cadre agréable, et nous l'avons trouvée avec Back On Track. Le studio est très agréable, full équipé. Les coachs sont dynamiques, motivants, bienveillants et à l'écoute de nos envies et besoins. Le concept « small group training » nous permet de nous dépenser dans une ambiance détendue (mais bien sportive !), particulièrement appréciée quand on n'aime pas l'ambiance des grandes chaînes de salles de fitness. Une pépite, ce studio !",
+  },
+  {
+    nom: 'Charles',
+    texte: "Un lieu sans égal à Rixensart et alentour. Une équipe au top, à l'écoute de nos besoins et qui nous challenge quand il le faut. Une variété de cours avec différents niveaux d'intensité permet de moduler ses entraînements pendant la semaine. Inscriptions faciles en ligne. Cadre ressourçant, à taille humaine, qui permet de renforcer les liens entre Rixensartois. Bref, aucune raison d'aller voir ailleurs. Merci à vous !",
+  },
+  {
+    nom: 'Ingrid',
+    texte: "Back on Track, c'est mon studio fitness coup de cœur ! Une ambiance au top, des coachs jeunes et ultra motivés, et surtout un encadrement de qualité grâce à des petits groupes de 4 personnes maximum. On progresse, on se dépasse, le tout dans une atmosphère bienveillante. Des cours presque privés… au prix du collectif. Je recommande les yeux fermés !",
+  },
+]
+
 export function VitrineAccueilPage() {
   // La video ne se pose qu'une fois la page affichee et interactive. L'iframe
   // YouTube tire pres d'un demi-megaoctet de script : la charger d'emblee
@@ -117,23 +146,6 @@ export function VitrineAccueilPage() {
           La video de fond, le voile, le texte, et l'invite a defiler : c'est
           la composition du site d'origine, que les coachs connaissent. */}
       <section className="v-hero">
-        <img
-          className="v-hero__fond"
-          src="/vitrine/DSC00990.webp"
-          alt=""
-          /* Une photo de decor : elle n'apporte rien a qui ne la voit pas, et
-             un lecteur d'ecran qui la decrirait ne ferait que retarder l'acces
-             au titre. D'ou l'alt vide, volontaire. */
-          aria-hidden="true"
-          width={1600}
-          height={1200}
-          /* Cette image est le premier pixel affiche : la charger en priorite
-             plutot qu'en differe est ce qui separe une page qui s'ouvre d'une
-             page qui clignote. Elle reste sous la video — si YouTube est
-             bloque ou lent, le hero ne devient jamais un rectangle noir. */
-          fetchPriority="high"
-        />
-
         {videoPosee && (
           <div className="v-hero__video" aria-hidden="true">
             <iframe
@@ -186,20 +198,8 @@ export function VitrineAccueilPage() {
         </a>
       </section>
 
-      {/* ---- Les chiffres ----------------------------------------------- */}
-      <section className="v-chiffres">
-        <div className="v-chiffres__grille">
-          {CHIFFRES.map(({ valeur, libelle }) => (
-            <div key={libelle}>
-              <div className="v-chiffre__valeur">{valeur}</div>
-              <div className="v-chiffre__libelle">{libelle}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* ---- Le studio -------------------------------------------------- */}
-      <section className="v-section" id="le-studio">
+      <section className="v-section v-section--sombre" id="le-studio">
         <div className="v-largeur v-duo">
           <div>
             <h2 className="v-titre-section">Le studio à taille humaine</h2>
@@ -234,6 +234,27 @@ export function VitrineAccueilPage() {
             height={1200}
             loading="lazy"
           />
+        </div>
+      </section>
+
+      {/* ---- Le carrousel de photos (brxe-myphqh) -----------------------
+          Le WordPress le fait defiler avec Splide. Ici c'est un defilement
+          horizontal natif : meme effet, sans charger une bibliotheque, et il
+          reste utilisable au clavier et au doigt. */}
+      <section className="v-photos" aria-label="Le studio en images">
+        <div className="v-photos__piste">
+          {PHOTOS_STUDIO.map((nom) => (
+            <img
+              className="v-photos__image"
+              key={nom}
+              src={`/vitrine/${nom}.webp`}
+              alt=""
+              aria-hidden="true"
+              width={1200}
+              height={800}
+              loading="lazy"
+            />
+          ))}
         </div>
       </section>
 
@@ -298,35 +319,101 @@ export function VitrineAccueilPage() {
         </div>
       </section>
 
-      {/* ---- Les tarifs, lus en base ------------------------------------ */}
-      <BlocTarifs />
-
-      {/* ---- Les questions frequentes ----------------------------------- */}
-      <BlocFaq />
-
-      {/* ---- L'appel final ---------------------------------------------- */}
-      <section className="v-section v-section--alt">
+      {/* ---- « Pret-e a te (re)mettre en mouvement ? » ------------------
+          Section brxe-uhpyjj du WordPress, entre les cours et les
+          temoignages. */}
+      <section className="v-section v-section--sombre v-appel-bandeau">
         <div className="v-largeur">
-          <div className="v-appel">
-            <h2 className="v-appel__titre">
-              La première séance est offerte
-            </h2>
-            <p className="v-appel__texte">
-              Sans engagement, pour découvrir notre approche et le studio.
-              La réservation se fait dans l'application, depuis un navigateur
-              ou depuis l'écran d'accueil de votre téléphone.
-            </p>
-            <div className="v-boutons">
-              <a className="v-bouton v-bouton--plein" href={`${URL_APP}/auth`}>
-                Réserver ma séance d'essai
-              </a>
-              <Link className="v-bouton v-bouton--ligne" to="/contact">
-                Nous poser une question
-              </Link>
-            </div>
+          <h2 className="v-titre-section">
+            Prêt·e à te (re)mettre en mouvement&nbsp;?
+          </h2>
+          <p className="v-chapeau">
+            On t'attend pour transpirer, rigoler et progresser dans une ambiance
+            bienveillante.
+          </p>
+          <div className="v-boutons">
+            <Link className="v-bouton v-bouton--ligne" to="/cours">
+              Les cours
+            </Link>
+            <a className="v-bouton v-bouton--plein" href={`${URL_APP}/auth`}>
+              Séance d'essai gratuite
+            </a>
           </div>
         </div>
       </section>
+
+      {/* ---- Les temoignages (brxe-udpiaq) ------------------------------ */}
+      <section className="v-section" id="temoignages">
+        <div className="v-largeur">
+          <h2 className="v-titre-section">Témoignages</h2>
+          <div className="v-grille">
+            {TEMOIGNAGES.map((t) => (
+              <figure className="v-temoignage" key={t.nom}>
+                <blockquote className="v-temoignage__texte">
+                  {t.texte}
+                </blockquote>
+                <figcaption className="v-temoignage__nom">{t.nom}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Les tarifs ---------------------------------------------------
+          Lus en base, et non figes comme dans le WordPress : c'est ce qui
+          empeche le site d'annoncer un jour un prix que l'application ne
+          pratique plus. Le WordPress affichait ainsi deux delais d'annulation
+          contradictoires, 12 h sur une page et 24 h sur l'autre. */}
+      <BlocTarifs />
+
+      {/* ---- Les questions frequentes (brxe-qjmunu) --------------------- */}
+      <BlocFaq />
+
+      {/* ---- Le devis entreprise (brxe-zxippm) -------------------------- */}
+      <section className="v-section v-section--sombre v-appel-bandeau">
+        <div className="v-largeur">
+          <h2 className="v-titre-section">
+            Envie de faire bouger vos collaborateurs&nbsp;?
+          </h2>
+          <p className="v-chapeau">
+            Cliques sur «&nbsp;devis&nbsp;», complètes notre questionnaire pour
+            avoir un suivi sur mesure pour ton entreprise.
+          </p>
+          <div className="v-boutons">
+            <Link className="v-bouton v-bouton--ligne" to="/contact">
+              Devis
+            </Link>
+            <a className="v-bouton v-bouton--plein" href={`${URL_APP}/auth`}>
+              Séance d'essai gratuite
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Le texte de bas de page (brxe-luowsb) ----------------------
+          Il porte le referencement local — « Studio Fitness à Rixensart » —
+          et l'invitation finale. */}
+      <section className="v-section v-section--alt v-seo">
+        <div className="v-largeur">
+          <h2 className="v-titre-section">
+            Studio Fitness à Rixensart, votre espace dédié à la remise en forme
+            et au bien-être.
+          </h2>
+          <p className="v-seo__accroche">
+            Et si vous veniez vivre une séance d'essai gratuite&nbsp;?
+          </p>
+          <p className="v-chapeau">
+            Cliquez sur le bouton ci-dessous pour créer un compte et réserver
+            votre séance gratuite
+          </p>
+          <div className="v-boutons">
+            <a className="v-bouton v-bouton--plein" href={`${URL_APP}/auth`}>
+              Réserver une Séance d'essai gratuite
+            </a>
+          </div>
+        </div>
+      </section>
+
     </>
   )
 }
