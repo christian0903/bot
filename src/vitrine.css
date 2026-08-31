@@ -296,13 +296,27 @@
 /* L'en-tete est SOMBRE, et ce n'est pas negociable : le logo du studio est
    un aplat blanc sans contour. Sur fond clair, il disparait purement et
    simplement. */
+/* Mesure sur le site en ligne : l'en-tete du WordPress est TRANSPARENT et se
+   pose par-dessus le hero, sans filet ni fond floute. C'est ce qui fait
+   commencer la video tout en haut de l'ecran, sous le menu. Le bandeau noir
+   opaque de la vitrine reculait le hero d'autant. */
 .v-entete {
-  position: sticky;
+  position: absolute;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
-  background: rgb(20 23 26 / 92%);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  background: transparent;
+  border-bottom: 0;
+}
+
+/* L'en-tete etant desormais flottant, il ne pousse plus le contenu : sur les
+   pages SANS hero (contact, cours, tarifs), la premiere section doit reserver
+   sa hauteur elle-meme, sinon son titre passe dessous. Le hero, lui, garde le
+   plein ecran voulu et n'est pas concerne. */
+.v-page:not(.v-page--hero) > .v-section:first-child,
+.vitrine main > .v-section:first-child {
+  padding-top: calc(var(--v-s6) + 40px);
 }
 
 .v-entete__barre {
@@ -335,30 +349,46 @@
    specifique que `.v-bouton--plein` — la remplacait par du blanc a 82 % :
    du blanc sur le vert lime, illisible. Une regle de menu ne doit pas
    deteindre sur un bouton qui se trouve etre un lien. */
+/* Le dernier lien de l'original est un bouton BLANC a texte noir, angles
+   droits, padding 16px 35px — pas la pastille verte de l'application. */
 .v-menu .v-bouton--plein {
-  padding: 0.6rem 1.15rem;
-  min-height: 40px;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  padding: 16px 35px;
+  border-radius: 0;
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
   white-space: nowrap;
-  color: var(--v-accent-texte);
 }
 
 .v-menu .v-bouton--plein:hover {
-  color: var(--v-accent-texte);
-  background: var(--v-accent-sombre);
+  background: transparent;
+  color: #ffffff;
 }
 
+/* Bebas Neue 26 px, blanc — les valeurs relevees sur le site en ligne. La
+   vitrine servait du system-ui 15 px, ce qui donnait un menu d'application la
+   ou l'original a un menu d'affiche. */
 .v-menu a {
-  color: rgb(255 255 255 / 82%);
+  color: #ffffff;
   text-decoration: none;
-  font-size: var(--v-t-menu);
-  font-weight: 600;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
   padding: var(--v-s1) 0;
 }
 
-.v-menu a:hover { color: var(--v-accent); }
+.v-menu a:hover { color: rgb(255 213 122); }
+
+/* Le lien de la page courante est en jaune dans l'original — rgb(255,213,122),
+   et non souligne d'un filet vert. */
 .v-menu a[aria-current="page"] {
-  color: #fff;
-  box-shadow: inset 0 -2px 0 var(--v-accent);
+  color: rgb(255 213 122);
+  box-shadow: none;
 }
 
 /* Le menu se replie sous 860 px : en dessous, six entrees ne tiennent plus
@@ -593,13 +623,19 @@
    iframes ne savent pas faire. */
 .v-hero__video iframe {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  /* PAS de `min-width: 177.78%`. Cette regle sert a couvrir un cadre sans
+     laisser de bande noire — mais pour couvrir en largeur, elle fait grandir
+     l'iframe en hauteur d'autant : sur un ecran de 1778 px, elle atteignait
+     1778 px de haut pour un bloc qui n'en fait que 810. C'est l'ecart mesure
+     par Christian, 1160 px contre 760 sur l'original.
+
+     Le WordPress ne couvre pas : il donne `height: 100%` au lecteur et le
+     laisse garder son format. La video occupe la hauteur du bloc, sa largeur
+     en decoule, et le reste demeure noir. */
   width: 100%;
   height: 100%;
-  min-width: 177.78%;
-  min-height: 100%;
   border: 0;
   pointer-events: none;
 }
@@ -613,16 +649,22 @@
 }
 
 /* #brxe-5b1b23 + #brxe-5a7865 + .brxe-container
-   La largeur du conteneur est celle du WordPress — `width: 90%` borne a
-   1400 px — et NON la largeur de la vitrine (1180 px). L'ecart n'est pas
-   cosmetique : la video commence a 20 % de la gauche, et c'est parce que ce
-   conteneur est plus large que le texte deborde par-dessus le noir, a gauche
-   du bord de la video. Avec 1180 px, le bloc restait entierement a l'interieur
-   de l'image — ce que Christian a vu et signale. */
+   Mesure faite sur le site en ligne, a fenetre egale (1323 px) :
+
+     conteneur   gauche 118, largeur 1072, margin-left 59.57
+     bloc texte  gauche 118, largeur 550
+     h1          gauche 118, largeur 550
+
+   La largeur de 1072 px et non 1177 s'explique par l'imbrication : Bricks
+   pose un conteneur a 90 % DANS un autre conteneur a 90 %, d'ou un double
+   retrecissement (0.9 x 0.9 = 81 %). D'ou aussi la marge de 59.57 px qui pose
+   le bloc a 118 px, la ou la vitrine le posait a 65.
+
+   Le bloc de texte, lui, est borne a 550 px — pas seulement le titre. */
 .v-hero__contenu {
   position: relative;
   z-index: 2;
-  width: 90%;
+  width: 81%;
   max-width: 1400px;
   margin-inline: auto;
   padding-block: var(--v-s5);
@@ -631,6 +673,11 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 20px;
+}
+
+/* Le bloc de texte du hero (#brxe-5a7865) : 550 px, pas plus. */
+.v-hero__contenu > * {
+  max-width: 550px;
 }
 
 /* #brxe-ewqphm — le nom du studio et l'adresse, derriere une barre verticale
