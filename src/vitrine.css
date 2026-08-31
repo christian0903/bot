@@ -92,7 +92,11 @@
   font-family: var(--v-police);
   font-size: var(--v-t-corps);
   line-height: 1.65;
-  -webkit-font-smoothing: antialiased;
+  /* PAS de `-webkit-font-smoothing: antialiased`. Sur macOS, cette regle
+     amincit nettement le trait — c'est elle qui rendait les titres en Bebas
+     Neue plus fins que ceux du WordPress, qui ne l'applique pas. Le lissage
+     par defaut (`auto`) donne le trait epais de l'original. */
+  -webkit-font-smoothing: auto;
 }
 
 /* La vitrine s'affiche toujours en clair, meme si le visiteur a choisi le
@@ -127,15 +131,25 @@
 /* Les titres de section sont en Bebas Neue capitales, comme le titre du hero :
    c'est la meme police sur tout le site d'origine. */
 .v-titre-section {
+  /* Les valeurs du WordPress, telles quelles (#brxe-lvvrvu) :
+       max-width: 550px; font-size: 60px; padding-bottom: 25px
+     Sous 767 px, le site d'origine descend a 50 px / interligne 52. */
   font-family: 'Bebas Neue', var(--v-police);
-  /* 60 px, la taille des titres de section du WordPress (#brxe-aerqrm,
-     #brxe-lvvrvu, #brxe-kvkrmy). Bornee en bas pour les petits ecrans. */
-  font-size: clamp(2.5rem, 5vw, 60px);
-  line-height: 1.05;
+  font-size: 60px;
+  line-height: 1.03;
   letter-spacing: 0;
   text-transform: uppercase;
-  margin: 0 0 var(--v-s2);
   font-weight: 400;
+  max-width: 550px;
+  padding-bottom: 25px;
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .v-titre-section {
+    font-size: 50px;
+    line-height: 52px;
+  }
 }
 
 .v-chapeau {
@@ -255,12 +269,17 @@
 /* Les sous-titres du WordPress (#brxe-swaqxb, #brxe-ozteaa) sont en Bebas
    Neue 30 px. La police est la meme sur toute la page : titres, sous-titres et
    boutons. */
+/* #brxe-swaqxb, #brxe-ozteaa, #brxe-sqecuy — Bebas Neue 30 px. Les capitales
+   viennent de la police elle-meme dans le WordPress ; ici il faut les demander,
+   sans quoi le titre s'affiche en casse mixte et parait fin a cote. */
 .v-carte__titre {
   font-family: 'Bebas Neue', var(--v-police);
-  font-size: clamp(1.5rem, 2.5vw, 30px);
+  font-size: 30px;
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1.15;
+  text-transform: uppercase;
+  max-width: 550px;
   margin: 0;
 }
 
@@ -542,12 +561,19 @@
   }
 }
 
-/* #brxe-emojml — la video n'est PAS plein ecran : elle part a 20 % de la
-   gauche et a 10 % du haut, ce qui degage la marge ou le texte se pose. */
+/* #brxe-emojml — le bloc de la video. Le detail qui compte : le WordPress lui
+   donne `width: 100%` ET `left: 20%`. Il deborde donc de 20 % a DROITE, hors
+   de l'ecran, et ce debordement est rogne par l'`overflow: hidden` de la
+   section.
+
+   C'est ce qui tient la video a taille stable : sa largeur suit celle de la
+   fenetre, pas celle de l'espace restant. Avec `right: 0`, le bloc se
+   comprimait entre 20 % et le bord, et la video s'etirait a chaque
+   agrandissement — ce que Christian a vu en redimensionnant sa fenetre. */
 .v-hero__video {
   position: absolute;
   left: 20%;
-  right: 0;
+  width: 100%;
   top: 10%;
   height: 90%;
   overflow: hidden;
@@ -562,27 +588,22 @@
   .v-hero__video { left: 15%; top: 22%; height: 100%; }
 }
 
-/* #brxe-ohuyaa — l'iframe remplit son bloc. Les proportions se calculent sur
-   le CONTENEUR et non sur la fenetre : la video ne deborde donc jamais de la
-   zone qui lui est reservee. 177.78 % et 56.25 % sont les deux facons
-   d'exprimer le 16/9 ; on garde la plus grande, ce qui remplit sans bande
-   noire, exactement comme un `object-fit: cover`. */
+/* #brxe-ohuyaa — `height: 100%`. L'iframe remplit le bloc ; ce qui deborde du
+   cadre 16/9 est rogne, comme le ferait un `object-fit: cover`, que les
+   iframes ne savent pas faire. */
 .v-hero__video iframe {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: 100%;
-  height: 56.25%;
-  min-height: 100%;
+  height: 100%;
   min-width: 177.78%;
+  min-height: 100%;
   border: 0;
   pointer-events: none;
 }
 
-/* La photo de repli, sous la video, cadree sur la meme zone : sans cela, elle
-   couvrirait tout l'ecran et la marge de gauche disparaitrait le temps du
-   chargement. */
 /* #brxe-726fef::before — le voile, exactement celui de l'original. */
 .v-hero__voile {
   position: absolute;
@@ -641,7 +662,9 @@
   letter-spacing: 0;
   max-width: 550px;
   margin: 0;
-  text-wrap: balance;
+  /* Pas de `text-wrap: balance` : il repartit les mots pour equilibrer les
+     lignes, la ou le WordPress les laisse simplement casser a 550 px. La
+     coupure ne tombait donc pas au meme endroit. */
 }
 
 @media (max-width: 767px) {
@@ -831,9 +854,8 @@
    Six avis clients, repris du site d'origine. Presentes en cartes, comme les
    coachs et les formules : c'est la grille deja utilisee partout ailleurs. */
 .v-temoignage {
-  background: var(--v-fond-alt);
-  border: 1px solid var(--v-bordure);
-  border-radius: var(--v-rayon);
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 12%);
   padding: var(--v-s3);
   margin: 0;
   display: flex;
@@ -845,14 +867,14 @@
   margin: 0;
   font-size: var(--v-t-corps);
   line-height: 1.6;
-  color: var(--v-encre-douce);
+  color: #d5dade;
 }
 
 .v-temoignage__nom {
   font-family: 'Bebas Neue', var(--v-police);
   font-size: 1.375rem;
   letter-spacing: 0.02em;
-  color: var(--v-encre);
+  color: #ffffff;
   margin-top: auto;
 }
 
@@ -869,6 +891,14 @@
    collaborateurs ? » : meme composition centree dans le WordPress. */
 .v-appel-bandeau {
   text-align: center;
+}
+
+/* Le titre est borne a 550 px comme dans le WordPress ; dans une section
+   centree, cette largeur doit se recentrer, sans quoi elle reste calee a
+   gauche et le titre parait desaxe. */
+.v-appel-bandeau .v-titre-section,
+.v-seo .v-titre-section {
+  margin-inline: auto;
 }
 
 .v-appel-bandeau .v-chapeau {
@@ -991,20 +1021,18 @@
 }
 
 /* ---- Les formules ------------------------------------------------------ */
+/* Les cartes de formule n'ont NI fond NI bordure NI arrondi dans le
+   WordPress : l'image se pose directement sur le noir de la section, et le
+   texte dessous. Le releve du CSS d'origine est sans ambiguite — aucun des
+   blocs de la section ne declare de `background-color` ni de `border-radius`.
+   La carte encadree sur fond clair etait une invention de la vitrine. */
 .v-formule {
   position: relative;
-  overflow: hidden;
-  border-radius: var(--v-rayon-l);
-  background: var(--v-fond);
-  border: 1px solid var(--v-bordure);
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.v-formule:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--v-ombre-forte);
+  background: none;
+  border: 0;
+  border-radius: 0;
 }
 
 .v-formule__image {
@@ -1012,27 +1040,43 @@
   width: 100%;
   object-fit: cover;
   display: block;
+  /* Le WordPress desature legerement ces photos (classe `css-filter`), ce qui
+     les fait tenir ensemble malgre des lumieres tres differentes. */
+  filter: saturate(0.85) contrast(1.05);
 }
 
 .v-formule__corps {
-  padding: var(--v-s3);
+  padding: var(--v-s3) 0 0;
   display: flex;
   flex-direction: column;
   gap: var(--v-s2);
   flex: 1;
 }
 
+/* #brxe-ikayve, #brxe-pttckc, #brxe-rwbqvp — le lien est un bouton encadre,
+   Bebas Neue 20 px, angles droits, filet blanc. Pas un lien souligne. */
 .v-formule__lien {
   margin-top: auto;
-  font-weight: 700;
-  color: var(--v-encre);
+  align-self: flex-start;
+  font-family: 'Bebas Neue', var(--v-police);
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  background: none;
+  border: 1px solid #ffffff;
+  padding: 10px 20px;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: var(--v-s1);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.v-formule__lien:hover { color: var(--v-accent-sombre); }
+.v-formule__lien:hover {
+  background: #ffffff;
+  color: #000000;
+}
 
 /* ---- Les coachs -------------------------------------------------------- */
 .v-coach {
@@ -1050,9 +1094,10 @@
 
 .v-coach__nom {
   font-family: 'Bebas Neue', var(--v-police);
-  font-size: clamp(1.5rem, 2.5vw, 30px);
+  font-size: 30px;
   font-weight: 400;
   letter-spacing: 0.01em;
+  text-transform: uppercase;
   margin: 0 0 var(--v-s1);
 }
 
