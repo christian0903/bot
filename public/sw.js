@@ -56,6 +56,28 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
+        // Un fichier construit introuvable ne peut vouloir dire qu'une chose :
+        // la page en cache reclame un bundle que le serveur n'a plus. Ces noms
+        // portent une empreinte du contenu — ils ne changent jamais autrement,
+        // et un 404 dessus n'arrive pas en fonctionnement normal.
+        //
+        // Sans ce rattrapage, la page reste blanche : le 404 n'est pas mis en
+        // cache, donc rien ne se repare, et vider l'historique n'y change rien
+        // — il ne touche ni au service worker ni au Cache Storage. Un client
+        // l'a signale le 31 aout, bloque sur un lien qui ne « marchait plus ».
+        //
+        // On se retire alors completement : le rechargement suivant repart du
+        // serveur, sur un index.html a jour.
+        if (response.status === 404 && url.pathname.startsWith('/assets/')) {
+          caches.keys()
+            .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+            .then(() => self.registration.unregister())
+            .then(() => self.clients.matchAll({ type: 'window' }))
+            .then((clients) => clients.forEach((c) => c.navigate(c.url)))
+            .catch(() => {})
+          return response
+        }
+
         // Cache successful GET responses
         if (event.request.method === 'GET' && response.status === 200) {
           const clone = response.clone()

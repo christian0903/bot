@@ -196,16 +196,58 @@ if [[ "$CIBLE" == "ops" || "$CIBLE" == "prod-site" ]]; then
   [[ "$REPONSE" == "OUI" ]] || { info "envoi annule — dist/ reste pret."; exit 0; }
 fi
 
-info "envoi vers $DOMAINE..."
+# ── L'ENVOI SE FAIT EN DEUX TEMPS, ET L'ORDRE EST TOUT ──────────────────────
+#
+# En un seul rsync, `index.html` pouvait etre remplace AVANT que les fichiers
+# `assets/` qu'il nomme soient arrives. Un client qui chargeait la page a cet
+# instant recevait un index.html neuf pointant vers des bundles absents : 404,
+# aucune erreur affichee, ECRAN BLANC.
+#
+# Pire, le service worker mettait cette page cassee en cache. Le membre restait
+# alors bloque bien apres la fin du deploiement, et vider l'historique n'y
+# changeait rien — l'historique ne touche pas au Cache Storage. Un client l'a
+# signale le 31 aout : « c'est comme si le lien etait valide jusqu'au moment ou
+# il y a un bug ».
+#
+# 1. `assets/` D'ABORD, SANS --delete. Les anciens bundles restent en place :
+#    pendant tout le transfert, l'ancien index.html continue de trouver les
+#    siens, et l'application ne cesse jamais de fonctionner.
+# 2. LE RESTE ENSUITE, index.html compris. Quand il bascule, les nouveaux
+#    bundles sont deja tous la.
+#
+# Il n'existe donc plus d'instant ou la page est cassee — sans page de
+# maintenance, et sans une seconde d'indisponibilite.
+
+info "envoi vers $DOMAINE — 1/2 : les fichiers construits..."
+
+# Pas de `--delete` ici : c'est le coeur du dispositif. Les anciens bundles
+# survivent au deploiement, et un navigateur qui garde un vieil index.html en
+# cache trouve encore ce qu'il demande. La purge se fait plus bas, une fois la
+# bascule faite.
+if rsync -az \
+     -e "ssh -i $CLE_SSH -o StrictHostKeyChecking=accept-new" \
+     dist/assets/ "$SERVEUR:~/$DOMAINE/assets/" > /tmp/rsync-$$.log 2>&1; then
+  ok "fichiers construits en place"
+else
+  echec "l'envoi des fichiers construits a echoue :"
+  tail -12 /tmp/rsync-$$.log >&2
+  rm -f /tmp/rsync-$$.log
+  exit 1
+fi
+
+info "envoi vers $DOMAINE — 2/2 : la page et les ressources..."
 
 # `--exclude` protege ce qui vit sur le serveur et n'a pas d'equivalent local :
 # la configuration Apache, les certificats, les scripts CGI. Sans eux,
 # `--delete` les emporterait.
+#
+# `--exclude=assets` : ce dossier vient d'etre envoye, et surtout `--delete`
+# effacerait ici les anciens bundles qu'on veut justement conserver.
 if rsync -avz --delete \
      --exclude=cgi-bin --exclude=.htaccess --exclude=.well-known \
+     --exclude=assets \
      -e "ssh -i $CLE_SSH -o StrictHostKeyChecking=accept-new" \
-     dist/ "$SERVEUR:~/$DOMAINE/" > /tmp/rsync-$$.log 2>&1; then
-  N=$(grep -c '^[a-zA-Z]' /tmp/rsync-$$.log 2>/dev/null || echo '?')
+     dist/ "$SERVEUR:~/$DOMAINE/" >> /tmp/rsync-$$.log 2>&1; then
   ok "envoi termine"
 else
   echec "l'envoi a echoue :"
@@ -214,6 +256,19 @@ else
   exit 1
 fi
 rm -f /tmp/rsync-$$.log
+
+# ── Purge differee des vieux fichiers construits ────────────────────────────
+# Conserver les anciens bundles indefiniment finirait par peser. Sept jours
+# suffisent largement : au-dela, un navigateur qui garde encore un index.html
+# de la semaine passee a de toute facon recu la proposition de mise a jour.
+#
+# `-mtime +7` porte sur la date du FICHIER SUR LE SERVEUR, que rsync met a jour
+# a chaque envoi : un bundle inchange d'un deploiement a l'autre n'est donc
+# jamais considere comme vieux.
+ssh -i "$CLE_SSH" -o StrictHostKeyChecking=accept-new "$SERVEUR" \
+  "find ~/$DOMAINE/assets -type f -mtime +7 -delete 2>/dev/null" 2>/dev/null \
+  && ok "anciens fichiers construits purges (plus de 7 jours)" \
+  || alerte "purge des anciens fichiers non effectuee (sans gravite)"
 
 # ── 5. Controle sur le site en ligne ────────────────────────────────────────
 # Ce que le serveur sert reellement, et non ce qu'on croit lui avoir envoye.
