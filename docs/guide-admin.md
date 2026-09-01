@@ -72,6 +72,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
   - [Journal d'activité — Administration → Journal d'activité](#journal-d-activite-administration-journal-d-activite)
   - [Annonces — Administration → Annonces](#annonces-administration-annonces)
 - [Le planning sur le site du studio](#le-planning-sur-le-site-du-studio)
+- [Le site du studio](#le-site-du-studio)
 - [L'application sur le téléphone des membres](#l-application-sur-le-telephone-des-membres)
 - [Diagnostic — Administration → Diagnostic](#diagnostic-administration-diagnostic)
 - [Points de vigilance](#points-de-vigilance)
@@ -158,6 +159,27 @@ Il ne change **aucun droit** : il choisit ce que l'écran affiche. Passer en mod
 Membre vous rend la navigation d'un client — accueil, planning, vos
 réservations, vos packs, la boutique. Vous vous entraînez au studio comme les
 autres, et c'est là que vous le faites.
+
+**Le planning change avec le mode**, et pas seulement le menu. En mode Membre,
+vous voyez exactement ce que voit un client :
+
+| | En mode Admin ou Coach | En mode Membre |
+|---|---|---|
+| Vos crédits | pas affichés | affichés, comme pour un client |
+| Semaines passées | accessibles | bloquées |
+| Cours à surveiller, décisions en attente | affichés | masqués |
+| Cours annulés | visibles | masqués |
+| Nom des salles | le code technique | le nom lisible |
+| Un clic sur un cours | ouvre la gestion | ouvre la réservation |
+
+> **C'est le moyen de vérifier ce que vivent vos membres.** Le 31 août, un cours
+> complet s'annonçait « 5 places disponibles » aux clients — et le défaut était
+> **invisible en interne** : admin et coach lisent toutes les réservations,
+> leurs compteurs ont toujours été justes. Seuls les membres le subissaient.
+> Avant de conclure qu'un écran fonctionne, passez en mode Membre et regardez.
+
+Vous gardez tous vos droits en mode Membre : rien n'est verrouillé, c'est
+seulement l'affichage qui suit.
 
 > **Surtout utile sur téléphone.** La barre du bas ne tient que quatre entrées :
 > elle suit le mode choisi. Sans ce sélecteur, un gérant n'avait aucun moyen
@@ -1362,25 +1384,13 @@ Le message affiché en haut de la page d'accueil des membres.
 
 ## Le planning sur le site du studio
 
-Le site `backontrackstudio.be` peut afficher le planning de l'application, à
-jour en permanence. C'est ce qui remplace le widget Technogym de la page
-« Horaires ».
+Le site `backontrackstudio.be` affiche le planning de l'application, à jour en
+permanence, à l'adresse **`backontrackstudio.be/planning`**.
 
-**Le code à coller dans la page WordPress**, en bloc HTML :
-
-```html
-<iframe
-  src="https://app.backontrackstudio.be/planning-public"
-  width="100%"
-  height="1200"
-  style="border:0"
-  title="Planning des cours"
-  loading="lazy"></iframe>
-```
-
-La hauteur est fixe : un cadre ne s'ajuste pas tout seul à ce qu'il contient.
-1200 pixels conviennent à une journée bien remplie ; ajustez ce nombre une fois
-le planning en place.
+> **Il n'y a plus rien à coller.** Jusqu'au 31 août, le site tournait sous
+> WordPress et il fallait y insérer un cadre `<iframe>`. Le site est désormais
+> construit avec l'application elle-même : le planning en fait partie, et son
+> lien figure dans le menu. L'ancienne méthode ne sert plus.
 
 **Ce que les visiteurs voient** : les cours du jour choisi, avec l'heure, la
 durée et la photo du type de cours. Une bande de dates permet de passer d'un
@@ -1397,7 +1407,7 @@ jour à l'autre, avec le nombre de cours sous chacune.
 Les **cours annulés n'apparaissent pas** : un planning parsemé d'« Annulé »
 donne une mauvaise image à qui découvre le studio.
 
-> **Rien à entretenir.** Le cadre montre ce que contient le planning : un cours
+> **Rien à entretenir.** La page montre ce que contient le planning : un cours
 > ajouté ou déplacé s'y reflète aussitôt, sans toucher au site.
 
 > **Les photos viennent des types de cours.** Tant qu'aucune n'est déposée, un
@@ -1407,6 +1417,26 @@ donne une mauvaise image à qui découvre le studio.
 
 ---
 
+## Le site du studio
+
+Depuis le 31 août, `backontrackstudio.be` n'est plus un WordPress : c'est une
+**page construite avec l'application**, qui reprend la présentation de
+l'ancien site.
+
+**Ce qui change pour vous, en pratique :**
+
+| | |
+|---|---|
+| **Les tarifs** | Ils sont **lus dans l'application**. Modifier un pack dans Administration → Packs met le site à jour tout seul. |
+| **Les délais d'annulation** | Lus eux aussi. L'ancien site annonçait 12 h sur une page et 24 h sur une autre — une clause contractuelle qui se contredisait. |
+| **Le planning** | À jour en permanence, sans manipulation. |
+| **Les textes et les photos** | Ils vivent dans le code du site. Les modifier demande une intervention technique — voir `docs/confier-la-vitrine.md`. |
+
+> **L'ancien WordPress reste consultable** sur `wp.backontrackstudio.be`, le
+> temps de comparer les deux. Attention : il n'est pas en bon état — son
+> formulaire de séance d'essai est cassé, sa page « Horaires » renvoie encore
+> vers Technogym, et ses tarifs sont figés.
+
 ## L'application sur le téléphone des membres
 
 Back on Track s'installe sur un écran d'accueil **sans passer par un store** :
@@ -1415,7 +1445,7 @@ avant la publication sur l'App Store.
 
 Ce qu'il faut dire à un membre :
 
-> Ouvre **desk.backontrackstudio.be** dans **Safari** (pas Chrome), touche le
+> Ouvre **app.backontrackstudio.be** dans **Safari** (pas Chrome), touche le
 > bouton **Partager** en bas, puis **Sur l'écran d'accueil**. Sur **Android**,
 > ouvre le même lien dans **Chrome** : menu **⋮** → **Installer l'application**.
 
