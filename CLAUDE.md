@@ -15,6 +15,7 @@ documentation, échanges. Les commentaires expliquent *pourquoi*, jamais *quoi*.
 | Question | Fichier |
 |---|---|
 | Où en est le projet, que reste-t-il à faire | `docs/journal-projet.md` — **à lire en premier à chaque reprise** |
+| Qu'est-ce qui existe, où, quelle commande lancer | `docs/documentation-developpeur.md` |
 | Comment ça marche techniquement, quels pièges | `docs/documentation-technique.md` |
 | Installer une base neuve, importer des données | `docs/guide-installation.md` |
 | Ce que voit l'utilisateur, ce que voit l'admin | `docs/guide-membre.md`, `docs/guide-admin.md` |

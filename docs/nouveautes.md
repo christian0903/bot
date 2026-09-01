@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.117.0 — 1er septembre 2026
+
+- Aucun changement visible : une **documentation développeur** rassemble ce qui
+  existe dans le dépôt, où le trouver et quelle commande lancer.
+
+---
+
 ## v3.116.0 — 1er septembre 2026
 
 **Le suivi des nouveautés commence ici.** Les versions antérieures ne sont pas
