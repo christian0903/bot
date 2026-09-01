@@ -12,6 +12,14 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.122.0 — 1er septembre 2026
+
+- **Correction** : un super administrateur ne pouvait pas créer de membre.
+  Le bouton s'affichait, le formulaire se remplissait, et l'enregistrement
+  échouait sur « Admin or coach role required ».
+
+---
+
 ## v3.120.0 — 1er septembre 2026
 
 - L'application iOS est prête à être soumise : le numéro de version des

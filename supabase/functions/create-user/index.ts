@@ -27,7 +27,17 @@ serve(async (req) => {
       })
     }
 
-    // Check admin or coach role
+    // Verifier le role de l'appelant.
+    //
+    // `super_admin` est inclus : le front le traite deja comme un admin
+    // (`hasRole` dans AuthContext : « super_admin herite de toutes les
+    // permissions admin »), et `stripe-webhook` fait de meme. Cette fonction
+    // etait la seule a l'omettre — un super admin voyait donc le bouton
+    // « Ajouter un membre », le remplissait, et se faisait refuser au moment
+    // d'enregistrer par un « Admin or coach role required » incomprehensible.
+    //
+    // Signale par Christian le 2026-09-01, en creant le compte de demonstration
+    // demande par Apple.
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -37,7 +47,7 @@ serve(async (req) => {
       .from('user_roles')
       .select('role')
       .eq('user_id', caller.id)
-      .in('role', ['admin', 'coach'])
+      .in('role', ['admin', 'super_admin', 'coach'])
 
     if (!roles || roles.length === 0) {
       return new Response(JSON.stringify({ error: 'Admin or coach role required' }), {
