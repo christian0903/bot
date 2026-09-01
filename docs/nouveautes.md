@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.119.0 — 1er septembre 2026
+
+- Aucun changement visible : un guide pas à pas pour soumettre l'application à
+  l'App Store, le compte développeur Apple venant d'être ouvert.
+
+---
+
 ## v3.118.0 — 1er septembre 2026
 
 - Aucun changement visible : la documentation développeur explique ce qu'est
