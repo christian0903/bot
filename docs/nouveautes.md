@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.124.0 — 1er septembre 2026
+
+- Aucun changement visible : l'application iOS ne se déclare plus compatible
+  iPad. Elle y reste installable, en fenêtre iPhone.
+
+---
+
 ## v3.123.0 — 1er septembre 2026
 
 - **Le planning suit enfin le mode choisi en production.** Un administrateur ou
