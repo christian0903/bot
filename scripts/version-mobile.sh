@@ -24,6 +24,27 @@ VERT=$'\033[32m'; GRAS=$'\033[1m'; GRIS=$'\033[90m'; RAZ=$'\033[0m'
 
 V=$(node -p "require('./package.json').version")
 
+# ── Garde-fou : le `.env` doit viser l'APPLICATION, pas la vitrine ──────────
+#
+# `deploiement.sh` ECRASE `.env` avec celui de la cible choisie. Apres un
+# `./deploiement.sh prod-site`, `.env` porte donc `VITE_VITRINE=oui` — et un
+# `npm run cap:sync` lance dans la foulee construit l'app mobile AVEC la
+# vitrine. L'application s'ouvre alors sur le site public au lieu de l'ecran de
+# connexion.
+#
+# C'est arrive le 2026-09-01, decouvert par Christian dans le simulateur. Une
+# app soumise ainsi serait rejetee d'emblee : afficher un site vitrine est
+# exactement ce que la regle 4.2 d'Apple sanctionne.
+if grep -q '^VITE_VITRINE=oui' .env 2>/dev/null; then
+  echo
+  echo "  ${GRAS}Arret :${RAZ} .env est configure pour la VITRINE (VITE_VITRINE=oui)."
+  echo "  Construire l'app mobile ainsi lui ferait afficher le site public."
+  echo
+  echo "  ${GRIS}Corriger :  cp .env.ops .env${RAZ}"
+  echo
+  exit 1
+fi
+
 echo
 echo "  ${GRAS}Report de la version $V dans les enveloppes${RAZ}"
 echo

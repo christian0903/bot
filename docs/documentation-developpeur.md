@@ -331,6 +331,21 @@ npm run cap:ios               # ouvre le projet dans Xcode
 > le numéro de version vit dans `project.pbxproj` et `build.gradle`, que
 > Capacitor ne génère pas. D'où `version-mobile.sh`, à lancer **avant**.
 
+> ### ⚠️ Vérifier `.env` avant toute construction mobile
+>
+> `deploiement.sh` **écrase `.env`** avec celui de la cible. Après un
+> `./deploiement.sh prod-site`, `.env` porte `VITE_VITRINE=oui` — et un
+> `cap:sync` lancé dans la foulée construit l'app mobile **avec la vitrine**.
+> L'application s'ouvre alors sur le site public au lieu de l'écran de
+> connexion.
+>
+> C'est arrivé le 2026-09-01, découvert dans le simulateur pendant la
+> préparation de la soumission. Soumise ainsi, l'app aurait été rejetée : un
+> site vitrine dans une app, c'est la règle 4.2.
+>
+> `version-mobile.sh` refuse désormais de tourner dans ce cas. Le remède tient
+> en une ligne : `cp .env.ops .env`.
+
 > **`cap:sync` lance `npm run build` avant de recopier.** Une modification non
 > construite ne part donc jamais dans l'enveloppe.
 

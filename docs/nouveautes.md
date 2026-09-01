@@ -12,6 +12,16 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.123.0 — 1er septembre 2026
+
+- **Le planning suit enfin le mode choisi en production.** Un administrateur ou
+  un coach qui bascule en mode Membre voit désormais ce que voit un client :
+  ses crédits, les noms de salles lisibles, la réservation au clic.
+- **Correction** : l'application mobile pouvait être construite avec le site
+  vitrine au lieu de l'espace membres.
+
+---
+
 ## v3.122.0 — 1er septembre 2026
 
 - **Correction** : un super administrateur ne pouvait pas créer de membre.
