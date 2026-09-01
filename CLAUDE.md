@@ -45,6 +45,25 @@ quoi-va-où est dans `documentation-technique.md`, section « Déploiement ».
 
 `package.json` : `2.62.1` → `2.63.0`. Sauf indication contraire de Christian.
 
+Depuis le 2026-09-01, deux gestes l'accompagnent **dans le même commit** :
+
+**Une entrée dans `docs/nouveautes.md`** — une ou deux phrases en français
+courant, dites du point de vue de qui utilise l'application, pas de qui l'écrit.
+Ce fichier est destiné à être transmis aux coachs : il dit ce qui se voit à
+l'écran, jamais le détail technique, qui vit dans le journal. Une version qui
+ne change rien de visible le dit en une ligne.
+
+**Une étiquette git**, posée après le commit :
+
+```bash
+git tag -a "v$(node -p "require('./package.json').version")" -m "<le sujet du commit>"
+```
+
+C'est elle qui rend `git checkout v3.116.0` possible, et donc le retour en
+arrière lisible sans chercher un identifiant de commit. `./scripts/version.sh`
+fait le lien dans les deux sens et signale si une version touche la base — la
+seule chose qui rende un retour en arrière risqué.
+
 ### 3. Un guide modifié dans `docs/` doit être recopié dans `public/`
 
 La page `/help` sert `public/`, pas `docs/`. Rien ne les synchronise.
