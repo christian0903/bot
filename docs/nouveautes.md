@@ -12,6 +12,14 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.118.0 — 1er septembre 2026
+
+- Aucun changement visible : la documentation développeur explique ce qu'est
+  `db push` et pourquoi il est interdit ici, ce que sont les Edge Functions, et
+  ce qu'il faut savoir avant de publier sur l'App Store et le Play Store.
+
+---
+
 ## v3.117.0 — 1er septembre 2026
 
 - Aucun changement visible : une **documentation développeur** rassemble ce qui
