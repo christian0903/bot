@@ -296,6 +296,274 @@ renvoie pas vers `wp.`. La manipulation est sans risque.
 
 ---
 
+## Session du 2026-08-31 (fin de journée) — la vitrine imite le WordPress, le planning suit le mode
+
+> **v3.113.0**, vingt commits depuis le handoff de 13h15. Build vert, lint
+> stable à **37**. La vitrine a été déployée plusieurs fois dans la journée ;
+> **les derniers commits ne le sont pas** — ni le correctif du planning.
+
+### Le point de méthode de la journée
+
+Christian, après plusieurs allers-retours : **« tu peux activer l'extension
+Chrome pour analyser le style des deux pages. Pourquoi tu ne le fais pas ? »**
+
+Le travail se faisait sur le HTML archivé (`.vitrine-source/`) alors que
+l'ancien site tournait sur `wp.backontrackstudio.be` depuis le début de
+l'après-midi. **Comparer les valeurs calculées des deux pages, à fenêtre
+égale, révèle des écarts que le fichier archivé ne peut pas montrer** — parce
+que le CSS d'AutomaticCSS et les règles de Bricks n'y figurent pas.
+
+Tout ce qui a été corrigé après cette remarque l'a été par mesure, pas par
+lecture. C'est la leçon à retenir : **quand l'original est en ligne, on le
+mesure ; on ne lit son archive que faute de mieux.**
+
+### La vitrine reprend l'accueil du WordPress
+
+Demande initiale : remettre le hero à vidéo. Elle s'est élargie, à la demande
+répétée de Christian, à **une copie fidèle de la page d'accueil**, texte et
+style compris.
+
+**La structure.** Les onze sections du WordPress, dans l'ordre : hero vidéo,
+« Le studio à taille humaine », carrousel de huit photos, « Nos formules de
+cours », « Notre équipe », les cours, « Prêt·e à te (re)mettre en mouvement ? »,
+les six témoignages clients, la FAQ, « Envie de faire bouger vos
+collaborateurs ? », le texte de bas de page. Le bandeau de chiffres 5 / 50 /
+7j7 **n'existait pas dans l'original** : supprimé.
+
+**Les textes** sont repris mot pour mot, y compris ce qui avait été resserré à
+la réécriture du matin — deux chapeaux inventés ont disparu.
+
+**Le style**, valeur par valeur : Bebas Neue partout (titres, sous-titres,
+boutons, menu), h1 à 92 px / interligne 90, titres de section à 60 px bornés à
+550 px, fond noir pur, boutons carrés en noir et blanc.
+
+### Sept défauts trouvés par l'œil de Christian, expliqués par la mesure
+
+Chacun a été signalé à l'écran, puis confirmé et chiffré :
+
+1. **La vidéo débordait en hauteur** — 1160 px contre 760. Cause :
+   `min-width: 177.78%` sur l'iframe. Pour couvrir en largeur, elle grandit en
+   hauteur d'autant, jusqu'à 1778 px pour un bloc qui n'en fait que 810. La
+   mesure de l'original donne `min-width: 0px` : **le WordPress ne cherche pas
+   à couvrir**, il laisse le lecteur garder son format.
+2. **La vidéo s'étirait au redimensionnement.** Le bloc d'origine a
+   `width: 100%` ET `left: 20%` : il déborde de 20 % à droite, hors écran, et
+   ce débordement est rogné. Sa largeur suit la fenêtre. Avec `right: 0`, elle
+   se comprimait entre 20 % et le bord.
+3. **Le texte du hero ne débordait pas sur le noir.** Le conteneur de
+   l'original fait 1072 px et non 1177 : Bricks imbrique un conteneur à 90 %
+   dans un autre à 90 %, soit 81 %.
+4. **Les caractères paraissaient fins.** Pas une affaire de graisse — Bebas
+   Neue n'en a qu'une — mais de `-webkit-font-smoothing: antialiased`, que la
+   vitrine appliquait et que le WordPress n'applique pas. **Sur macOS, cette
+   règle amincit nettement le trait.**
+5. **Les fonds étaient clairs.** Le relevé tranche : aucune section de la page
+   d'origine ne déclare de fond, elles héritent toutes du thème, qui est noir.
+   **Le WordPress n'est pas un site clair avec des sections sombres, c'est
+   l'inverse** — la vitrine faisait exactement le contraire. Palette inversée.
+6. **Les textes étaient plus durs.** L'original n'emploie que du blanc
+   transparent ; la vitrine, des gris opaques légèrement bleutés (`#c8ccd0`).
+   Christian a fourni la valeur du thème : **`#dddedf`**.
+7. **L'en-tête était un bandeau noir opaque**, là où l'original est
+   **transparent** et se pose par-dessus le hero — ce qui reculait le hero
+   d'autant. Liens en Bebas Neue 26 px, lien courant en jaune
+   `rgb(255,213,122)`, dernier lien en bouton blanc à texte noir.
+
+**Le vert lime de l'application** a été retiré partout : l'original n'a aucun
+bouton vert, et les pastilles cochées devant les arguments étaient une
+invention — l'original pose ces textes sur un fond beige translucide
+`rgba(206,207,165,0.2)`.
+
+### Décision : les tarifs restent lus en base
+
+Arbitrée par Christian. La copie est fidèle **sauf** sur ce point : les tarifs,
+la FAQ et le formulaire continuent de lire la base plutôt que d'être figés
+comme dans le WordPress.
+
+C'est la raison d'être de la vitrine — le page-builder figeait les prix, et le
+site avait fini par annoncer **deux délais d'annulation contradictoires**, 12 h
+sur une page et 24 h sur l'autre, sur une clause contractuelle.
+
+### Le planning suit maintenant le mode choisi
+
+Signalé par Christian sur `jag.` : **« ça n'a pas de sens que cliquer Planning
+en mode Membre et en mode Admin montre la même chose »**.
+
+Vérifié, et exact : **`SchedulePage` n'importait jamais `useMode`**. Elle
+décidait de tout sur le rôle. Un admin qui basculait en Membre voyait le bouton
+passer au vert et **rien d'autre changer**.
+
+Seize endroits de la page en dépendent : le résumé des crédits, l'accès aux
+semaines passées, les cours à surveiller, les décisions en attente, le nom des
+salles — code technique côté staff, nom lisible côté client — et ce que fait un
+clic, gérer ou réserver. Le chargement des données suivait le rôle lui aussi :
+les cours annulés restaient affichés.
+
+`isStaff` combine désormais le rôle **et** le mode. **Ce n'est pas un contrôle
+d'accès** : le contexte le dit déjà, « le mode ne donne aucun droit, il choisit
+ce qu'on affiche ». Routes et policies RLS inchangées.
+
+> **Ce que ça débloque.** Le 31 août au matin, un coach signalait « 5 places
+> disponibles » sur un cours complet. Le défaut ne touchait **que les membres** :
+> admin et coach lisent toutes les réservations, leurs compteurs étaient justes,
+> et aucun écran interne ne pouvait montrer le problème. La leçon notée ce
+> jour-là — **tester avec un compte client** — devient applicable sans créer de
+> compte.
+
+Trois pages distinguent le staff sans lire le mode (`HelpPage`,
+`PerformancesPage`, `ProfilePage`). **Écartées volontairement** : elles ajoutent
+une capacité réservée au staff, pas une vue alternative. Les faire suivre le
+mode retirerait une fonction au lieu d'en montrer une autre.
+
+### L'ancien WordPress est consultable sur `wp.`
+
+Il tourne sur `wp.backontrackstudio.be`, pour que les coachs puissent comparer.
+
+**La méthode retenue a changé en cours de route, et c'est le point à retenir.**
+La procédure complète (réécriture des 32 755 URL par `wp search-replace`) a été
+écrite, puis **rendue inutile** par un raccourci : deux lignes dans
+`wp-config.php` — `WP_HOME` et `WP_SITEURL` — suffisent à arrêter la
+redirection. Elles priment sur la base **sans la modifier**, donc sans risque,
+et s'annulent en les supprimant.
+
+C'est le « piège » signalé dans la procédure longue, **retourné en solution** :
+ce qui empêchait un remplacement de base d'avoir un effet devient le chemin le
+plus court vers le résultat.
+
+**Ce que le raccourci ne fait pas** : les URL restent en base, donc six images
+de la page d'accueil ne s'affichent pas (elles existent pourtant sur `wp.` —
+la page les demande à l'ancienne adresse). Suffisant pour juger la
+présentation.
+
+**Trois mesures prises sur le dump**, qui servent si la réécriture devient
+nécessaire : préfixe `wpbot_` et non `wp_`, **32 755 URL** dont **13 982
+sérialisées** — un `sed` en viderait quatorze mille en silence — et deux
+plugins de cache (W3 Total Cache, LiteSpeed) qui font croire à un échec.
+
+### Confier la vitrine à quelqu'un d'autre
+
+`docs/confier-la-vitrine.md` répond à une question de Christian : que donner à
+un designer ou à qui corrige un texte.
+
+Le point utile : **`src/vitrine.css` est autonome** — 1 611 lignes sans aucune
+dépendance au reste du projet, hors la police Google Fonts. Un designer peut le
+retoucher de bout en bout sans rien casser. Les textes, eux, tiennent dans un
+seul fichier, regroupés en tête avant le balisage.
+
+Le document dit aussi ce qui **ne se confie pas** : les `.env`, les dumps, le
+script de déploiement.
+
+### Ce que l'en-tête flottant a cassé, et pourquoi
+
+Passer l'en-tête en `position: absolute` — pour qu'il se pose par-dessus le
+hero comme dans le WordPress — a eu une conséquence que je n'avais pas vue :
+**il ne pousse plus le contenu**. La compensation posée en remède ne visait que
+les classes `v-`, or **le planning est écrit en Tailwind** : le menu recouvrait
+son sélecteur de jours.
+
+La réserve est désormais sur `main`, ce qui couvre toutes les pages quelle que
+soit leur façon d'être écrite, et **sa hauteur est mesurée au rendu** : la
+valeur en dur valait 78 px quand l'en-tête en fait 83 — et 109 dès que le menu
+passe sur deux lignes. Un `ResizeObserver` la suit, parce qu'elle change aussi
+quand le menu se déplie, sans que la fenêtre bouge.
+
+> Le hero garde son plein écran par une **marge négative**, pas par un `:has()`
+> sur le parent : `:has()` manque aux navigateurs plus anciens, et une règle qui
+> échoue laisserait le hero décalé sur la page la plus vue du site.
+
+### Trois erreurs de mesure corrigées
+
+Le bouton « Se connecter » était « beaucoup trop grand et laid ». La mesure sur
+l'original donne **245 × 50 px, police 20 px, padding 8px 35px, min-height 0** ;
+la vitrine cumulait une police de 26 px, un padding de 16 px **et** le
+`min-height: 44px` hérité de `.v-bouton`.
+
+Les liens du menu passent aussi de 26 à 20 px. **26 px est la valeur du menu
+déplié sur mobile**, pas celle du grand écran — une lecture trop rapide du CSS.
+
+Le texte de bas de page était un grand titre centré en Bebas Neue. Le relevé ne
+pose **aucun style de titre** sur ces lignes : elles héritent du corps de page,
+alignées à gauche. Un bloc CSS entier, vestige de la version précédente,
+centrait encore le tout.
+
+### La FAQ passe de douze à six questions
+
+Six questions dans l'original, avec un accordéon — que la vitrine avait déjà
+(`<details>`/`<summary>`). Il manquait seulement de s'en tenir aux six.
+
+Leurs réponses sont reprises **mot pour mot**, y compris celle sur le
+stationnement, qui donne des indications qu'aucune réécriture n'aurait
+inventées : la zone bleue de l'Avenue des Pâquerettes et le parking gratuit de
+l'Intermarché.
+
+Le mécanisme qui lit les délais en base ne sert plus aucune réponse. **Conservé
+quand même** : une question sur les délais reviendra, et elle devra lire la base
+plutôt que figer un chiffre.
+
+### La page des cours change de présentation
+
+Christian a fourni la grille de la page « Nos cours semi-privés » du WordPress
+et **proposé d'en faire une seconde page** plutôt qu'un remplacement, pour que
+les coachs tranchent sur pièces. Bonne méthode : il a choisi la grille après
+l'avoir vue.
+
+`/cours` sert donc la grille, `/cours-2` garde l'ancienne liste le temps de la
+montrer. **Les fichiers ont été renommés, pas seulement les routes** — échanger
+les seules adresses aurait laissé un `VitrineCours2Page` servant `/cours`.
+
+Les six couleurs de pastille viennent du CSS d'origine et ne sont pas
+décoratives : elles distinguent les familles de cours dans une grille de six.
+Les six photos de cette page **diffèrent** de celles de `/cours`, ce qu'aucune
+lecture de la capture n'aurait révélé.
+
+### La section tarifs quitte l'accueil
+
+À la demande de Christian : trop d'informations sur une seule page. Le bloc
+reste sur `/tarifs`.
+
+### La vidéo : le différé n'était pas le coupable
+
+Un coach signale une vidéo qui ne se charge pas de façon fluide sur son Mac.
+
+Le différé (`requestIdleCallback`) a été retiré — elle part maintenant dès
+l'ouverture, avec deux `preconnect`. Mais **la mesure disculpe ce réglage** : le
+WordPress diffère lui aussi (`data-src`, `loading=lazy`). Le vrai frein est le
+poids de YouTube — **131 Ko rien que pour la page d'intégration**, avant un
+lecteur de plusieurs centaines de kilo-octets.
+
+Christian a choisi de garder YouTube plutôt que d'héberger un fichier. **La
+gêne peut donc persister sur une connexion lente** : la corriger vraiment
+demanderait un `.mp4` servi depuis o2switch, ce qui suppose de récupérer le
+fichier envoyé à YouTube. À rouvrir si les coachs le signalent encore.
+
+### Un 403 chez un tiers : le site n'était pas en cause
+
+Signalé sur Firefox depuis un PC extérieur. Toutes les adresses répondent
+**200** depuis le Mac mini, y compris en se faisant passer pour Firefox sur
+Windows.
+
+L'information décisive est venue de Christian : **`aikicom.eu` fonctionnait
+depuis ce même poste**, alors qu'il est sur le même compte o2switch. Cela écarte
+le pare-feu Imunify360, qui aurait bloqué les deux.
+
+Edge **et** Firefox réclamant tous deux un proxy, c'est le **réseau** de ce
+poste qui impose un intermédiaire — la requête n'atteint jamais o2switch.
+
+Écarté par la mesure : un filtre public de réputation (les deux domaines
+résolvent via le DNS familial de Cloudflare), une IP suspecte (`app.` est sur la
+même adresse qu'`aikicom.eu`, qui passait), un domaine trop récent (enregistré
+en août 2024).
+
+> **Rien à corriger côté site.** `docs/diagnostic-403.md` garde la démarche : ce
+> symptôme reviendra, et la première réaction sera de soupçonner le serveur.
+
+### Les deux seuls 403 du site sont voulus
+
+`/assets/` et `/vitrine/` répondent 403 : c'est `Options -Indexes`, qui empêche
+d'afficher l'inventaire des fichiers. Un visiteur n'y va jamais.
+
+---
+
 ## Session du 2026-08-31 (soir) — le sous-domaine est `wp.`, et il lui manque son certificat
 
 > **v3.98.0**. Documentation seule.
