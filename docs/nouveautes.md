@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.120.0 — 1er septembre 2026
+
+- L'application iOS est prête à être soumise : le numéro de version des
+  enveloppes suit désormais celui du dépôt.
+
+---
+
 ## v3.119.0 — 1er septembre 2026
 
 - Aucun changement visible : un guide pas à pas pour soumettre l'application à

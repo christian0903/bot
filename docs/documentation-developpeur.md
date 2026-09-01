@@ -321,10 +321,15 @@ ou iOS qui affiche l'application web en plein écran. C'est **le même code** �
 (`capacitor.config.ts` à la racine).
 
 ```bash
-npm run cap:sync        # construit, puis recopie dans android/ et ios/
-npm run cap:android     # ouvre le projet dans Android Studio
-npm run cap:ios         # ouvre le projet dans Xcode
+./scripts/version-mobile.sh   # reporte la version dans les enveloppes
+npm run cap:sync              # construit, puis recopie dans android/ et ios/
+npm run cap:android           # ouvre le projet dans Android Studio
+npm run cap:ios               # ouvre le projet dans Xcode
 ```
+
+> **`cap sync` ne met PAS la version à jour.** Il recopie les fichiers web ;
+> le numéro de version vit dans `project.pbxproj` et `build.gradle`, que
+> Capacitor ne génère pas. D'où `version-mobile.sh`, à lancer **avant**.
 
 > **`cap:sync` lance `npm run build` avant de recopier.** Une modification non
 > construite ne part donc jamais dans l'enveloppe.
@@ -456,6 +461,7 @@ mémoire.
 | `copier-bot-vers-bot2.sh` | Copie la production vers une base de développement |
 | `copier-storage.sh` | Copie les fichiers du bucket `avatars` d'une base à l'autre |
 | `verifier-mobile.sh` | Ce qui est prêt, et ce qui manque, pour soumettre aux stores |
+| `version-mobile.sh` | **Reporte la version dans les enveloppes iOS et Android**, et incrémente le numéro de build. `cap sync` ne le fait pas |
 | `import-demo.ts` | Charge un jeu de démonstration |
 
 ---

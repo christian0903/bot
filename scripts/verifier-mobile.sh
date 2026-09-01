@@ -28,7 +28,7 @@ echo "${GRAS}=== Depot en $VERSION ===${RAZ}"
 echo
 echo "${GRAS}iOS${RAZ}"
 V_IOS=$(grep -m1 "MARKETING_VERSION" ios/App/App.xcodeproj/project.pbxproj | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")
-[[ "$V_IOS" == "$VERSION" ]] && ok "version $V_IOS" || manque "version $V_IOS — lancer npx cap sync"
+[[ "$V_IOS" == "$VERSION" ]] && ok "version $V_IOS" || manque "version $V_IOS — lancer ./scripts/version-mobile.sh"
 
 # La base embarquee : un binaire qui interroge la base de test ferait tester
 # des donnees fictives a l'evaluateur.
@@ -64,7 +64,7 @@ else manque "icone 1024 absente"; fi
 echo
 echo "${GRAS}Android${RAZ}"
 V_AND=$(grep "versionName" android/app/build.gradle | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")
-[[ "$V_AND" == "$VERSION" ]] && ok "version $V_AND" || manque "version $V_AND"
+[[ "$V_AND" == "$VERSION" ]] && ok "version $V_AND" || manque "version $V_AND — lancer ./scripts/version-mobile.sh"
 
 B=$(grep -oh "xgwrxbkrfypklrnqbftv\|cvyslqnojcgnjfgynczw" android/app/src/main/assets/public/assets/*.js 2>/dev/null | sort -u | head -1)
 [[ "$B" == "xgwrxbkrfypklrnqbftv" ]] && ok "vise bot-ops (production)" || manque "ne vise pas la production"

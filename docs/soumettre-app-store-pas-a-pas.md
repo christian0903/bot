@@ -16,21 +16,35 @@
 | Permission caméra, déclaration de chiffrement | déclarées |
 | L'app vise `bot-ops` (production) | oui |
 | Page de confidentialité | en ligne, répond |
-| **Version dans l'enveloppe iOS** | **3.69.0** — le dépôt est en 3.118.0 |
+| Version dans l'enveloppe iOS | à jour depuis le 2026-09-01 |
 
-**Un seul point à régler** : la version de l'enveloppe. C'est l'étape 1.
+**Le bloc iOS du script de vérification est entièrement vert.** Reste à
+refaire l'étape 1 avant chaque envoi, pour reporter la version du moment.
 
 ---
 
 ## Étape 1 — Mettre l'enveloppe à jour
 
+**Deux commandes, dans cet ordre** :
+
 ```bash
 cd ~/bot
-npm run cap:sync
+./scripts/version-mobile.sh     # reporte le numéro de version
+npm run cap:sync                # recopie l'application construite
 ```
 
-Cette commande construit l'application puis recopie le résultat dans `ios/`.
-Elle prend une minute.
+> **Pourquoi deux commandes et pas une.** `cap sync` recopie les fichiers web
+> dans les enveloppes, mais **ne touche jamais à leur numéro de version** :
+> celui-ci vit dans `project.pbxproj` (iOS) et `build.gradle` (Android), des
+> fichiers natifs que Capacitor ne génère pas.
+>
+> Sans la première commande, vous enverriez à Apple une application qui
+> s'annonce en **3.69.0** quand le dépôt est en 3.119.0 — cinquante versions de
+> retard, sans qu'aucun message ne le signale.
+>
+> `version-mobile.sh` incrémente aussi le **numéro de build**. Apple refuse
+> deux envois portant le même, y compris pour corriger un rejet sans rien
+> changer d'autre.
 
 **Contrôler que c'est passé :**
 
@@ -38,11 +52,9 @@ Elle prend une minute.
 ./scripts/verifier-mobile.sh
 ```
 
-La ligne « MANQUE version 3.69.0 » doit avoir disparu du bloc iOS.
-
-> **À refaire avant chaque soumission.** Sans `cap:sync`, vous enverriez à
-> Apple une application figée à une version ancienne — sans que rien ne le
-> signale.
+Le bloc **iOS** doit être entièrement vert. Un « MANQUE aucune clé de
+signature » sous Android est normal et **ne bloque pas** la soumission Apple —
+c'est pour le Play Store, plus tard.
 
 ---
 
