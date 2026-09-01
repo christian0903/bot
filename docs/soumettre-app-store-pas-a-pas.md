@@ -6,6 +6,35 @@
 > les paiements, les arguments à tenir). **Ce document-ci dit quoi faire**, dans
 > l'ordre, sans rien supposer.
 
+## Avancement au 2026-09-01
+
+| Étape | État |
+|---|---|
+| 1 — Enveloppe à jour | **fait** (3.120.0, build 3) |
+| 2 — App ID chez Apple | **fait** — `be.backontrackstudio.app`, Push Notifications activé |
+| DSA — statut de commerçant | **déposé**, en cours de vérification (27 pays) |
+| 3 — Fiche App Store Connect | **fait** — « Back on Track Studio », iOS 1.0 |
+| 4 — Remplir la fiche | à faire |
+| 5 — Archiver et envoyer | à faire |
+| 6 — Soumettre | à faire |
+
+**Le nom retenu est « Back on Track Studio »** et non « Back on Track » :
+proposé par Christian par prudence, et accepté du premier coup. Le nom seul
+aurait probablement été refusé — l'expression est courante en anglais.
+
+**Deux points restent ouverts, sans bloquer la soumission :**
+
+- Le **contrat applications payantes** est en état « Nouveau ». Il ne sert
+  qu'à vendre *via Apple* ; les packs passent par Stripe sous l'exemption
+  3.1.3(e). Le signer imposerait la conversion en SRL.
+- Le compte est au nom de **Christian Vanhenten** (particulier) quand la SRL
+  exploite l'app et encaisse via Stripe. Apple **verrouille** le nom et le type
+  d'entité : la conversion passe par son support, avec un D-U-N-S et jusqu'à
+  trois semaines de vérification. Le message est prêt dans
+  `apple/message-support-conversion-organisation.md`.
+
+---
+
 ## Vérifié avant d'écrire ce guide
 
 | | |
