@@ -1,8 +1,9 @@
 # Descriptions des cours
 
 > **État au 2026-09-03 : brouillon, rien n'est encore écrit en base.**
-> Quatre descriptions sur six sont prêtes ; deux attendent une décision des
-> coachs, signalées plus bas.
+> Cinq descriptions longues sur six sont prêtes, et les six définitions
+> courtes. « Personal Training » n'a aucune page sur le site : sa description
+> longue reste à écrire par les coachs.
 
 **D'où viennent ces textes.** Des pages de cours du WordPress du studio,
 récupérées dans la sauvegarde du 2026-09-02 (`backup site wordpress bot/site
@@ -55,6 +56,9 @@ sont retirés : ils n'ont pas de sens dans l'application.
 
 ## BackOnTrack
 
+**Définition courte** (`description`) :
+Renforcement global, à ton rythme
+
 ### Pour qui ?
 Ce cours s'adresse à tout le monde : de la personne qui souhaite se remettre en
 mouvement au sportif confirmé. Adapté à différents niveaux, il permet à chacun
@@ -75,6 +79,9 @@ pour rester en bonne santé.
 
 ## Boxing
 
+**Définition courte** (`description`) :
+Technique, cardio et renforcement
+
 ### Pour qui ?
 Ce cours de boxe est ouvert à une grande variété de profils : tous ceux qui
 souhaitent améliorer leur condition physique, apprendre à se défendre et
@@ -92,6 +99,9 @@ par semaine pour prévenir les maladies cardiovasculaires.
 
 ## CrossTraining
 
+**Définition courte** (`description`) :
+Force, cardio et mouvements fonctionnels
+
 ### Pour qui ?
 Le CrossTraining s'adresse à tous ceux qui veulent bouger différemment :
 débutant ou confirmé, chacun avance à son rythme et selon ses ambitions. Un
@@ -108,6 +118,9 @@ séance t'apporte plus d'assurance et d'efficacité au quotidien.
 ---
 
 ## Ladies
+
+**Définition courte** (`description`) :
+Renforcement global & cardio, entre femmes
 
 ### Pour qui ?
 Ce cours est conçu pour toutes les femmes désireuses de reprendre le sport ou
@@ -139,20 +152,48 @@ pimenter ta routine, combine ce cours avec des activités plus intenses.
 
 ## Mobility & Stretch
 
-> ⚠️ **À confirmer.** Ce cours n'existe qu'en production ; le test a « Posture »,
-> absent de la production. S'il s'agit du même cours renommé, le texte ci-dessous
-> (page WordPress « Posture ») convient — il parle bien de mobilité articulaire
-> et se termine sur des étirements. Si c'est un cours différent, il est à écrire.
+**Définition courte** (`description`) :
+Mobilité, tronc & prévention des douleurs
 
 ### Pour qui ?
-Cette séance est recommandée si tu souhaites améliorer ta posture au quotidien,
-notamment en raison d'un travail de bureau, d'un mode de vie sédentaire ou de
-douleurs cervicales, thoraciques ou lombaires. Elle s'adresse également à ceux
-qui veulent gagner en mobilité articulaire, et reste accessible à tous les
-niveaux.
+Cette séance s'adresse à qui veut retrouver de l'amplitude, relâcher les
+tensions et bouger plus librement. C'est le complément d'un corps qui
+s'entraîne — comme de celui qui reste assis toute la journée.
 
 ### Pourquoi ce programme ?
-Ce programme combine des exercices de renforcement et de mobilité, basés sur une
-méthode douce, ciblant principalement le tronc — colonne vertébrale et bassin.
-L'objectif est de maintenir une amplitude de mouvement fonctionnelle et sans
-douleur, avec des exercices de relaxation en fin de séance.
+Mobilité articulaire, étirements et respiration. La séance combine renforcement
+et mobilité par une méthode douce, centrée sur le tronc — colonne vertébrale et
+bassin — pour maintenir une amplitude de mouvement fonctionnelle et sans
+douleur, avec de la relaxation en fin de séance.
+
+---
+
+## Personal Training
+
+**Définition courte** (`description`) :
+Coach privé, séance sur-mesure
+
+> ⚠️ **Description longue : à écrire.** Le site n'a aucune page pour ce format —
+> il n'apparaît que dans les tarifs (75 € la séance, packs de 5 et 10). La page
+> « cours-semi-prives » ne le décrit pas : elle porte sur les séances en petit
+> groupe, ce qui est une autre offre. Écrire une description longue ici
+> reviendrait à inventer ce que le studio n'a jamais écrit.
+
+---
+
+## Adolescent — cours absent des deux bases
+
+> ℹ️ Le site décrit un cours « Adolescent » (12-17 ans, groupes de 4 maximum,
+> séparés en 12/14 et 15/17) qui n'existe ni sur bot3 ni sur bot-ops. Signalé
+> pour information : rien à écrire tant que le type de cours n'est pas créé.
+
+**Définition courte, si créé** :
+Renforcement, souplesse, agilité — 12 à 17 ans
+
+### Pour qui ?
+Cours dédié aux adolescents, de 12 à 17 ans, en petits groupes de 4 maximum
+séparés en deux catégories : 12-14 ans et 15-17 ans.
+
+### Pourquoi ce programme ?
+Apprendre à connaître son corps et à le rendre plus fort, par le renforcement,
+la mobilité et l'agilité.

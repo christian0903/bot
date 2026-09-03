@@ -6,6 +6,8 @@ import { logActivity } from '@/lib/activity-log'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { BoutonAgenda } from '@/components/common/BoutonAgenda'
+import { loadStudioLegal } from '@/lib/studio-legal'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -40,6 +42,7 @@ export function MyBookingsPage() {
   const [loading, setLoading] = useState(true)
   const [cancelId, setCancelId] = useState<string | null>(null)
   const [cancellationHours, setCancellationHours] = useState(12)
+  const [adresseStudio, setAdresseStudio] = useState<string | null>(null)
   /**
    * Natures affichées. **Les séances à venir seulement**, au départ.
    *
@@ -94,6 +97,14 @@ export function MyBookingsPage() {
     if (error) console.error('[reviews] mine', error)
     setMyReviews(new Map(((reviews as MyReview[]) ?? []).map(r => [r.booking_id, r])))
   }, [user])
+
+  // Chargée une fois pour toutes : elle ne sert qu'à renseigner le lieu des
+  // entrées d'agenda, et son absence ne doit rien empêcher.
+  useEffect(() => {
+    loadStudioLegal()
+      .then(studio => setAdresseStudio(studio?.address?.trim() || null))
+      .catch(() => setAdresseStudio(null))
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -440,8 +451,26 @@ export function MyBookingsPage() {
             const hoursUntil = (startsAt.getTime() - now.getTime()) / (1000 * 60 * 60)
             const isFreeCancel = hoursUntil >= cancellationHours
 
+            const seance = booking.scheduled_class
+
             return (
               <div className="flex flex-col items-end gap-1">
+                {seance && (
+                  <BoutonAgenda
+                    cours={{
+                      id: seance.id,
+                      starts_at: seance.starts_at,
+                      duration_minutes: seance.duration_minutes,
+                      intitule: seance.title || seance.class_type?.name || (isFr ? 'Cours' : 'Class'),
+                      coach: seance.coach?.display_name,
+                      salle: seance.floor ? (seance.floor === 'haut'
+                        ? (isFr ? 'Étage' : 'Upstairs')
+                        : (isFr ? 'Rez-de-chaussée' : 'Ground floor')) : null,
+                      description: seance.class_type?.description,
+                      lieu: adresseStudio,
+                    }}
+                  />
+                )}
                 <Button variant="outline" size="sm" onClick={() => setCancelId(booking.id)}>
                   {t('bookings.cancel')}
                 </Button>

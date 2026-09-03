@@ -19,6 +19,9 @@ import {
 import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, Calendar, Users, Check, Clock3, X, Clock, Lock, Ban, UserMinus, UserPlus, Info, SlidersHorizontal } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { MarkdownLink } from '@/components/common/MarkdownLink'
+import { BoutonAgenda } from '@/components/common/BoutonAgenda'
+import { telechargerICS } from '@/lib/agenda-ics'
+import { loadStudioLegal } from '@/lib/studio-legal'
 import { toast } from 'sonner'
 import { sendEmail } from '@/lib/send-email'
 import { notifyMember } from '@/lib/notify-member'
@@ -470,6 +473,12 @@ export function SchedulePage() {
   // La redirection ayant remplacé l'ouverture d'un onglet, le membre n'a plus la
   // page Stripe sous les yeux : sans accusé, il ignore si son paiement a abouti.
   useEffect(() => {
+    loadStudioLegal()
+      .then(studio => setAdresseStudio(studio?.address?.trim() || null))
+      .catch(() => setAdresseStudio(null))
+  }, [])
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('success') === 'true') {
       toast.success(isFr
@@ -729,10 +738,30 @@ export function SchedulePage() {
     setBookingInProgress(null)
     setBookingConfirm(null)
 
+    // L'agenda se propose ici : c'est le moment ou le membre y pense, et il
+    // n'aura pas a revenir le chercher dans « Mes reservations ».
     toast.success(
       isFr
         ? `Séance réservée — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'à' HH:mm", { locale })}`
         : `Class booked — ${scheduledClass.class_type?.name}, ${format(new Date(scheduledClass.starts_at), "EEEE d MMMM 'at' HH:mm", { locale })}`,
+      {
+        duration: 10_000,
+        action: {
+          label: isFr ? 'Mon agenda' : 'My calendar',
+          onClick: () => telechargerICS({
+            id: scheduledClass.id,
+            starts_at: scheduledClass.starts_at,
+            duration_minutes: scheduledClass.duration_minutes,
+            intitule: scheduledClass.title || scheduledClass.class_type?.name || (isFr ? 'Cours' : 'Class'),
+            coach: scheduledClass.coach?.display_name,
+            salle: scheduledClass.floor ? (scheduledClass.floor === 'haut'
+              ? (isFr ? 'Étage' : 'Upstairs')
+              : (isFr ? 'Rez-de-chaussée' : 'Ground floor')) : null,
+            description: scheduledClass.class_type?.description,
+            lieu: adresseStudio,
+          }, isFr),
+        },
+      },
     )
 
     // Journal, notification, e-mail : utiles, jamais bloquants. Un `catch` les
@@ -1028,6 +1057,8 @@ export function SchedulePage() {
   // les deux ecrans reviendrait a faire dependre cette frontiere d'une suite de
   // conditions — la premiere oubliee exposerait des coordonnees.
   const [detailMembre, setDetailMembre] = useState<ScheduledClass | null>(null)
+  // Le lieu des entrées d'agenda. Son absence n'empêche rien.
+  const [adresseStudio, setAdresseStudio] = useState<string | null>(null)
   const [participants, setParticipants] = useState<Participant[]>([])
   const [participantsLoading, setParticipantsLoading] = useState(false)
 
@@ -2504,11 +2535,31 @@ export function SchedulePage() {
                     const enCours = bookingInProgress === detailMembre.id
 
                     if (dejaInscrit) return (
-                      <Button variant="outline" className="w-full"
-                        onClick={() => { setDetailMembre(null); navigate('/my-bookings') }}>
-                        <Check className="h-4 w-4 mr-2" />
-                        {isFr ? 'Vous êtes inscrit(e) — voir ma réservation' : "You're booked — see my booking"}
-                      </Button>
+                      <div className="space-y-2">
+                        <Button variant="outline" className="w-full"
+                          onClick={() => { setDetailMembre(null); navigate('/my-bookings') }}>
+                          <Check className="h-4 w-4 mr-2" />
+                          {isFr ? 'Vous êtes inscrit(e) — voir ma réservation' : "You're booked — see my booking"}
+                        </Button>
+                        {/* Proposé seulement à qui est inscrit : ajouter à son
+                            agenda un cours qu'on n'a pas réservé n'aurait pas
+                            de sens. */}
+                        <BoutonAgenda
+                          className="w-full"
+                          cours={{
+                            id: detailMembre.id,
+                            starts_at: detailMembre.starts_at,
+                            duration_minutes: detailMembre.duration_minutes,
+                            intitule: detailMembre.title || detailMembre.class_type?.name || (isFr ? 'Cours' : 'Class'),
+                            coach: detailMembre.coach?.display_name,
+                            salle: detailMembre.floor ? (detailMembre.floor === 'haut'
+                              ? (isFr ? 'Étage' : 'Upstairs')
+                              : (isFr ? 'Rez-de-chaussée' : 'Ground floor')) : null,
+                            description: detailMembre.class_type?.description,
+                            lieu: adresseStudio,
+                          }}
+                        />
+                      </div>
                     )
                     if (attente?.status === 'offered') return (
                       <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white"

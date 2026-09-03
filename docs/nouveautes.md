@@ -12,6 +12,24 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.130.0 — 3 septembre 2026
+
+- **Un cours réservé s'ajoute à votre agenda.** Un bouton « Ajouter à mon
+  agenda » dépose la séance dans l'agenda du téléphone ou de l'ordinateur, avec
+  l'horaire, le coach, la salle et l'adresse du studio — et un rappel une heure
+  avant. Il apparaît juste après la réservation, dans la fiche du cours quand
+  on y est inscrit, et sur chaque séance à venir de « Mes réservations ».
+
+  À noter : l'entrée est une copie posée dans votre agenda. Si le studio annule
+  ou déplace la séance, votre agenda garde l'ancienne — il faudra la retirer
+  vous-même.
+
+- **Les descriptions de cours arrivent.** Les textes du site sont repris pour
+  chaque type de cours ; ils s'affichent en appuyant sur « Informations » au
+  planning.
+
+---
+
 ## v3.129.0 — 3 septembre 2026
 
 - **Écrire la description d'un cours se fait maintenant au calme.** Un bouton
