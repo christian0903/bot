@@ -10,6 +10,7 @@ export type TemplateKey =
   | 'email_change_by_admin'
   | 'waitlist_spot_offered'
   | 'payment_failed'
+  | 'attendance_reminder'
 
 export interface TemplateVars {
   user_name?: string
@@ -27,6 +28,7 @@ export interface TemplateVars {
   app_url?: string
   expires_at?: string        // waitlist_spot_offered : heure limite de confirmation
   pack_name?: string         // payment_failed : l'abonnement concerné
+  participants?: number      // attendance_reminder : nombre d'inscrits à pointer
 }
 
 function shell(title: string, body: string) {
@@ -210,6 +212,18 @@ export function buildTemplate(template: TemplateKey, v: TemplateVars): { subject
         ${cta(`${appUrl}/schedule`, 'Voir le planning')}
       `
       return { subject, html: shell('Cours annulé', body) }
+    }
+
+    case 'attendance_reminder': {
+      const subject = `Présences à pointer — ${v.class_name}`
+      const body = `
+        <p>${hello}</p>
+        <p>Les présences de ce cours <strong>n'ont pas encore été pointées</strong> :</p>
+        ${detailsBlock(v)}
+        <p>${v.participants ?? 0} personne${(v.participants ?? 0) > 1 ? 's étaient inscrites' : ' était inscrite'}. Sans pointage, les absences ne sont pas comptées et les statistiques du studio restent incomplètes.</p>
+        ${cta(`${appUrl}/admin/schedule`, 'Pointer les présences')}
+      `
+      return { subject, html: shell('Présences à pointer', body) }
     }
 
     case 'password_reset_by_admin': {

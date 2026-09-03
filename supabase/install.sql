@@ -370,7 +370,9 @@ CREATE TABLE scheduled_classes (
   description TEXT,
   floor TEXT CHECK (floor IS NULL OR floor IN ('haut', 'bas')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Rappel de pointage des presences : nul tant qu'aucun n'est parti.
+  attendance_reminded_at TIMESTAMPTZ
 );
 
 -- Réservations
@@ -981,9 +983,9 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF has_role(auth.uid(), 'coach')
-     OR has_role(auth.uid(), 'admin')
-     OR has_role(auth.uid(), 'super_admin') THEN
+  IF has_role(auth.uid(), 'coach'::user_role)
+     OR has_role(auth.uid(), 'admin'::user_role)
+     OR has_role(auth.uid(), 'super_admin'::user_role) THEN
     RETURN NEW;
   END IF;
 
@@ -1472,7 +1474,7 @@ AS $fn$
 BEGIN
   -- SECURITY DEFINER : sans ce contrôle, tout membre connecté lirait les
   -- statistiques commerciales du studio.
-  IF NOT has_role(auth.uid(), 'admin') THEN
+  IF NOT has_role(auth.uid(), 'admin'::user_role) THEN
     RAISE EXCEPTION 'Réservé aux administrateurs';
   END IF;
 
@@ -1598,7 +1600,7 @@ DECLARE
 BEGIN
   -- Réservé au staff : le membre ne retire pas sa propre séance d'essai, et
   -- surtout ne retire pas celle d'un autre.
-  IF NOT (has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin')) THEN
+  IF NOT (has_role(auth.uid(), 'coach'::user_role) OR has_role(auth.uid(), 'admin'::user_role)) THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'forbidden');
   END IF;
 
@@ -1893,7 +1895,7 @@ DECLARE
   v_traces    INTEGER;
 BEGIN
   -- Le super_admin seul : un admin peut anonymiser, pas effacer.
-  IF NOT has_role(auth.uid(), 'super_admin') THEN
+  IF NOT has_role(auth.uid(), 'super_admin'::user_role) THEN
     RETURN jsonb_build_object('ok', false, 'reason', 'forbidden');
   END IF;
 
@@ -2411,9 +2413,9 @@ CREATE POLICY "Reviews: own update" ON class_reviews
 -- remonter à l'auteur en cas d'avis problématique.
 CREATE POLICY "Reviews: staff read" ON class_reviews
   FOR SELECT USING (
-    has_role(auth.uid(), 'coach')
-    OR has_role(auth.uid(), 'admin')
-    OR has_role(auth.uid(), 'super_admin')
+    has_role(auth.uid(), 'coach'::user_role)
+    OR has_role(auth.uid(), 'admin'::user_role)
+    OR has_role(auth.uid(), 'super_admin'::user_role)
   );
 
 -- Pas de policy INSERT : l'écriture passe par `submit_class_review`, qui
@@ -2627,9 +2629,9 @@ AS $fn$
   JOIN scheduled_classes sc ON sc.id = r.scheduled_class_id
   WHERE r.scheduled_class_id = p_scheduled_class_id
     AND (
-      (has_role(auth.uid(), 'coach') AND sc.coach_id = auth.uid())
-      OR has_role(auth.uid(), 'admin')
-      OR has_role(auth.uid(), 'super_admin')
+      (has_role(auth.uid(), 'coach'::user_role) AND sc.coach_id = auth.uid())
+      OR has_role(auth.uid(), 'admin'::user_role)
+      OR has_role(auth.uid(), 'super_admin'::user_role)
     )
   ORDER BY r.created_at DESC;
 $fn$;
@@ -2691,7 +2693,7 @@ AS $fn$
   LEFT JOIN class_types ct ON ct.id = sc.class_type_id
   LEFT JOIN profiles m  ON m.id = r.user_id
   LEFT JOIN profiles co ON co.id = sc.coach_id
-  WHERE (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin'))
+  WHERE (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role))
     -- Filtres facultatifs : NULL = pas de filtre.
     AND (p_coach_id IS NULL OR sc.coach_id = p_coach_id)
     AND (p_class_type_id IS NULL OR sc.class_type_id = p_class_type_id)
@@ -2733,7 +2735,7 @@ AS $fn$
   FROM class_reviews r
   JOIN scheduled_classes sc ON sc.id = r.scheduled_class_id
   LEFT JOIN profiles co ON co.id = sc.coach_id
-  WHERE (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin'))
+  WHERE (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role))
     AND sc.coach_id IS NOT NULL
   GROUP BY sc.coach_id, co.display_name
   ORDER BY AVG(r.rating) DESC;
@@ -2894,7 +2896,7 @@ SET search_path = public
 LANGUAGE plpgsql
 AS $fn$
 BEGIN
-  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+  IF NOT (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role)) THEN
     RAISE EXCEPTION 'Reserve aux administrateurs';
   END IF;
 
@@ -2937,7 +2939,7 @@ SET search_path = public
 LANGUAGE plpgsql
 AS $fn$
 BEGIN
-  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+  IF NOT (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role)) THEN
     RAISE EXCEPTION 'Reserve aux administrateurs';
   END IF;
 
@@ -3120,7 +3122,7 @@ DECLARE
   v_future   INTEGER;
   v_bookings INTEGER;
 BEGIN
-  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+  IF NOT (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role)) THEN
     RAISE EXCEPTION 'Reserve aux administrateurs';
   END IF;
 
@@ -3401,9 +3403,9 @@ AS $fn$
 DECLARE
   v_booking RECORD;
 BEGIN
-  IF NOT (has_role(auth.uid(), 'coach')
-          OR has_role(auth.uid(), 'admin')
-          OR has_role(auth.uid(), 'super_admin')) THEN
+  IF NOT (has_role(auth.uid(), 'coach'::user_role)
+          OR has_role(auth.uid(), 'admin'::user_role)
+          OR has_role(auth.uid(), 'super_admin'::user_role)) THEN
     RAISE EXCEPTION 'Reserve au staff du studio';
   END IF;
 
@@ -3634,7 +3636,7 @@ AS $fn$
 DECLARE
   v_referrer_id UUID;
 BEGIN
-  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+  IF NOT (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role)) THEN
     RAISE EXCEPTION 'Reserve aux administrateurs';
   END IF;
 
@@ -3716,7 +3718,7 @@ DECLARE
   v_code TEXT;
   v_days INTEGER;
 BEGIN
-  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+  IF NOT (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role)) THEN
     RAISE EXCEPTION 'Reserve aux administrateurs';
   END IF;
 
@@ -3753,8 +3755,8 @@ RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
 AS $fn$
 DECLARE
-  v_is_admin BOOLEAN := has_role(auth.uid(), 'admin');
-  v_is_super BOOLEAN := has_role(auth.uid(), 'super_admin');
+  v_is_admin BOOLEAN := has_role(auth.uid(), 'admin'::user_role);
+  v_is_super BOOLEAN := has_role(auth.uid(), 'super_admin'::user_role);
   v_name TEXT;
 BEGIN
   IF NOT (v_is_admin OR v_is_super) THEN
@@ -3806,8 +3808,8 @@ RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
 AS $fn$
 DECLARE
-  v_is_admin BOOLEAN := has_role(auth.uid(), 'admin');
-  v_is_super BOOLEAN := has_role(auth.uid(), 'super_admin');
+  v_is_admin BOOLEAN := has_role(auth.uid(), 'admin'::user_role);
+  v_is_super BOOLEAN := has_role(auth.uid(), 'super_admin'::user_role);
   v_name TEXT;
   v_remaining INTEGER;
 BEGIN
@@ -3873,7 +3875,7 @@ DECLARE
   v_subs INTEGER;
   v_fees INTEGER;
 BEGIN
-  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+  IF NOT (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role)) THEN
     RAISE EXCEPTION 'Reserve aux administrateurs';
   END IF;
 
@@ -4040,8 +4042,8 @@ RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
 AS $fn$
 DECLARE
-  v_is_admin BOOLEAN := has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin');
-  v_is_coach BOOLEAN := has_role(auth.uid(), 'coach');
+  v_is_admin BOOLEAN := has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role);
+  v_is_coach BOOLEAN := has_role(auth.uid(), 'coach'::user_role);
   v_class RECORD;
   v_count INTEGER;
   v_pack RECORD;
@@ -4498,7 +4500,7 @@ AS $fn$
 DECLARE
   v_count INTEGER;
 BEGIN
-  IF NOT has_role(auth.uid(), 'super_admin') THEN
+  IF NOT has_role(auth.uid(), 'super_admin'::user_role) THEN
     RETURN NULL;
   END IF;
 
@@ -4739,11 +4741,11 @@ CREATE POLICY "Profiles: own or staff" ON profiles
   FOR SELECT TO authenticated
   USING (
     auth.uid() = id
-    OR has_role(auth.uid(), 'coach')
-    OR has_role(auth.uid(), 'admin')
+    OR has_role(auth.uid(), 'coach'::user_role)
+    OR has_role(auth.uid(), 'admin'::user_role)
   );
 CREATE POLICY "Profiles: own update" ON profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Profiles: admin update all" ON profiles FOR UPDATE USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Profiles: admin update all" ON profiles FOR UPDATE USING (has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "Profiles: insert on signup" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- USER_ROLES
@@ -4752,17 +4754,17 @@ CREATE POLICY "Profiles: insert on signup" ON profiles FOR INSERT WITH CHECK (au
 -- vérifient la hiérarchie. Une policy d'écriture rouvrirait la faille corrigée
 -- le 2026-08-06, où tout admin pouvait se créer un pair.
 CREATE POLICY "Roles: read own or admin" ON user_roles
-  FOR SELECT USING (auth.uid() = user_id OR has_role(auth.uid(), 'admin'));
+  FOR SELECT USING (auth.uid() = user_id OR has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "Roles: admin read all" ON user_roles
-  FOR SELECT USING (has_role(auth.uid(), 'admin'));
+  FOR SELECT USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- MEMBER_CATEGORIES
 CREATE POLICY "Categories: public read" ON member_categories FOR SELECT USING (true);
-CREATE POLICY "Categories: admin manage" ON member_categories FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Categories: admin manage" ON member_categories FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- CREDIT_TYPES
 CREATE POLICY "Credit types: public read" ON credit_types FOR SELECT USING (true);
-CREATE POLICY "Credit types: admin manage" ON credit_types FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Credit types: admin manage" ON credit_types FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- PACK_TYPES
 -- Lire : le catalogue actif, plus tout pack que le membre détient — même
@@ -4773,7 +4775,7 @@ CREATE POLICY "Credit types: admin manage" ON credit_types FOR ALL USING (has_ro
 CREATE POLICY "Pack types: read active, detenu ou admin" ON pack_types
   FOR SELECT USING (
     is_active = true
-    OR has_role(auth.uid(), 'admin')
+    OR has_role(auth.uid(), 'admin'::user_role)
     OR EXISTS (
       SELECT 1 FROM pack_purchases pp
       WHERE pp.pack_type_id = pack_types.id AND pp.user_id = auth.uid()
@@ -4786,56 +4788,56 @@ CREATE POLICY "Pack types: read active, detenu ou admin" ON pack_types
 -- Créer et modifier : tout admin. Ce sont les gestes du quotidien, et ils se
 -- corrigent. Effacer, non : c'est irréversible et cela touche à l'historique des
 -- achats — même niveau de responsabilité que l'effacement du journal d'activité.
-CREATE POLICY "Pack types: admin insert" ON pack_types FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Pack types: admin update" ON pack_types FOR UPDATE USING (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Pack types: super admin delete" ON pack_types FOR DELETE USING (has_role(auth.uid(), 'super_admin'));
+CREATE POLICY "Pack types: admin insert" ON pack_types FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Pack types: admin update" ON pack_types FOR UPDATE USING (has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Pack types: super admin delete" ON pack_types FOR DELETE USING (has_role(auth.uid(), 'super_admin'::user_role));
 
 -- PACK_TYPE_CATEGORIES
 CREATE POLICY "Pack type categories: public read" ON pack_type_categories FOR SELECT USING (true);
-CREATE POLICY "Pack type categories: admin manage" ON pack_type_categories FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Pack type categories: admin manage" ON pack_type_categories FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- PACK_PURCHASES
 CREATE POLICY "Purchases: own read" ON pack_purchases FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Purchases: admin read all" ON pack_purchases FOR SELECT USING (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Purchases: coach read all" ON pack_purchases FOR SELECT USING (has_role(auth.uid(), 'coach'));
+CREATE POLICY "Purchases: admin read all" ON pack_purchases FOR SELECT USING (has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Purchases: coach read all" ON pack_purchases FOR SELECT USING (has_role(auth.uid(), 'coach'::user_role));
 CREATE POLICY "Purchases: own insert" ON pack_purchases FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Purchases: admin insert" ON pack_purchases FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Purchases: admin update" ON pack_purchases FOR UPDATE USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Purchases: admin insert" ON pack_purchases FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Purchases: admin update" ON pack_purchases FOR UPDATE USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- COUPONS
 CREATE POLICY "Coupon categories: public read" ON coupon_categories FOR SELECT USING (true);
-CREATE POLICY "Coupon categories: admin manage" ON coupon_categories FOR ALL USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin'));
+CREATE POLICY "Coupon categories: admin manage" ON coupon_categories FOR ALL USING (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role));
 
 CREATE POLICY "Coupons: read active" ON coupons FOR SELECT USING (is_active = true);
-CREATE POLICY "Coupons: admin manage" ON coupons FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Coupons: admin manage" ON coupons FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- CLASS_TYPES
 CREATE POLICY "Class types: public read" ON class_types FOR SELECT USING (true);
-CREATE POLICY "Class types: admin manage" ON class_types FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Class types: admin manage" ON class_types FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- SCHEDULED_CLASSES
 CREATE POLICY "Classes: public read" ON scheduled_classes FOR SELECT USING (true);
-CREATE POLICY "Classes: admin manage" ON scheduled_classes FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Classes: admin manage" ON scheduled_classes FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "Classes: coach update own" ON scheduled_classes FOR UPDATE USING (auth.uid() = coach_id);
 
 -- BOOKINGS
 CREATE POLICY "Bookings: own read" ON bookings FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Bookings: admin read all" ON bookings FOR SELECT USING (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Bookings: coach read all classes" ON bookings FOR SELECT USING (has_role(auth.uid(), 'coach'));
+CREATE POLICY "Bookings: admin read all" ON bookings FOR SELECT USING (has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Bookings: coach read all classes" ON bookings FOR SELECT USING (has_role(auth.uid(), 'coach'::user_role));
 CREATE POLICY "Bookings: own insert" ON bookings FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Bookings: admin insert" ON bookings FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Bookings: coach insert" ON bookings FOR INSERT WITH CHECK (has_role(auth.uid(), 'coach'));
+CREATE POLICY "Bookings: admin insert" ON bookings FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Bookings: coach insert" ON bookings FOR INSERT WITH CHECK (has_role(auth.uid(), 'coach'::user_role));
 CREATE POLICY "Bookings: own cancel" ON bookings FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Bookings: admin update" ON bookings FOR UPDATE USING (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Bookings: coach update" ON bookings FOR UPDATE USING (has_role(auth.uid(), 'coach'));
+CREATE POLICY "Bookings: admin update" ON bookings FOR UPDATE USING (has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Bookings: coach update" ON bookings FOR UPDATE USING (has_role(auth.uid(), 'coach'::user_role));
 
 -- WAITLIST
 CREATE POLICY "Waitlist: own read" ON waitlist FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Waitlist: admin read" ON waitlist FOR SELECT USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Waitlist: admin read" ON waitlist FOR SELECT USING (has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "Waitlist: own insert" ON waitlist FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Waitlist: admin insert" ON waitlist FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Waitlist: admin insert" ON waitlist FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "Waitlist: own update" ON waitlist FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Waitlist: admin update" ON waitlist FOR UPDATE USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Waitlist: admin update" ON waitlist FOR UPDATE USING (has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "Waitlist: own delete" ON waitlist FOR DELETE USING (auth.uid() = user_id);
 
 -- NOTIFICATIONS
@@ -4849,7 +4851,7 @@ CREATE POLICY "Notifications: system insert" ON notifications FOR INSERT WITH CH
 -- EMAIL_QUEUE — file technique. Le membre n'y accède pas ; seul le service
 -- role (Edge Functions) l'écrit et la consomme, en contournant RLS.
 CREATE POLICY "Email queue: staff read" ON email_queue
-  FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin'));
+  FOR SELECT USING (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role));
 
 -- APP_SETTINGS
 CREATE POLICY "Settings: public read" ON app_settings FOR SELECT USING (true);
@@ -4858,22 +4860,22 @@ CREATE POLICY "Settings: public read" ON app_settings FOR SELECT USING (true);
 -- de ce repli implicite pour une table de configuration.
 CREATE POLICY "Settings: admin manage" ON app_settings
   FOR ALL
-  USING (has_role(auth.uid(), 'admin'))
-  WITH CHECK (has_role(auth.uid(), 'admin'));
+  USING (has_role(auth.uid(), 'admin'::user_role))
+  WITH CHECK (has_role(auth.uid(), 'admin'::user_role));
 
 -- ACTIVITY_LOG
-CREATE POLICY "Activity log: admin read" ON activity_log FOR SELECT USING (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Activity log: coach read" ON activity_log FOR SELECT USING (has_role(auth.uid(), 'coach'));
+CREATE POLICY "Activity log: admin read" ON activity_log FOR SELECT USING (has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Activity log: coach read" ON activity_log FOR SELECT USING (has_role(auth.uid(), 'coach'::user_role));
 CREATE POLICY "Activity log: own read" ON activity_log FOR SELECT USING (auth.uid() = target_user_id);
 CREATE POLICY "Activity log: system insert" ON activity_log FOR INSERT WITH CHECK (true);
-CREATE POLICY "Activity log: admin insert" ON activity_log FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
-CREATE POLICY "Activity log: coach insert" ON activity_log FOR INSERT WITH CHECK (has_role(auth.uid(), 'coach'));
+CREATE POLICY "Activity log: admin insert" ON activity_log FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'::user_role));
+CREATE POLICY "Activity log: coach insert" ON activity_log FOR INSERT WITH CHECK (has_role(auth.uid(), 'coach'::user_role));
 
 -- REGISTRATION_FEES
 CREATE POLICY "reg_fees_own_read" ON registration_fees FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "reg_fees_admin_read" ON registration_fees FOR SELECT USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "reg_fees_admin_read" ON registration_fees FOR SELECT USING (has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "reg_fees_insert" ON registration_fees FOR INSERT WITH CHECK (true);
-CREATE POLICY "reg_fees_admin_all" ON registration_fees FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "reg_fees_admin_all" ON registration_fees FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- Séances d'essai : plus de table dédiée depuis le 2026-08-07. Les policies de
 -- `bookings` couvrent l'essai, qui est une réservation comme une autre.
@@ -4881,57 +4883,57 @@ CREATE POLICY "reg_fees_admin_all" ON registration_fees FOR ALL USING (has_role(
 -- INVOICE_REQUESTS
 CREATE POLICY "invoice_own_read" ON invoice_requests FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "invoice_own_insert" ON invoice_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "invoice_admin_all" ON invoice_requests FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "invoice_admin_all" ON invoice_requests FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- PERFORMANCE_TYPES
 ALTER TABLE performance_types ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "PerfTypes: read all" ON performance_types FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "PerfTypes: coach/admin insert" ON performance_types FOR INSERT
-  WITH CHECK (has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+  WITH CHECK (has_role(auth.uid(), 'coach'::user_role) OR has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "PerfTypes: coach/admin update" ON performance_types FOR UPDATE
-  USING (has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+  USING (has_role(auth.uid(), 'coach'::user_role) OR has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "PerfTypes: coach/admin delete" ON performance_types FOR DELETE
-  USING (has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+  USING (has_role(auth.uid(), 'coach'::user_role) OR has_role(auth.uid(), 'admin'::user_role));
 
 -- PERFORMANCES
 ALTER TABLE performances ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Perf: own read" ON performances FOR SELECT
-  USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+  USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach'::user_role) OR has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "Perf: insert" ON performances FOR INSERT
-  WITH CHECK (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+  WITH CHECK (auth.uid() = user_id OR has_role(auth.uid(), 'coach'::user_role) OR has_role(auth.uid(), 'admin'::user_role));
 -- Le coach corrige ses propres fautes de frappe après encodage pour un membre :
 -- sans lui, il encode mais ne peut plus rien reprendre (migration
 -- 20260511_perf_rls_coach_update.sql).
 CREATE POLICY "Perf: update" ON performances FOR UPDATE
-  USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+  USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach'::user_role) OR has_role(auth.uid(), 'admin'::user_role));
 CREATE POLICY "Perf: delete" ON performances FOR DELETE
-  USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach') OR has_role(auth.uid(), 'admin'));
+  USING (auth.uid() = user_id OR has_role(auth.uid(), 'coach'::user_role) OR has_role(auth.uid(), 'admin'::user_role));
 
 -- ---- Abonnements ----
 CREATE POLICY "Subscriptions: own read" ON subscriptions
   FOR SELECT USING (
     auth.uid() = user_id
-    OR has_role(auth.uid(), 'coach')
-    OR has_role(auth.uid(), 'admin')
+    OR has_role(auth.uid(), 'coach'::user_role)
+    OR has_role(auth.uid(), 'admin'::user_role)
   );
 CREATE POLICY "Subscriptions: coach read" ON subscriptions
-  FOR SELECT USING (has_role(auth.uid(), 'coach'));
+  FOR SELECT USING (has_role(auth.uid(), 'coach'::user_role));
 CREATE POLICY "Subscriptions: admin all" ON subscriptions
   FOR ALL
-  USING (has_role(auth.uid(), 'admin'))
-  WITH CHECK (has_role(auth.uid(), 'admin'));
+  USING (has_role(auth.uid(), 'admin'::user_role))
+  WITH CHECK (has_role(auth.uid(), 'admin'::user_role));
 
 CREATE POLICY "Sub discounts: own read" ON subscription_discounts
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM subscriptions s
              WHERE s.id = subscription_discounts.subscription_id
                AND s.user_id = auth.uid())
-    OR has_role(auth.uid(), 'admin')
+    OR has_role(auth.uid(), 'admin'::user_role)
   );
 CREATE POLICY "Sub discounts: admin all" ON subscription_discounts
   FOR ALL
-  USING (has_role(auth.uid(), 'admin'))
-  WITH CHECK (has_role(auth.uid(), 'admin'));
+  USING (has_role(auth.uid(), 'admin'::user_role))
+  WITH CHECK (has_role(auth.uid(), 'admin'::user_role));
 
 -- ---- Parrainage et bons d'achat ----
 -- Aucune policy d'ÉCRITURE ouverte, volontairement : les créations passent
@@ -4944,25 +4946,25 @@ CREATE POLICY "referrals_own_read" ON referrals
   FOR SELECT USING (
     auth.uid() = referrer_id
     OR auth.uid() = referee_id
-    OR has_role(auth.uid(), 'admin')
+    OR has_role(auth.uid(), 'admin'::user_role)
   );
 CREATE POLICY "referrals_admin_all" ON referrals
-  FOR ALL USING (has_role(auth.uid(), 'admin'));
+  FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 
 CREATE POLICY "rewards_own_read" ON referral_rewards
   FOR SELECT USING (
     auth.uid() = user_id
-    OR has_role(auth.uid(), 'admin')
-    OR has_role(auth.uid(), 'super_admin')
+    OR has_role(auth.uid(), 'admin'::user_role)
+    OR has_role(auth.uid(), 'super_admin'::user_role)
   );
 CREATE POLICY "rewards_admin_all" ON referral_rewards
-  FOR ALL USING (has_role(auth.uid(), 'admin'));
+  FOR ALL USING (has_role(auth.uid(), 'admin'::user_role));
 
 -- ---- Badges ----
 CREATE POLICY "badges_own_read" ON member_badges
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "badges_admin_read" ON member_badges
-  FOR SELECT USING (has_role(auth.uid(), 'admin'));
+  FOR SELECT USING (has_role(auth.uid(), 'admin'::user_role));
 -- Les badges sont attribués par des fonctions serveur, pas par le membre.
 CREATE POLICY "badges_insert" ON member_badges
   FOR INSERT WITH CHECK (true);
@@ -5099,6 +5101,7 @@ INSERT INTO app_settings (key, value) VALUES
     "cancellation_penalty": "credit_lost",
     "no_show_penalty": "credit_lost",
     "no_show_auto_minutes": 15,
+    "attendance_reminder_hours": 4,
     "pt_cancellation_free_hours": 24
   }'::jsonb),
   ('studio_info', '{"name": "Back On Track", "address": "", "phone": "", "email": "", "logo_url": "", "vat_number": "", "instagram_url": "", "facebook_url": "", "website_url": ""}'::jsonb),
@@ -5222,7 +5225,7 @@ SECURITY DEFINER
 STABLE
 AS $fn$
 BEGIN
-  IF NOT (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'super_admin')) THEN
+  IF NOT (has_role(auth.uid(), 'admin'::user_role) OR has_role(auth.uid(), 'super_admin'::user_role)) THEN
     RAISE EXCEPTION 'Reserve aux administrateurs';
   END IF;
 
@@ -5509,3 +5512,178 @@ REVOKE ALL ON FUNCTION contact_debit_depasse(TEXT, INTEGER, INTERVAL) FROM PUBLI
 --    (voir docs/documentation-technique.md), puis poser le secret whsec_
 --    et redéployer le webhook.
 -- 7. Données de démonstration, si besoin : npx tsx scripts/import-demo.ts
+
+-- ---------------------------------------------------------------------------
+-- Les cours qui attendent leurs presences
+-- ---------------------------------------------------------------------------
+-- Sert deux usages : le bandeau dans l'application (lecture seule) et l'envoi
+-- des rappels. `p_pour_rappel` distingue les deux — le bandeau montre tout ce
+-- qui traine, l'envoi ne retient que ce qui n'a pas deja ete rappele.
+--
+-- SECURITY DEFINER : un coach ne lit pas `profiles`, et la RLS de `bookings`
+-- ne lui montrerait pas les reservations des autres. Ce qui borne l'exposition,
+-- c'est le filtre sur l'appelant, plus bas — un coach ne voit que SES cours.
+DROP FUNCTION IF EXISTS cours_sans_presences(BOOLEAN);
+
+CREATE OR REPLACE FUNCTION cours_sans_presences(p_pour_rappel BOOLEAN DEFAULT FALSE)
+RETURNS TABLE (
+  class_id UUID,
+  coach_id UUID,
+  coach_nom TEXT,
+  intitule TEXT,
+  starts_at TIMESTAMPTZ,
+  inscrits INTEGER
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  WITH delai AS (
+    SELECT COALESCE((value->>'attendance_reminder_hours')::int, 4) AS heures
+      FROM app_settings WHERE key = 'booking_rules'
+  )
+  SELECT sc.id,
+         sc.coach_id,
+         -- Le nom du coach, que le front ne peut pas lire lui-meme : `profiles`
+         -- est protegee par RLS. Nul si le cours n'a pas de coach affecte.
+         coach.display_name,
+         COALESCE(sc.title, ct.name),
+         sc.starts_at,
+         COUNT(b.id)::INTEGER
+    FROM scheduled_classes sc
+    JOIN class_types ct ON ct.id = sc.class_type_id
+    JOIN bookings b ON b.scheduled_class_id = sc.id AND b.status = 'confirmed'
+    LEFT JOIN profiles coach ON coach.id = sc.coach_id
+   CROSS JOIN delai
+   WHERE sc.is_cancelled = false
+     -- Le delai court a partir de la FIN du cours, pas de son debut : un cours
+     -- de 50 minutes ne doit pas etre reclame pendant qu'il a encore lieu.
+     AND sc.starts_at + (sc.duration_minutes || ' minutes')::interval
+         < now() - (delai.heures || ' hours')::interval
+     -- Au-dela de sept jours, le rappel n'a plus d'objet : le coach ne se
+     -- souvient plus, et relancer sur de l'ancien noierait ce qui est encore
+     -- rattrapable.
+     AND sc.starts_at > now() - interval '7 days'
+     AND b.checked_in_at IS NULL
+     AND b.is_no_show = false
+     AND (NOT p_pour_rappel OR sc.attendance_reminded_at IS NULL)
+     -- Un coach ne voit que ses cours ; un admin voit tout. `has_role` porte
+     -- deja cette logique ailleurs dans le schema.
+     AND (has_role(auth.uid(), 'admin'::user_role)
+          OR has_role(auth.uid(), 'super_admin'::user_role)
+          OR sc.coach_id = auth.uid())
+   GROUP BY sc.id, sc.coach_id, coach.display_name, sc.title, ct.name, sc.starts_at
+   ORDER BY sc.starts_at;
+$$;
+
+COMMENT ON FUNCTION cours_sans_presences(BOOLEAN) IS
+  'Cours passes dont les presences ne sont pas pointees. Un coach ne voit que les siens, un admin voit tout. `p_pour_rappel` exclut ceux deja rappeles.';
+
+REVOKE ALL ON FUNCTION cours_sans_presences(BOOLEAN) FROM PUBLIC;
+-- `REVOKE ... FROM PUBLIC` ne suffit pas : Supabase accorde EXECUTE a `anon`
+-- des la creation, par ALTER DEFAULT PRIVILEGES, et ce droit nominatif survit.
+-- Constate le 2026-09-03 sur `participants_par_cours`.
+REVOKE EXECUTE ON FUNCTION cours_sans_presences(BOOLEAN) FROM anon;
+GRANT EXECUTE ON FUNCTION cours_sans_presences(BOOLEAN) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Envoyer les rappels en attente
+-- ---------------------------------------------------------------------------
+-- Alimente la file d'e-mails, que `process-email-queue` vide ensuite. Renvoie
+-- le nombre de rappels poses, pour que l'appelant puisse le journaliser.
+CREATE OR REPLACE FUNCTION envoyer_rappels_presences()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_cours RECORD;
+  v_admin RECORD;
+  v_envoyes INTEGER := 0;
+BEGIN
+  -- Reserve au staff : un membre n'a rien a declencher ici.
+  IF NOT (has_role(auth.uid(), 'admin'::user_role)
+          OR has_role(auth.uid(), 'super_admin'::user_role)
+          OR has_role(auth.uid(), 'coach'::user_role)) THEN
+    RETURN 0;
+  END IF;
+
+  FOR v_cours IN
+    -- `cours_sans_presences` filtre sur l'appelant : un coach ne declencherait
+    -- que ses propres rappels. On relit donc la table directement ici, sous les
+    -- droits du proprietaire, pour qu'une ouverture par n'importe qui du staff
+    -- fasse partir tout ce qui attend.
+    WITH delai AS (
+      SELECT COALESCE((value->>'attendance_reminder_hours')::int, 4) AS heures
+        FROM app_settings WHERE key = 'booking_rules'
+    )
+    SELECT sc.id, sc.coach_id, COALESCE(sc.title, ct.name) AS intitule,
+           sc.starts_at, COUNT(b.id) AS inscrits
+      FROM scheduled_classes sc
+      JOIN class_types ct ON ct.id = sc.class_type_id
+      JOIN bookings b ON b.scheduled_class_id = sc.id AND b.status = 'confirmed'
+     CROSS JOIN delai
+     WHERE sc.is_cancelled = false
+       AND sc.starts_at + (sc.duration_minutes || ' minutes')::interval
+           < now() - (delai.heures || ' hours')::interval
+       AND sc.starts_at > now() - interval '7 days'
+       AND b.checked_in_at IS NULL
+       AND b.is_no_show = false
+       AND sc.attendance_reminded_at IS NULL
+     GROUP BY sc.id, sc.coach_id, sc.title, ct.name, sc.starts_at
+  LOOP
+    -- Le coach du cours. Un cours sans coach affecte n'en a pas a prevenir :
+    -- les admins, ci-dessous, restent alors le seul filet.
+    IF v_cours.coach_id IS NOT NULL THEN
+      PERFORM queue_email(
+        v_cours.coach_id,
+        'attendance_reminder',
+        jsonb_build_object(
+          'class_name', v_cours.intitule,
+          'class_date', to_char(v_cours.starts_at AT TIME ZONE 'Europe/Brussels',
+                                'DD/MM/YYYY HH24:MI'),
+          'participants', v_cours.inscrits
+        )
+      );
+      v_envoyes := v_envoyes + 1;
+    END IF;
+
+    -- Les admins, pour qu'un oubli prolonge ne passe pas inapercu.
+    FOR v_admin IN
+      SELECT ur.user_id FROM user_roles ur
+       JOIN profiles p ON p.id = ur.user_id
+      WHERE ur.role IN ('admin', 'super_admin')
+        AND p.deleted_at IS NULL
+        AND ur.user_id IS DISTINCT FROM v_cours.coach_id
+    LOOP
+      PERFORM queue_email(
+        v_admin.user_id,
+        'attendance_reminder',
+        jsonb_build_object(
+          'class_name', v_cours.intitule,
+          'class_date', to_char(v_cours.starts_at AT TIME ZONE 'Europe/Brussels',
+                                'DD/MM/YYYY HH24:MI'),
+          'participants', v_cours.inscrits
+        )
+      );
+    END LOOP;
+
+    -- Marque APRES l'envoi : si la mise en file echoue, la transaction entiere
+    -- est annulee et le cours reste a rappeler au passage suivant.
+    UPDATE scheduled_classes
+       SET attendance_reminded_at = now()
+     WHERE id = v_cours.id;
+  END LOOP;
+
+  RETURN v_envoyes;
+END;
+$$;
+
+COMMENT ON FUNCTION envoyer_rappels_presences() IS
+  'Met en file les rappels de pointage pour les cours qui attendent leurs presences. Reserve au staff, appele a l''ouverture de l''application faute de pg_cron.';
+
+REVOKE ALL ON FUNCTION envoyer_rappels_presences() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION envoyer_rappels_presences() FROM anon;
+GRANT EXECUTE ON FUNCTION envoyer_rappels_presences() TO authenticated;

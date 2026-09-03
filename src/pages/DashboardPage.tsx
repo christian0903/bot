@@ -13,6 +13,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { LoadingState } from '@/components/common/LoadingState'
 import { HomeCommunications } from '@/components/common/HomeCommunications'
 import { flushEmailQueue } from '@/lib/flush-email-queue'
+import { BandeauPresences } from '@/components/common/BandeauPresences'
 import { SocialLinks } from '@/components/common/SocialLinks'
 import { InstallPrompt } from '@/components/common/InstallPrompt'
 import type { PackPurchase, Booking, ScheduledClass } from '@/types'
@@ -189,6 +190,10 @@ export function DashboardPage() {
           visiteur de passage. Le composant s'efface de lui-même une fois
           l'application installée. */}
       <InstallPrompt />
+
+      {/* Les présences non pointées, pour le staff seulement. Le composant ne
+          rend rien s'il n'y a rien à signaler — ou si l'on n'est pas du staff. */}
+      <BandeauPresences />
 
       {/* Welcome */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>

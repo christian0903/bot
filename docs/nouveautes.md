@@ -12,6 +12,19 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.135.0 — 3 septembre 2026
+
+- **Un rappel quand les présences ne sont pas pointées.** À l'ouverture de
+  l'accueil, un coach voit un bandeau si l'un de ses cours passés attend encore
+  ses présences, avec un bouton pour aller les pointer. Le coach et les
+  administrateurs reçoivent aussi un e-mail. Le délai se règle dans
+  Administration → Réglages : quatre heures après la fin du cours par défaut.
+
+  Le bandeau nomme le cours le plus ancien et son coach. Un seul rappel par
+  cours, et rien au-delà de sept jours.
+
+---
+
 ## v3.132.0 — 3 septembre 2026
 
 - **Les guides sont à jour.** Le guide des membres explique l'ajout à l'agenda

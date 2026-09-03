@@ -25,6 +25,7 @@ interface BookingRules {
   afternoon_minutes_before_with_bookings: number
   cancellation_free_hours: number
   no_show_auto_minutes: number
+  attendance_reminder_hours: number
   pt_cancellation_free_hours: number
 }
 
@@ -80,6 +81,7 @@ export function AdminSettingsPage() {
     afternoon_minutes_before_with_bookings: 30,
     cancellation_free_hours: 12,
     no_show_auto_minutes: 15,
+    attendance_reminder_hours: 4,
     pt_cancellation_free_hours: 24,
   })
 
@@ -626,6 +628,23 @@ export function AdminSettingsPage() {
                   {isFr
                     ? 'Prévu pour marquer en absence un inscrit qui n\'a pas pointé passé ce délai. Aujourd\'hui, l\'absence se marque à la main.'
                     : 'Intended to flag as absent a member who has not checked in past this delay. Today, absences are marked by hand.'}
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm">
+                  {isFr ? 'Rappeler les présences non pointées après' : 'Remind about unmarked attendance after'}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input type="number" min={1} className="w-20"
+                    value={rules.attendance_reminder_hours}
+                    onChange={e => setRules(r => ({ ...r, attendance_reminder_hours: parseInt(e.target.value) || 4 }))} />
+                  <span className="text-sm text-muted-foreground">{isFr ? 'h après la fin du cours' : 'h after the class ends'}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {isFr
+                    ? 'Le coach et les administrateurs reçoivent un e-mail, et un bandeau apparaît dans l\'application. Un seul rappel par cours, et rien au-delà de sept jours.'
+                    : 'The coach and the administrators receive an email, and a banner appears in the app. One reminder per class, and nothing beyond seven days.'}
                 </p>
               </div>
             </div>
