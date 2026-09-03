@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.136.0 — 3 septembre 2026
+
+Rien de visible à l'écran : documentation du rappel des présences dans le guide
+des coachs, journal et passage de relais.
+
+---
+
 ## v3.135.0 — 3 septembre 2026
 
 - **Un rappel quand les présences ne sont pas pointées.** À l'ouverture de

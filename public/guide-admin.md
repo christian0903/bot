@@ -1074,7 +1074,37 @@ Chaque paramètre est décrit dans l'écran, avec sa valeur en clair. En résum�
 - **Fermeture des réservations** : les cours du matin ferment la veille au soir (le coach doit savoir s'il se lève) ; ceux de l'après-midi ferment le jour même, plus tôt si personne n'est inscrit, plus tard s'il y a du monde.
 - **Annulation** : au-delà du délai, le crédit revient ; en deçà, la séance est décomptée.
 
+- **Rappel des présences non pointées** : le délai, en heures, à partir duquel
+  un cours dont les présences n'ont pas été validées est signalé. Compté depuis
+  la **fin** du cours, quatre heures par défaut.
+
 Deux réglages — annulation personal training et absence automatique — sont **signalés comme sans effet** : la logique correspondante n'est pas encore écrite.
+
+### Le rappel des présences
+
+Un cours dont personne n'a pointé les présences laisse les absences non
+comptées et les statistiques fausses — et rien ne le signalait jusqu'ici.
+
+Passé le délai réglé plus haut, deux choses se produisent :
+
+- **Un bandeau sur l'accueil**, pour vous comme pour les coachs : « 3 cours
+  attendent de valider les présences », avec le plus ancien nommé, son coach, et
+  un bouton qui mène directement au planning. Un coach ne voit que **ses** cours ;
+  un administrateur les voit **tous**.
+- **Un e-mail** au coach du cours et à tous les administrateurs.
+
+**Un seul rappel part par cours.** Le bandeau, lui, reste tant que le pointage
+n'est pas fait — c'est lui qui fait le vrai travail, l'e-mail n'est qu'un filet.
+
+**Rien n'est rappelé au-delà de sept jours.** Passé une semaine, le coach ne se
+souvient plus de qui était là, et relancer sur de l'ancien noierait ce qui est
+encore rattrapable.
+
+> **Le rappel ne part pas à l'heure dite.** L'application n'a pas de tâche
+> planifiée : les e-mails partent quand quelqu'un du staff ouvre l'application.
+> En pratique cela suffit — vous l'ouvrez plusieurs fois par jour — mais un
+> cours terminé à 10 h avec un délai de 4 h ne déclenchera pas son e-mail à
+> 14 h précises : il partira à la première ouverture qui suit.
 
 ### Parrainage
 

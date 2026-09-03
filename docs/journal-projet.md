@@ -84,6 +84,49 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ## Session du 2026-09-03 — fiche de cours, agenda, et la resoumission qui n'était pas partie
 
+### Le rappel des présences non pointées
+
+Demandé en fin de session : prévenir un coach qui n'a pas validé ses présences,
+avec un délai réglable.
+
+**Ce que le réel a dit avant qu'on code.** Quatre cours non pointés sur soixante
+jours en production — l'oubli est occasionnel. D'où un bandeau discret sur
+l'accueil plutôt qu'un dispositif lourd, et un seul rappel par cours.
+
+**Le délai court depuis la FIN du cours**, pas son début : sinon un cours de
+cinquante minutes serait réclamé pendant qu'il a encore lieu. Rien au-delà de
+sept jours — passé une semaine, le coach ne se souvient plus, et relancer sur de
+l'ancien noierait ce qui reste rattrapable.
+
+**Pas de `pg_cron` sur ce projet.** Rien ne peut partir à heure fixe. Le
+déclenchement reprend donc le principe de la file d'e-mails : l'application
+appelle à l'ouverture d'une session du staff. Le rappel part « au prochain
+passage », pas à l'heure dite. Le bandeau, lui, est immédiat — c'est lui qui
+fait le vrai travail, l'e-mail n'est qu'un filet.
+
+**Éprouvé sur `jag.` et validé.** Non déployé en production, sur décision de
+Christian : les coachs rattrapent d'abord leur pointage. Sans cela, la mise en
+service enverrait d'un coup un rappel par cours des sept derniers jours,
+multiplié par le nombre d'administrateurs — une volée d'e-mails pour un retard
+qu'on peut solder avant.
+
+### `display_name` pour la liste des inscrits : proposition écartée
+
+Le prénom seul paraissait insuffisant, et `display_name` semblait rendre la main
+au membre. Les chiffres ont dit l'inverse : sur 97 comptes, **97 ont un
+`display_name` contenant un espace et 93 valent exactement « Prénom Nom »**.
+Personne ne s'en sert comme surnom — c'est le nom complet, rempli à
+l'inscription.
+
+Basculer dessus aurait donc **publié le nom de famille de 93 membres sur 97**,
+sans qu'aucun l'ait choisi. Le contrôle promis était fictif.
+
+Le besoin, lui, est réel : **16 prénoms sont partagés** (quatre Catherine, trois
+Caroline, Fabienne, Laurence), soit environ 37 membres sur 97. « Prénom +
+initiale » a été proposé comme réponse proportionnée. **Christian a tranché : on
+garde le prénom seul**, et la question reste ouverte si les homonymes gênent à
+l'usage.
+
 ### D'où venait la demande
 
 Trois chantiers du jour répondent aux **demandes de Gauthier** : voir qui a
