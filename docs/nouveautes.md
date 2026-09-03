@@ -12,6 +12,15 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.132.0 — 3 septembre 2026
+
+- **Les guides sont à jour.** Le guide des membres explique l'ajout à l'agenda
+  et comment se retirer de la liste des inscrits ; le guide des coachs explique
+  l'éditeur agrandi des descriptions, et ce que les membres voient de leur côté.
+  Ils se lisent depuis la page d'aide de l'application.
+
+---
+
 ## v3.131.0 — 3 septembre 2026
 
 Rien de visible à l'écran : cette version ne contient que la tenue du journal

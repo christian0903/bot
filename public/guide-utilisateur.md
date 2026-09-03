@@ -106,12 +106,35 @@ bas te permet de réserver sans refermer la fiche.
 La fiche montre aussi **qui a déjà réservé** — prénom et photo. C'est fait pour
 ça : savoir qu'une connaissance sera là donne envie d'y aller.
 
-> **Tu préfères ne pas y figurer ?** Dans **Profil**, décoche « Apparaître dans
-> la liste des inscrits ». Tu continues à réserver exactement comme avant,
+> **Tu préfères ne pas y figurer ?** Va dans **Profil**, descends jusqu'à la
+> section **Visibilité**, et désactive l'interrupteur « Apparaître dans la
+> liste des inscrits ». Tu continues à réserver exactement comme avant,
 > simplement les autres ne te voient pas dans la liste. Certains inscrits
 > peuvent donc manquer à l'appel — c'est leur choix, pas un bug.
+>
+> Seuls ton **prénom et ta photo** apparaissent, jamais ton téléphone, ton
+> e-mail ni tes informations de santé. Et rien de tout cela n'est visible pour
+> quelqu'un qui n'est pas connecté.
 
 Les cours **déjà passés** ne s'ouvrent pas.
+
+### Ajouter un cours à mon agenda
+
+Une fois le cours réservé, tu peux le déposer dans l'agenda de ton téléphone ou
+de ton ordinateur. Cherche le bouton **« Ajouter à mon agenda »** — il est à
+trois endroits :
+
+- dans le message de confirmation, **juste après avoir réservé** ;
+- dans la **fiche du cours**, quand tu y es déjà inscrit ;
+- dans **Mes réservations**, sur chaque cours à venir.
+
+L'entrée reprend l'horaire, le coach, la salle, l'adresse du studio, et te
+prévient **une heure avant**.
+
+> **À savoir** : ce qui est déposé dans ton agenda est une copie. Si le studio
+> annule ou déplace la séance, ton agenda gardera l'ancienne — à toi de la
+> retirer. Le planning de l'application, lui, reste toujours juste : c'est lui
+> qui fait foi.
 
 ### Annuler une réservation
 

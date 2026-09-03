@@ -321,6 +321,22 @@ colonnes : coach, date, horaire, salle.
 Pointer une présence avant le début n'aurait pas de sens ; retirer quelqu'un
 pendant le cours non plus — c'est « absent » qui sert alors.
 
+> **Ce que voient les membres, de leur côté.** Depuis leur planning, un membre
+> connecté ouvre la fiche d'un cours et y voit **le prénom et la photo** des
+> personnes inscrites — jamais leur téléphone, leur e-mail ni leurs
+> informations de santé, que cet écran-ci est le seul à montrer. Un visiteur
+> non connecté ne voit rien de tout cela.
+>
+> **Un membre peut s'en retirer** (Profil → Visibilité). Il reste bel et bien
+> inscrit : votre liste, ici, le montre toujours. Un membre qui vous dit ne pas
+> apparaître dans la liste des autres n'a donc pas perdu sa réservation.
+>
+> Chaque membre peut aussi **ajouter le cours à son agenda personnel**. Ce
+> qu'il y dépose est une copie : **si vous annulez ou déplacez une séance, son
+> agenda gardera l'ancienne**. Il reçoit bien la notification du changement,
+> mais l'entrée dans son téléphone, elle, ne bouge pas — cela peut valoir un
+> mot de votre part.
+
 ### La liste d'attente
 
 Elle apparaît **sous un trait pointillé**, après les inscrits. Ces personnes
@@ -956,7 +972,32 @@ maximums (52 semaines, 12 mois) viennent de Stripe, pas de l'application.
 
 ### Types de cours — Administration → Types de cours
 
-Nom, description, couleur, nombre de places par défaut, image, et **type de crédit exigé**. La description longue accepte le Markdown et s'affiche aux membres.
+Nom, description, couleur, nombre de places par défaut, image, et **type de crédit exigé**.
+
+Deux champs de texte, qui ne servent pas au même endroit :
+
+- **Description** — une phrase, affichée sous le nom du cours.
+- **Description détaillée** — le texte complet, affiché quand un membre appuie
+  sur **Informations** dans la fiche d'un cours au planning.
+
+#### Écrire la description détaillée
+
+Ces textes font vite une page. Le bouton **« Agrandir »**, à droite du libellé,
+ouvre l'éditeur en plein écran, avec le nombre de caractères et un bouton
+**Aperçu** qui montre le rendu tel que le membre le verra. Fermer l'éditeur ne
+perd rien : c'est le bouton **Enregistrer** du formulaire, en bas, qui écrit
+réellement.
+
+Le texte accepte le **Markdown** : `**gras**`, `*italique*`, listes, liens.
+
+> **Les intertitres s'écrivent `### Pour qui ?`, pas `**Pour qui ?**`.**
+> C'est la seule règle qui compte vraiment ici. En Markdown, un simple retour à
+> la ligne ne sépare rien : un titre en gras se retrouve **collé au paragraphe
+> qui le suit**, sur la même ligne. Un `###` coupe toujours — et donne au
+> passage un vrai titre à l'écran.
+
+Les descriptions des cours existants sont reprises des pages du site du studio.
+Leur texte et leur provenance sont dans `docs/descriptions-cours.md`.
 
 #### Vendre un tarif réservé aux abonnés
 

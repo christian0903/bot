@@ -84,6 +84,15 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ## Session du 2026-09-03 — fiche de cours, agenda, et la resoumission qui n'était pas partie
 
+### D'où venait la demande
+
+Trois chantiers du jour répondent aux **demandes de Gauthier** : voir qui a
+réservé un cours, ajouter une séance à son agenda personnel, et pouvoir écrire
+confortablement la description longue d'un type de cours.
+
+La publication sur l'App Store, restée en attente sans que rien ne l'indique, a
+été relancée le même jour.
+
 ### Une version refusée ne repart pas toute seule
 
 Le 2 septembre, la réponse aux six questions d'Apple et la vidéo ont bien été
@@ -117,6 +126,11 @@ pas réserver, et « App Completeness » retomberait pour la même raison.
 - **« Ajouter à mon agenda »** : un .ics produit dans le navigateur, à trois
   endroits (après réservation, fiche du cours, Mes réservations).
 - **Les descriptions des types de cours**, reprises des pages du WordPress.
+- **Les deux guides** — `guide-membre.md` et `guide-admin.md` — décrivent
+  l'agenda, la liste des inscrits et l'éditeur agrandi, avec leurs copies dans
+  `public/`. Le guide admin dit aussi aux coachs ce que voient leurs membres :
+  un membre retiré de la liste reste inscrit, et une séance déplacée ne bouge
+  pas dans l'agenda personnel de qui l'y avait ajoutée.
 
 ### Le REVOKE qui ne révoquait rien
 
