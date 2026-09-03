@@ -12,7 +12,7 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
-## v3.128.0 — 3 septembre 2026
+## v3.129.0 — 3 septembre 2026
 
 - **Écrire la description d'un cours se fait maintenant au calme.** Un bouton
   « Agrandir » ouvre le texte en pleine page, avec un aperçu qui montre le

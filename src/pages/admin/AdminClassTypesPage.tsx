@@ -34,8 +34,10 @@ import {
 
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Dumbbell, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Dumbbell, Maximize2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ImageUpload } from '@/components/common/ImageUpload'
+import ReactMarkdown from 'react-markdown'
+import { MarkdownLink } from '@/components/common/MarkdownLink'
 
 interface ClassTypeForm {
   name: string
@@ -66,6 +68,8 @@ export function AdminClassTypesPage() {
   const [creditTypes, setCreditTypes] = useState<CreditType[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editeurPleinEcran, setEditeurPleinEcran] = useState(false)
+  const [apercu, setApercu] = useState(false)
   const [globalDefaultMax, setGlobalDefaultMax] = useState(4)
   const [editing, setEditing] = useState<ClassType | null>(null)
   /** Ce qui dépend du type en cours d'édition. Null tant qu'on ne le sait pas. */
@@ -223,7 +227,7 @@ export function AdminClassTypesPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editing ? t('admin.classTypes.edit') : t('admin.classTypes.add')}
@@ -245,7 +249,21 @@ export function AdminClassTypesPage() {
               />
             </div>
             <div>
-              <Label>Description détaillée (markdown)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Description détaillée (markdown)</Label>
+                {/* Ces textes font couramment 800 caracteres : cinq lignes au
+                    milieu d'un formulaire qui defile ne suffisent pas pour les
+                    ecrire ni les relire. */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditeurPleinEcran(true)}
+                >
+                  <Maximize2 className="h-4 w-4 mr-1" />
+                  {isFr ? 'Agrandir' : 'Expand'}
+                </Button>
+              </div>
               <Textarea
                 value={form.description_md}
                 onChange={(e) => setForm(f => ({ ...f, description_md: e.target.value }))}
@@ -331,6 +349,78 @@ export function AdminClassTypesPage() {
               <Label>{t('admin.classTypes.active')}</Label>
             </div>
           </div>
+          {/* Editeur plein ecran, en surimpression du formulaire.
+              Il ecrit dans le meme `form.description_md` : rien a valider ni a
+              reporter en fermant, et un aller-retour ne peut pas perdre le
+              texte. L'enregistrement en base reste le seul bouton du
+              formulaire, en dessous. */}
+          <Dialog open={editeurPleinEcran} onOpenChange={setEditeurPleinEcran}>
+            <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle>
+                  {isFr ? 'Description détaillée' : 'Detailed description'}
+                  {form.name ? ` — ${form.name}` : ''}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="flex items-center justify-between shrink-0">
+                <p className="text-sm text-muted-foreground">
+                  {isFr
+                    ? 'Markdown accepté : **gras**, *italique*, listes, liens.'
+                    : 'Markdown accepted: **bold**, *italic*, lists, links.'}
+                </p>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    {form.description_md.length} {isFr ? 'caractères' : 'characters'}
+                  </span>
+                  <Button
+                    type="button"
+                    variant={apercu ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setApercu(a => !a)}
+                  >
+                    {isFr ? 'Aperçu' : 'Preview'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* `min-h-0` : sans lui, l'enfant d'un conteneur flex refuse de
+                  retrecir sous sa hauteur de contenu et deborde du dialogue —
+                  exactement le defaut qu'on corrige ici. */}
+              <div className="flex-1 min-h-0">
+                {apercu ? (
+                  <div className="h-full overflow-y-auto rounded-md border p-4 prose prose-sm dark:prose-invert max-w-none">
+                    {form.description_md.trim() ? (
+                      <ReactMarkdown components={{ a: MarkdownLink }}>
+                        {form.description_md}
+                      </ReactMarkdown>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        {isFr ? 'Rien à afficher pour le moment.' : 'Nothing to preview yet.'}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <Textarea
+                    value={form.description_md}
+                    onChange={(e) => setForm(f => ({ ...f, description_md: e.target.value }))}
+                    className="h-full resize-none font-mono text-sm"
+                    placeholder={isFr
+                      ? 'Décrivez ce type de cours en détail...'
+                      : 'Describe this class type in detail...'}
+                    autoFocus
+                  />
+                )}
+              </div>
+
+              <DialogFooter className="shrink-0">
+                <Button type="button" onClick={() => setEditeurPleinEcran(false)}>
+                  {isFr ? 'Fermer' : 'Close'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               {t('common.cancel')}
