@@ -248,6 +248,79 @@ resoumet. Les deux motifs à anticiper, et les réponses, sont dans
 
 ---
 
+## Étape 7 — Répondre à une demande d'information (Guideline 2.1)
+
+**Vécu le 2026-09-02**, au lendemain de la première soumission. Ce n'est pas
+un rejet de fond : Apple demande des informations parce que le compte
+développeur n'a **aucun historique de publication**. Le motif affiché dans
+App Store Connect est `2.1.0 Performance: App Completeness`. Tout compte
+neuf y passe.
+
+Apple attend six réponses, et demande de les mettre **à deux endroits** :
+dans la réponse au fil de discussion, **et** dans le champ *Remarques* de
+« Informations utiles à la vérification de l'app » — ce second dépôt sert de
+référence aux soumissions suivantes.
+
+| # | Ce qu'Apple demande | Où trouver la réponse |
+|---|---|---|
+| 1 | Un enregistrement d'écran sur **appareil physique** | À filmer — voir plus bas |
+| 2 | But de l'app et public visé | Dire que l'inscription est ouverte à tous ; **ne pas** écrire « réservé aux membres du studio », ce qui appellerait la règle 3.2 et un renvoi vers Apple Business Manager |
+| 3 | Comment accéder aux fonctions, identifiants de démo | Le parcours réel, écran par écran, avec les libellés français tels qu'ils s'affichent |
+| 4 | Les services externes utilisés | Supabase, Stripe, Resend. Préciser « aucun service d'IA, aucun SDK publicitaire » |
+| 5 | Différences régionales | Aucune : la langue suit l'appareil, tout le reste est identique |
+| 6 | Secteur réglementé, matériel tiers | Sans objet. Préciser que « Mes performances » ne stocke que des résultats sportifs, **pas** de données de santé, et n'utilise pas HealthKit |
+
+Le texte envoyé le 2026-09-02 est conservé dans
+`docs/apple/reponse-review-2026-09-02.md` — à reprendre tel quel, il traite
+les six points dans l'ordre.
+
+### L'enregistrement d'écran
+
+C'est la seule pièce qui demande du travail. Contraintes réelles :
+
+- **Sur un iPhone physique**, pas au simulateur. L'app doit être installée
+  par Xcode (bouton ▶, iPhone branché) — pas la PWA du navigateur.
+- **Commencer par l'écran d'accueil de l'iPhone**, en touchant l'icône.
+  Apple l'écrit : *must begin with launching the app*. Une vidéo qui démarre
+  sur l'app déjà ouverte ne remplit pas la demande.
+- **Montrer la suppression de compte**, jusqu'à la confirmation. C'est le
+  point le plus regardé : *« Account deletion is required in apps that
+  support account creation »*.
+- **50 Mo maximum** en pièce jointe. Une capture d'iPhone brute pèse
+  facilement 170 Mo ; il faut la compresser.
+
+Séquence qui a été acceptée, en 2 min 20 :
+
+1. Écran d'accueil de l'iPhone → toucher l'icône
+2. Inscription d'un compte → l'écran « Vérifie ta boîte mail »
+3. Connexion avec le compte de démo
+4. Planning → un cours → Réserver → la confirmation
+5. Mes cours → Annuler
+6. Mes packs → les crédits
+7. Mes performances → une courbe
+8. Profil → tout en bas → Supprimer mon compte → Confirmer
+
+**Préparer le compte de démo avant de filmer** — crédits, performances,
+cours disponibles dans les jours qui viennent. Saisir tout cela devant la
+caméra allonge la vidéo pour rien, et couper au montage rend le parcours
+moins lisible.
+
+**Le piège qui a coûté un tournage :** aux étapes 3 et 8, on est connecté
+avec le compte de démo — le supprimer détruit celui d'Apple. Deux issues :
+supprimer un compte jetable créé à l'étape 2, ou accepter de supprimer le
+compte de démo puis le **restaurer aussitôt** (voir
+`docs/apple/restaurer-compte-demo.md`).
+
+### Ce qui se passe après la réponse
+
+Le bouton « Soumettre à nouveau à l'équipe de vérification des apps » reste
+**grisé**, et le bandeau de refus reste affiché. C'est normal : pour une
+demande d'information, Apple reprend l'examen **à partir de la réponse**,
+sans nouvelle soumission ni nouveau build. Le bouton ne se réactive que si
+Apple réclame un binaire corrigé.
+
+---
+
 ## Avant de commencer, deux choses à préparer
 
 1. **Un compte de démonstration** dans la production, avec des crédits et

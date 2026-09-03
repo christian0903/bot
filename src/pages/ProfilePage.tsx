@@ -64,6 +64,7 @@ export function ProfilePage() {
     linkedin_url: '',
     coach_description: '',
     email_on_self_booking: true,
+    visible_aux_autres: true,
   })
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export function ProfilePage() {
         linkedin_url: profile.linkedin_url ?? '',
         coach_description: profile.coach_description ?? '',
         email_on_self_booking: profile.email_on_self_booking ?? true,
+        visible_aux_autres: profile.visible_aux_autres ?? true,
       })
     }
   }, [profile])
@@ -165,6 +167,7 @@ export function ProfilePage() {
         linkedin_url: form.linkedin_url || null,
         coach_description: form.coach_description || null,
         email_on_self_booking: form.email_on_self_booking,
+        visible_aux_autres: form.visible_aux_autres,
       })
       .eq('id', user.id)
 
@@ -471,6 +474,29 @@ export function ProfilePage() {
                     {isFr
                       ? 'Recevoir un email à chaque réservation ou annulation que vous effectuez vous-même. Les inscriptions/annulations par un coach ou admin, et les modifications de cours, sont toujours envoyées.'
                       : 'Receive an email for each booking or cancellation you make yourself. Staff-initiated actions and class changes are always sent.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Visibilite aupres des autres membres */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                {isFr ? 'Visibilité' : 'Visibility'}
+              </h3>
+              <div className="flex items-start gap-3 p-3 rounded-lg border">
+                <Switch
+                  checked={form.visible_aux_autres}
+                  onCheckedChange={(checked) => setForm({ ...form, visible_aux_autres: checked })}
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {isFr ? 'Apparaître dans la liste des inscrits' : 'Appear in the participant list'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isFr
+                      ? 'Les autres membres voient votre prénom et votre photo parmi les inscrits d\'un cours. Sans cela, vous réservez normalement, mais personne ne vous y voit.'
+                      : 'Other members see your first name and photo among a class\'s participants. Without it, you book as usual, but nobody sees you there.'}
                   </p>
                 </div>
               </div>

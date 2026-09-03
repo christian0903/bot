@@ -60,3 +60,12 @@ supabase/.temp/
 # d'origine (95 Mo). Sert de reference pendant la reecriture, n'a rien a faire
 # dans le depot — les images utilisees vivent dans `public/vitrine/`.
 .vitrine-source/
+
+# Captures video pour App Review — lourdes, et refaites a chaque soumission
+*.mp4
+*.mov
+
+# Sauvegarde du WordPress du studio (2,5 Go d'archives). Sert de reference —
+# c'est de la que viennent les descriptions de cours, cf. docs/descriptions-cours.md.
+# Le depot n'a pas a la porter.
+backup site wordpress bot/

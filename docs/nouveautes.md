@@ -12,6 +12,60 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.128.0 — 3 septembre 2026
+
+- **Écrire la description d'un cours se fait maintenant au calme.** Un bouton
+  « Agrandir » ouvre le texte en pleine page, avec un aperçu qui montre le
+  rendu tel que le membre le verra, et le nombre de caractères. Ces
+  descriptions font facilement une page : les taper dans un champ de cinq
+  lignes coincé au milieu du formulaire n'était pas tenable.
+
+- **Les intertitres d'une description s'affichent enfin comme des titres.**
+  « Pour qui ? » ou « Recommandation santé » restaient collés au paragraphe qui
+  les suivait, sur une seule et même ligne.
+
+---
+
+## v3.127.0 — 3 septembre 2026
+
+- **Le formulaire d'un type de cours se referme correctement.** En y collant une
+  description longue, le dialogue s'allongeait jusqu'à pousser les boutons
+  « Enregistrer » et « Annuler » hors de l'écran : plus moyen de sauver, ni même
+  de sortir autrement qu'avec la croix. Le formulaire défile désormais, et ses
+  boutons restent accessibles quelle que soit la longueur du texte.
+
+---
+
+## v3.126.0 — 3 septembre 2026
+
+- **Le planning donne enfin le détail d'un cours.** Cliquer sur une séance
+  ouvre sa fiche : la date, l'horaire de début et de fin, le coach avec sa
+  photo, la salle, le nombre de places prises et la description du cours.
+  Jusqu'ici, « Réserver » était la seule chose qu'on pouvait faire depuis le
+  planning. On peut aussi réserver directement depuis cette fiche.
+
+- **On voit qui a déjà réservé.** La fiche montre le prénom et la photo des
+  personnes inscrites — comme le faisait l'ancienne application Technogym.
+  Savoir qu'une connaissance sera là donne envie d'y aller.
+
+- **Chacun peut se retirer de cette liste.** Un nouveau réglage « Apparaître
+  dans la liste des inscrits » figure dans le profil. Il est activé par défaut.
+  Le désactiver ne change rien aux réservations : on s'inscrit normalement,
+  simplement les autres ne nous voient pas dans la liste.
+
+- Les cours **passés** ne s'ouvrent pas : leur fiche n'apprendrait rien à qui
+  cherche à réserver.
+
+---
+
+## v3.125.0 — 2 septembre 2026
+
+- Aucun changement visible : documentation de la réponse faite à Apple, qui
+  demandait des informations complémentaires avant de publier l'application
+  sur l'App Store.
+
+---
+
 ## v3.124.0 — 1er septembre 2026
 
 - Aucun changement visible : l'application iOS ne se déclare plus compatible

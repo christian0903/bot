@@ -6,7 +6,7 @@ session-machine: mac-mini
 session-date: 2026-08-31
 session-heure: "13:15"
 auteur: "[[@Christian Vanhenten]]"
-statut: actif
+statut: archive
 created: 2026-08-31
 tags:
   - claude/handoff

@@ -110,6 +110,10 @@ CREATE TABLE profiles (
   weekly_goal INTEGER DEFAULT 3,
   -- Recevoir un e-mail à chaque réservation faite par soi-même.
   email_on_self_booking BOOLEAN DEFAULT TRUE,
+  -- Apparaître dans la liste des inscrits que les autres membres consultent.
+  -- Visible par défaut : c'est le comportement de l'ancienne application, et
+  -- un FALSE par défaut aurait laissé toutes les listes vides.
+  visible_aux_autres BOOLEAN NOT NULL DEFAULT TRUE,
   -- Coach fields
   instagram_url TEXT,
   facebook_url TEXT,
@@ -1319,6 +1323,51 @@ COMMENT ON FUNCTION places_prises_par_cours(UUID[]) IS
 
 REVOKE ALL ON FUNCTION places_prises_par_cours(UUID[]) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION places_prises_par_cours(UUID[]) TO anon, authenticated;
+
+-- Le pendant du precedent : QUI est inscrit, et non plus seulement combien.
+--
+-- Dans l'ancienne application, un client voyait qui avait deja reserve, et
+-- c'etait motivant. Le meme obstacle que ci-dessus l'interdit au front : la
+-- policy `auth.uid() = user_id` rendrait une liste vide, sans erreur.
+--
+-- Ce qui borne l'exposition ici, c'est la liste des colonnes rendues — un
+-- prenom et une photo. Le dialogue du staff, lui, affiche le telephone : les
+-- deux ne partagent donc aucun code.
+--
+-- `authenticated` seulement, jamais `anon` : le planning public montre les
+-- creneaux libres a un visiteur, il ne lui apprend pas qui frequente le studio.
+CREATE OR REPLACE FUNCTION participants_par_cours(p_class_id UUID)
+RETURNS TABLE (user_id UUID, prenom TEXT, avatar_url TEXT)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  -- Repli sur `display_name` : `first_name` est facultatif dans `profiles`,
+  -- et sans lui la ligne sortirait sans nom.
+  SELECT b.user_id,
+         COALESCE(NULLIF(TRIM(p.first_name), ''), p.display_name) AS prenom,
+         p.avatar_url
+  FROM bookings b
+  JOIN profiles p ON p.id = b.user_id
+  WHERE b.scheduled_class_id = p_class_id
+    AND b.status = 'confirmed'
+    AND p.deleted_at IS NULL
+    AND p.visible_aux_autres
+  ORDER BY b.created_at;
+$$;
+
+COMMENT ON FUNCTION participants_par_cours(UUID) IS
+  'Prenom et photo des inscrits a un cours, pour les membres connectes. Le front ne peut pas les lire lui-meme : la RLS de `bookings` ne montre a un membre que ses propres reservations.';
+
+REVOKE ALL ON FUNCTION participants_par_cours(UUID) FROM PUBLIC;
+-- `REVOKE ... FROM PUBLIC` ne suffit pas : Supabase pose un ALTER DEFAULT
+-- PRIVILEGES qui accorde EXECUTE a `anon` des la creation de la fonction.
+-- Ce droit-la est nominatif, il survit au REVOKE ci-dessus — la fonction
+-- paraissait fermee aux visiteurs et ne l'etait pas. Constate le 2026-09-03
+-- sur bot3, ou `anon` pouvait lire les prenoms et les photos des inscrits.
+REVOKE EXECUTE ON FUNCTION participants_par_cours(UUID) FROM anon;
+GRANT EXECUTE ON FUNCTION participants_par_cours(UUID) TO authenticated;
 
 -- Auto-update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at()

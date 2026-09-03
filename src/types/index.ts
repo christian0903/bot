@@ -48,6 +48,7 @@ export interface Profile {
   linkedin_url: string | null
   coach_description: string | null
   email_on_self_booking: boolean
+  visible_aux_autres: boolean
   created_at: string
   updated_at: string
   last_sign_in_at: string | null

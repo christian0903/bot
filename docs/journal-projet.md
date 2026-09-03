@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-08-31**
+> Dernière mise à jour : **2026-09-01**
 
 ---
 
@@ -25,7 +25,10 @@
 **Réservation atomique** : **livrée** (2026-08-23) — `book_class` décide et écrit dans une seule transaction, sous verrou du cours. Ferme le dépassement de capacité et la réservation sans débit. Neuf cas éprouvés en base ; le verrou lui-même reste à voir en conditions réelles.
 **Exports CSV** : **livrés** (2026-08-23) — page dédiée, huit sorties, plus l'export du journal d'activité et sa purge réservée au super admin.
 **Index** : **posés** (2026-08-23) — `bookings` et `scheduled_classes` n'en avaient aucun. L'archivage n'est pas nécessaire : la base pèse 1,1 Mo pour 8 Go disponibles.
-**Site vitrine** : **livré et en ligne** (2026-08-31) — `backontrackstudio.be` sert désormais une page unique construite avec l'application, en remplacement du WordPress (Bricks + AutomaticCSS, 7,2 Go, quinze plugins). Tarifs, délais d'annulation et frais d'inscription **lus en base** : plus de divergence possible entre le site et l'application. Formulaire de contact par Edge Function + Resend, éprouvé. Le WordPress est écarté dans `~/wordpress-archive-20260831`, pas supprimé.
+**Site vitrine** : **livré et en ligne** (2026-08-31) — `backontrackstudio.be` sert désormais une page unique construite avec l'application, en remplacement du WordPress (Bricks + AutomaticCSS, 7,2 Go, quinze plugins). Tarifs, délais d'annulation et frais d'inscription **lus en base** : plus de divergence possible entre le site et l'application. Formulaire de contact par Edge Function + Resend, éprouvé. Le WordPress est écarté dans `~/wordpress-archive-20260831`, pas supprimé. La page d'accueil **copie celle du WordPress** depuis le 2026-09-01, styles
+relevés en mesurant les deux sites côte à côte. Le WordPress reste consultable
+sur `wp.backontrackstudio.be`. **La vitrine déployée est en 3.112.0** — douze
+versions de retard, sans effet visible.
 **Documentation** : **à jour au 2026-08-23** en français, `public/` compris. Les versions **anglaises accusent un retard important** et attendent un chantier à part.
 **PWA** : **livrée** (2026-08-24) — l'application s'installe sur l'écran d'accueil iPhone et Android, sans passer par un store, et annonce ses mises à jour au lieu de les imposer. Sert la phase de test avant l'App Store.
 **Durée d'abonnement** : **libre** — jours, semaines ou mois, un nombre au choix. Un garde-fou infondé qui bloquait les durées non multiples de 7 a été levé.
@@ -35,6 +38,16 @@
 L'application tourne sur **Stripe** — la migration vers Mollie prévue au plan a été abandonnée le 2026-08-03.
 
 Une version de test tourne sur iPhone depuis le 2026-08-07 (signature de développement, valable 7 jours).
+
+**L'application iOS est soumise à l'App Store** depuis le 2026-09-01 — build 7,
+version 3.123.0, **iPhone seul**, gratuite, cinq pays (Belgique, France,
+Pays-Bas, Luxembourg, Allemagne). Sortie **manuelle** : elle ne paraîtra qu'au
+clic de Christian. Une première soumission avait été refusée le même jour —
+captures iPad manquantes et prix non choisi.
+
+**TestFlight** : les informations de test sont enregistrées, mais les tests
+**externes** n'ouvrent qu'après l'approbation d'un premier build. En attendant,
+la PWA sur `app.` montre le même code.
 
 ### Les bases et les sous-domaines, au 2026-08-30
 
@@ -66,6 +79,128 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
 2. **Politique de confidentialité avec URL publique** — livrée, page `/confidentialite` (et non `/privacy`, corrigé le 2026-08-29 : c'est cette URL qu'App Store Connect attend, une adresse fausse dans la fiche vaut rejet).
+
+---
+
+## Session du 2026-09-01 — l'application part chez Apple
+
+> **v3.124.0**, 39 commits non poussés (`eaa7bc9` → `82c563b`).
+> Build vert, lint stable à 37.
+
+### Ce qui a été livré
+
+**L'application iOS est soumise à l'App Store** — build 7, en attente de
+vérification depuis 15h10. Sortie **manuelle** : elle ne paraîtra que le jour où
+Christian cliquera sur « Publier ».
+
+**La vitrine copie la page d'accueil du WordPress** — hero vidéo, fond noir,
+Bebas Neue, onze sections, les six questions d'origine, la grille de cours du
+page-builder. Demande formulée trois fois : *une copie fidèle, texte et style*.
+
+**Le planning suit le mode choisi**, en production cette fois. Un administrateur
+ou un coach qui bascule en mode Membre voit ce que voit un client — c'était
+livré sur `jag.` la veille, ce n'est qu'aujourd'hui que `app.` l'a reçu.
+
+**Un super administrateur peut créer un membre.** `create-user` ne testait que
+`['admin','coach']` : `super_admin` était absent de la liste. Le bouton
+s'affichait, le formulaire se remplissait, et l'enregistrement échouait sur
+« Admin or coach role required ».
+
+**Trois outils** : `scripts/version.sh` (version ↔ commit),
+`scripts/version-mobile.sh` (report vers iOS et Android),
+`docs/documentation-developpeur.md` (578 lignes).
+
+### Le style relevé en mesurant, pas en lisant
+
+Plusieurs tentatives de copie du WordPress à partir du **HTML archivé** ont
+échoué : la vidéo débordait, les titres étaient trop fins, le conteneur trop
+large. Christian a demandé pourquoi le navigateur n'était pas utilisé pour
+comparer les deux sites — la question était juste.
+
+Comparer les **styles calculés** des deux pages à largeur de fenêtre égale a
+donné en une fois ce que la lecture du fichier n'avait pas trouvé en plusieurs
+essais :
+
+- le conteneur fait **1072 px**, pas 1177 : Bricks imbrique deux fois 90 %
+- l'iframe de la vidéo n'a **aucun `min-width`** — c'est lui qui l'étirait
+- l'en-tête est **transparent**, posé au-dessus du hero, pas au-dessus de lui
+- `-webkit-font-smoothing: antialiased` **amincit** le texte sur macOS
+
+> **Leçon** : pour reproduire un rendu, mesurer le rendu. Le source dit ce que
+> la page déclare, pas ce que le navigateur en fait.
+
+### Le WordPress redevient consultable, sans toucher à sa base
+
+Il est servi sur `wp.backontrackstudio.be` par **deux lignes** ajoutées à
+`wp-config.php`.
+
+L'option envisagée d'abord — réécrire les URLs en base — aurait porté sur
+**32 755 occurrences**, dont des chaînes **PHP sérialisées** de la forme
+`s:29:"https://backontrackstudio.be"`. Le nombre y déclare la longueur de la
+chaîne : un `sed` l'aurait laissée fausse, et PHP aurait cessé de lire ces
+réglages **sans message d'erreur**. Écarté.
+
+### Quatre pièges, et ce qu'ils apprennent
+
+#### 1. L'application mobile a été construite avec la vitrine
+
+Repéré par Christian à l'émulateur : « on dirait que c'est la page vitrine ».
+
+`deploiement.sh prod-site` **écrase `.env`** avec `VITE_VITRINE=oui`. Le
+`cap:sync` lancé ensuite a embarqué le site public dans l'enveloppe iOS. Apple
+l'aurait refusée sous la **règle 4.2** — une application qui n'est qu'un site
+web.
+
+`version-mobile.sh` **refuse désormais de tourner** si le drapeau est posé. Le
+garde-fou vaut mieux que la vigilance : c'est le même `.env` qui sert aux deux
+usages.
+
+#### 2. Premier refus d'Apple, deux motifs
+
+- **Captures iPad manquantes.** Capacitor pose `TARGETED_DEVICE_FAMILY = "1,2"`
+  par défaut : l'application se déclarait compatible iPad sans l'avoir jamais
+  été éprouvée. Choix retenu : **iPhone seul**.
+- **Aucun prix choisi.** La fiche peut être complète et la tarification vide —
+  ce sont deux écrans distincts, et rien ne le signale avant le refus.
+
+#### 3. `cap sync` ne reporte pas la version
+
+Contrairement à ce que le guide affirmait. Christian l'a lancé, la version est
+restée à 3.69.0. D'où `version-mobile.sh`, et la correction du message trompeur
+de `verifier-mobile.sh`.
+
+#### 4. TestFlight externe est fermé avant la première approbation
+
+Demandé en fin de session pour montrer l'application aux coachs. Les
+**informations de test sont enregistrées** — description bêta, contact, compte
+de démonstration, URL. Mais la section « Tests externes » n'apparaît qu'une fois
+**un premier build approuvé par App Review**.
+
+Rien à corriger, seulement à attendre. En attendant, la **PWA sur `app.`**
+montre exactement le même code.
+
+### Une correction dans le code plutôt que dans les droits
+
+Pour le super administrateur qui ne pouvait pas créer de membre, la demande
+était : « fais un query pour me donner le droit d'admin ». C'était un bug, pas
+un manque de permission — accorder le rôle aurait masqué le défaut, qui aurait
+frappé le prochain super administrateur.
+
+### Ce qui reste ouvert au 2026-09-01
+
+- **La vitrine est douze versions en retard** (3.112.0). Rien de visible pour un
+  visiteur — de la documentation et du mobile — mais à déployer.
+- **D-U-N-S** pour AikiCom Perspectives SRL, puis le message au support Apple :
+  conversion du compte en organisation, et remboursement de la licence au nom
+  propre, rien n'ayant été publié.
+- **Clé de signature Android** — bloque le Play Store, pas l'App Store.
+- **`/cours-2`** : deux présentations des cours coexistent le temps que les
+  coachs tranchent.
+- **Vidéo du hero** : YouTube conservé sur décision de Christian. Un `.mp4`
+  auto-hébergé reste préférable si le fichier source est retrouvé — un coach a
+  signalé un chargement peu fluide.
+- Menu de la vitrine : « Nos coachs » et « Séance d'essai » manquent ; le fond
+  des témoignages est noir au lieu de la photo d'origine.
 
 ---
 
@@ -3797,3 +3932,145 @@ Attendu : statut `qualified`, et **deux bons** de 3000 centimes (parrain + fille
 **Un Price Stripe est immuable.** Changer le prix ou la périodicité d'un pack efface les identifiants mémorisés ; un nouveau prix sera créé au prochain achat. Les abonnements déjà souscrits gardent l'ancien tarif.
 
 **Les modes test et live sont étanches.** Les `stripe_price_id` sont stockés séparément, et chaque abonnement porte son mode : un abonnement créé en test ne sera jamais facturé réellement.
+
+
+---
+
+# Session du 2026-09-02 — Répondre au premier refus d'Apple
+
+Apple a refusé la soumission du 1ᵉʳ septembre au titre de la **Guideline 2.1
+— Information Needed**, motif `2.1.0 Performance: App Completeness`. Ce
+n'est pas un rejet de fond : c'est la demande d'information systématique
+adressée à un compte développeur **sans historique de publication**. Six
+questions, dont un enregistrement d'écran sur appareil physique.
+
+**Réponse envoyée à 11h54**, avec la vidéo en pièce jointe. Le champ
+*Remarques* de la fiche a été rempli du même contenu, comme Apple le demande
+— il servira de référence aux prochaines soumissions.
+
+## Ce qui a été produit
+
+- `docs/apple/reponse-review-2026-09-02.md` — le texte des six réponses, en
+  anglais, réutilisable tel quel
+- `docs/apple/restaurer-compte-demo.md` — les requêtes pour remettre en
+  service le compte d'Apple après l'avoir supprimé devant la caméra
+- `docs/soumettre-app-store-pas-a-pas.md` — nouvelle **étape 7**, qui
+  documente la demande d'information et le tournage de la vidéo
+- `app-bot-iphone13-final.mp4` — 2 min 21, 29 Mo, non versionné
+
+## Décisions prises
+
+**Le public visé est décrit comme ouvert, pas comme fermé.** La première
+rédaction disait « les membres et coachs de ce studio, une soixantaine de
+personnes ». Le courriel d'Apple se termine justement par un rappel de la
+**règle 3.2** : une app réservée aux clients d'une entreprise peut être
+renvoyée vers Apple Business Manager. La formule retenue — « toute personne
+qui s'entraîne au studio ou souhaite commencer », l'inscription étant
+libre — est exacte et n'appelle pas ce sujet.
+
+**Les performances sont déclarées comme des données sportives.** L'écran
+« Mes performances » affiche des courbes ; un évaluateur pourrait y voir des
+données de santé. La réponse précise qu'il ne s'agit que de résultats
+d'exercices définis par le studio, sans mesure corporelle et sans HealthKit.
+
+**Ne pas toucher à l'outillage mobile pendant l'examen.** Le décalage de
+version décrit plus bas était corrigeable aujourd'hui ; modifier les scripts
+pendant qu'un build est en vérification ajoutait du risque sans rien
+résoudre.
+
+## Trois pièges rencontrés
+
+### 1. La vidéo a détruit le compte de démo d'Apple
+
+La séquence donnée à Christian disait « se connecter avec le compte de démo »
+à l'étape 3, puis « supprimer le compte » à l'étape 9 — la seule session
+ouverte étant celle du compte de démo. Il a été supprimé deux fois.
+
+Sans restauration, l'évaluateur n'aurait pas pu se connecter : second refus
+assuré, au motif « Accessing the app ». La procédure est désormais écrite.
+
+Ce que la suppression fait exactement : `delete_own_account()` **anonymise**
+le profil mais laisse `auth.users` intact, adresse et mot de passe compris.
+D'où deux conséquences utiles : le compte est restaurable, et son adresse
+reste indisponible pour une nouvelle inscription.
+
+### 2. Un diagnostic faux, fondé sur le badge de version
+
+La première vidéo a été déclarée tournée sur la PWA plutôt que sur l'app
+native, au motif que le badge affichait 3.124.0 alors que le build soumis
+porte 3.123.0. **C'était faux** : le badge vient du contenu web embarqué,
+pas du navigateur. Un tournage a été refait pour rien.
+
+La vérification qui manquait tenait en une commande — lire la version dans
+`ios/App/App/public/assets/index-*.js`, c'est-à-dire ce que l'enveloppe
+embarque réellement, plutôt que de raisonner sur `package.json`.
+
+### 3. Le champ Notes et la pièce jointe ont des limites distinctes
+
+Le champ *Remarques* accepte **4000 caractères** — le texte des six réponses
+en fait 3823, il faut resserrer. La pièce jointe du fil de discussion est
+limitée à **50 Mo** : une capture d'iPhone brute en fait 170. Compresser sans
+réencoder (`ffmpeg -c copy` pour une simple coupe) évite toute perte.
+
+## Ce qu'il faut savoir pour la suite
+
+**Le bouton « Soumettre à nouveau » reste grisé, et c'est normal.** Pour une
+demande d'information, Apple reprend l'examen à partir de la réponse : ni
+nouvelle soumission, ni nouveau build. Le bouton ne se réactive que si Apple
+réclame un binaire corrigé.
+
+**Ne pas supprimer le compte de démo tant que l'examen est en cours.**
+
+**Délai attendu :** 24 à 48 heures.
+
+---
+
+## À faire — deux numéros de version qui divergent dans l'app mobile
+
+**Constaté le 2026-09-02**, en contrôlant une vidéo destinée à Apple : l'app
+installée sur l'iPhone affiche `v3.124.0` dans son badge, alors que le build
+soumis se déclare en `3.123.0`. Les deux sont vrais — ils ne viennent pas du
+même endroit :
+
+| Ce qu'on lit | Origine | Valeur |
+|---|---|---|
+| Le badge, dans l'interface | `package.json`, via `dist/` recopié par `cap sync` | 3.124.0 |
+| La version vue par Apple | `MARKETING_VERSION` dans `project.pbxproj` | 3.123.0 |
+
+**Comment on y arrive.** `version-mobile.sh` reporte correctement la version,
+mais la **règle 2** impose un bump à *chaque* commit. Le commit `82c563b`
+(1ᵉʳ septembre, 14h51 — la correction iPad) a donc porté `package.json` à
+3.124.0 **après** le dernier passage du script. L'archive envoyée à Apple a
+ensuite été construite en incrémentant seulement le numéro de build (6 → 7),
+tandis qu'un `npm run build` régénérait un `dist/` en 3.124.0.
+
+Tout chantier mobile recrée mécaniquement ce décalage, sauf à repasser
+`version-mobile.sh` juste avant de construire l'archive.
+
+**Conséquence côté Apple : aucune.** Le numéro déclaré est cohérent et le
+build 7 est unique ; l'examinateur ne regarde pas le badge. Rien à corriger
+avant de re-soumettre.
+
+**Conséquence pour nous : réelle.** Devant un build installé, on ne peut plus
+dire quel code il embarque. C'est ce qui a fait conclure à tort, ce matin,
+qu'une vidéo avait été tournée sur la PWA plutôt que sur l'app native — et
+coûté un tournage.
+
+**Ce qui manque.** `verifier-mobile.sh` compare bien `package.json` à
+`MARKETING_VERSION` (lignes 24 et 30) et aurait signalé l'écart : il n'a
+simplement pas été lancé. Mais il ne contrôle **pas** la version réellement
+embarquée dans `ios/App/App/public/` — c'est celle-là qui s'affiche à l'écran.
+
+**À faire :**
+
+1. Dans `verifier-mobile.sh`, **échouer** si le numéro embarqué dans
+   `ios/App/App/public/assets/index-*.js` diffère de `MARKETING_VERSION`.
+   C'est le contrôle qui manque : il compare ce qui s'affiche à ce qui est
+   déclaré, pas deux fichiers de configuration entre eux.
+2. À la fin de `version-mobile.sh`, rappeler que reporter la version ne suffit
+   pas : sans `npm run build && npx cap sync` derrière, l'enveloppe garde
+   l'ancien contenu web.
+
+Décidé de ne pas y toucher avant la réponse à Apple : le décalage n'a aucun
+effet sur la vérification en cours, et modifier l'outillage mobile pendant
+qu'un build est en examen ajouterait du risque sans rien résoudre.

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -38,6 +39,13 @@ type CreditSource = {
   pack_name: string
   subscription_id: string | null
   is_subscription: boolean
+}
+
+/** Un inscrit tel que le voient les autres membres : un prenom, une photo, rien d'autre. */
+type Participant = {
+  user_id: string
+  prenom: string
+  avatar_url: string | null
 }
 
 type ViewMode = 'day' | 'week' | 'list'
@@ -645,6 +653,9 @@ export function SchedulePage() {
     // Un abonné qui invite quelqu'un doit pouvoir prendre un crédit de pack
     // plutôt que son abonnement.
     const sources = credits as CreditSource[]
+    // Refermer le detail : la confirmation s'ouvre par-dessus, et deux
+    // dialogues empiles se recouvrent a moitie sur mobile.
+    setDetailMembre(null)
     setBookingConfirm({ sc: scheduledClass, sources })
     setSelectedSourceId(sources[0].pack_purchase_id)
     setBookingInProgress(null)
@@ -1008,6 +1019,42 @@ export function SchedulePage() {
         return statut === 'pending_checkin' || statut === 'not_given'
       })
     : []
+
+  // ---- Detail d'une seance, cote membre ----
+  //
+  // Distinct du dialogue du staff, et volontairement : celui-ci affiche le
+  // telephone de chaque inscrit et porte les boutons « Retirer » et
+  // « Inscrire ». Un membre ne doit voir ni les uns ni les autres, et mutualiser
+  // les deux ecrans reviendrait a faire dependre cette frontiere d'une suite de
+  // conditions — la premiere oubliee exposerait des coordonnees.
+  const [detailMembre, setDetailMembre] = useState<ScheduledClass | null>(null)
+  const [participants, setParticipants] = useState<Participant[]>([])
+  const [participantsLoading, setParticipantsLoading] = useState(false)
+
+  const ouvrirDetailMembre = async (sc: ScheduledClass) => {
+    setDetailMembre(sc)
+    setParticipants([])
+    setParticipantsLoading(true)
+
+    // Un seul cours, charge a l'ouverture : la liste ne s'affiche que la, il
+    // n'y a rien a precharger pour la semaine entiere.
+    //
+    // Passe par le serveur, comme les places prises : la policy de `bookings`
+    // est `auth.uid() = user_id`, une lecture directe rendrait une liste vide
+    // SANS erreur — et le defaut serait invisible en test admin.
+    const { data, error } = await supabase
+      .rpc('participants_par_cours', { p_class_id: sc.id })
+
+    if (error) {
+      // Tester `error` : un refus revient dans l'objet de reponse sans lever
+      // d'exception. Sans ce test, l'ecran afficherait « aucun inscrit » sur un
+      // cours plein.
+      console.error('participants_par_cours:', error.message)
+    } else {
+      setParticipants((data ?? []) as Participant[])
+    }
+    setParticipantsLoading(false)
+  }
 
   // ---- Class detail dialog (coach/admin) ----
   const [detailClass, setDetailClass] = useState<ScheduledClass | null>(null)
@@ -1506,7 +1553,9 @@ export function SchedulePage() {
       )
     }
 
-    const clientCanOpenBookings = !isStaff && isBooked && !isPast
+    // Un cours passe n'ouvre plus rien cote membre : la consultation du passe
+    // n'apporte rien a qui veut reserver, et les coachs n'en voulaient pas.
+    const clientPeutOuvrirDetail = !isStaff && !isPast
 
     return (
       <motion.div
@@ -1519,7 +1568,7 @@ export function SchedulePage() {
           !isPast && !isBooked && 'hover:border-primary/40',
           isBooked && !isPast && 'ring-1 ring-primary/30 hover:bg-muted/40',
           isOffered && !isPast && 'ring-1 ring-orange-400/50',
-          (isStaff || clientCanOpenBookings) && 'cursor-pointer'
+          (isStaff || clientPeutOuvrirDetail) && 'cursor-pointer'
         )}
         onClick={
           // Son propre cours, déjà passé : c'est le pointage qu'on vient
@@ -1530,8 +1579,8 @@ export function SchedulePage() {
             ? () => navigate(`/coach/class/${sc.id}`)
             : isStaff
               ? () => openClassDetail(sc)
-              : clientCanOpenBookings
-                ? () => navigate('/my-bookings')
+              : clientPeutOuvrirDetail
+                ? () => ouvrirDetailMembre(sc)
                 : undefined
         }
       >
@@ -2327,6 +2376,181 @@ export function SchedulePage() {
               {isFr ? 'Appliquer' : 'Apply'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail d'une seance, cote membre.
+          Le clic sur la carte menait auparavant vers /my-bookings quand on
+          etait inscrit, et nulle part sinon : « Reserver » etait la seule
+          action possible sur un cours, sans moyen d'en savoir plus. */}
+      <Dialog open={!!detailMembre} onOpenChange={(open) => { if (!open) setDetailMembre(null) }}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          {detailMembre && (() => {
+            const debut = new Date(detailMembre.starts_at)
+            const fin = new Date(debut.getTime() + detailMembre.duration_minutes * 60000)
+            const places = bookingCounts.get(detailMembre.id) ?? 0
+            return (
+              <>
+                {detailMembre.class_type?.image_url && (
+                  <div className="rounded-lg overflow-hidden -mx-6 -mt-6 mb-4">
+                    <img
+                      src={urlImage(detailMembre.class_type.image_url)}
+                      alt={detailMembre.class_type.name}
+                      className="w-full h-40 object-cover"
+                    />
+                  </div>
+                )}
+
+                <DialogHeader>
+                  <DialogTitle>{detailMembre.title || detailMembre.class_type?.name}</DialogTitle>
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {format(debut, 'EEEE d MMMM', { locale })}
+                    {' · '}
+                    {format(debut, 'HH:mm')}–{format(fin, 'HH:mm')}
+                  </p>
+                </DialogHeader>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">
+                    <Users className="h-3 w-3 mr-1" />
+                    {isFr
+                      ? `${places}/${detailMembre.max_participants} inscrits`
+                      : `${places}/${detailMembre.max_participants} booked`}
+                  </Badge>
+                  <Badge variant="outline">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {detailMembre.duration_minutes} min
+                  </Badge>
+                  {/* Jamais `haut`/`bas` bruts : les membres voient le nom commercial de la salle. */}
+                  {detailMembre.floor && (
+                    <Badge variant="outline">
+                      {roomNames[detailMembre.floor] || detailMembre.floor}
+                    </Badge>
+                  )}
+                </div>
+
+                {detailMembre.coach && (
+                  <div className="flex items-center gap-2.5 pt-1">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={urlImage(detailMembre.coach.avatar_url)} />
+                      <AvatarFallback>{detailMembre.coach.display_name?.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">{isFr ? 'Coach' : 'Coach'}</p>
+                      <p className="text-sm font-medium truncate">{detailMembre.coach.display_name}</p>
+                    </div>
+                  </div>
+                )}
+
+                {detailMembre.class_type?.description_md && (
+                  <div className="md-annonce text-sm pt-1">
+                    <ReactMarkdown components={{ a: MarkdownLink }}>
+                      {detailMembre.class_type.description_md}
+                    </ReactMarkdown>
+                  </div>
+                )}
+
+                {/* Qui a deja reserve — la raison d'etre de cet ecran. */}
+                <div className="pt-3 border-t">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    {isFr ? 'Déjà inscrits' : 'Already booked'}
+                  </p>
+                  {participantsLoading ? (
+                    <LoadingState />
+                  ) : participants.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">
+                      {/* Un cours peut avoir des inscrits sans qu'aucun n'apparaisse :
+                          ceux qui se sont retires de la liste depuis leur profil. Le
+                          message ne dit donc pas « personne », qui serait faux. */}
+                      {places > 0
+                        ? (isFr ? 'Aucun inscrit ne souhaite apparaître ici.' : 'No participant wishes to appear here.')
+                        : (isFr ? 'Soyez le premier à réserver !' : 'Be the first to book!')}
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {participants.map(p => (
+                        <div
+                          key={p.user_id}
+                          className={cn(
+                            'flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border',
+                            p.user_id === user?.id && 'border-primary/50 bg-primary/5'
+                          )}
+                        >
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={urlImage(p.avatar_url)} />
+                            <AvatarFallback className="text-[10px]">
+                              {p.prenom?.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">
+                            {p.user_id === user?.id ? (isFr ? 'Vous' : 'You') : p.prenom}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Agir sans repasser par la carte : sans ce pied, le dialogue
+                    serait un cul-de-sac — il faudrait le fermer pour reserver
+                    le cours qu'on vient d'y consulter. Les memes conditions que
+                    la carte, dans le meme ordre. */}
+                <div className="pt-3 border-t">
+                  {(() => {
+                    const dejaInscrit = userBookings.has(detailMembre.id)
+                    const attente = userWaitlist.get(detailMembre.id)
+                    const complet = places >= detailMembre.max_participants
+                    const ferme = isBookingClosed(detailMembre, places, bookingRules)
+                    const enCours = bookingInProgress === detailMembre.id
+
+                    if (dejaInscrit) return (
+                      <Button variant="outline" className="w-full"
+                        onClick={() => { setDetailMembre(null); navigate('/my-bookings') }}>
+                        <Check className="h-4 w-4 mr-2" />
+                        {isFr ? 'Vous êtes inscrit(e) — voir ma réservation' : "You're booked — see my booking"}
+                      </Button>
+                    )
+                    if (attente?.status === 'offered') return (
+                      <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                        onClick={() => { setDetailMembre(null); handleConfirmWaitlistSpot(detailMembre.id) }} disabled={enCours}>
+                        {enCours ? '...' : t('schedule.confirmSpot')}
+                      </Button>
+                    )
+                    if (attente) return (
+                      <p className="text-sm text-muted-foreground text-center flex items-center justify-center gap-1.5">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        {t('schedule.onWaitlist', { position: attente.position })}
+                      </p>
+                    )
+                    if (ferme) return (
+                      <p className="text-sm text-muted-foreground text-center flex items-center justify-center gap-1.5">
+                        <Lock className="h-3.5 w-3.5" />
+                        {isFr ? 'Réservations fermées' : 'Bookings closed'}
+                      </p>
+                    )
+                    if (complet) return (
+                      <Button variant="outline" className="w-full border-primary/50 text-primary hover:bg-primary/10"
+                        onClick={() => { setDetailMembre(null); handleJoinWaitlist(detailMembre.id) }} disabled={enCours}>
+                        {enCours ? '...' : (isFr ? "Rejoindre la liste d'attente" : 'Join waitlist')}
+                      </Button>
+                    )
+                    if (canUseTrial) return (
+                      <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() => { setDetailMembre(null); handleTrialBooking(detailMembre.id) }} disabled={enCours}>
+                        {enCours ? '...' : (isFr ? 'Essai gratuit' : 'Free trial')}
+                      </Button>
+                    )
+                    return (
+                      <Button className="w-full bg-foreground hover:bg-foreground/90 text-background font-bold uppercase tracking-wide"
+                        onClick={() => handleBook(detailMembre.id)} disabled={enCours}>
+                        {enCours ? '...' : (isFr ? 'Réserver' : 'Book')}
+                      </Button>
+                    )
+                  })()}
+                </div>
+              </>
+            )
+          })()}
         </DialogContent>
       </Dialog>
 

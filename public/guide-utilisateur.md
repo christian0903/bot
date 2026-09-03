@@ -95,6 +95,24 @@ Avec une seule source, rien à choisir : la fenêtre indique ce qui sera décomp
 
 > **Le type de crédit compte.** Un crédit « personal training » ne paie pas un cours semi-privé, et inversement — ce sont des prestations différentes. Si un cours refuse ta réservation en demandant un autre type de crédit, c'est que ton pack ne couvre pas ce cours-là.
 
+### Voir le détail d'un cours, et qui y sera
+
+Clique sur la **carte du cours** dans le planning : sa fiche s'ouvre.
+
+Tu y trouves la date, l'heure de début et de fin, le coach avec sa photo, la
+salle, le nombre de places déjà prises et la description du cours. Le bouton du
+bas te permet de réserver sans refermer la fiche.
+
+La fiche montre aussi **qui a déjà réservé** — prénom et photo. C'est fait pour
+ça : savoir qu'une connaissance sera là donne envie d'y aller.
+
+> **Tu préfères ne pas y figurer ?** Dans **Profil**, décoche « Apparaître dans
+> la liste des inscrits ». Tu continues à réserver exactement comme avant,
+> simplement les autres ne te voient pas dans la liste. Certains inscrits
+> peuvent donc manquer à l'appel — c'est leur choix, pas un bug.
+
+Les cours **déjà passés** ne s'ouvrent pas.
+
 ### Annuler une réservation
 
 Va dans **Mes réservations**, ouvre la réservation, clique sur **Annuler**.
@@ -256,7 +274,7 @@ Dans **Mes packs**, ton abonnement affiche son état et sa prochaine échéance.
 
 ### Mon profil, mes performances
 
-**Profil** — coordonnées, photo, langue, thème de l'application, et le choix de recevoir ou non un e-mail à chaque réservation.
+**Profil** — coordonnées, photo, langue, thème de l'application, le choix de recevoir ou non un e-mail à chaque réservation, et celui d'apparaître ou non dans la liste des inscrits que les autres membres consultent.
 
 **Performances** — tes mesures et leur évolution, si le studio les suit.
 
