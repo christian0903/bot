@@ -82,6 +82,75 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ---
 
+## Session du 2026-09-03 — fiche de cours, agenda, et la resoumission qui n'était pas partie
+
+### Une version refusée ne repart pas toute seule
+
+Le 2 septembre, la réponse aux six questions d'Apple et la vidéo ont bien été
+postées dans le fil de discussion. Le lendemain : aucune nouvelle. Motif — la
+version était passée en **1.0 Refusée** (2.1.0 Performance: App Completeness),
+et le refus était tombé **avant** la réponse, à 5h55 contre 11h54.
+
+Une version refusée **sort de la file**. Répondre dans le fil ne l'y remet pas :
+App Store Connect l'écrit lui-même, « aucun autre élément soumis ne peut être
+accepté ni approuvé ». Sans un geste explicite, l'attente est indéfinie.
+
+**Le piège de l'interface** : sur la page *Soumission iOS*, le bouton
+« Soumettre à nouveau à l'équipe de vérification des apps » est **grisé**, ce
+qui laisse croire qu'il n'y a rien à faire. Le bouton actif est ailleurs —
+**« Mettre à jour la vérification »**, en haut à droite de la page de la
+*version* (`/distribution/ios/version/inflight`), qu'on atteint par le lien
+« Modifier » de la ligne refusée. C'est lui qui relance l'examen.
+
+Vérifié avant de resoumettre : le compte de démo restauré le 2 septembre est en
+service, et le planning garde des places libres — sans quoi l'évaluateur ne peut
+pas réserver, et « App Completeness » retomberait pour la même raison.
+
+### Livré en production
+
+- **La fiche d'un cours au planning** : date, horaire, coach, salle, places,
+  description — et la liste des inscrits (prénom et photo). `SECURITY DEFINER`
+  parce que la RLS de `bookings` ne montre à un membre que ses propres
+  réservations : le front ne peut pas lire cette liste lui-même.
+- **Le retrait de la liste** depuis le profil (`visible_aux_autres`), visible
+  par défaut — à `false`, l'effet recherché ne se serait jamais produit.
+- **« Ajouter à mon agenda »** : un .ics produit dans le navigateur, à trois
+  endroits (après réservation, fiche du cours, Mes réservations).
+- **Les descriptions des types de cours**, reprises des pages du WordPress.
+
+### Le REVOKE qui ne révoquait rien
+
+`REVOKE ALL ON FUNCTION ... FROM PUBLIC` **ne suffit pas** chez Supabase : un
+`ALTER DEFAULT PRIVILEGES` accorde `EXECUTE` à `anon` dès la création de la
+fonction, et ce droit **nominatif** survit au REVOKE sur `PUBLIC`. La fonction
+paraissait fermée aux visiteurs et ne l'était pas — un non-connecté pouvait lire
+qui fréquente le studio.
+
+Constaté sur bot3, corrigé par un `REVOKE EXECUTE ... FROM anon` explicite,
+reporté dans la migration et `install.sql`. La production a reçu la version
+corrigée d'emblée.
+
+**Reste ouvert** : **78 fonctions `SECURITY DEFINER` sont exécutables par
+`anon`** sur bot3 — dont `book_class`, `delete_own_account`, `grant_user_role`.
+C'est le défaut Supabase pour tout le schéma `public`, et la plupart se
+protègent par `auth.uid()`, NULL pour un visiteur. Mais aucune ne le fait *par
+ses droits*. Audit à mener, non entrepris.
+
+### Deux constats à recaler
+
+- **Le lint sort 799 signalements**, pas les 37 qu'annonce `CLAUDE.md`. Vérifié
+  identique avant et après les changements du jour. Le chiffre du CLAUDE.md est
+  périmé.
+- **Les deux bases divergent** : `Posture` et `Événement spécial` n'existent que
+  sur bot3, `Mobility & Stretch` que sur bot-ops. La production porte aussi des
+  espaces en fin de nom (`'Ladies '`) — d'où le `TRIM(name)` dans le SQL des
+  descriptions, sans quoi l'UPDATE n'aurait touché aucune ligne **sans erreur**.
+- **« Personal Training » n'a pas de description longue** : aucune page du site
+  ne le décrit, il n'apparaît que dans les tarifs. À écrire par les coachs.
+- Le site décrit un cours **« Adolescent »** (12-17 ans) absent des deux bases.
+
+---
+
 ## Session du 2026-09-01 — l'application part chez Apple
 
 > **v3.124.0**, 39 commits non poussés (`eaa7bc9` → `82c563b`).

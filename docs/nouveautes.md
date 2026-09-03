@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.131.0 — 3 septembre 2026
+
+Rien de visible à l'écran : cette version ne contient que la tenue du journal
+du projet.
+
+---
+
 ## v3.130.0 — 3 septembre 2026
 
 - **Un cours réservé s'ajoute à votre agenda.** Un bouton « Ajouter à mon
