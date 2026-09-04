@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.139.0 — 4 septembre 2026
+
+Rien de visible à l'écran : la procédure de mise à jour de l'application iOS
+documente désormais l'invitation des testeurs.
+
+---
+
 ## v3.138.0 — 4 septembre 2026
 
 Rien de visible à l'écran : le journal enregistre l'envoi du build 8 chez Apple,

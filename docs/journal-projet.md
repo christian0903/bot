@@ -47,9 +47,13 @@ publiée au clic de Christian le lendemain — la sortie était réglée en
 **manuelle**. Deux refus avaient précédé : captures iPad manquantes et prix non
 choisi le 2026-09-01, puis Guideline 2.1 le 2026-09-03.
 
-**TestFlight** : les tests **externes** sont désormais ouvrables — ils
-attendaient l'approbation d'un premier build, obtenue le 2026-09-03. À faire
-pour montrer les versions suivantes aux coachs avant leur publication.
+**TestFlight** : les tests **internes** sont possibles (100 testeurs, sans
+examen), mais chaque testeur doit exister dans *Utilisateurs et accès* et être
+invité **à l'adresse de son compte Apple** — inconnue des coachs au 2026-09-04,
+ce qui bloque l'invitation. Les tests **externes**, eux, sont indisponibles :
+la vérification **DSA** (Digital Services Act) déposée le 2026-09-01 est encore
+« En cours de vérification » chez Apple. Ce n'était donc pas l'approbation du
+premier build qui manquait.
 
 ### Les bases et les sous-domaines, au 2026-08-30
 
@@ -170,9 +174,24 @@ publié aurait demandé de chercher un identifiant de commit.
 
 ### Ce qui reste ouvert
 
-- **Ouvrir TestFlight externe** : le build 8 est envoyé, reste le
-  questionnaire Export Compliance, le groupe « Coachs » et le lien public. Un
-  examen léger s'applique à ce premier build distribué en externe.
+- **TestFlight est bloqué des deux côtés**, et pour deux raisons distinctes.
+  L'**externe** — le lien public, celui qu'on voulait — attend la vérification
+  **DSA** d'Apple, déposée le 2026-09-01, toujours en cours. Rien à corriger,
+  seulement à attendre ; surveiller les courriels d'Apple, une demande de pièce
+  non traitée laisserait la vérification en suspens indéfiniment.
+  L'**interne** est ouvert mais bute sur autre chose : un testeur ne s'invite
+  qu'à l'adresse de **son compte Apple**, que les coachs ne connaissent pas.
+  Elle se lit sur leur iPhone dans Réglages, tout en haut, sous leur nom.
+
+  Ce qui n'était **pas** en cause, vérifié le 2026-09-04 : les contrats (celui
+  des applications gratuites est actif jusqu'au 2027-08-29), le rôle du compte
+  (Titulaire + Admin), et les informations de test, complètes. Le questionnaire
+  de chiffrement ne se pose pas non plus — `ITSAppUsesNonExemptEncryption` est
+  déjà dans l'`Info.plist`.
+
+  **Apple masque la section « Tests externes » au lieu de dire pourquoi.**
+  Troisième silence de la semaine, après la version refusée qui ne repartait
+  pas et la version approuvée qui attendait un clic.
 - **Le rappel des présences part avec le build 8**, sur décision de Christian
   — il était jusqu'ici retenu le temps que les coachs soldent leur pointage.
   Dès qu'un membre du staff ouvrira cette version, les rappels des cours non

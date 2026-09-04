@@ -37,19 +37,27 @@ l'attente.
 
 ### 1. Vérifier ce qui part
 
-Le `.env` doit viser l'**application**, pas la vitrine. `deploiement.sh
-prod-site` l'écrase avec `VITE_VITRINE=oui`, et un `cap:sync` lancé ensuite
-embarquerait le site public dans l'enveloppe iOS — rejet assuré au titre de la
-règle 4.2.
+**C'est l'étape qui a failli tout gâcher deux fois en quatre jours.** Le `.env`
+sert à tous les usages du dépôt, et rien ne dit lequel est actif.
 
 ```bash
 cd ~/bot
-grep VITE_VITRINE .env        # ne doit rien renvoyer, ou 'non'
+cat .env                      # regarder les DEUX lignes ci-dessous
 cp .env.ops .env              # si besoin
 ```
 
-`version-mobile.sh` refuse désormais de tourner si le drapeau est posé, mais
-autant le savoir avant.
+Deux choses à contrôler :
+
+| Ligne | Doit valoir | Sinon |
+|---|---|---|
+| `VITE_SUPABASE_URL` | `xgwrxbkrfypklrnqbftv` (**bot-ops**, production) | l'app part branchée sur les données de test |
+| `VITE_VITRINE` | absente, ou `non` | l'app affiche le site public — rejet règle 4.2 |
+
+`version-mobile.sh` **refuse de tourner** si le drapeau vitrine est posé. Mais
+il ne regarde **pas** la base visée : le 2026-09-04, le `.env` pointait sur
+bot3 et rien ne l'a arrêté. C'est `verifier-mobile.sh`, à l'étape suivante, qui
+affiche la base — d'où l'importance de lire sa sortie plutôt que de la
+survoler.
 
 ### 2. Monter la version et le build
 
@@ -71,7 +79,9 @@ Le bloc **iOS** de `verifier-mobile.sh` doit être vert. Le « MANQUE aucune cl�
 de signature » sous Android est normal et ne concerne que le Play Store.
 
 > **Repère** : la 1.0 en vente porte `MARKETING_VERSION = 3.123.0` et
-> `CURRENT_PROJECT_VERSION = 7`. La prochaine partira donc en build 8.
+> `CURRENT_PROJECT_VERSION = 7`. Le build **8** (3.137.0) est parti le
+> 2026-09-04 pour TestFlight. Le numéro de build ne redescend jamais, quelle
+> que soit la version App Store à laquelle il se rattache.
 
 ### 3. Archiver et envoyer depuis Xcode
 
@@ -152,17 +162,109 @@ Une mise à jour ordinaire n'y touche pas. Ces cas-là, si :
 
 ---
 
-## TestFlight, maintenant disponible
+## Faire tester une version avant de la publier
 
-Les tests **externes** étaient fermés tant qu'aucun build n'avait été approuvé.
-Ce verrou est levé depuis le 2026-09-03.
+Un build envoyé chez Apple n'est pas obligé d'être soumis. Il peut d'abord être
+distribué par **TestFlight** : mêmes étapes 1 à 3, puis onglet **TestFlight**
+au lieu de la soumission. C'est la bonne façon de faire voir une version aux
+coachs avant de l'ouvrir aux membres.
 
-Un build envoyé peut donc être distribué aux coachs **avant** sa publication :
-même parcours jusqu'à l'étape 3, puis onglet **TestFlight** plutôt que
-soumission. Les informations de test sont déjà enregistrées. Un examen léger
-s'applique au premier build distribué en externe, puis plus rien.
+Les **Informations sur les tests** (description bêta, contact, compte de
+démonstration, remarques d'examen) sont déjà remplies et servent à tous les
+builds. Rien à refaire à chaque fois.
 
-C'est la bonne façon de faire voir une version avant de l'ouvrir à tous.
+TestFlight propose deux sortes de groupes, et **ils ne se valent pas ici**.
+
+### Groupe interne — disponible tout de suite
+
+Jusqu'à 100 testeurs, **aucun examen d'Apple**, distribution immédiate.
+
+La contrainte : chaque testeur doit d'abord exister dans **Utilisateurs et
+accès** de l'équipe App Store Connect.
+
+**1. Ajouter la personne** — *Utilisateurs et accès* → **+** :
+
+| Champ | Valeur |
+|---|---|
+| Prénom, Nom | ceux du testeur |
+| E-mail | **son identifiant Apple** — voir l'encadré ci-dessous |
+| Rôle | Développeur |
+| Apps | Back on Track Studio |
+
+> **L'adresse doit être celle de son compte Apple**, celui qui ouvre son
+> iPhone — pas une adresse professionnelle choisie au hasard. Apple envoie
+> l'invitation à un compte qui n'existe pas, et **rien ne se passe** : aucune
+> erreur, aucun message. C'est ce qui a bloqué l'invitation des coachs le
+> 2026-09-04.
+>
+> La question à leur poser : *« quelle adresse e-mail utilises-tu pour ton
+> compte Apple / ton iPhone ? »* Beaucoup l'ignorent — elle se lit sur
+> l'iPhone dans **Réglages**, tout en haut, sous leur nom.
+
+La personne reçoit un e-mail d'invitation qu'elle doit **accepter** avant de
+pouvoir être ajoutée comme testeuse.
+
+**2. Créer le groupe** — onglet *TestFlight* → le **+** à côté de **TESTS
+INTERNES** → nommer (« Coachs ») → laisser **Activer la distribution
+automatique** coché, pour que les builds suivants leur parviennent seuls.
+
+**3. Garnir le groupe** — onglet *Testeurs* → **+** → cocher les personnes ;
+onglet *Builds* → **+** → choisir le build (déjà présent si la distribution
+automatique est active).
+
+### Groupe externe — bloqué, et pourquoi
+
+Jusqu'à 10 000 testeurs, invitation par **lien public** à partager librement —
+sans que personne ait besoin d'un compte App Store Connect. C'est ce qu'il
+faudrait pour les coachs.
+
+**Indisponible au 2026-09-04.** La section « Tests externes » n'apparaît même
+pas dans la colonne de gauche : Apple la masque au lieu de l'expliquer.
+
+La cause est dans **Business → Contrats**, section *Conformité* :
+
+> La législation sur les services numériques — 27 pays ou régions —
+> **En cours de vérification**
+
+C'est le **Digital Services Act** européen. Apple vérifie les coordonnées du
+développeur avant d'autoriser une distribution large dans l'UE. Déclaration
+déposée le 2026-09-01, vérification en cours depuis.
+
+**Rien à corriger** : il faut attendre qu'Apple la valide (quelques jours à
+deux semaines). Un courriel arrive alors, et l'état passe à *Vérifié*.
+
+> **À surveiller** : Apple demande parfois une pièce justificative ou une
+> confirmation par téléphone. Un message non traité laisse la vérification en
+> suspens **indéfiniment** — vérifier les courriels d'Apple si l'état n'évolue
+> pas.
+
+Ce qui n'est **pas** en cause, vérifié le 2026-09-04 : les contrats (le
+*Contrat relatif aux applications gratuites* est actif jusqu'au 2027-08-29),
+le rôle du compte (Titulaire + Admin), et les informations de test (complètes).
+
+### Ce que le testeur fait de son côté
+
+1. Installer l'app **TestFlight** depuis l'App Store (gratuite, éditée par Apple)
+2. Ouvrir l'invitation **sur son iPhone** → *View in TestFlight*
+3. **Installer**
+
+L'application apparaît avec un **point orange** à côté de son nom, distincte de
+celle de l'App Store — les deux cohabitent. Le testeur s'y connecte avec son
+compte Back on Track habituel.
+
+Un build TestFlight **expire après 90 jours** : l'app cesse alors de s'ouvrir.
+C'est normal, ce n'est pas une panne.
+
+### Le réflexe avant d'inviter
+
+Regarder ce que la version va déclencher chez ceux qui l'ouvrent. Une version
+de test n'est pas inerte : elle tourne sur la **production**.
+
+Exemple vécu — le build 8 embarque le rappel des présences, qui part à
+l'ouverture d'une session du staff. Le premier coach qui ouvre l'app déclenche
+un e-mail par cours non pointé des sept derniers jours, **multiplié par le
+nombre d'administrateurs**. Le délai se règle dans *Administration →
+Réglages* ; l'allonger le temps du test évite la volée.
 
 ---
 
