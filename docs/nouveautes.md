@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.138.0 — 4 septembre 2026
+
+Rien de visible à l'écran : le journal enregistre l'envoi du build 8 chez Apple,
+destiné à TestFlight.
+
+---
+
 ## v3.137.0 — 4 septembre 2026
 
 - **L'application est sur l'App Store.** Back on Track Studio 1.0 est acceptée

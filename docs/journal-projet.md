@@ -134,13 +134,50 @@ ont déjà reçu leurs réponses, conservées dans le champ *Remarques*.
 
 La procédure est écrite dans `docs/mettre-a-jour-app-store.md`.
 
+### Le build 8 est parti
+
+Envoyé chez Apple le 2026-09-04, **version 3.137.0 (build 8)**, statut
+*Uploaded to Apple*. Il porte tout ce qui a été livré depuis la soumission du
+1er septembre — **quatorze versions**, dont le rappel des présences.
+
+Destination : **TestFlight d'abord**, pour faire voir la version aux coachs
+avant de la soumettre. Le verrou des tests externes est levé depuis
+l'approbation du premier build.
+
+**L'enveloppe visait la base de TEST au moment du report.** `.env` portait
+`cvyslqnojcgnjfgynczw` — bot3, celle de `jag.` — et non `bot-ops`. Un
+archivage lancé ainsi aurait envoyé chez Apple une application branchée sur
+les données de démonstration : l'évaluateur comme les coachs auraient vu un
+studio fictif. Basculé sur `.env.ops` avant la construction, l'ancien gardé en
+`.env.sauvegarde-jag-20260904`.
+
+Le garde-fou de `version-mobile.sh` ne couvre **que** le drapeau vitrine, posé
+après l'incident du 1er septembre. La base visée, elle, n'arrête rien — c'est
+`verifier-mobile.sh` qui l'affiche, et c'est lui qui l'a montré. **Deux fois en
+quatre jours, le `.env` a failli faire partir la mauvaise application.** Le
+même fichier sert à trop d'usages ; un second garde-fou dans
+`version-mobile.sh` serait justifié.
+
+Le report de version ne touche que des fichiers natifs : `cap sync` recopie le
+web mais jamais `project.pbxproj` ni `build.gradle`. L'enveloppe était restée
+en 3.123.0 depuis le 1er septembre.
+
+**Les étiquettes n'étaient pas poussées.** Dix d'un coup, dont `v3.123.0` — le
+code en vente chez les utilisateurs. Un `git push` ordinaire ne les emporte
+pas : sans `--tags`, la règle 2 du CLAUDE.md ne produit son effet que sur la
+machine où l'étiquette a été posée. Depuis le MacBook, retrouver le code
+publié aurait demandé de chercher un identifiant de commit.
+
 ### Ce qui reste ouvert
 
-- **TestFlight externe** est maintenant ouvrable — le premier build approuvé
-  était le seul verrou. À utiliser pour faire voir une version aux coachs
-  avant sa publication.
-- **Le rappel des présences** (v3.135.0) n'est toujours pas déployé en
-  production : les coachs doivent d'abord solder leur pointage en retard.
+- **Ouvrir TestFlight externe** : le build 8 est envoyé, reste le
+  questionnaire Export Compliance, le groupe « Coachs » et le lien public. Un
+  examen léger s'applique à ce premier build distribué en externe.
+- **Le rappel des présences part avec le build 8**, sur décision de Christian
+  — il était jusqu'ici retenu le temps que les coachs soldent leur pointage.
+  Dès qu'un membre du staff ouvrira cette version, les rappels des cours non
+  pointés des sept derniers jours partiront : un e-mail par cours et par
+  administrateur. Le délai se règle dans Administration → Réglages.
 - **Android** reste bloqué par la clé de signature, jamais créée.
 - **D-U-N-S et conversion du compte Apple en organisation** : non entamés. Le
   compte reste au nom propre de Christian, ce qui n'empêche ni la vente ni les
