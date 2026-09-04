@@ -12,6 +12,19 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.137.0 — 4 septembre 2026
+
+- **L'application est sur l'App Store.** Back on Track Studio 1.0 est acceptée
+  par Apple et mise en vente : elle s'installe depuis l'App Store sur iPhone, en
+  Belgique, France, Pays-Bas, Luxembourg et Allemagne. Comptez jusqu'à 24 heures
+  après la mise en vente avant que la fiche soit visible de tous, et un peu plus
+  avant qu'une recherche par le nom la retrouve.
+
+  Rien ne change pour qui utilisait déjà l'application depuis l'écran d'accueil :
+  c'est le même code, servi autrement.
+
+---
+
 ## v3.136.0 — 3 septembre 2026
 
 Rien de visible à l'écran : documentation du rappel des présences dans le guide

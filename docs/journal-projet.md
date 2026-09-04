@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-09-01**
+> Dernière mise à jour : **2026-09-04**
 
 ---
 
@@ -39,15 +39,17 @@ L'application tourne sur **Stripe** — la migration vers Mollie prévue au plan
 
 Une version de test tourne sur iPhone depuis le 2026-08-07 (signature de développement, valable 7 jours).
 
-**L'application iOS est soumise à l'App Store** depuis le 2026-09-01 — build 7,
-version 3.123.0, **iPhone seul**, gratuite, cinq pays (Belgique, France,
-Pays-Bas, Luxembourg, Allemagne). Sortie **manuelle** : elle ne paraîtra qu'au
-clic de Christian. Une première soumission avait été refusée le même jour —
-captures iPad manquantes et prix non choisi.
+**L'application iOS est EN VENTE sur l'App Store** depuis le 2026-09-04 —
+version 1.0 (build 7, code 3.123.0), **iPhone seul**, gratuite, cinq pays
+(Belgique, France, Pays-Bas, Luxembourg, Allemagne).
+`apps.apple.com/app/back-on-track-studio/id6807375775`. Acceptée le 2026-09-03,
+publiée au clic de Christian le lendemain — la sortie était réglée en
+**manuelle**. Deux refus avaient précédé : captures iPad manquantes et prix non
+choisi le 2026-09-01, puis Guideline 2.1 le 2026-09-03.
 
-**TestFlight** : les informations de test sont enregistrées, mais les tests
-**externes** n'ouvrent qu'après l'approbation d'un premier build. En attendant,
-la PWA sur `app.` montre le même code.
+**TestFlight** : les tests **externes** sont désormais ouvrables — ils
+attendaient l'approbation d'un premier build, obtenue le 2026-09-03. À faire
+pour montrer les versions suivantes aux coachs avant leur publication.
 
 ### Les bases et les sous-domaines, au 2026-08-30
 
@@ -79,6 +81,70 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
 2. **Politique de confidentialité avec URL publique** — livrée, page `/confidentialite` (et non `/privacy`, corrigé le 2026-08-29 : c'est cette URL qu'App Store Connect attend, une adresse fausse dans la fiche vaut rejet).
+
+---
+
+## Session du 2026-09-04 — l'application est en vente
+
+### Ce qui a été fait
+
+Apple a accepté la version 1.0 le 2026-09-03 à 04:49 (heure Pacifique),
+soumission `a28d840f-32c0-4870-868c-fc08812973b3`. La version est passée en
+**« Prête pour la publication »** — approuvée mais invisible, la sortie ayant
+été réglée en **manuelle** au moment de la soumission.
+
+Christian a cliqué sur **« Publier cette version »** le 2026-09-04. Le statut
+est devenu **« Prête pour la distribution »** : la mise en ligne est lancée.
+Apple annonce jusqu'à **24 h** avant que la fiche soit publiquement accessible,
+et l'indexation dans la recherche de l'App Store prend souvent davantage.
+
+`apps.apple.com/app/back-on-track-studio/id6807375775`
+
+### Ce que « sortie manuelle » a coûté, et ce qu'il faut en retenir
+
+Rien n'avertit qu'une version approuvée attend un clic. Le mail d'Apple
+annonce « eligible for distribution » — pas « en vente ». Entre l'acceptation
+et la publication, l'application est restée **une journée invisible** sans
+qu'aucun écran ne le signale.
+
+C'est le deuxième silence de ce type en trois jours, après la version refusée
+qui ne repartait pas toute seule (session du 2026-09-03). **Chez Apple, un
+état d'attente ne se manifeste jamais de lui-même** : c'est à nous d'aller
+regarder la page de la version.
+
+La sortie manuelle reste le bon réglage — elle laisse choisir le jour de la
+mise en vente, ce qui compte quand les coachs doivent être prévenus. Mais elle
+demande d'aller cliquer.
+
+### Les mises à jour : ce qui ne se refera pas
+
+Les upgrades en attente partiront **sans repasser par le parcours du premier
+dépôt**. Ce qui était à faire une fois est fait : compte développeur, fiche,
+captures, questionnaire de confidentialité, tarification, compte de
+démonstration, notes d'examen. Une mise à jour n'y touche pas.
+
+Ce qui reste, à chaque version : incrémenter la version et le build
+(`version-mobile.sh`), archiver dans Xcode, envoyer, écrire les nouveautés,
+soumettre. Le compte de démonstration doit être **vivant** et le planning
+garder des places libres — c'est ce qui a valu le refus du 2026-09-03.
+
+L'examen d'une mise à jour est **plus court** que celui d'un premier dépôt :
+l'app est connue, la fiche est stable, et les questions de la Guideline 2.1
+ont déjà reçu leurs réponses, conservées dans le champ *Remarques*.
+
+La procédure est écrite dans `docs/mettre-a-jour-app-store.md`.
+
+### Ce qui reste ouvert
+
+- **TestFlight externe** est maintenant ouvrable — le premier build approuvé
+  était le seul verrou. À utiliser pour faire voir une version aux coachs
+  avant sa publication.
+- **Le rappel des présences** (v3.135.0) n'est toujours pas déployé en
+  production : les coachs doivent d'abord solder leur pointage en retard.
+- **Android** reste bloqué par la clé de signature, jamais créée.
+- **D-U-N-S et conversion du compte Apple en organisation** : non entamés. Le
+  compte reste au nom propre de Christian, ce qui n'empêche ni la vente ni les
+  mises à jour.
 
 ---
 
