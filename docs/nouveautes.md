@@ -12,6 +12,12 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.140.0 — 4 septembre 2026
+
+Rien de visible à l'écran : passage de relais de la session.
+
+---
+
 ## v3.139.0 — 4 septembre 2026
 
 Rien de visible à l'écran : la procédure de mise à jour de l'application iOS
