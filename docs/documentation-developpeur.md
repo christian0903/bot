@@ -417,6 +417,63 @@ Ce chapitre-ci ne dit que **ce qu'il faut savoir avant de s'y mettre**.
 
 ---
 
+## Le suivi des demandes — hors du dépôt
+
+Les demandes des coachs vivent dans une base **Notion**, pas dans le dépôt ni
+dans l'application. Rien à développer, rien à déployer : c'est un outil de
+décision, tenu à la main.
+
+**Notion décide, le dépôt livre.** La frontière tient en deux lignes :
+
+| Où | Ce qui s'y trouve | Fait foi pour |
+|---|---|---|
+| Notion | Les demandes, leur étape, qui les appuie, qui les a testées | **Ce qu'on va faire** |
+| `nouveautes.md` | Ce que chaque version a livré, du point de vue du membre | **Ce qui est fait** |
+
+`nouveautes.md` reste la source de vérité : il est versionné, il accompagne le
+code, et il survivra à Notion si Notion est abandonné.
+
+### Le geste à ne pas oublier
+
+Quand une demande passe **En production**, deux écritures, pas une :
+
+1. sa propriété `Version` dans Notion reçoit le numéro (`3.150.0`) ;
+2. `docs/nouveautes.md` reçoit la même chose, dite pour le membre.
+
+C'est une double saisie assumée — dix secondes — qui évite de faire dépendre
+l'historique du projet d'un outil externe.
+
+### Ce que porte la base
+
+Sept étapes : *Proposé*, *Accepté*, *En cours*, *Développé* (sur JAG), *En
+production*, *Déjà fait*, *Écarté*. Trois colonnes de test nominatives —
+`Joan`, `Gauthier`, `Anselme` — portant chacune une date. Deux colonnes de
+statut magasin, `iPhone` et `Android`, plus `Build iOS`, `Version App Store`,
+`Soumis le` et `En ligne le`.
+
+**Le `Build iOS` se ressaisit sur chaque ligne d'un même lot.** C'est voulu :
+une publication coûtant une demi-journée quel que soit le nombre de
+modifications, les demandes partent groupées. Une base « Versions » liée
+l'éviterait mais romprait la règle d'une base unique.
+
+### Les pièges de l'API Notion
+
+Trois, rencontrés en construisant la base — à connaître avant d'y toucher par
+le MCP :
+
+- **`ALTER COLUMN` sur une sélection vide la valeur des fiches** qui portaient
+  l'ancien libellé, au lieu de la reporter. Renommer depuis l'interface, ou
+  vérifier les fiches après coup.
+- **`create_view` ne reconfigure pas une vue** : il en crée une seconde du même
+  nom. Le doublon se supprime à la main.
+- **Les colonnes s'ajoutent toujours en fin de table**, sans position choisie.
+- Accessoirement, une **multi-sélection refuse une valeur** qui n'existe pas
+  encore dans ses options, et **Notion réécrit le gras** — un `update_content`
+  cherchant une chaîne exacte peut échouer sur un texte pourtant identique à
+  l'œil. Relire la page avec `fetch` avant de remplacer.
+
+> Le dispositif complet et les raisons de chaque choix : `suivi-demandes-notion.md`.
+
 ---
 
 ## Mettre en ligne
@@ -583,6 +640,8 @@ autorisations restent portées par `RoleGuard` et les policies RLS.
 | Confier la vitrine à un designer | `confier-la-vitrine.md` |
 | Déployer Stripe | `stripe-deploiement.md` |
 | Publier sur les stores, le pas-à-pas | `publier-app-store.md` |
+| Suivre les demandes des coachs | `suivi-demandes-notion.md` |
+| Ce que les coachs savent du changement de rythme | `coachs-pourquoi-ca-va-moins-vite.md` |
 | Reprendre une session interrompue | `handoffs/` |
 
 ---

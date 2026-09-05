@@ -92,6 +92,18 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ---
 
+## Session du 2026-09-05 (soir, fin) — les deux documentations disent le suivi
+
+`guide-admin.md` gagne une section sur le tableau Notion — parcours, règle des
+deux appuis, colonnes de test, suivi de publication, lots, quatre vues — et
+elle est **recopiée dans `public/`**, sans quoi la page `/help` ne l'aurait pas
+vue. `documentation-developpeur.md` gagne la sienne : la frontière entre Notion
+(ce qu'on va faire) et `nouveautes.md` (ce qui est fait), le geste de double
+saisie à la mise en production, et les **pièges de l'API Notion** — dont un
+`ALTER COLUMN` qui vide les fiches au lieu de reporter leur valeur.
+
+---
+
 ## Session du 2026-09-05 (soir, suite) — les coachs sont prévenus du changement de rythme
 
 ### Ce qui a été fait

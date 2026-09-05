@@ -13,13 +13,14 @@ tags:
   - bot
   - notion
   - suivi-demandes
+  - app-store
 ---
 
-# Handoff — Les demandes des coachs ont une base, et un parcours jusqu'à l'App Store
+# Handoff — Les demandes des coachs ont une base, et les coachs savent pourquoi ça ralentit
 
-> **v3.143.0**, arbre propre, tout poussé (étiquette comprise).
+> **v3.151.0**, arbre propre, tout poussé (étiquettes comprises).
 > Aucun déploiement cette session : rien n'a bougé sur `app.` ni sur `jag.`
-> Aucune migration, aucune Edge Function. **Session documentaire et Notion.**
+> Aucune migration, aucune Edge Function. **Session Notion et documentaire.**
 
 ---
 
@@ -31,175 +32,162 @@ tags:
 | `jag.` | test (bot3) | 3.135.0 |
 | **App Store** | **en vente** | 1.0 (build 7, code 3.123.0) |
 | **TestFlight** | build 8 envoyé | 3.137.0 (build 8) |
-| **Dépôt** | — | **3.143.0** |
+| **Dépôt** | — | **3.151.0** |
 
-Rien de tout cela n'a changé aujourd'hui : le dépôt avance seul.
+Rien de cela n'a changé aujourd'hui : le dépôt avance seul.
 
 ---
 
 ## Ce qui a été fait
 
-### La base Notion existe
+### 1. La base Notion existe
 
-Le dispositif conçu la veille n'était qu'un document. Il est en place :
+Le dispositif conçu la veille n'était qu'un document. Il est en place, dans
+**l'espace Notion privé de Christian** :
 
-- **Page** « Back On Track — demandes des coachs » — l'explication destinée aux
-  coachs, au-dessus de la base.
-- **Base** « Demandes » — 19 entrées, 16 propriétés.
-- **Quatre vues** : Le tableau (Kanban par étape), À valider par vous,
-  Par version, Publication App Store.
+- **Page** « Back On Track — demandes des coachs » — le mode d'emploi des coachs.
+- **Base** « Demandes » — 19 entrées, 18 propriétés.
+- **Quatre vues** — Le tableau (Kanban), À valider par vous, Par version,
+  Publication App Store.
 
-> **C'est un prototype, dans l'espace Notion PRIVÉ de Christian.** Rien n'est
-> partagé. Le portage vers l'espace des coachs reste à faire.
+**Les 19 demandes d'un PDF de Gauthier Wilhelm** y sont versées, chacune avec sa
+citation d'origine et sa section. **Deux étaient déjà livrées** et ont été
+vérifiées dans le dépôt avant d'être marquées *Déjà fait* : l'agenda
+(**3.130.0**, `5e7a3e1`) et la liste des inscrits (**3.128.0**, `93a78dc`).
 
-Le lien : la base s'ouvre depuis la page, elle-même dans les pages privées.
+**Trois relevés qui ne se voient pas à la lecture du PDF :**
 
-### Les 19 demandes de Gauthier Wilhelm
+- **Contradiction sur l'annulation** — le texte dit 12 h, l'image des tarifs
+  dit 24 h. Bloquant pour l'abonnement du 1er octobre.
+- **« Réserver plusieurs places sur un même compte »** remet en cause *une
+  inscription = une personne*, et touche crédits, capacité, pointage, affichage
+  des inscrits.
+- **« Supprimer la vue liste »** suppose d'abord la parité du calendrier.
 
-Le PDF `Application BackOnTrack notes.pdf` (reçu par courriel, lu depuis le
-cache MailMate) est analysé et versé. Chaque entrée porte sa citation d'origine
-et sa section du document.
+### 2. Le parrainage vérifié dans le code
 
-**Trois relevés qui ne se voient pas à la lecture :**
+Christian voulait s'assurer que la réduction est **ponctuelle** et non
+récurrente sur un abonnement. **C'est déjà le cas** : le bon devient un coupon
+Stripe `duration: 'once'` (`create-checkout-session/index.ts:403`) — première
+facture réduite, prix récurrent intact. Le commentaire du code nomme le piège
+évité : *baisser le Price rendrait la réduction permanente*.
 
-- **Contradiction sur l'annulation** : le texte dit **12 h** à l'avance,
-  l'image des tarifs dit **24 h**. À trancher avant de développer l'abonnement.
-- **« Réserver plusieurs places sur un même compte »** paraît petite et ne
-  l'est pas : elle remet en cause *une inscription = une personne*, et touche
-  les crédits, la capacité du cours, le pointage, l'affichage des inscrits.
-- **« Supprimer la vue liste »** suppose d'abord que le calendrier sache tout
-  faire. Retirer la liste avant priverait les coachs de gestes utilisés.
+> ⚠️ Cela dit ce que le code veut faire, **pas ce que Stripe fait**. Le contrôle
+> reste le **test clock**, et les trois étapes à éprouver sont dans la fiche
+> Notion. Le journal continue de noter le parrainage comme non testé de bout en
+> bout.
 
-**Deux demandes étaient déjà livrées**, vérifiées dans le dépôt avant d'être
-marquées — passées en *Déjà fait* :
+### 3. Les coachs sont prévenus du changement de rythme
 
-| Demande | Version | Commit |
-|---|---|---|
-| Ajouter ses séances à son agenda | 3.130.0 | `5e7a3e1` |
-| Voir qui est inscrit au cours | 3.128.0 | `93a78dc` |
+**Le courriel est parti le 2026-09-05 à 10:22** depuis `christian@aikicom.eu`.
+Sa copie conforme est à la fin de `coachs-pourquoi-ca-va-moins-vite.md` — c'est
+elle qui fait foi de ce que les coachs ont lu, non la version de travail qui la
+précède.
 
-Deux réserves inscrites dans leurs fiches : le **nom de famille n'est pas
-affiché** alors que le PDF le demandait (seuls prénom et photo), et la
-migration des inscrits **n'était pas appliquée sur bot-ops** au moment du
-commit — à vérifier.
+Le message dit l'attrait de l'App Store, puis le prix : le temps (une à deux
+semaines contre quelques minutes), le droit de refus d'Apple, la perte de
+maîtrise sur la mise à jour, et **le travail que chaque publication ajoute**,
+chiffré à une demi-journée. Il annonce le regroupement par lots et le tableau
+Notion.
 
-### Le parrainage vérifié dans le code
+Christian a inséré les deux schémas **en images** : en caractères, ils ne
+rendaient pas bien.
 
-Christian voulait s'assurer que le parrainage fait une réduction **ponctuelle**
-sur le prochain montant, et non récurrente sur un abonnement.
+### 4. Les deux documentations
 
-**C'est déjà le cas.** Le bon devient un coupon Stripe créé avec
-`duration: 'once'` (`supabase/functions/create-checkout-session/index.ts:403`) :
-remise sur la première facture, puis Stripe retire le coupon de lui-même. Le
-commentaire du code nomme le piège évité :
-
-> Baisser le Price rendrait la réduction permanente.
-
-Sur un **pack ponctuel**, c'est l'application qui soustrait — pas de récurrence
-à protéger.
-
-> ⚠️ **Cela dit ce que le code veut faire, pas ce que Stripe fait.** Le seul
-> contrôle qui vaut est le **test clock**. Les trois étapes à éprouver sont
-> écrites dans la fiche Notion : première facture réduite, **deuxième au plein
-> tarif**, non-cumul bon + coupon.
-
-Le journal note toujours le parrainage comme **livré mais non testé de bout en
-bout** — cette lecture de code ne change pas ce statut.
+- **`guide-admin.md`** — une section « Les demandes des coachs — le tableau
+  Notion » : le parcours, la règle des deux appuis, les colonnes de test, le
+  suivi de publication, les lots, les quatre vues. **Recopiée dans `public/`.**
+- **`documentation-developpeur.md`** — une section « Le suivi des demandes —
+  hors du dépôt » : la frontière Notion/dépôt, le geste de double saisie à la
+  mise en production, et **les pièges de l'API Notion**.
 
 ---
 
 ## Ce qui a été décidé
 
-**Notion plutôt que Trello.** Réexaminé en séance sur l'argument du Kanban.
-Écarté : Notion a déjà la vue tableau qu'on lui cherchait, et Trello n'aurait
-pas les champs typés qui font le reste — Custom Fields payants, pas de vues
-multiples par carte.
+**Notion plutôt que Trello**, réexaminé en séance sur l'argument du Kanban.
+Écarté : Notion a déjà la vue tableau, et Trello n'aurait pas les champs typés —
+Custom Fields payants, pas de vues multiples par carte.
 
-**Trois colonnes de test nominatives** (`Joan`, `Gauthier`, `Anselme`), chacune
-portant une **date**, à la place du couple `Testé par` / `Testé le` posé
-d'abord. Elles disent qui a déjà regardé et qui doit encore le faire.
+**Les étapes portent le vocabulaire de Christian** : *Proposé, Accepté, En
+cours, Développé, En production*, plus *Déjà fait* et *Écarté*.
 
-**Une étape « Déjà fait », distincte de « En production »** : la première
-recueille ce qui était livré avant la base, la seconde ce qui aura traversé le
-parcours complet.
+**Trois colonnes de test nominatives** (`Joan`, `Gauthier`, `Anselme`) portant
+une date, plutôt qu'un couple `Testé par` / `Testé le`.
 
-**Deux colonnes de statut mobile, une par plateforme** : `iPhone` (sept
-valeurs) et `Android` (six — le Play Store n'a pas d'équivalent de la
-publication manuelle différée), plus `Build iOS`, `Version App Store`,
-`Soumis le`, `En ligne le`.
+**Deux colonnes de statut mobile**, `iPhone` (sept valeurs) et `Android` (six).
+Parce que « en production » ne veut pas dire « sur les téléphones », et parce
+que **« Prête pour la publication » n'est pas « En ligne »** — ce qui a laissé
+la 1.0 approuvée et invisible le 3 septembre.
 
-Deux raisons. **« Prête pour la publication » n'est pas « En ligne »** — c'est
-ce qui a laissé la 1.0 approuvée et invisible le 3 septembre. Et surtout,
-**« en production » ne veut pas dire « sur les téléphones »** : au 5 septembre
-l'agenda et la liste des inscrits sont sur `app.` mais l'App Store en est
-encore à la 1.0. Android arrivant après iOS, une demande pourra être en ligne
-sur un magasin et pas sur l'autre.
+**On publiera par lots.** Une publication coûte une demi-journée quel que soit
+le nombre de modifications : elles partent groupées, et les lignes d'un lot
+partagent le `Build iOS`. C'est un quatrième usage du tableau.
 
-**Une seule base, malgré la redondance du build.** Le build est un attribut de
-la livraison, pas de la demande : le numéro se ressaisit sur chaque ligne. Une
-base « Versions » liée l'éviterait, mais romprait la règle d'une base unique —
-écarté tant que la ressaisie reste supportable.
+**Une seule base**, malgré la ressaisie du build sur chaque ligne.
 
 ---
 
 ## La prochaine action
 
-**Trois gestes manuels dans Notion**, qu'aucune API ne peut faire :
+**Partager le tableau aux coachs.** Christian veut qu'ils l'examinent dans leur
+propre Notion. Trois voies lui ont été présentées ; **la décision n'est pas
+prise** :
 
-1. **Réordonner les colonnes** — l'API les ajoute toujours en fin de table.
-2. **Supprimer la vue « À valider par vous » en double** — une seconde a été
-   créée pour y ajouter les colonnes de test, l'API ne sachant pas reconfigurer
-   une vue existante. Garder celle qui montre `Joan` / `Gauthier` / `Anselme`.
-3. **Éprouver le dispositif** en faisant avancer une ou deux demandes.
+1. **Publier sur le web avec duplication autorisée** — un lien, ils dupliquent
+   page et base chez eux. Le plus simple et le plus fidèle.
+2. **Exporter en Markdown & CSV** — rien de publié, mais **les vues sont
+   perdues**.
+3. **Inviter en lecteur** — ils voient sans pouvoir emporter.
 
-**Puis, quand le prototype tient** : porter la base vers l'espace Notion des
-coachs, et convertir `Appuyé par` en propriété **Personne** (impossible ici,
-faute de comptes coachs dans l'espace privé).
+**Deux points à trancher avant de partager :**
 
----
-
-## Une question tranchée en séance
-
-**Une version acceptée par Apple ne met pas l'application à jour d'office.**
-Apple la notifie ; c'est le réglage du téléphone qui décide. « Mises à jour
-automatiques » est actif par défaut mais peut être coupé, et même actif il
-attend le Wi-Fi et la charge — le déploiement s'étale sur des jours.
-
-`En ligne` veut donc dire **disponible**, pas **installée partout**.
-
-**La PWA échappe à cela** : `app.backontrackstudio.be` sert le même code et se
-met à jour au rechargement. C'est la voie courte pour un correctif urgent.
-`capacitor.config.ts` porte en commentaire la possibilité de faire charger
-l'URL de production à l'application native — l'enveloppe se mettrait alors à
-jour comme le site.
+- **Les tarifs du 1er octobre** sont détaillés dans une fiche de la base. Les
+  publier sur le web les rendrait accessibles à qui a le lien, alors qu'ils ne
+  sont pas encore publics. Les retirer de la version d'exemple ?
+- **Ajouter un encadré « exemple »** en tête de page — une page dupliquée
+  voyage sans le courriel qui l'accompagnait.
 
 ---
 
 ## Ce qui reste ouvert
 
+- **La règle des deux appuis n'a pas été annoncée.** Le courriel du matin
+  présente le tableau mais ne dit pas qu'une demande avance quand deux coachs
+  la portent — c'est le cœur du dispositif. **À dire dans le message qui
+  accompagnera le partage.**
+- **Trois gestes manuels dans Notion**, qu'aucune API ne fait : réordonner les
+  colonnes, supprimer les vues « À valider par vous » en double (garder celle
+  filtrée sur *Développé* qui montre les trois colonnes de coachs), et éprouver
+  le dispositif en faisant avancer une demande.
+- **Au portage** : convertir `Appuyé par` en propriété **Personne**, ce qui
+  suppose des comptes Notion pour les coachs.
 - **Deux points à préciser avec Gauthier** : ce qu'il entendait par « le
-  calendrier » — c'est l'agenda personnel qui a été livré, pas le calendrier
-  d'entraînement interne — et si la photo de profil est toujours impossible
-  (son constat datait de la 3.92).
-- **Le délai d'annulation** : 12 h ou 24 h. Bloquant pour l'abonnement du
-  1er octobre.
-- **La migration des inscrits sur bot-ops** — appliquée sur bot3, à vérifier
-  côté production.
+  calendrier » — c'est l'agenda personnel qui a été livré — et si la photo de
+  profil est toujours impossible (son constat datait de la 3.92).
+- **Le délai d'annulation** : 12 h ou 24 h.
+- **La migration des inscrits sur bot-ops** — appliquée sur bot3 seulement.
 - **Le parrainage au test clock**, toujours pas fait.
+- **Le repère d'une demi-journée par publication** est parti dans le courriel :
+  il vaut désormais engagement vis-à-vis des coachs.
 
 ---
 
 ## Pièges rencontrés (pour la prochaine fois)
 
-**L'API Notion ne sait pas tout faire.** Trois limites rencontrées :
+**L'API Notion ne sait pas tout faire.** Ces limites sont maintenant écrites
+dans `documentation-developpeur.md` :
 
-- une multi-sélection refuse une valeur qui n'existe pas encore dans ses
-  options — il faut l'ajouter au schéma d'abord ;
-- `create_view` ne reconfigure pas une vue existante : il en crée une seconde
-  du même nom ;
-- les colonnes s'ajoutent toujours en fin de table, sans position choisie.
+- `ALTER COLUMN` sur une sélection **vide la valeur des fiches** qui portaient
+  l'ancien libellé. Une entrée a dû être reclassée à la main après le
+  renommage des étapes.
+- `create_view` **ne reconfigure pas** une vue : il en crée une seconde du même
+  nom.
+- Les colonnes s'ajoutent **toujours en fin de table**.
+- Une multi-sélection **refuse une valeur** absente de ses options.
+- **Notion réécrit le gras** : un `update_content` cherchant une chaîne exacte
+  peut échouer sur un texte identique à l'œil. Relire avec `fetch` d'abord.
 
-**Notion réécrit le gras.** Un `update_content` qui cherche une chaîne exacte
-peut échouer alors que le texte paraît identique : Notion avait stocké
-`**ajoutez votre nom dans ****\`Testé par\`**`. Relire la page avec `fetch`
-avant de remplacer.
+**Les schémas ASCII ne survivent pas au courriel.** Ils n'alignent qu'en chasse
+fixe. Christian les a mis en images — c'est la seule voie fiable.

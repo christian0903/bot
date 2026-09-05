@@ -12,6 +12,15 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.151.0 — 5 septembre 2026
+
+- **Le guide des coachs explique le tableau de suivi.** Comment proposer une
+  amélioration, comment appuyer celle d'un collègue, où en est chaque demande,
+  et pourquoi une modification met désormais du temps à parvenir sur les
+  téléphones. Il se lit depuis la page d'aide de l'application.
+
+---
+
 ## v3.150.0 — 5 septembre 2026
 
 Rien de visible à l'écran : le courriel annonçant le changement de rythme a été

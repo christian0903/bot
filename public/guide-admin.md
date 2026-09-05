@@ -76,6 +76,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 - [L'application sur le téléphone des membres](#l-application-sur-le-telephone-des-membres)
 - [Diagnostic — Administration → Diagnostic](#diagnostic-administration-diagnostic)
 - [Les données sont-elles sauvegardées ?](#les-donnees-sont-elles-sauvegardees)
+- [Les demandes des coachs — le tableau Notion](#les-demandes-des-coachs-le-tableau-notion)
 - [Points de vigilance](#points-de-vigilance)
 
 ---
@@ -1639,6 +1640,96 @@ Mac et non depuis l'application.
 dans cette base : restaurer une sauvegarde ne rembourse rien et n'annule aucun
 abonnement en cours. En cas de doute sur un paiement, c'est toujours le tableau
 de bord Stripe qui fait foi.
+
+---
+
+## Les demandes des coachs — le tableau Notion
+
+> Depuis que l'application est sur l'App Store, une modification demandée met
+> **une à deux semaines** à parvenir sur les téléphones, là où elle prenait
+> quelques minutes. Assez longtemps pour qu'on oublie qui avait demandé quoi.
+> D'où ce tableau.
+
+Il ne vit pas dans l'application : c'est une base **Notion**, choisie parce que
+les coachs s'en servent déjà. La page s'appelle *Back On Track — demandes des
+coachs*, et porte au-dessus d'elle le mode d'emploi destiné aux coachs.
+
+### Le parcours d'une demande
+
+| Étape | Ce qu'elle signifie | Qui la fait avancer |
+|---|---|---|
+| **Proposé** | La demande existe, elle attend l'avis des autres | Le coach qui la crée |
+| **Accepté** | Deux coachs au moins la portent | Vous, quand `Appuyé par` a 2 noms |
+| **En cours** | En développement | Vous |
+| **Développé** | Livrée sur `jag.`, à éprouver | Vous |
+| **En production** | Validée sur JAG, passée sur `app.` | Vous |
+| **Déjà fait** | Livrée avant que ce tableau existe | Vous |
+| **Écarté** | Ne se fera pas | Vous |
+
+**La règle qui tient tout** : rien ne passe de *Proposé* à *Accepté* sans deux
+noms dans `Appuyé par`. Un coach qui trouve une demande utile s'y ajoute
+lui-même. Notion ne l'impose pas — c'est une discipline, pas un verrou — mais
+elle est visible de tous, et c'est ce qui la rend tenable : un coach voit que
+sa demande attend, et va en parler à ses collègues plutôt qu'à vous.
+
+### Qui a testé quoi
+
+Trois colonnes, **une par coach** : `Joan`, `Gauthier`, `Anselme`. Chacun y
+inscrit la **date** du jour où il a éprouvé la modification sur JAG.
+
+Trois colonnes plutôt qu'une liste de noms : on voit d'un coup d'œil qui a déjà
+regardé et qui doit encore le faire. **Rien ne passe en production tant
+qu'aucune date n'y figure.**
+
+### Où en est la publication
+
+Une modification en production sur `app.` **n'est pas pour autant sur les
+téléphones**. Deux colonnes suivent cela, une par magasin.
+
+`iPhone` prend sept valeurs : *Pas concerné*, *Pas encore soumis*,
+*TestFlight*, *En attente d'examen*, *Refusé*, *Prête pour la publication*,
+*En ligne*.
+
+> ⚠️ **« Prête pour la publication » n'est pas « En ligne ».** C'est le piège
+> du 3 septembre : la version 1.0 était approuvée par Apple depuis 04:49 et
+> visible de personne, la sortie étant réglée en manuelle. Tant que vous n'avez
+> pas cliqué sur *Publier*, rien ne paraît.
+
+`Android` en prend six — le Play Store n'a pas d'équivalent de cette
+publication différée. **Rien n'y est configuré à ce jour.**
+
+Et même « En ligne » ne veut pas dire « installée chez tout le monde » : chaque
+téléphone se met à jour selon ses réglages. Pendant quelques jours, les membres
+n'ont pas tous la même version.
+
+### Publier par lots
+
+Une publication coûte **une demi-journée de travail**, que la version emporte
+une modification ou dix. Les demandes partent donc **groupées**, et les lignes
+d'un même lot portent le même `Build iOS`.
+
+Composer le lot est une décision : ce qui est prêt part, le reste attend
+l'envoi suivant.
+
+### Les quatre vues
+
+- **Le tableau** — le Kanban, groupé par étape. Faire glisser une carte suffit
+  à la faire avancer.
+- **À valider par vous** — ce qui est en *Développé*, à envoyer aux coachs
+  quand une livraison part sur JAG.
+- **Par version** — l'historique, groupé par version du dépôt.
+- **Publication App Store** — ce qui attend chez Apple, et à quel stade.
+
+### Ce qu'il reste à faire
+
+Le tableau est un **prototype**, dans l'espace Notion privé de Christian. Pour
+le confier aux coachs : le partager en autorisant la duplication, puis
+convertir `Appuyé par` en propriété **Personne** — ce qui suppose qu'ils aient
+un compte Notion.
+
+> Le fonctionnement complet, et les raisons de chaque choix, sont dans
+> `suivi-demandes-notion.md`. Ce que les coachs ont été prévenus du changement
+> de rythme est dans `coachs-pourquoi-ca-va-moins-vite.md`.
 
 ---
 
