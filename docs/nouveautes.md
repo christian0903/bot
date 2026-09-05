@@ -12,6 +12,16 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.143.0 — 5 septembre 2026
+
+Rien de visible à l'écran : la base Notion qui recueille vos demandes existe
+maintenant pour de bon, et le document qui explique son fonctionnement est
+complet. Vous y proposez une amélioration, vous appuyez celles de vos
+collègues, et vous suivez ce que chacune devient — jusqu'à savoir si la version
+qui la porte est arrivée sur votre téléphone.
+
+---
+
 ## v3.142.0 — 5 septembre 2026
 
 Rien de visible à l'écran : trois documents s'ajoutent — le guide qui explique

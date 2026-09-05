@@ -92,6 +92,92 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ---
 
+## Session du 2026-09-05 (soir) — les demandes des coachs ont une base, et un parcours jusqu'à l'App Store
+
+### Ce qui a été fait
+
+**La base Notion existe** (v3.143.0). Le dispositif conçu la veille n'était
+qu'un document ; il est maintenant en place : page d'explication pour les
+coachs, base « Demandes », quatre vues. Prototype dans **l'espace Notion privé
+de Christian** — le portage vers l'espace des coachs reste à faire.
+
+**Les 19 demandes d'un PDF de Gauthier Wilhelm** y sont versées, chacune avec
+sa citation d'origine et sa section. Trois relevés qui ne se voient pas à la
+lecture du PDF :
+
+- **Une contradiction sur le délai d'annulation** — le texte dit 12 h, l'image
+  des tarifs dit 24 h. À trancher avant de développer l'abonnement.
+- **« Réserver plusieurs places sur un même compte » n'est pas une petite
+  demande** : elle remet en cause le postulat *une inscription = une personne*,
+  et touche les crédits, la capacité du cours, le pointage et l'affichage des
+  inscrits.
+- **« Supprimer la vue liste » suppose d'abord la parité du calendrier.**
+  Retirer la liste avant priverait les coachs de gestes qu'ils utilisent.
+
+**Deux demandes étaient déjà livrées** et sont passées en *Déjà fait*, après
+vérification dans le dépôt : l'ajout à l'agenda (**3.130.0**, `5e7a3e1`, les
+trois emplacements annoncés sont bien là) et la liste des inscrits
+(**3.128.0**, `93a78dc`). Deux réserves inscrites dans leurs fiches : le **nom
+de famille n'est pas affiché** alors que le PDF le demandait, et la migration
+des inscrits **n'était pas appliquée sur bot-ops** au moment du commit.
+
+**Le parrainage vérifié dans le code**, à la demande de Christian. Le
+comportement voulu est déjà celui du code : sur un abonnement, le bon devient
+un coupon Stripe `duration: 'once'`
+(`create-checkout-session/index.ts:403`) — remise sur la première facture, prix
+récurrent intact. Le commentaire du code nomme le piège évité : *baisser le
+Price rendrait la réduction permanente*. **Cela dit ce que le code veut faire,
+pas ce que Stripe fait** : le contrôle réel reste le test clock, et les trois
+étapes à éprouver sont écrites dans la fiche Notion.
+
+### Ce qui a été décidé
+
+**Notion plutôt que Trello**, réexaminé en séance sur l'argument du Kanban.
+Écarté : Notion a déjà la vue tableau qu'on lui cherchait, et Trello n'aurait
+pas les champs typés qui font le reste du dispositif — ses Custom Fields sont
+un Power-Up payant, et une carte ne porte pas de vues multiples.
+
+**Trois colonnes de test nominatives** (`Joan`, `Gauthier`, `Anselme`) portant
+une **date**, à la place du couple `Testé par` / `Testé le` posé d'abord. Elles
+disent en un coup d'œil qui a déjà regardé et qui doit encore le faire.
+
+**Une étape « Déjà fait », distincte de « En production »** : *En production*
+marque ce qui a traversé le parcours complet, appuis et tests compris ; *Déjà
+fait* recueille ce qui était livré avant que la base existe.
+
+**Deux colonnes de statut mobile, une par plateforme** — `iPhone` et
+`Android` — plutôt qu'un champ unique. Deux raisons : **« Prête pour la
+publication » n'est pas « En ligne »**, ce qui a laissé la 1.0 approuvée et
+invisible le 3 septembre ; et **« en production » ne veut pas dire « sur les
+téléphones »**, l'agenda et la liste des inscrits étant sur `app.` alors que
+l'App Store en est encore à la 1.0.
+
+**Établi au passage** : une version acceptée par Apple ne met **pas**
+l'application à jour d'office. Apple notifie, le réglage du téléphone décide —
+coupable par l'utilisateur, et même actif il attend Wi-Fi et charge. `En ligne`
+veut dire *disponible*, pas *installée partout*. La PWA, elle, se met à jour au
+rechargement : c'est la voie courte pour un correctif urgent.
+
+**Une seule base, malgré la redondance.** Le build est un attribut de la
+livraison, pas de la demande : le numéro se ressaisit sur chaque ligne
+concernée. Une base « Versions » liée l'éviterait, mais romprait la règle d'une
+base unique — écarté tant que la ressaisie reste supportable.
+
+### Ce qui reste ouvert
+
+- **Porter la base vers l'espace des coachs**, et convertir alors `Appuyé par`
+  en propriété **Personne** (impossible dans le prototype, faute de comptes).
+- **Réordonner les colonnes à la main** : l'API Notion les ajoute toujours en
+  fin de table.
+- **Vérifier qu'il ne reste qu'une vue « À valider par vous »** — une seconde a
+  été créée pour y ajouter les colonnes de test, l'API ne sachant pas
+  reconfigurer une vue existante.
+- **Deux points à préciser avec Gauthier** : ce qu'il entendait par « le
+  calendrier » (c'est l'agenda personnel qui a été livré), et si la photo de
+  profil est toujours impossible — son constat datait de la 3.92.
+
+---
+
 ## Session du 2026-09-05 — la production reçoit le rappel des présences, bot3 redevient crédible
 
 ### Ce qui a été fait
