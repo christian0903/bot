@@ -230,6 +230,11 @@ l'ajusterons à l'usage.
 
 > À copier tel quel. Objet suggéré : **« L'application est sur l'App Store —
 > et ce que ça nous coûte »**
+>
+> Les deux parcours y sont repris en listes numérotées, et non avec les
+> schémas fléchés ci-dessus : ceux-ci n'alignent correctement qu'en police à
+> chasse fixe, que les messageries n'emploient pas par défaut. Les listes,
+> elles, tiennent partout.
 
 Bonjour à tous,
 
@@ -259,9 +264,47 @@ l'envoi et le téléchargement sur vos téléphones, comptez **une à deux semai
 entre votre demande et l'application à jour chez tout le monde — là où c'était
 quelques minutes.
 
-**2. Apple peut dire non.** Il l'a déjà fait deux fois pour notre application.
-Il faut alors comprendre le motif, corriger, et resoumettre : le délai repart à
-zéro.
+Voici les deux parcours, côte à côte.
+
+**AVANT — le parcours du site, en quelques minutes**
+
+1. Vous demandez
+2. Je développe
+3. Je dépose sur JAG, le site d'essai
+4. **Vous testez sur JAG**
+5. Je passe en production → **c'est en ligne pour tout le monde**
+
+Ce parcours existe toujours : c'est celui de l'application ouverte dans le
+navigateur.
+
+**MAINTENANT — le parcours de l'App Store, en une à deux semaines**
+
+Les cinq premières étapes sont les mêmes :
+
+1. Vous demandez
+2. Je développe
+3. Je dépose sur JAG, le site d'essai
+4. **Vous testez sur JAG**
+5. Je passe en production → *le site est à jour, mais pas l'application*
+
+Et c'est seulement là que commence le chemin vers votre téléphone :
+
+6. Je fabrique une version iPhone et je l'envoie chez Apple — *environ 1 h*
+7. Apple vérifie l'envoi — *10 à 30 min*
+8. **Vous l'essayez sur votre téléphone**, via TestFlight
+9. Je la soumets pour publication
+10. **Apple l'examine — 24 à 48 h**, et il peut refuser
+11. Je publie
+12. Votre téléphone télécharge la mise à jour — *de quelques heures à
+    plusieurs jours*
+
+Sur ces sept étapes ajoutées, **quatre ne dépendent pas de nous** : la
+vérification d'Apple, son examen, son droit de refus, et le rythme auquel
+chaque téléphone se met à jour.
+
+**2. Apple peut dire non.** C'est l'étape 10 ci-dessus, et il l'a déjà fait
+deux fois pour notre application. Il faut alors comprendre le motif, corriger,
+et resoumettre : le délai repart à zéro.
 
 **3. Nous ne maîtrisons plus la mise à jour.** Une fois publiée, la nouvelle
 version ne s'installe pas d'elle-même chez tout le monde : chaque téléphone se

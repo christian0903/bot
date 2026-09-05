@@ -12,6 +12,14 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.147.0 — 5 septembre 2026
+
+Rien de visible à l'écran : le courriel aux coachs montre les deux parcours,
+avant et après la publication sur l'App Store, au lieu de seulement les
+résumer.
+
+---
+
 ## v3.146.0 — 5 septembre 2026
 
 Rien de visible à l'écran : la note aux coachs sur la publication annonce
