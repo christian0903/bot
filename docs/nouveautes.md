@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.146.0 — 5 septembre 2026
+
+Rien de visible à l'écran : la note aux coachs sur la publication annonce
+l'inconvénient dès la première phrase, au lieu de le faire attendre.
+
+---
+
 ## v3.145.0 — 5 septembre 2026
 
 Rien de visible à l'écran : une note explique aux coachs ce que la publication

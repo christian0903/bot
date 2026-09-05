@@ -1,35 +1,42 @@
 # Le prix à payer pour être sur l'App Store
 
-> Note destinée aux coachs. Elle explique ce que nous avons gagné en publiant
-> l'application, **ce que cela nous coûte**, et pourquoi nous avons désormais
-> besoin d'un suivi des demandes.
+> Note destinée aux coachs. Elle explique ce que la publication nous coûte, et
+> pourquoi nous avons désormais besoin d'un suivi des demandes.
 >
 > **À transmettre par courriel** — le texte prêt à envoyer est à la fin.
 
 ---
 
+Publier sur l'App Store est certes très attractif, mais cela comporte
+également pas mal d'inconvénients, que je vais vous décrire ici. **Le principal
+concerne le fait que nous ne pourrons plus produire de changements aussi
+rapidement qu'auparavant.**
+
+Revenons d'abord sur ce qui s'est passé jusqu'ici.
+
 ## Ce qui s'est passé jusqu'ici
 
-Depuis le début du projet, l'application a changé **144 fois**. Ce n'est pas une
+Depuis le début du projet, l'application a changé **145 fois**. Ce n'est pas une
 image : chaque modification porte un numéro, et nous en sommes à la version
-**3.144**. Une demande formulée le matin pouvait être en ligne l'après-midi.
+**3.145**. Une demande formulée le matin pouvait être en ligne l'après-midi.
 
 Cette vitesse tenait à une raison simple : l'application vivait **sur le web**.
 Modifier un site, c'est déposer les nouveaux fichiers sur le serveur — les
 personnes qui l'ouvrent ensuite voient la nouvelle version. Personne à
 prévenir, personne à attendre.
 
-## Ce que nous avons gagné
+## Ce qui a changé le 4 septembre
 
-Depuis le 4 septembre 2026, l'application existe **sur l'App Store**. Elle
-s'installe depuis le téléphone comme n'importe quelle autre, elle a son icône
-sur l'écran d'accueil, elle est visible de tous. Pour un membre, c'est plus
-simple et plus crédible qu'une adresse à retenir dans un navigateur.
+Depuis cette date, l'application existe **sur l'App Store**. Elle s'installe
+depuis le téléphone comme n'importe quelle autre, elle a son icône sur l'écran
+d'accueil, elle est visible de tous. Pour un membre, c'est plus simple et plus
+crédible qu'une adresse à retenir dans un navigateur. C'est là tout
+l'attrait — et il est réel.
 
 ## Le prix à payer
 
-Publier sur un magasin d'applications, ce n'est pas déposer un fichier
-quelque part. C'est **confier son application à Apple**, qui décide de ce qui
+Mais publier sur un magasin d'applications, ce n'est pas déposer un fichier
+quelque part. C'est **confier notre application à Apple**, qui décide de ce qui
 paraît et quand. Cela se paie de quatre façons, et aucune n'est négociable.
 
 ### 1. Le temps — le vrai coût
@@ -231,11 +238,14 @@ s'installe maintenant comme n'importe quelle autre, avec son icône sur l'écran
 d'accueil. C'est une étape importante, et pour un membre c'est bien plus simple
 qu'une adresse à retenir.
 
-Je voudrais vous expliquer **ce que cela nous coûte**, parce que ce n'est pas
-uniquement une bonne nouvelle.
+Publier sur l'App Store est certes très attractif, mais cela comporte aussi pas
+mal d'inconvénients, que je voudrais vous décrire. **Le principal est que nous
+ne pourrons plus produire de changements aussi rapidement qu'auparavant.**
 
-**Jusqu'ici, on allait très vite.** L'application a changé 144 fois depuis le
-début du projet — nous en sommes à la version 3.144. Quand l'un de vous
+Revenons d'abord sur ce qui s'est passé jusqu'ici.
+
+**On allait très vite.** L'application a changé 145 fois depuis le début du
+projet — nous en sommes à la version 3.145. Quand l'un de vous
 signalait quelque chose le matin, c'était souvent corrigé l'après-midi.
 C'était possible parce que l'application vivait sur le web : je déposais la
 modification sur le serveur, et vous l'aviez à l'ouverture suivante.
