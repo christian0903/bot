@@ -75,6 +75,7 @@ Administration du studio. Pour l'usage courant de l'application — réserver, a
 - [Le site du studio](#le-site-du-studio)
 - [L'application sur le téléphone des membres](#l-application-sur-le-telephone-des-membres)
 - [Diagnostic — Administration → Diagnostic](#diagnostic-administration-diagnostic)
+- [Les données sont-elles sauvegardées ?](#les-donnees-sont-elles-sauvegardees)
 - [Points de vigilance](#points-de-vigilance)
 
 ---
@@ -1595,6 +1596,49 @@ remplie.
 > Cette page ne remplace pas les contrôles techniques faits à l'installation.
 > Elle dit ce que l'application voit, ce qui suffit à repérer la grande
 > majorité des pannes — et à savoir qu'il n'y en a pas.
+
+---
+
+## Les données sont-elles sauvegardées ?
+
+Oui, à deux niveaux — et il est utile de savoir ce que chacun couvre, parce
+qu'ils ne protègent pas des mêmes accidents.
+
+**Supabase, qui héberge la base, en conserve une copie par jour pendant sept
+jours.** C'est automatique, rien à faire. Cela protège de la panne : si le
+serveur tombe, tout se remonte.
+
+**Une copie est aussi prise à la main, sur le Mac du studio.** Elle répond à ce
+que la première ne couvre pas : l'erreur qu'on ne remarque pas tout de suite.
+Un membre effacé par mégarde, une manipulation malheureuse — si personne ne s'en
+aperçoit avant dix jours, la sauvegarde de Supabase a déjà tourné sept fois et
+l'état d'avant a disparu. La copie locale, elle, se garde un mois par défaut, et
+aussi longtemps qu'on veut pour un état qu'on souhaite figer.
+
+Elle protège aussi d'un cas plus rare mais définitif : la perte de l'accès au
+compte Supabase. Une sauvegarde qui vit au même endroit que la donnée ne
+protège pas de ce risque-là.
+
+> **Ce que contient cette copie.** Tout ce que l'application enregistre :
+> membres, réservations, achats, historique — et les comptes de connexion, sans
+> lesquels une base restaurée serait complète mais inaccessible. Ce sont des
+> données personnelles de vrais membres, adresses et informations médicales
+> comprises : le fichier reste sur le Mac, ne part ni par courriel, ni dans un
+> dossier partagé, ni sur une clé non chiffrée.
+
+**Quand la lancer.** Avant toute opération qui touche à la structure des
+données — une mise en production, une reprise de comptes en nombre, un
+effacement massif. Et régulièrement en dehors de cela : elle prend quelques
+secondes.
+
+Le détail de la commande est dans `guide-installation.md`, section
+« Sauvegarder la production » — c'est un geste technique, qui se fait depuis le
+Mac et non depuis l'application.
+
+**Ce que la sauvegarde ne couvre pas.** Les paiements vivent chez Stripe, pas
+dans cette base : restaurer une sauvegarde ne rembourse rien et n'annule aucun
+abonnement en cours. En cas de doute sur un paiement, c'est toujours le tableau
+de bord Stripe qui fait foi.
 
 ---
 

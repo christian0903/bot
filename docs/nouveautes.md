@@ -12,6 +12,19 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.141.0 — 5 septembre 2026
+
+**Le rappel des présences est actif.** Un cours dont les présences n'ont pas été
+pointées quatre heures après sa fin déclenche un rappel par courriel, au coach
+concerné et aux administrateurs. Un bandeau signale aussi ces cours en tête de
+l'application. Le délai se règle dans *Administration → Paramètres*.
+
+Le guide administrateur explique désormais comment les données du studio sont
+sauvegardées — ce qui est protégé, ce qui ne l'est pas, et pourquoi les
+paiements Stripe suivent une autre logique.
+
+---
+
 ## v3.140.0 — 4 septembre 2026
 
 Rien de visible à l'écran : passage de relais de la session.

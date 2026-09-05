@@ -195,6 +195,58 @@ const USERS = rows.map(row => ({
 | `supabase/seed-demo-performances.sql` | Performances démo pour ingrid, thomas, marie |
 | `supabase/check-policies.sql` | Compare les policies attendues à celles réellement en base |
 | `supabase/test-book-class.sql` | Éprouve la réservation atomique — transaction annulée, rien ne persiste |
+| `supabase/regenerer-donnees-bot3.sql` | Refait l'activité de **bot3** à l'image de la production — voir ci-dessous |
+| `scripts/sauvegarder-ops.sh` | Sauvegarde locale de **bot-ops** (production) — voir ci-dessous |
+
+### Sauvegarder la production
+
+Supabase sauvegarde déjà : le plan **Pro** conserve une copie quotidienne
+pendant **sept jours**. Cela couvre la panne d'infrastructure, pas l'erreur
+découverte au bout de dix jours, ni la perte de l'accès au compte — la
+sauvegarde de Supabase vit au même endroit que la donnée qu'elle protège.
+
+```bash
+./scripts/sauvegarder-ops.sh              # sauvegarde, puis purge à 30 jours
+./scripts/sauvegarder-ops.sh --garder 90  # conserve 90 jours
+./scripts/sauvegarder-ops.sh --sans-purge # ne supprime rien
+```
+
+Les fichiers atterrissent dans `.dumps/dump bot ops/<date-heure>/donnees.sql`,
+un sous-dossier par sauvegarde. Le dossier est **exclu de git** à deux titres :
+ces fichiers portent les adresses, téléphones, dates de naissance et quelques
+dossiers médicaux de vrais membres. Ne pas les déposer dans le vault ni dans un
+dossier synchronisé en clair.
+
+Le script refuse de rendre la main sur un dump incomplet : il vérifie que
+`public` et `auth.users` sont présents, et que le compte des profils est
+plausible. Sans `auth.users`, la base restaurée paraîtrait complète et
+**personne ne pourrait s'y reconnecter**.
+
+Le dump ne porte que les **données**. Pour reconstruire une base entière il
+faut aussi `supabase/install.sql` (le schéma, versionné), les images du bucket
+`class-types` (`scripts/copier-storage.sh`) et les secrets des Edge Functions.
+
+### Redonner à bot3 des données vraisemblables
+
+Les données de test dérivent : le planning se vide, les réservations vieillissent,
+et les écrans finissent par montrer une réalité qui n'existe nulle part. En
+septembre 2026, bot3 portait 551 cours pour 132 réservations, là où la production
+tourne à 0,87 inscrit par cours.
+
+`supabase/regenerer-donnees-bot3.sql` refait cette activité **à la forme de la
+production**, sans en copier aucune donnée personnelle. Il se relance aussi
+souvent que voulu : le planning se recale sur la date du jour, une semaine
+derrière et quatre devant.
+
+À coller dans l'éditeur SQL de Supabase, **projet bot3**, en choisissant
+**« Run without RLS »** — avec RLS, les policies ne laisseraient passer qu'une
+partie des lignes, sans rien signaler. Un garde-fou en tête du script refuse de
+s'exécuter sur une base de plus de soixante profils, ce qui écarte la production.
+
+Ce qui est préservé à chaque passage : les comptes, leurs mots de passe, leurs
+rôles, les types de packs et les réglages du studio. Ce qui est refait : le
+catalogue des cours (aligné sur la production, identifiants compris), le
+planning, les réservations et les achats de packs.
 
 **Les migrations** vivent dans `supabase/migrations/`, nommées par date. Ce guide n'en tient plus la liste : elles se comptent par dizaines et toute énumération vieillit en quelques jours. `ls supabase/migrations/` donne l'état réel.
 

@@ -1,7 +1,7 @@
 # Journal du projet — Back On Track v2
 
 > Trace de l'évolution du projet et de ce qui reste à faire.
-> Dernière mise à jour : **2026-09-04**
+> Dernière mise à jour : **2026-09-05**
 
 ---
 
@@ -29,6 +29,10 @@
 relevés en mesurant les deux sites côte à côte. Le WordPress reste consultable
 sur `wp.backontrackstudio.be`. **La vitrine déployée est en 3.112.0** — douze
 versions de retard, sans effet visible.
+**Rappel des présences** : **en production depuis le 2026-09-05**. Un cours passé dont les présences ne sont pas pointées déclenche un rappel au coach et aux administrateurs, quatre heures après la fin du cours par défaut. Faute de `pg_cron`, le déclenchement suit l'ouverture d'une session du staff.
+
+**Sauvegarde de la production** : `scripts/sauvegarder-ops.sh` (2026-09-05). Supabase conserve 7 jours de copies quotidiennes (plan Pro, PITR **non** souscrit) ; ce script en pose une locale dans `.dumps/dump bot ops/<date>/`, hors git. À lancer avant toute opération touchant la structure.
+
 **Documentation** : **à jour au 2026-08-23** en français, `public/` compris. Les versions **anglaises accusent un retard important** et attendent un chantier à part.
 **PWA** : **livrée** (2026-08-24) — l'application s'installe sur l'écran d'accueil iPhone et Android, sans passer par un store, et annonce ses mises à jour au lieu de les imposer. Sert la phase de test avant l'App Store.
 **Durée d'abonnement** : **libre** — jours, semaines ou mois, un nombre au choix. Un garde-fou infondé qui bloquait les durées non multiples de 7 a été levé.
@@ -85,6 +89,118 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 1. **Suppression de compte depuis l'application** — obligatoire depuis 2022, motif de rejet automatique. Livrée : elle **anonymise** plutôt qu'elle n'efface, les traces comptables se conservant sept ans par obligation légale belge. Un abonnement actif bloque l'opération, sinon le membre ne pourrait plus l'arrêter.
 2. **Politique de confidentialité avec URL publique** — livrée, page `/confidentialite` (et non `/privacy`, corrigé le 2026-08-29 : c'est cette URL qu'App Store Connect attend, une adresse fausse dans la fiche vaut rejet).
+
+---
+
+## Session du 2026-09-05 — la production reçoit le rappel des présences, bot3 redevient crédible
+
+### Ce qui a été fait
+
+**Le rappel des présences est en production.** La migration
+`20260903_rappel_presences.sql` manquait à `bot-ops` alors qu'elle partait déjà
+dans le build 8 de l'App Store : les deux fonctions, la colonne
+`attendance_reminded_at` et le réglage `attendance_reminder_hours` étaient
+absents. Le bandeau serait resté inerte — sans casse, `BandeauPresences.tsx`
+avalant l'erreur, mais sans rien afficher non plus.
+
+Appliquée par l'éditeur SQL. Contrôle après coup : `anon` n'a pas conservé le
+droit d'exécution sur les deux fonctions.
+
+**Les deux bases sont alignées.** Comparaison objet par objet — tables,
+colonnes, fonctions (empreinte MD5 du corps), triggers, vues, policies. Après
+la migration, le seul écart restant est `contact_envois` et
+`contact_debit_depasse`, propres à la production (formulaire de contact de la
+vitrine). Les 89 policies RLS sont identiques.
+
+> Cinq fonctions paraissaient diverger — `book_member_by_staff`,
+> `can_book_class`, `check_coupon`, `member_sessions_count`,
+> `update_member_status`. Empreintes recalculées **commentaires neutralisés**,
+> elles sont identiques : la production est simplement mieux commentée. Comparer
+> `md5(prosrc)` brut fait crier au loup.
+
+**`supabase/` rangé.** Deux scripts de mise en production consommés retirés
+(`mise-en-production-20260903.sql`, et le fichier du jour). Le reste est
+référencé par les guides et sert encore : seeds, tests, contrôles.
+
+**`supabase/migrations/README.md`** — les 74 migrations en séquence, avec pour
+chacune la version de `package.json` du commit qui l'a ajoutée. Généré depuis
+git, contrôlé exhaustif.
+
+**`supabase/regenerer-donnees-bot3.sql`** — refait l'activité de bot3 à la
+forme de la production, sans en copier aucune donnée personnelle.
+
+**`scripts/sauvegarder-ops.sh`** — sauvegarde locale de la production.
+Éprouvé : deux dumps réels produits, 102 profils et 102 comptes `auth`.
+
+**Guides** : `guide-admin.md` explique ce qui est sauvegardé et ce qui ne l'est
+pas ; `guide-installation.md` documente les deux nouveaux scripts. Recopie dans
+`public/` faite (règle 3).
+
+### Ce qui a été décidé, et pourquoi
+
+**Ne pas renommer les migrations.** L'index les remet en ordre, les fichiers ne
+bougent pas. Les préfixes portent 8 chiffres là où le CLI en attend 14 — c'est
+la cause de la règle 5. Renommer ferait recalculer au CLI ce qu'il croit
+appliqué, et un `db push` ultérieur rejouerait des migrations déjà passées,
+dont `20260805_reset_member_test_data.sql`, sur 102 comptes réels. Le README
+porte cette explication, pour que personne ne « répare » ça plus tard.
+
+**Garder les 30 comptes de test de bot3.** Créer des comptes exige d'écrire
+dans `auth.users` (mots de passe chiffrés, `identities`) : laborieux, et
+Christian perdrait les identifiants qu'il connaît. Seule l'activité était
+irréaliste — 551 cours pour 132 réservations, contre 0,87 inscrit par cours en
+production.
+
+**Aligner les identifiants du catalogue sur la production.** Les types de
+crédits et de cours de bot3 portaient les mêmes noms sous d'autres
+identifiants. Les aligner rend les deux bases comparables ligne à ligne —
+c'est exactement ce qui a permis de repérer l'écart du jour.
+
+**Garder les seeds et les scripts de test.** La demande était de ne laisser que
+les contrôles et l'installation ; `guide-installation.md` et
+`charger-demo-data.md` les référencent nommément, les retirer aurait cassé
+trois guides.
+
+### Le pooler de bot-ops est `aws-1`, pas `aws-0`
+
+`aws-0-eu-west-3` répond « tenant/user postgres.<ref> not found ». Les deux
+hôtes existent et résolvent en DNS, un seul accepte le projet. Fixé dans
+`.env.migration` (`OPS_POOLER`).
+
+Le mot de passe n'a pas eu à être ressaisi : `CIBLE_REF` de `.env.migration`
+**est** bot-ops depuis la migration d'août, `CIBLE_PASSWORD` porte donc le bon.
+Le script s'en sert en repli, après avoir vérifié que `CIBLE_REF` désigne bien
+bot-ops.
+
+### Six contraintes rencontrées en écrivant le script de bot3
+
+Elles valent d'être notées : elles se retrouveront à chaque script qui écrit en
+masse dans cette base.
+
+| Obstacle | Ce qu'il impose |
+|---|---|
+| `credit_types_name_key` | `name` est unique : un `ON CONFLICT (id)` ne suffit pas, il faut renuméroter en quatre temps |
+| `class_types_protect_credit` | Refuse de changer le type de crédit tant qu'un cours en dépend — **effacer l'activité d'abord** |
+| `class_types.name` non unique | Insérer sans nettoyer laisse deux « BackOnTrack » à l'écran |
+| `invoice_requests_pack_purchase_id_fkey` | Retient `pack_purchases` : la demande de facture survit à l'achat |
+| `bookings_pack_or_trial` | `pack_purchase_id IS NOT NULL OR is_trial`, vérifié **ligne à ligne** — les packs se créent avant les réservations, pas après |
+| `pack_purchases_payment_method_check` | `stripe`, `cash`, `transfer`, `gift` — pas `card` |
+
+**La leçon de méthode** : les cinq premières ont été découvertes une par une, à
+l'exécution. Relever d'emblée toutes les contraintes CHECK, UNIQUE, NOT NULL et
+les clés étrangères des tables visées aurait tout donné en une requête — c'est
+ce qui a permis d'attraper la sixième avant qu'elle ne se produise.
+
+### Ouvert, non traité
+
+| Sujet | Détail |
+|---|---|
+| **`regenerer-donnees-bot3.sql` jamais mené à terme** | Corrigé six fois, jamais exécuté jusqu'au bout. À relancer sur bot3, « Run without RLS ». |
+| **PITR non activé** | Le plan Pro conserve 7 jours de sauvegardes quotidiennes. Le *Point-in-Time Recovery* est une option payante, non souscrite. |
+| **Sauvegarde non planifiée** | `sauvegarder-ops.sh` se lance à la main. Aucun automatisme. |
+| **`contact_envois` sans policy RLS** | Écrite uniquement par une Edge Function, mais la table n'a aucune policy. À regarder. |
+| **78 fonctions `SECURITY DEFINER`** | Toujours exécutables par `anon` sur bot3. Audit à mener. |
+| **Rappel des présences : première volée** | 3 cours non pointés × 4 admins ≈ 12 e-mails au premier passage du staff. Volume mesuré, jugé acceptable. |
 
 ---
 
