@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.144.0 — 5 septembre 2026
+
+Rien de visible à l'écran : les étapes du suivi des demandes portent les noms
+dont on se sert vraiment — Proposé, Accepté, En cours, Développé, En production.
+
+---
+
 ## v3.143.0 — 5 septembre 2026
 
 Rien de visible à l'écran : la base Notion qui recueille vos demandes existe

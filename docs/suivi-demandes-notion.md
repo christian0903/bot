@@ -93,9 +93,9 @@ La propriété **Étape** ne prend que ces valeurs :
 | Étape | Ce qu'elle signifie | Qui la fait avancer |
 |---|---|---|
 | **Proposé** | La demande existe, elle attend l'avis des autres | Le coach qui la crée |
-| **Adopté** | Au moins deux coachs la portent | Christian, quand `Appuyé par` contient 2 noms |
+| **Accepté** | Au moins deux coachs la portent | Christian, quand `Appuyé par` contient 2 noms |
 | **En cours** | En développement | Christian |
-| **À tester sur JAG** | Livrée sur `jag.backontrackstudio.be` | Christian |
+| **Développé** | Livrée sur `jag.backontrackstudio.be`, à éprouver | Christian |
 | **En production** | Validée sur JAG, passée sur `app.` | Christian |
 | **Déjà fait** | Livrée **avant** la mise en place de ce suivi | Christian |
 | **Écarté** | Ne se fera pas | Christian |
@@ -106,10 +106,17 @@ compris ; *Déjà fait* recueille ce qui était livré avant que la base existe.
 tableau montre ainsi, dès l'ouverture, ce qui est acquis à gauche du travail
 restant.
 
+> **Renommées le 2026-09-05** : *Adopté* est devenu *Accepté*, et *À tester
+> sur JAG* est devenu *Développé* — le vocabulaire dont Christian se sert
+> réellement. Attention, **un `ALTER COLUMN` de l'API Notion vide la valeur des
+> fiches qui portaient l'ancien libellé** au lieu de la reporter : une entrée a
+> dû être reclassée à la main. Renommer plutôt depuis l'interface, ou vérifier
+> les fiches après coup.
+
 **« Écarté » vaut mieux qu'une suppression.** Une demande refusée sans trace
 revient tous les trois mois.
 
-> **Une seule règle à tenir** : rien ne passe de *Proposé* à *Adopté* sans deux
+> **Une seule règle à tenir** : rien ne passe de *Proposé* à *Accepté* sans deux
 > noms dans `Appuyé par`. Notion ne l'imposera pas — c'est une discipline, pas
 > un verrou. Mais elle est visible de tous, et c'est ce qui la rend tenable :
 > un coach voit que sa demande attend, et va en parler à ses collègues plutôt
@@ -217,7 +224,7 @@ La vue principale. Les étapes se lisent de gauche à droite comme un parcours ;
 faire glisser une carte d'une colonne à l'autre suffit à la faire avancer.
 C'est le geste que Christian répétera le plus — il doit rester le plus simple.
 
-**2. « À valider par vous » — vue Liste, filtrée sur `Étape = À tester sur JAG`**
+**2. « À valider par vous » — vue Liste, filtrée sur `Étape = Développé`**
 
 Ce que les coachs doivent éprouver, avec les trois colonnes de dates. C'est la
 vue à leur envoyer quand une livraison part sur JAG.
@@ -252,7 +259,7 @@ dépendre l'historique du projet d'un outil externe.
 
 ## Ce que ce dispositif ne fait pas
 
-**Il n'empêche rien.** Notion ne bloquera pas un passage en *Adopté* sans les
+**Il n'empêche rien.** Notion ne bloquera pas un passage en *Accepté* sans les
 deux appuis, ni une mise en production sans date de test. Si la règle est
 contournée au bout de deux mois, ce n'est pas l'outil qu'il faut changer :
 c'est que le filtre n'était pas le vrai besoin.
@@ -325,10 +332,10 @@ n'est pas partagé. Parlez-en à vos collègues.
 
 Le tableau se lit de gauche à droite :
 
-**Proposé** → **Adopté** (deux appuis) → **En cours** (en développement) →
-**À tester sur JAG** → **En production**
+**Proposé** → **Accepté** (deux appuis) → **En cours** (en développement) →
+**Développé** (sur JAG) → **En production**
 
-### Quand une demande arrive en « À tester sur JAG »
+### Quand une demande arrive en « Développé »
 
 C'est le moment où on a besoin de vous.
 
