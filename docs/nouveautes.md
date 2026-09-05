@@ -12,6 +12,14 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.145.0 — 5 septembre 2026
+
+Rien de visible à l'écran : une note explique aux coachs ce que la publication
+sur l'App Store nous coûte — l'examen d'Apple, son droit de refus, les délais —
+et pourquoi les corrections ne peuvent plus paraître en quelques minutes.
+
+---
+
 ## v3.144.0 — 5 septembre 2026
 
 Rien de visible à l'écran : les étapes du suivi des demandes portent les noms
