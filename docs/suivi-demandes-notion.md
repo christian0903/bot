@@ -203,6 +203,22 @@ par les stores.
 La procédure complète d'envoi vit dans `mettre-a-jour-app-store.md`, qui reste
 la source de vérité ; la base n'en retient que l'état.
 
+### Publier par lots
+
+Une publication sur l'App Store coûte environ **une demi-journée de travail**,
+indépendamment du nombre de modifications qu'elle emporte : enveloppe, notes de
+version, soumission, suivi de l'examen, distribution aux testeurs, mise à jour
+de la fiche. Le coût est le même pour une correction que pour dix.
+
+**Une version mobile emporte donc plusieurs demandes à la fois.** C'est ce qui
+justifie que `Build iOS` se ressaisisse sur chaque ligne concernée : les
+demandes d'un même lot portent le même numéro, et la vue « Publication App
+Store » les montre ensemble.
+
+Composer le lot est une décision à prendre : ce qui est prêt part, ce qui ne
+l'est pas attend le suivant. La colonne `Étape` dit ce qui est disponible, le
+statut `iPhone` dit ce qui est déjà parti.
+
 ### La limite assumée
 
 Le build est un attribut de la **livraison**, pas de la **demande** : un même

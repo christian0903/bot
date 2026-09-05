@@ -12,6 +12,14 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.149.0 — 5 septembre 2026
+
+Rien de visible à l'écran : la note aux coachs dit ce que chaque publication
+coûte en travail, et annonce que les modifications partiront désormais par
+lots.
+
+---
+
 ## v3.148.0 — 5 septembre 2026
 
 Rien de visible à l'écran : le courriel aux coachs montre les deux parcours

@@ -39,6 +39,9 @@ Mais publier sur un magasin d'applications, ce n'est pas déposer un fichier
 quelque part. C'est **confier notre application à Apple**, qui décide de ce qui
 paraît et quand. Cela se paie de quatre façons, et aucune n'est négociable.
 
+Les trois premières se subissent. La quatrième, elle, se travaille — et c'est
+celle qui pèse le plus sur notre rythme.
+
 ### 1. Le temps — le vrai coût
 
 **Apple examine chaque nouvelle version avant de la laisser paraître.** Comptez
@@ -63,14 +66,43 @@ tout le monde.** Apple prévient les téléphones ; ensuite chacun se met à jou
 selon ses réglages et sa connexion. Pendant plusieurs jours, nous n'aurons pas
 tous la même version — et donc pas tous le même écran sous les yeux.
 
-### 4. L'argent — le moins lourd
+### 4. L'argent, et surtout le travail qu'il ne paie pas
 
-Un compte développeur Apple coûte **99 $ par an**, et il faut le renouveler
-pour que l'application reste disponible. Côté Google, l'inscription est de
-**25 $, une seule fois**.
+**L'abonnement est la part facile.** Un compte développeur Apple coûte
+**99 $ par an**, à renouveler faute de quoi l'application disparaît de l'App
+Store. Google demande **25 $, une seule fois**. Quelques dizaines d'euros par
+an : ce n'est pas là que le bât blesse.
 
-C'est la part la plus facile : quelques dizaines d'euros par an, sans commune
-mesure avec le temps.
+**Le vrai coût, c'est le travail que cela m'ajoute** — et il revient à chaque
+publication, indéfiniment.
+
+Sur le site, mettre à jour tenait en une commande. Publier une version sur
+l'App Store demande, à chaque fois :
+
+- **fabriquer l'enveloppe iPhone** et vérifier qu'elle embarque la bonne
+  version — l'erreur ne se voit pas avant d'être chez Apple ;
+- **rédiger les notes de version**, obligatoires, ainsi que les remarques
+  destinées à l'examinateur ;
+- **suivre la soumission**, guetter la réponse d'Apple, et **traiter un refus**
+  s'il arrive : comprendre le motif, corriger, resoumettre, réattendre ;
+- **distribuer aux testeurs**, avec ce qu'il faut regarder ;
+- **publier au bon moment**, la version approuvée restant invisible tant que je
+  ne clique pas ;
+- **maintenir la fiche App Store** — captures d'écran, description, politique
+  de confidentialité, conformité — que je dois reprendre à chaque changement
+  d'écran un peu visible.
+
+À quoi s'ajoute ce qui ne se voit jamais : suivre les règles d'Apple, qui
+changent sans prévenir, et refaire les enveloppes quand une nouvelle version
+d'iOS l'exige, **même si notre application, elle, n'a pas bougé**.
+
+Comptez **une demi-journée de travail par publication**, sans compter les
+refus. C'est autant de temps qui ne va pas à développer ce que vous demandez.
+
+**C'est la raison de fond du ralentissement.** Ce n'est pas seulement qu'Apple
+prend 24 à 48 heures : c'est qu'une publication coûte assez cher en travail
+pour qu'on ne puisse plus en faire une par jour. **Il faudra grouper les
+modifications** et publier par lots, là où chaque correction partait seule.
 
 ### Ce qui ne change pas
 
@@ -219,6 +251,9 @@ Il sert à trois choses :
    portent — ce qui distingue un besoin partagé d'une préférence personnelle.
 3. **Voir où on en est.** Sans avoir à me le demander : proposé, accepté, en
    cours, développé, en production.
+4. **Composer les lots.** Puisqu'une publication coûte une demi-journée, elle
+   emportera plusieurs modifications à la fois. Le tableau sert à décider
+   lesquelles partent ensemble — et à voir ce qui attend le prochain envoi.
 
 Le tableau sera sur **Notion**, puisque vous vous en servez déjà. Je vous
 proposerai un fonctionnement ; il n'est pas gravé dans le marbre, et nous
@@ -359,10 +394,24 @@ met à jour selon ses réglages et sa connexion. Pendant plusieurs jours, **nous
 n'aurons pas tous la même version sous les yeux** — c'est normal, ne vous en
 inquiétez pas.
 
-**4. L'argent, et c'est le moins lourd.** Le compte développeur Apple coûte
-99 $ par an, à renouveler pour que l'application reste disponible. Google
-demande 25 $ une seule fois. Quelques dizaines d'euros par an : sans commune
-mesure avec le temps.
+**4. L'argent, et surtout le travail que cela m'ajoute.** L'abonnement est la
+part facile : 99 $ par an chez Apple, à renouveler faute de quoi l'application
+disparaît, et 25 $ une seule fois chez Google.
+
+Le vrai coût est ailleurs. Là où mettre à jour le site tenait en une commande,
+chaque publication sur l'App Store me demande de fabriquer l'enveloppe iPhone,
+d'écrire les notes de version, de suivre la soumission, de traiter un refus
+s'il arrive, de distribuer aux testeurs, de publier au bon moment, et de tenir
+à jour la fiche de l'application — captures d'écran comprises. Sans compter les
+règles d'Apple qui changent sans prévenir, et les enveloppes à refaire quand
+une nouvelle version d'iOS l'exige, même si notre application n'a pas bougé.
+
+Comptez une demi-journée de travail par publication, refus non compris.
+
+**C'est la vraie raison du ralentissement** : ce n'est pas seulement qu'Apple
+prend 24 à 48 heures, c'est qu'une publication coûte assez cher pour qu'on ne
+puisse plus en faire une par jour. Concrètement, **je regrouperai les
+modifications** et publierai par lots, là où chaque correction partait seule.
 
 **Ce qui ne change pas** : le site reste libre et immédiat. En ouvrant
 `app.backontrackstudio.be` dans votre navigateur, vous avez toujours la
