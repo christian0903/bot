@@ -231,10 +231,11 @@ l'ajusterons à l'usage.
 > À copier tel quel. Objet suggéré : **« L'application est sur l'App Store —
 > et ce que ça nous coûte »**
 >
-> Les deux parcours y sont repris en listes numérotées, et non avec les
-> schémas fléchés ci-dessus : ceux-ci n'alignent correctement qu'en police à
-> chasse fixe, que les messageries n'emploient pas par défaut. Les listes,
-> elles, tiennent partout.
+> **Markdown.** MailMate rédige en Markdown : le texte ci-dessous se colle tel
+> quel, gras et listes compris. Les deux schémas sont dans des blocs de code
+> (` ``` `), ce qui les fait rendre en police à chasse fixe — c'est ce qui tient
+> l'alignement des flèches. Ne pas retirer ces blocs : en police
+> proportionnelle, les schémas se déformeraient.
 
 Bonjour à tous,
 
@@ -265,6 +266,52 @@ entre votre demande et l'application à jour chez tout le monde — là où c'é
 quelques minutes.
 
 Voici les deux parcours, côte à côte.
+
+```
+AVANT — le site                    MAINTENANT — l'App Store
+
+Vous demandez                      Vous demandez
+      │                                  │
+      ▼                                  ▼
+Je développe                       Je développe
+      │                                  │
+      ▼                                  ▼
+Je dépose sur JAG                  Je dépose sur JAG
+      │                                  │
+      ▼                                  ▼
+Vous testez                        Vous testez
+      │                                  │
+      ▼                                  ▼
+Je passe en production             Je passe en production
+      │                                  │
+      ▼                                  ▼
+EN LIGNE POUR TOUS                 Je fabrique la version iPhone
+                                         │
+  ⏱ quelques minutes                     ▼
+                                   Je l'envoie chez Apple
+                                         │
+                                         ▼
+                                   Apple vérifie l'envoi
+                                         │
+                                         ▼
+                                   Vous l'essayez (TestFlight)
+                                         │
+                                         ▼
+                                   Je soumets pour publication
+                                         │
+                                         ▼
+                                   APPLE EXAMINE  ← 24 à 48 h
+                                         │           et il peut refuser
+                                         ▼
+                                   Je publie
+                                         │
+                                         ▼
+                                   Votre téléphone se met à jour
+
+                                     ⏱ une à deux semaines
+```
+
+Le détail, avec les délais de chaque étape :
 
 **AVANT — le parcours du site, en quelques minutes**
 

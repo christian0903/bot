@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.148.0 — 5 septembre 2026
+
+Rien de visible à l'écran : le courriel aux coachs montre les deux parcours
+sous forme de schéma, les deux colonnes côte à côte.
+
+---
+
 ## v3.147.0 — 5 septembre 2026
 
 Rien de visible à l'écran : le courriel aux coachs montre les deux parcours,
