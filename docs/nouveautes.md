@@ -12,6 +12,13 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.150.0 — 5 septembre 2026
+
+Rien de visible à l'écran : le courriel annonçant le changement de rythme a été
+envoyé aux coachs ce matin, et sa copie est conservée avec la note.
+
+---
+
 ## v3.149.0 — 5 septembre 2026
 
 Rien de visible à l'écran : la note aux coachs dit ce que chaque publication

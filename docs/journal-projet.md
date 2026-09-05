@@ -92,6 +92,37 @@ Compte Apple Developer pris **au nom propre de Christian** (99 $/an) — décisi
 
 ---
 
+## Session du 2026-09-05 (soir, suite) — les coachs sont prévenus du changement de rythme
+
+### Ce qui a été fait
+
+**Le courriel expliquant le ralentissement est parti**, le 2026-09-05 à 10:22,
+depuis `christian@aikicom.eu`. Sa copie conforme est conservée à la fin de
+`docs/coachs-pourquoi-ca-va-moins-vite.md` — c'est elle qui fait foi de ce que
+les coachs ont lu.
+
+Le message dit, dans cet ordre : l'attrait de l'App Store, puis le prix à
+payer — le temps (une à deux semaines contre quelques minutes), le droit de
+refus d'Apple, la perte de maîtrise sur la mise à jour, et **le travail que
+chaque publication ajoute**, chiffré à une demi-journée. Il annonce le
+regroupement des modifications par lots, et le tableau de suivi Notion.
+
+Deux schémas comparent le parcours web et le parcours App Store. Christian les
+a insérés en images dans le courriel : les schémas en caractères ne rendaient
+pas bien.
+
+### Ce qui reste ouvert
+
+**La règle des deux appuis n'a pas été annoncée.** Le courriel présente le
+tableau Notion mais ne dit pas qu'une demande avance quand deux coachs la
+portent — c'est le cœur du dispositif. **À dire dans le message qui
+accompagnera le tableau**, lorsqu'il sera partagé.
+
+**Le repère d'une demi-journée par publication** est celui que Christian a
+laissé dans l'envoi : il vaut désormais engagement vis-à-vis des coachs.
+
+---
+
 ## Session du 2026-09-05 (soir) — les demandes des coachs ont une base, et un parcours jusqu'à l'App Store
 
 ### Ce qui a été fait

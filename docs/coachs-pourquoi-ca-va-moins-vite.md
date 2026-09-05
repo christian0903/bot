@@ -3,7 +3,9 @@
 > Note destinée aux coachs. Elle explique ce que la publication nous coûte, et
 > pourquoi nous avons désormais besoin d'un suivi des demandes.
 >
-> **À transmettre par courriel** — le texte prêt à envoyer est à la fin.
+> **Envoyée aux coachs le 2026-09-05 à 10:22.** Le courriel tel qu'il est parti
+> est conservé à la fin — c'est lui qui fait foi de ce qu'ils ont lu ; ce qui
+> précède est la version de travail, plus complète.
 
 ---
 
@@ -38,9 +40,6 @@ l'attrait — et il est réel.
 Mais publier sur un magasin d'applications, ce n'est pas déposer un fichier
 quelque part. C'est **confier notre application à Apple**, qui décide de ce qui
 paraît et quand. Cela se paie de quatre façons, et aucune n'est négociable.
-
-Les trois premières se subissent. La quatrième, elle, se travaille — et c'est
-celle qui pèse le plus sur notre rythme.
 
 ### 1. Le temps — le vrai coût
 
@@ -251,9 +250,6 @@ Il sert à trois choses :
    portent — ce qui distingue un besoin partagé d'une préférence personnelle.
 3. **Voir où on en est.** Sans avoir à me le demander : proposé, accepté, en
    cours, développé, en production.
-4. **Composer les lots.** Puisqu'une publication coûte une demi-journée, elle
-   emportera plusieurs modifications à la fois. Le tableau sert à décider
-   lesquelles partent ensemble — et à voir ce qui attend le prochain envoi.
 
 Le tableau sera sur **Notion**, puisque vous vous en servez déjà. Je vous
 proposerai un fonctionnement ; il n'est pas gravé dans le marbre, et nous
@@ -261,177 +257,222 @@ l'ajusterons à l'usage.
 
 ---
 
-# Le courriel à envoyer
+# Le courriel envoyé le 5/9/26
 
-> À copier tel quel. Objet suggéré : **« L'application est sur l'App Store —
-> et ce que ça nous coûte »**
+> Copie conforme de l'envoi. **Ne pas le retoucher** : il dit ce que les coachs
+> ont effectivement reçu.
 >
-> **Markdown.** MailMate rédige en Markdown : le texte ci-dessous se colle tel
-> quel, gras et listes compris. Les deux schémas sont dans des blocs de code
-> (` ``` `), ce qui les fait rendre en police à chasse fixe — c'est ce qui tient
-> l'alignement des flèches. Ne pas retirer ces blocs : en police
-> proportionnelle, les schémas se déformeraient.
+> Trois écarts avec la version de travail ci-dessus, à connaître pour la suite :
+>
+> - **La numérotation saute de 1 à 3.** Le point 2, le droit de refus, a été
+>   fondu dans la liste des étapes 6 à 12 ; les points suivants ont gardé leurs
+>   numéros d'origine.
+> - **Le point 4 dit deux fois les 99 $**, l'ancienne rédaction et la nouvelle
+>   s'y suivant. Sans conséquence pour la compréhension.
+> - **La règle des deux appuis n'y est pas.** Le courriel annonce le tableau
+>   Notion mais ne dit pas qu'une demande avance quand deux coachs la portent —
+>   c'est pourtant le cœur du dispositif. **À dire dans le message qui
+>   accompagnera le tableau.**
 
-Bonjour à tous,
+On 5 Sep 2026, at 10:22, christian@aikicom.eu wrote:
 
-L'application est disponible sur l'App Store depuis le 4 septembre. Elle
-s'installe maintenant comme n'importe quelle autre, avec son icône sur l'écran
-d'accueil. C'est une étape importante, et pour un membre c'est bien plus simple
-qu'une adresse à retenir.
-
-Publier sur l'App Store est certes très attractif, mais cela comporte aussi pas
-mal d'inconvénients, que je voudrais vous décrire. **Le principal est que nous
-ne pourrons plus produire de changements aussi rapidement qu'auparavant.**
-
-Revenons d'abord sur ce qui s'est passé jusqu'ici.
-
-**On allait très vite.** L'application a changé 145 fois depuis le début du
-projet — nous en sommes à la version 3.145. Quand l'un de vous
-signalait quelque chose le matin, c'était souvent corrigé l'après-midi.
-C'était possible parce que l'application vivait sur le web : je déposais la
-modification sur le serveur, et vous l'aviez à l'ouverture suivante.
-
-**Publier sur l'App Store, c'est confier notre application à Apple**, qui
-décide de ce qui paraît et quand. Cela se paie de quatre façons.
-
-**1. Le temps, et c'est le vrai prix.** Apple examine chaque nouvelle version
-avant de la laisser paraître : 24 à 48 heures en général. Avec la fabrication,
-l'envoi et le téléchargement sur vos téléphones, comptez **une à deux semaines**
-entre votre demande et l'application à jour chez tout le monde — là où c'était
-quelques minutes.
-
-Voici les deux parcours, côte à côte.
-
+> Bonjour à tous,
+>
+> L'application est disponible sur l'App Store depuis le 4 septembre. Elle s'installe 
+> maintenant comme n'importe quelle autre, avec son icône sur l'écran d'accueil. C'est une 
+> étape importante, et pour un membre c'est bien plus simple qu'une adresse à retenir.
+>
+> Publier sur l'App Store est certes très attractif, mais cela comporte aussi pas mal 
+> d'inconvénients, que je voudrais vous décrire.
+>
+>
+> **Le principal est que nous ne pourrons plus produire de changements aussi rapidement 
+> qu'auparavant.**
+>
+> Revenons d'abord sur ce qui s'est passé jusqu'ici.
+>
+> On allait très vite. L'application a changé 145 fois depuis le début du projet — nous en 
+> sommes à la version 3.145. Quand l'un de vous signalait quelque chose le matin, c'était 
+> souvent corrigé l'après-midi. C'était possible parce que l'application vivait sur le web : 
+> je déposais la modification sur le serveur, et vous l'aviez à l'ouverture suivante.
+>
+> Publier sur l'App Store, c'est confier notre application à Apple, qui décide de ce qui 
+> paraît et quand. Cela se paie de quatre façons.
+>
+> ## 1. Le temps,
+> Apple examine chaque nouvelle version avant de la laisser paraître : 24 à 48 heures en 
+> général. Avec la fabrication, l'envoi et le téléchargement sur vos téléphones, comptez une 
+> à deux semaines entre votre demande et l'application à jour chez tout le monde — là où 
+> c'était quelques minutes.
+>
+> ### Voici les deux parcours, côte à côte.
+>
+> #### Avant — le parcours web, en quelques minutes
 ```
-AVANT — le site                    MAINTENANT — l'App Store
-
-Vous demandez                      Vous demandez
-      │                                  │
-      ▼                                  ▼
-Je développe                       Je développe
-      │                                  │
-      ▼                                  ▼
-Je dépose sur JAG                  Je dépose sur JAG
-      │                                  │
-      ▼                                  ▼
-Vous testez                        Vous testez
-      │                                  │
-      ▼                                  ▼
-Je passe en production             Je passe en production
-      │                                  │
-      ▼                                  ▼
-EN LIGNE POUR TOUS                 Je fabrique la version iPhone
-                                         │
-  ⏱ quelques minutes                     ▼
-                                   Je l'envoie chez Apple
-                                         │
-                                         ▼
-                                   Apple vérifie l'envoi
-                                         │
-                                         ▼
-                                   Vous l'essayez (TestFlight)
-                                         │
-                                         ▼
-                                   Je soumets pour publication
-                                         │
-                                         ▼
-                                   APPLE EXAMINE  ← 24 à 48 h
-                                         │           et il peut refuser
-                                         ▼
-                                   Je publie
-                                         │
-                                         ▼
-                                   Votre téléphone se met à jour
-
-                                     ⏱ une à deux semaines
+Vous demandez
+      │
+      ▼
+Je développe
+      │
+      ▼
+Je dépose sur JAG  ──────►  Vous testez
+(le site d'essai)                │
+                                 ▼
+                          Je passe en production
+                                 │
+                                 ▼
+                     C'est en ligne pour tout le monde
+⏱  quelques minutes entre le test et la mise en ligne
 ```
 
-Le détail, avec les délais de chaque étape :
-
-**AVANT — le parcours du site, en quelques minutes**
-
-1. Vous demandez
-2. Je développe
-3. Je dépose sur JAG, le site d'essai
-4. **Vous testez sur JAG**
-5. Je passe en production → **c'est en ligne pour tout le monde**
-
-Ce parcours existe toujours : c'est celui de l'application ouverte dans le
-navigateur.
-
-**MAINTENANT — le parcours de l'App Store, en une à deux semaines**
-
-Les cinq premières étapes sont les mêmes :
-
-1. Vous demandez
-2. Je développe
-3. Je dépose sur JAG, le site d'essai
-4. **Vous testez sur JAG**
-5. Je passe en production → *le site est à jour, mais pas l'application*
-
-Et c'est seulement là que commence le chemin vers votre téléphone :
-
-6. Je fabrique une version iPhone et je l'envoie chez Apple — *environ 1 h*
-7. Apple vérifie l'envoi — *10 à 30 min*
-8. **Vous l'essayez sur votre téléphone**, via TestFlight
-9. Je la soumets pour publication
-10. **Apple l'examine — 24 à 48 h**, et il peut refuser
-11. Je publie
-12. Votre téléphone télécharge la mise à jour — *de quelques heures à
-    plusieurs jours*
-
-Sur ces sept étapes ajoutées, **quatre ne dépendent pas de nous** : la
-vérification d'Apple, son examen, son droit de refus, et le rythme auquel
-chaque téléphone se met à jour.
-
-**2. Apple peut dire non.** C'est l'étape 10 ci-dessus, et il l'a déjà fait
-deux fois pour notre application. Il faut alors comprendre le motif, corriger,
-et resoumettre : le délai repart à zéro.
-
-**3. Nous ne maîtrisons plus la mise à jour.** Une fois publiée, la nouvelle
-version ne s'installe pas d'elle-même chez tout le monde : chaque téléphone se
-met à jour selon ses réglages et sa connexion. Pendant plusieurs jours, **nous
-n'aurons pas tous la même version sous les yeux** — c'est normal, ne vous en
-inquiétez pas.
-
-**4. L'argent, et surtout le travail que cela m'ajoute.** L'abonnement est la
-part facile : 99 $ par an chez Apple, à renouveler faute de quoi l'application
-disparaît, et 25 $ une seule fois chez Google.
-
-Le vrai coût est ailleurs. Là où mettre à jour le site tenait en une commande,
-chaque publication sur l'App Store me demande de fabriquer l'enveloppe iPhone,
-d'écrire les notes de version, de suivre la soumission, de traiter un refus
-s'il arrive, de distribuer aux testeurs, de publier au bon moment, et de tenir
-à jour la fiche de l'application — captures d'écran comprises. Sans compter les
-règles d'Apple qui changent sans prévenir, et les enveloppes à refaire quand
-une nouvelle version d'iOS l'exige, même si notre application n'a pas bougé.
-
-Comptez une demi-journée de travail par publication, refus non compris.
-
-**C'est la vraie raison du ralentissement** : ce n'est pas seulement qu'Apple
-prend 24 à 48 heures, c'est qu'une publication coûte assez cher pour qu'on ne
-puisse plus en faire une par jour. Concrètement, **je regrouperai les
-modifications** et publierai par lots, là où chaque correction partait seule.
-
-**Ce qui ne change pas** : le site reste libre et immédiat. En ouvrant
-`app.backontrackstudio.be` dans votre navigateur, vous avez toujours la
-dernière version, sans attendre Apple. En cas de correction urgente, c'est par
-là que ça arrivera en premier.
-
-Pour Android, rien n'est encore en place — l'application n'est pas sur le Play
-Store et je n'ai pas de date. Le prix sera de même nature, et cela fera deux
-magasins à satisfaire au lieu d'un.
-
-**Ce que je vous propose.** Avec des délais pareils, on ne peut plus se
-contenter de se dire les choses en passant : on oublierait qui a demandé quoi,
-et où ça en est. J'ai préparé un tableau de suivi sur **Notion**, puisque vous
-l'utilisez déjà. Vous y écrirez vos demandes, vous appuierez celles de vos
-collègues — une demande avance quand deux d'entre vous au moins la portent — et
-vous verrez à tout moment où chacune en est.
-
-Je vous l'envoie séparément avec le mode d'emploi. C'est une proposition : si
-quelque chose ne va pas dans la façon dont je l'ai pensé, dites-le, on
-l'ajustera.
-
-À bientôt,
-Christian
+>
+> #### Maintenant — le parcours App Store, en une à deux semaines
+>
+```
+Vous demandez
+      │
+      ▼
+Je développe
+      │
+      ▼
+Je dépose sur JAG  ──────►  Vous testez
+(le site d'essai)                │
+                                 ▼
+                          Je passe en production          ← le web s'arrête ici
+                                 │
+                                 ▼
+                   ┌─────────────────────────────┐
+                   │   ET ENSUITE, POUR L'APP    │
+                   └─────────────────────────────┘
+                                 │
+                                 ▼
+              Je fabrique une « enveloppe » iPhone
+                                 │
+                                 ▼
+                    Je l'envoie chez Apple
+                                 │
+                                 ▼
+                Apple vérifie qu'elle fonctionne
+                                 │
+                                 ▼
+              Vous l'essayez sur votre téléphone
+                        (par TestFlight)
+                                 │
+                                 ▼
+                   Je la soumets pour publication
+                                 │
+                                 ▼
+                        Apple l'examine
+                                 │
+                                 ▼
+                      Je clique « Publier »
+                                 │
+                                 ▼
+             Chacun reçoit la mise à jour, à son rythme
+```
+>
+>
+> ### Le détail des étapes, et ce qu'elles coûtent en temps
+>
+> | # | Étape | Qui | Délai |
+> |---|---|---|---|
+> | 1 | Vous formulez la demande | Vous | — |
+> | 2 | Je développe | Moi | selon la demande |
+> | 3 | Je dépose sur **JAG** (site d'essai) | Moi | quelques minutes |
+> | 4 | **Vous testez sur JAG** | Vous | à votre rythme |
+> | 5 | Je passe en **production** sur `app.` | Moi | quelques minutes |
+> | 6 | Je fabrique l'enveloppe iPhone et l'envoie chez Apple | Moi | ~1 heure |
+> | 7 | Apple vérifie l'envoi (traitement automatique) | Apple | **10 à 30 min** |
+> | 8 | Vous l'essayez sur votre téléphone (TestFlight) | Vous | à votre rythme |
+> | 9 | Je soumets pour publication | Moi | quelques minutes |
+> | 10 | **Apple examine la version** | Apple | **24 à 48 h** en général |
+> | 11 | Je publie | Moi | immédiat |
+> | 12 | Votre téléphone télécharge la mise à jour | Votre téléphone | **de quelques heures à 
+> plusieurs jours** |
+>
+> **Total réaliste : une à deux semaines** entre votre demande et l'application à
+> jour sur le téléphone de tout le monde.
+>
+>
+> Les étapes 1 à 5 sont les nôtres : elles vont aussi vite qu'avant.
+>
+> Ce sont les étapes 6 à 12 qui coûtent — et sur les sept, quatre ne dépendent pas de nous :
+> - Je fabrique une version iPhone et je l'envoie chez Apple — environ 1 h
+> - Apple vérifie l'envoi — 10 à 30 min
+> - Vous l'essayez sur votre téléphone, via TestFlight
+> - Je la soumets pour publication
+> - Apple l'examine — 24 à 48 h, et il peut refuser.
+>     il l'a déjà fait deux fois pour notre application. Il faut alors comprendre le motif, 
+> corriger, et resoumettre : le délai repart à zéro.
+> - Je publie
+> - Votre téléphone télécharge la mise à jour — de quelques heures à plusieurs jours
+>
+>
+>
+> ## 3. **Nous ne maîtrisons plus la mise à jour**.
+> Une fois publiée, la nouvelle version ne s'installe pas d'elle-même chez tout le monde : 
+> chaque téléphone se met à jour selon ses réglages et sa connexion. Pendant plusieurs jours, 
+> nous n'aurons pas tous la même version sous les yeux — c'est normal, ne vous en inquiétez 
+> pas.
+>
+> ## 4. **L'argent (et le temps)** :
+>  Le compte développeur Apple coûte 99 $ par an, à renouveler pour que l'application reste 
+> disponible. Google demande 25 $ une seule fois. Quelques dizaines d'euros par an : sans 
+> commune mesure avec le temps.
+>
+> L'abonnement est la part facile. Un compte développeur Apple coûte 99 $ par an, à renouveler 
+> faute de quoi l'application disparaît de l'App Store. Google demande 25 $, une seule fois. 
+> Quelques dizaines d'euros par an : ce n'est pas là que le bât blesse.
+>
+> Le vrai coût, c'est le travail que cela m'ajoute — et il revient à chaque publication, 
+> indéfiniment.
+>
+>
+> Sur le site, mettre à jour tenait en une commande. Publier une version sur l'App Store 
+> demande, à chaque fois :
+>     - **fabriquer l'enveloppe iPhone** et vérifier qu'elle embarque la bonne version — 
+> l'erreur ne se voit pas avant d'être chez Apple ;
+>     - r**édiger les notes de version**, obligatoires, ainsi que les remarques destinées à 
+> l'examinateur ;
+>     - **suivre la soumission**, guetter la réponse d'Apple, et traiter un refus s'il arrive 
+> : comprendre le motif, corriger, resoumettre, réattendre ;
+>     - **distribuer aux testeurs**, avec ce qu'il faut regarder ;
+>     - **publier au bon moment**, la version approuvée restant invisible tant que je ne 
+> clique pas ;
+>     - **maintenir la fiche App Store** — captures d'écran, description, politique de 
+> confidentialité, conformité — que je dois reprendre à chaque changement d'écran un peu 
+> visible.
+>
+> À quoi s'ajoute ce qui ne se voit jamais : suivre les règles d'Apple, qui changent sans 
+> prévenir, et refaire les enveloppes quand une nouvelle version d'iOS l'exige, même si notre 
+> application, elle, n'a pas bougé.
+>
+> Comptez **une demi-journée de travail par publication**, sans compter les refus. C'est 
+> autant de temps qui ne va pas à développer ce que vous demandez.
+>
+> C'est **la raison de fond du ralentissement**. Ce n'est pas seulement qu'Apple prend 24 à 48 
+> heures : c'est qu'une publication coûte assez cher en travail pour qu'on ne puisse plus en 
+> faire une par jour.
+> **Il faudra grouper les modifications** et publier par lots, là où chaque correction partait 
+> seule.
+>
+>
+> Ce qui ne change pas : l**e site reste libre et immédiat**. En ouvrant 
+> app.backontrackstudio.be dans votre navigateur, vous avez toujours la dernière version, sans 
+> attendre Apple. En cas de correction urgente, c'est par là que ça arrivera en premier.
+>
+> Pour Android, rien n'est encore en place — l'application n'est pas sur le Play Store et je 
+> n'ai pas de date. Le prix sera de même nature, et cela fera deux magasins à satisfaire au 
+> lieu d'un.
+>
+> ## Suivi des modifs indispensable
+> Avec des délais pareils, on ne peut plus se contenter de se dire les choses en passant : on 
+> oublierait qui a demandé quoi, et où ça en est.
+> J'ai préparé un tableau de suivi sur Notion, puisque vous l'utilisez déjà.
+> Cela permet de voir à tout moment où chacune en est.
+>
+> C'est une proposition : si quelque chose ne va pas dans la façon dont je l'ai pensé, 
+> dites-le, on l'ajustera.
+>
+> À bientôt,
+> Christian
