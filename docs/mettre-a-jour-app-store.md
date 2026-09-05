@@ -212,37 +212,51 @@ automatique** coché, pour que les builds suivants leur parviennent seuls.
 onglet *Builds* → **+** → choisir le build (déjà présent si la distribution
 automatique est active).
 
-### Groupe externe — bloqué, et pourquoi
+### Groupe externe — débloqué depuis le 2026-09-05
 
 Jusqu'à 10 000 testeurs, invitation par **lien public** à partager librement —
-sans que personne ait besoin d'un compte App Store Connect. C'est ce qu'il
-faudrait pour les coachs.
+sans que personne ait besoin d'un compte App Store Connect, ni que nous
+connaissions l'adresse de son compte Apple. C'est la bonne voie pour les
+coachs, et elle est désormais ouverte.
 
-**Indisponible au 2026-09-04.** La section « Tests externes » n'apparaît même
-pas dans la colonne de gauche : Apple la masque au lieu de l'expliquer.
+**Ce qui l'avait bloquée quatre jours durant** : la vérification **DSA**
+(*Digital Services Act*), qu'Apple exige avant d'autoriser une distribution
+large dans l'UE. Déposée le 2026-09-01, elle est restée « En cours de
+vérification » jusqu'au 2026-09-05, date à laquelle elle est passée à
+**Active** — *Business → Contrats*, section *Conformité*.
 
-La cause est dans **Business → Contrats**, section *Conformité* :
+Tant qu'elle était en cours, la section « Tests externes » **n'apparaissait pas
+du tout** dans la colonne de gauche de TestFlight. Apple la masque au lieu de
+l'expliquer : rien ne disait qu'il fallait attendre, ni quoi.
 
-> La législation sur les services numériques — 27 pays ou régions —
-> **En cours de vérification**
+> **La leçon, si le cas se reproduit** : une fonction absente d'App Store
+> Connect n'est pas forcément indisponible — elle peut être masquée par une
+> vérification en cours. Regarder *Business → Contrats* avant de chercher
+> ailleurs.
 
-C'est le **Digital Services Act** européen. Apple vérifie les coordonnées du
-développeur avant d'autoriser une distribution large dans l'UE. Déclaration
-déposée le 2026-09-01, vérification en cours depuis.
-
-**Rien à corriger** : il faut attendre qu'Apple la valide (quelques jours à
-deux semaines). Un courriel arrive alors, et l'état passe à *Vérifié*.
-
-> **À surveiller** : Apple demande parfois une pièce justificative ou une
-> confirmation par téléphone. Un message non traité laisse la vérification en
-> suspens **indéfiniment** — vérifier les courriels d'Apple si l'état n'évolue
-> pas.
-
-Ce qui n'est **pas** en cause, vérifié le 2026-09-04 : les contrats (le
+Ce qui n'était **pas** en cause, tout vérifié le 2026-09-04 : les contrats (le
 *Contrat relatif aux applications gratuites* est actif jusqu'au 2027-08-29),
 le rôle du compte (Titulaire + Admin), et les informations de test (complètes).
 
+**La marche à suivre, une fois le groupe externe créé :**
+
+1. **Ajouter des builds** → choisir le build voulu.
+2. Remplir les **Éléments à tester** — le champ est obligatoire, et c'est lui
+   que le coach lira dans TestFlight. Y dire ce qui a changé et ce qu'on veut
+   voir éprouvé, pas « corrections diverses ».
+3. **Soumettre pour vérification.** Apple examine le premier build distribué en
+   externe (24 à 48 h en pratique). Les suivants passent sans nouvel examen.
+4. **Inviter des testeurs** → activer le **lien public**, à envoyer aux coachs.
+
+> La case *« Notifier automatiquement les testeurs »* est cochée par défaut :
+> à l'approbation, l'invitation part toute seule. En tenir compte avant de
+> soumettre — voir « Le réflexe avant d'inviter » ci-dessous.
+
 ### Ce que le testeur fait de son côté
+
+> **À leur transmettre** : `docs/coachs-tester-testflight.md` dit tout cela du
+> point de vue du coach — installation, ce qu'il faut regarder, comment
+> signaler un problème. Ce qui suit en est le résumé technique.
 
 1. Installer l'app **TestFlight** depuis l'App Store (gratuite, éditée par Apple)
 2. Ouvrir l'invitation **sur son iPhone** → *View in TestFlight*

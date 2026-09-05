@@ -12,6 +12,14 @@ La version la plus récente est en haut. Le détail technique, lui, vit dans
 
 ---
 
+## v3.142.0 — 5 septembre 2026
+
+Rien de visible à l'écran : trois documents s'ajoutent — le guide qui explique
+aux coachs comment tester une version avant les membres, la distinction entre
+JAG et l'application de test, et le dispositif de suivi des demandes.
+
+---
+
 ## v3.141.0 — 5 septembre 2026
 
 **Le rappel des présences est actif.** Un cours dont les présences n'ont pas été

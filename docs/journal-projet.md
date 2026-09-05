@@ -204,6 +204,79 @@ ce qui a permis d'attraper la sixième avant qu'elle ne se produise.
 
 ---
 
+### Fin de journée — TestFlight externe débloqué, les coachs sont invités
+
+**La vérification DSA est passée.** *Business → Contrats*, section
+*Conformité* : « La législation sur les services numériques — 27 pays ou
+régions — **Active** ». Elle était « En cours de vérification » depuis le
+2026-09-01. C'est elle qui masquait la section « Tests externes » de
+TestFlight — Apple ne l'annonce pas, la section apparaît simplement.
+
+> **La leçon** : une fonction absente d'App Store Connect n'est pas forcément
+> indisponible. Elle peut être masquée par une vérification en cours. Regarder
+> *Business → Contrats* avant de chercher ailleurs.
+
+**Le groupe externe « Vérificateurs » est créé**, avec les trois coachs
+(Gauthier, Anselme, Joan) et le build 8. Le lien public est généré :
+`testflight.apple.com/join/6bztv1F1`. Avec ce lien, **l'adresse du compte Apple
+de chacun n'est plus nécessaire** — c'était le blocage des quatre derniers
+jours, il tombe.
+
+**Le build 8 est en examen depuis aujourd'hui**, pas depuis son chargement.
+Distinction qui a prêté à confusion : la page du build affiche « Date de
+chargement : 4 sept. 14 h 22 » et « État du binaire : Validé », mais aucun des
+deux ne dit que l'examen a commencé. Un build chargé dort dans le compte tant
+qu'on ne le soumet pas ; « Validé » ne désigne que le contrôle technique
+automatique à la réception. L'examen TestFlight externe n'a démarré qu'au clic
+sur « Soumettre pour vérification », le 2026-09-05. Compter 24 à 48 h, une
+seule fois — les builds suivants passeront sans nouvel examen.
+
+**Les « Éléments à tester »** sont rédigés : cinq points dans l'ordre de ce que
+le build apporte, plus ce qui est normal et comment signaler un problème.
+
+### Le mode de paiement, deux réglages qui se contredisent
+
+En rédigeant le guide des coachs, une erreur a failli partir : « aucun paiement
+n'est prélevé pendant les tests ». **C'est faux.** En base :
+
+| Réglage | Valeur | Utilisé par |
+|---|---|---|
+| `stripe_mode` | **`live`** | `create-checkout-session`, l'écran d'administration |
+| `payment_provider` | `mode: test` | **rien** — sauf l'affichage du diagnostic |
+
+C'est `stripe_mode` qui décide, et il vaut `live`. Un pack acheté depuis
+TestFlight **débite réellement la carte**. Le guide dit maintenant l'inverse de
+ce qui avait été écrit, et renvoie vers JAG pour éprouver un achat.
+
+`payment_provider` est à nettoyer : il n'est lu nulle part et affiche une
+information fausse au diagnostic.
+
+### Documentation
+
+- **`docs/coachs-tester-testflight.md`** — comment installer TestFlight, ce
+  qu'il faut regarder, comment signaler. En tête, la distinction **JAG /
+  TestFlight** : sur JAG les données sont fausses et on peut tout casser ; sur
+  TestFlight ce sont les vrais membres et les vrais paiements. Le repère est le
+  **bandeau orange** — présent sur JAG, absent en production.
+- **`docs/suivi-demandes-notion.md`** — le dispositif de suivi des demandes des
+  coachs. Notion retenu contre GitHub sur un seul argument, décisif : **les
+  coachs s'en servent déjà**, et un outil qu'il faut apprendre ne filtre rien.
+  Le consensus repose sur une propriété `Appuyé par` où le coach s'ajoute
+  lui-même ; deux noms = la demande avance. Notion ne l'imposera pas — c'est
+  une discipline visible, pas un verrou. Le verrou demanderait de développer
+  cela dans l'application, ce que Christian voulait éviter.
+- **`docs/mettre-a-jour-app-store.md`** — la section « Groupe externe » ne dit
+  plus « bloqué » : elle décrit l'état réel et la marche à suivre en quatre
+  étapes.
+
+**Connecteur MCP Notion ajouté** (`https://mcp.notion.com/mcp`, OAuth), au
+niveau global. **Non authentifié à la clôture** : les serveurs MCP se chargent
+au démarrage de la session, celle-ci ne le voyait donc pas. À faire au
+redémarrage : `/mcp` → notion → *Authenticate*, en ne donnant accès qu'à la
+page du projet.
+
+---
+
 ## Session du 2026-09-04 — l'application est en vente
 
 ### Ce qui a été fait
